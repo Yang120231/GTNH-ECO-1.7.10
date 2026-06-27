@@ -5,6 +5,10 @@ import net.minecraft.block.BlockCompressed;
 import net.minecraft.block.material.MapColor;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.block.BlockEcoDrive;
+import cn.dancingsnow.neoecoae.block.BlockModernModel;
+import cn.dancingsnow.neoecoae.block.ItemBlockEcoDrive;
+import cn.dancingsnow.neoecoae.block.ItemBlockModernModel;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public final class NEBlocks {
@@ -28,18 +32,15 @@ public final class NEBlocks {
         6.0F,
         12.0F,
         3);
-    public static final Block aluminumAlloyCasing = storageBlock(
+    public static final Block aluminumAlloyCasing = modelBlock(
         "aluminum_alloy_casing",
-        MapColor.ironColor,
-        5.0F,
-        10.0F,
-        2);
-    public static final Block blackTungstenAlloyCasing = storageBlock(
+        "aluminum_alloy_casing",
+        new String[] { NeoECOAE.MODID + ":block/aluminum_alloy_casing" });
+    public static final Block blackTungstenAlloyCasing = modelBlock(
         "black_tungsten_alloy_casing",
-        MapColor.ironColor,
-        6.0F,
-        12.0F,
-        3);
+        "black_tungsten_alloy_casing",
+        new String[] { NeoECOAE.MODID + ":block/black_tungsten_alloy_casing" });
+    public static final Block ecoDrive = new BlockEcoDrive();
 
     private NEBlocks() {}
 
@@ -52,8 +53,9 @@ public final class NEBlocks {
         register(tungstenBlock, "tungsten_block");
         register(aluminumAlloyBlock, "aluminum_alloy_block");
         register(blackTungstenAlloyBlock, "black_tungsten_alloy_block");
-        register(aluminumAlloyCasing, "aluminum_alloy_casing");
-        register(blackTungstenAlloyCasing, "black_tungsten_alloy_casing");
+        GameRegistry.registerBlock(aluminumAlloyCasing, ItemBlockModernModel.class, "aluminum_alloy_casing");
+        GameRegistry.registerBlock(blackTungstenAlloyCasing, ItemBlockModernModel.class, "black_tungsten_alloy_casing");
+        GameRegistry.registerBlock(ecoDrive, ItemBlockEcoDrive.class, "eco_drive");
     }
 
     private static Block ore(String id, net.minecraft.item.Item droppedItem, float hardness, float resistance,
@@ -77,6 +79,10 @@ public final class NEBlocks {
             .setStepSound(Block.soundTypeMetal);
         block.setHarvestLevel("pickaxe", harvestLevel);
         return block;
+    }
+
+    private static Block modelBlock(String id, String modelName, String[] textures) {
+        return new BlockModernModel(id, modelName, textures);
     }
 
     private static void register(Block block, String id) {

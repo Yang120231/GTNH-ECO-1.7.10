@@ -9,6 +9,7 @@ Use these files as the quick project map when migrating code from the 1.21.1 ups
 - [environment.md](environment.md): GTNH development environment, dependency policy, and useful Gradle commands.
 - [migration-map.md](migration-map.md): High-level mapping from modern NeoForge concepts to Forge 1.7.10 / GTNH equivalents.
 - [items.md](items.md): Item migration status and resource path notes.
+- [rendering-model-pipeline.md](rendering-model-pipeline.md): Lightweight modern JSON model rendering pipeline for Forge 1.7.10 blocks and items.
 
 ## Upstream Reference
 

@@ -35,6 +35,7 @@ tile.aluminum_block.name=Aluminum Block
 tile.aluminum_ore.name=Aluminum Ore
 tile.black_tungsten_alloy_block.name=Black Tungsten Alloy Block
 tile.black_tungsten_alloy_casing.name=Black Tungsten Alloy Casing
+tile.eco_drive.name=ECO - LD Storage Matrix Drive
 tile.raw_aluminum_block.name=Raw Aluminum Block
 tile.raw_tungsten_block.name=Raw Tungsten Block
 tile.tungsten_block.name=Tungsten Block
