@@ -1,0 +1,21 @@
+{
+	"modListVersion": 2,
+	"modList": [{
+		"modid": "${modId}",
+		"name": "${modName}",
+		"description": "Neo ECO AE Extension is an addon for Applied Energistics 2, providing higher-performance components for GT New Horizons.",
+		"version": "${modVersion}",
+		"mcversion": "${minecraftVersion}",
+		"url": "https://github.com/DancingSnow0517/NeoECOAEExtension",
+		"updateUrl": "",
+		"authorList": ["DancingSnow0517", "ZhuRuoLing", "Yang120231"],
+		"credits": "Upstream Neo ECO AE Extension by DancingSnow0517; GTNH 1.7.10 port by Yang120231.",
+		"logoFile": "",
+		"screenshots": [],
+		"parent": "",
+		"requiredMods": [],
+		"dependencies": [],
+		"dependants": [],
+		"useDependencyInformation": false
+	}]
+}
