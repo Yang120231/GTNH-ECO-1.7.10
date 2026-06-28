@@ -7,6 +7,7 @@ import net.minecraft.world.IBlockAccess;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
+import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
 import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 
 public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
@@ -31,6 +32,9 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
         RenderBlocks renderer) {
         if (!(block instanceof BlockModelDrive)) {
             return false;
+        }
+        if (ECOFormationVisibility.isHidden(world, x, y, z)) {
+            return true;
         }
 
         BlockModelDrive drive = (BlockModelDrive) block;

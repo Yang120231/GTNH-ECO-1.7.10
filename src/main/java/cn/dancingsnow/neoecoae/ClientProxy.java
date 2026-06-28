@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae;
 
 import cn.dancingsnow.neoecoae.all.NEBlocks;
+import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.render.DriveModels;
@@ -29,6 +30,11 @@ public class ClientProxy extends CommonProxy {
         BlockModernModel.setRenderId(modernBlockRenderId);
         for (BlockModernModel block : NEBlocks.getModernModelBlocks()) {
             ModernBlockModels.load(block.getModelName());
+            if (block instanceof BlockECOController) {
+                BlockECOController controller = (BlockECOController) block;
+                ModernBlockModels.load(controller.getFormedModelName());
+                ModernBlockModels.load(controller.getMirroredFormedModelName());
+            }
         }
         RenderingRegistry.registerBlockHandler(new ModernBlockRenderHandler(modernBlockRenderId));
     }

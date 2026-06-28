@@ -38,6 +38,37 @@ public final class ModernModelLoader {
 
         readTextures(json, model);
         readElements(json, model);
+        readChildren(json, model, depth);
+        return model;
+    }
+
+    private static void readChildren(JsonObject json, ModernModel model, int depth) {
+        if (!json.has("children")) {
+            return;
+        }
+
+        model.getElements()
+            .clear();
+        JsonObject children = json.getAsJsonObject("children");
+        for (Entry<String, JsonElement> entry : children.entrySet()) {
+            ModernModel childModel = loadInlineModel(
+                entry.getValue()
+                    .getAsJsonObject(),
+                depth + 1);
+            model.appendResolvedElementsFrom(childModel);
+        }
+    }
+
+    private static ModernModel loadInlineModel(JsonObject json, int depth) {
+        if (depth > 4) {
+            throw new IllegalStateException("Inline model parent chain is too deep");
+        }
+
+        ModernModel parentModel = loadParent(json, depth);
+        ModernModel model = parentModel != null ? parentModel.copy() : new ModernModel();
+        readTextures(json, model);
+        readElements(json, model);
+        readChildren(json, model, depth);
         return model;
     }
 
@@ -138,7 +169,9 @@ public final class ModernModelLoader {
 
             ModelElement element = new ModelElement(
                 readVector(elementJson.getAsJsonArray("from")),
-                readVector(elementJson.getAsJsonArray("to")));
+                readVector(elementJson.getAsJsonArray("to")),
+                !elementJson.has("shade") || elementJson.get("shade")
+                    .getAsBoolean());
             readFaces(elementJson.getAsJsonObject("faces"), element);
             model.getElements()
                 .add(element);
@@ -169,6 +202,7 @@ public final class ModernModelLoader {
                 .getAsString() : null;
             int rotation = faceJson.has("rotation") ? faceJson.get("rotation")
                 .getAsInt() : 0;
+            boolean fullBright = isFullBright(faceJson);
             element.addFace(
                 new ModelFace(
                     side,
@@ -183,8 +217,22 @@ public final class ModernModelLoader {
                         .getAsDouble(),
                     uv.get(3)
                         .getAsDouble(),
-                    rotation));
+                    rotation,
+                    fullBright));
         }
+    }
+
+    private static boolean isFullBright(JsonObject faceJson) {
+        if (!faceJson.has("neoforge_data")) {
+            return false;
+        }
+
+        JsonObject data = faceJson.getAsJsonObject("neoforge_data");
+        int blockLight = data.has("block_light") ? data.get("block_light")
+            .getAsInt() : 0;
+        int skyLight = data.has("sky_light") ? data.get("sky_light")
+            .getAsInt() : 0;
+        return blockLight >= 15 || skyLight >= 15;
     }
 
     private static double[] readVector(JsonArray array) {

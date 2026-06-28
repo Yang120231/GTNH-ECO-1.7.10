@@ -8,6 +8,7 @@ import net.minecraft.item.ItemSword;
 import net.minecraftforge.common.util.EnumHelper;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.item.ItemDebugStick;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public final class NEItems {
@@ -31,6 +32,7 @@ public final class NEItems {
     public static final Item aluminumAlloyDust = simpleItem("aluminum_alloy_dust");
     public static final Item blackTungstenAlloyIngot = simpleItem("black_tungsten_alloy_ingot");
     public static final Item blackTungstenAlloyDust = simpleItem("black_tungsten_alloy_dust");
+    public static final Item debug = new ItemDebugStick();
 
     public static final Item aluminumAxe = axe("aluminum_axe", aluminumToolMaterial);
     public static final Item aluminumHoe = hoe("aluminum_hoe", aluminumToolMaterial);
@@ -74,6 +76,7 @@ public final class NEItems {
         register(aluminumAlloyDust, "aluminum_alloy_dust");
         register(blackTungstenAlloyIngot, "black_tungsten_alloy_ingot");
         register(blackTungstenAlloyDust, "black_tungsten_alloy_dust");
+        register(debug, "debug");
 
         register(aluminumAxe, "aluminum_axe");
         register(aluminumHoe, "aluminum_hoe");

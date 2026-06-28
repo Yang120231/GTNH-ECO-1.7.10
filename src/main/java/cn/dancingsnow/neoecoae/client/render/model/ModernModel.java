@@ -17,11 +17,45 @@ public class ModernModel {
         return copy;
     }
 
+    public void appendResolvedElementsFrom(ModernModel model) {
+        for (ModelElement element : model.elements) {
+            ModelElement resolvedElement = new ModelElement(element.getFrom(), element.getTo(), element.isShade());
+            for (ModelFace face : element.getFaces()
+                .values()) {
+                resolvedElement.addFace(
+                    new ModelFace(
+                        face.getSide(),
+                        resolveTexture(model, face.getTexture()),
+                        face.getCullFace(),
+                        face.getMinU(),
+                        face.getMinV(),
+                        face.getMaxU(),
+                        face.getMaxV(),
+                        face.getRotation(),
+                        face.isFullBright()));
+            }
+            this.elements.add(resolvedElement);
+        }
+    }
+
     public Map<String, String> getTextures() {
         return this.textures;
     }
 
     public List<ModelElement> getElements() {
         return this.elements;
+    }
+
+    private static String resolveTexture(ModernModel model, String texture) {
+        String key = texture;
+        int safety = 0;
+        while (key.startsWith("#") && safety++ < 8) {
+            String resolved = model.textures.get(key.substring(1));
+            if (resolved == null) {
+                return key;
+            }
+            key = resolved;
+        }
+        return key;
     }
 }

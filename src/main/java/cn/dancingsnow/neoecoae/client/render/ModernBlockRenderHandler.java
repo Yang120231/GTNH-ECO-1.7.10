@@ -2,10 +2,14 @@ package cn.dancingsnow.neoecoae.client.render;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.renderer.RenderBlocks;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.IBlockAccess;
 
+import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
+import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
+import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 
 public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
@@ -33,10 +37,13 @@ public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
         if (!(block instanceof BlockModernModel)) {
             return false;
         }
+        if (ECOFormationVisibility.isHidden(world, x, y, z)) {
+            return true;
+        }
 
         BlockModernModel modelBlock = (BlockModernModel) block;
         EcoModelRenderer.renderWorld(
-            ModernBlockModels.get(modelBlock.getModelName()),
+            ModernBlockModels.get(getWorldModelName(modelBlock, world, x, y, z)),
             modelBlock.getModelFacing(world.getBlockMetadata(x, y, z)),
             modelBlock.getModelIcons(),
             world,
@@ -46,6 +53,24 @@ public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
             block,
             renderer);
         return true;
+    }
+
+    private static String getWorldModelName(BlockModernModel block, IBlockAccess world, int x, int y, int z) {
+        if (!(block instanceof BlockECOController)) {
+            return block.getModelName();
+        }
+
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileECOController && ((TileECOController) tile).isFormed()) {
+            TileECOController controller = (TileECOController) tile;
+            BlockECOController controllerBlock = (BlockECOController) block;
+            String formedModelName = controller.isMirrored() ? controllerBlock.getMirroredFormedModelName()
+                : controllerBlock.getFormedModelName();
+            if (formedModelName != null) {
+                return formedModelName;
+            }
+        }
+        return block.getModelName();
     }
 
     @Override

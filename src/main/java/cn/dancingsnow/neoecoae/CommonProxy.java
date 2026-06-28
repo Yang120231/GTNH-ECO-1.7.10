@@ -4,6 +4,7 @@ import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.all.NEItems;
 import cn.dancingsnow.neoecoae.all.NEOreDictionary;
 import cn.dancingsnow.neoecoae.all.NERecipes;
+import cn.dancingsnow.neoecoae.all.NETileEntities;
 import cn.dancingsnow.neoecoae.world.NEOreWorldGenerator;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -18,6 +19,7 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
         NEBlocks.register();
+        NETileEntities.register();
         NEItems.register();
         NEOreDictionary.register();
         GameRegistry.registerWorldGenerator(NEOreWorldGenerator.INSTANCE, 0);

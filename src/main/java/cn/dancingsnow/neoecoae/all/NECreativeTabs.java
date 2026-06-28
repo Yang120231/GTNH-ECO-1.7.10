@@ -80,6 +80,9 @@ public final class NECreativeTabs {
         if (isTool(name)) {
             return 5;
         }
+        if ("debug".equals(name)) {
+            return 8;
+        }
         return 9;
     }
 
@@ -120,6 +123,9 @@ public final class NECreativeTabs {
         if (name.endsWith("_interface")) {
             return 310;
         }
+        if (name.startsWith("energy_cell_")) {
+            return 315;
+        }
         if (name.endsWith("_drive")) {
             return 320;
         }
@@ -134,6 +140,12 @@ public final class NECreativeTabs {
         }
         if (name.endsWith("_worker")) {
             return 360;
+        }
+        if (name.contains("_parallel_core_")) {
+            return 370;
+        }
+        if (name.contains("_threading_core_")) {
+            return 380;
         }
         if (name.startsWith("raw_")) {
             return 400;

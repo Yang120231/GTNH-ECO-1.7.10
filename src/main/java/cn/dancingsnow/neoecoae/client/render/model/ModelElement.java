@@ -10,10 +10,16 @@ public class ModelElement {
     private final double[] from;
     private final double[] to;
     private final Map<ForgeDirection, ModelFace> faces = new EnumMap<ForgeDirection, ModelFace>(ForgeDirection.class);
+    private final boolean shade;
 
     public ModelElement(double[] from, double[] to) {
+        this(from, to, true);
+    }
+
+    public ModelElement(double[] from, double[] to, boolean shade) {
         this.from = from;
         this.to = to;
+        this.shade = shade;
     }
 
     public double[] getFrom() {
@@ -30,5 +36,9 @@ public class ModelElement {
 
     public Map<ForgeDirection, ModelFace> getFaces() {
         return this.faces;
+    }
+
+    public boolean isShade() {
+        return this.shade;
     }
 }

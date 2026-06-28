@@ -45,6 +45,8 @@ public class BlockModelDrive extends Block {
         this.setResistance(10.0F);
         this.setStepSound(Block.soundTypeMetal);
         this.setHarvestLevel("pickaxe", 2);
+        this.setLightOpacity(255);
+        this.useNeighborBrightness = true;
     }
 
     public static void setRenderId(int renderId) {
@@ -76,6 +78,18 @@ public class BlockModelDrive extends Block {
     @Override
     public boolean isOpaqueCube() {
         return false;
+    }
+
+    @Override
+    public void onBlockAdded(World world, int x, int y, int z) {
+        super.onBlockAdded(world, x, y, z);
+        ModelLightingHelper.updateNeighborLighting(world, x, y, z);
+    }
+
+    @Override
+    public void breakBlock(World world, int x, int y, int z, Block block, int meta) {
+        super.breakBlock(world, x, y, z, block, meta);
+        ModelLightingHelper.updateNeighborLighting(world, x, y, z);
     }
 
     @Override
