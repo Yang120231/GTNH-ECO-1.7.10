@@ -145,24 +145,15 @@ public final class NEBlocks {
     public static final Block computationCoolingControllerL4 = computationCoolingController("l4", "controller_east_a");
     public static final Block computationCoolingControllerL6 = computationCoolingController("l6", "controller_east_b");
     public static final Block computationCoolingControllerL9 = computationCoolingController("l9", "controller_east_c");
-    public static final Block computationControllerL4 = computationController("l4", "controller_side_layer_a");
-    public static final Block computationControllerL6 = computationController("l6", "controller_side_layer_b");
-    public static final Block computationControllerL9 = computationController("l9", "controller_side_layer_c");
-    public static final Block storageControllerL4 = storageController("l4", "controller_north_a", "controller_side_a");
-    public static final Block storageControllerL6 = storageController("l6", "controller_north_b", "controller_side_b");
-    public static final Block storageControllerL9 = storageController("l9", "controller_north_c", "controller_side_c");
-    public static final Block craftingControllerL4 = craftingController(
-        "l4",
-        "controller_north_a",
-        "controller_side_a");
-    public static final Block craftingControllerL6 = craftingController(
-        "l6",
-        "controller_north_b",
-        "controller_side_b");
-    public static final Block craftingControllerL9 = craftingController(
-        "l9",
-        "controller_north_c",
-        "controller_side_c");
+    public static final Block computationSystemL4 = computationSystem("l4", "controller_side_layer_a");
+    public static final Block computationSystemL6 = computationSystem("l6", "controller_side_layer_b");
+    public static final Block computationSystemL9 = computationSystem("l9", "controller_side_layer_c");
+    public static final Block storageSystemL4 = storageSystem("l4", "controller_north_a", "controller_side_a");
+    public static final Block storageSystemL6 = storageSystem("l6", "controller_north_b", "controller_side_b");
+    public static final Block storageSystemL9 = storageSystem("l9", "controller_north_c", "controller_side_c");
+    public static final Block craftingSystemL4 = craftingSystem("l4", "controller_north_a", "controller_side_a");
+    public static final Block craftingSystemL6 = craftingSystem("l6", "controller_north_b", "controller_side_b");
+    public static final Block craftingSystemL9 = craftingSystem("l9", "controller_north_c", "controller_side_c");
 
     private NEBlocks() {}
 
@@ -211,15 +202,15 @@ public final class NEBlocks {
             computationCoolingControllerL9,
             ItemBlockModernModel.class,
             "computation_cooling_controller_l9");
-        GameRegistry.registerBlock(computationControllerL4, ItemBlockModernModel.class, "computation_controller_l4");
-        GameRegistry.registerBlock(computationControllerL6, ItemBlockModernModel.class, "computation_controller_l6");
-        GameRegistry.registerBlock(computationControllerL9, ItemBlockModernModel.class, "computation_controller_l9");
-        GameRegistry.registerBlock(storageControllerL4, ItemBlockModernModel.class, "storage_controller_l4");
-        GameRegistry.registerBlock(storageControllerL6, ItemBlockModernModel.class, "storage_controller_l6");
-        GameRegistry.registerBlock(storageControllerL9, ItemBlockModernModel.class, "storage_controller_l9");
-        GameRegistry.registerBlock(craftingControllerL4, ItemBlockModernModel.class, "crafting_controller_l4");
-        GameRegistry.registerBlock(craftingControllerL6, ItemBlockModernModel.class, "crafting_controller_l6");
-        GameRegistry.registerBlock(craftingControllerL9, ItemBlockModernModel.class, "crafting_controller_l9");
+        GameRegistry.registerBlock(computationSystemL4, ItemBlockModernModel.class, "computation_system_l4");
+        GameRegistry.registerBlock(computationSystemL6, ItemBlockModernModel.class, "computation_system_l6");
+        GameRegistry.registerBlock(computationSystemL9, ItemBlockModernModel.class, "computation_system_l9");
+        GameRegistry.registerBlock(storageSystemL4, ItemBlockModernModel.class, "storage_system_l4");
+        GameRegistry.registerBlock(storageSystemL6, ItemBlockModernModel.class, "storage_system_l6");
+        GameRegistry.registerBlock(storageSystemL9, ItemBlockModernModel.class, "storage_system_l9");
+        GameRegistry.registerBlock(craftingSystemL4, ItemBlockModernModel.class, "crafting_system_l4");
+        GameRegistry.registerBlock(craftingSystemL6, ItemBlockModernModel.class, "crafting_system_l6");
+        GameRegistry.registerBlock(craftingSystemL9, ItemBlockModernModel.class, "crafting_system_l9");
     }
 
     private static Block ore(String id, net.minecraft.item.Item droppedItem, float hardness, float resistance,
@@ -281,9 +272,9 @@ public final class NEBlocks {
             ModelFacing.WEST);
     }
 
-    private static Block computationController(String tier, String levelTexture) {
+    private static Block computationSystem(String tier, String levelTexture) {
         return directionalModelBlock(
-            "computation_controller_" + tier,
+            "computation_system_" + tier,
             "computation_controller/controller_" + tier + "_off",
             new String[] { NeoECOAE.MODID + ":block/compute/casing",
                 NeoECOAE.MODID + ":block/compute/controller/controller_north",
@@ -294,9 +285,9 @@ public final class NEBlocks {
                 NeoECOAE.MODID + ":block/compute/controller/" + levelTexture });
     }
 
-    private static Block storageController(String tier, String northTexture, String sideTexture) {
+    private static Block storageSystem(String tier, String northTexture, String sideTexture) {
         return directionalModelBlock(
-            "storage_controller_" + tier,
+            "storage_system_" + tier,
             "storage_controller/controller_" + tier + "_off",
             new String[] { NeoECOAE.MODID + ":block/storage/controller/" + sideTexture,
                 NeoECOAE.MODID + ":block/storage/controller/" + northTexture,
@@ -304,9 +295,9 @@ public final class NEBlocks {
                 NeoECOAE.MODID + ":block/storage/controller/screen_off" });
     }
 
-    private static Block craftingController(String tier, String northTexture, String sideTexture) {
+    private static Block craftingSystem(String tier, String northTexture, String sideTexture) {
         return directionalModelBlock(
-            "crafting_controller_" + tier,
+            "crafting_system_" + tier,
             "crafting_controller/controller_" + tier + "_off",
             new String[] { NeoECOAE.MODID + ":block/crafting/controller/" + sideTexture,
                 NeoECOAE.MODID + ":block/crafting/controller/" + northTexture,

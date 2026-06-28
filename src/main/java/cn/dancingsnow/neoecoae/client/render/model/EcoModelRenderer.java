@@ -35,8 +35,7 @@ public final class EcoModelRenderer {
             }
 
             ForgeDirection normal = quad.getNormal();
-            int brightness = block
-                .getMixedBrightnessForBlock(world, x + normal.offsetX, y + normal.offsetY, z + normal.offsetZ);
+            int brightness = block.getMixedBrightnessForBlock(world, x, y, z);
             float shade = getWorldShade(quad.getNormal());
             tessellator.setBrightness(brightness);
             tessellator.setColorOpaque_F(shade, shade, shade);

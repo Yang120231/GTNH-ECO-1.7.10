@@ -13,7 +13,7 @@
 当前已经接入两类用法：
 
 - `eco_drive`、`computation_drive`：有朝向、有 empty/full 两份模型，后续可以接 TileEntity 状态。
-- `aluminum_alloy_casing`、`black_tungsten_alloy_casing`、`storage_vent`、`storage_interface`、`storage_controller_l4/l6/l9`、`crafting_vent`、`crafting_pattern_bus`、`crafting_worker`、`crafting_interface`、`crafting_controller_l4/l6/l9`、`computation_interface`、`computation_transmitter`、`computation_cooling_controller_l4/l6/l9`、`computation_controller_l4/l6/l9`：普通静态现代模型方块。
+- `aluminum_alloy_casing`、`black_tungsten_alloy_casing`、`storage_vent`、`storage_interface`、`storage_system_l4/l6/l9`、`crafting_vent`、`crafting_pattern_bus`、`crafting_worker`、`crafting_interface`、`crafting_system_l4/l6/l9`、`computation_interface`、`computation_transmitter`、`computation_cooling_controller_l4/l6/l9`、`computation_system_l4/l6/l9`：普通静态现代模型方块。
 
 完整 cube 方块不进入这套管线，直接使用原版 `Block` / `RenderBlocks.renderStandardBlock`。当前 `storage_casing`、`computation_casing`、`crafting_casing`、`input_hatch`、`output_hatch` 已经回退到原版渲染。
 
@@ -207,9 +207,9 @@ neoecoae:block/storage/drive/drive_north
 - `computation_transmitter` 当前只迁移未成型静态模型，formed 状态和计算传输逻辑暂未接入。
 - `crafting_worker` 当前只迁移未成型静态模型，formed/working 状态暂未接入。
 - `computation_cooling_controller_l4/l6/l9` 当前只迁移未成型 off 静态模型，formed/mirrored 状态、玻璃额外模型和主动冷却逻辑暂未接入。
-- `computation_controller_l4/l6/l9` 当前只迁移未成型 off 静态模型，formed/mirrored 状态、屏幕动态层和计算集群控制逻辑暂未接入。
-- `storage_controller_l4/l6/l9` 当前只迁移未成型 off 静态模型，formed/mirrored 状态、屏幕动态层和存储集群控制逻辑暂未接入。
-- `crafting_controller_l4/l6/l9` 当前只迁移未成型 off 静态模型，formed/mirrored/auto 状态、屏幕动态层和合成控制逻辑暂未接入。
+- `computation_system_l4/l6/l9` 当前只迁移未成型 off 静态模型，使用 `computation_controller/controller_l*_off` 模型；formed/mirrored 状态、屏幕动态层和计算集群控制逻辑暂未接入。
+- `storage_system_l4/l6/l9` 当前只迁移未成型 off 静态模型，使用 `storage_controller/controller_l*_off` 模型；formed/mirrored 状态、屏幕动态层和存储集群控制逻辑暂未接入。
+- `crafting_system_l4/l6/l9` 当前只迁移未成型 off 静态模型，使用 `crafting_controller/controller_l*_off` 模型；formed/mirrored/auto 状态、屏幕动态层和合成控制逻辑暂未接入。
 - 没有实现透明/半透明 pass，需要额外接 Minecraft 1.7.10 的 render pass 逻辑。
 
 ## 快速排查表
