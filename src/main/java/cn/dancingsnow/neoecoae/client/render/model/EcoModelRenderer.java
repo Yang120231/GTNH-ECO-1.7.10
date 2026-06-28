@@ -12,7 +12,14 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import org.lwjgl.opengl.GL11;
 
+import cn.dancingsnow.neoecoae.block.BlockModelDrive;
+import cn.dancingsnow.neoecoae.block.BlockModernModel;
+import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
+
 public final class EcoModelRenderer {
+
+    private static final int FULL_BRIGHTNESS = 15728880;
+    private static final double LIGHT_SAMPLE_EPSILON = 0.01D;
 
     private EcoModelRenderer() {}
 
@@ -34,9 +41,9 @@ public final class EcoModelRenderer {
                 continue;
             }
 
-            ForgeDirection normal = quad.getNormal();
-            int brightness = block.getMixedBrightnessForBlock(world, x, y, z);
-            float shade = getWorldShade(quad.getNormal());
+            int brightness = quad.isFullBright() ? FULL_BRIGHTNESS
+                : getWorldBrightness(world, x, y, z, block, quad, facing);
+            float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : getWorldShade(quad.getNormal());
             tessellator.setBrightness(brightness);
             tessellator.setColorOpaque_F(shade, shade, shade);
             submitQuad(tessellator, quad, icon);
@@ -71,13 +78,15 @@ public final class EcoModelRenderer {
             return false;
         }
 
+        int neighborX = x + cullDirection.offsetX;
+        int neighborY = y + cullDirection.offsetY;
+        int neighborZ = z + cullDirection.offsetZ;
+        if (ECOFormationVisibility.isHidden(world, neighborX, neighborY, neighborZ)) {
+            return false;
+        }
+
         return !world.getBlock(x, y, z)
-            .shouldSideBeRendered(
-                world,
-                x + cullDirection.offsetX,
-                y + cullDirection.offsetY,
-                z + cullDirection.offsetZ,
-                cullDirection.ordinal());
+            .shouldSideBeRendered(world, neighborX, neighborY, neighborZ, cullDirection.ordinal());
     }
 
     private static float getWorldShade(ForgeDirection normal) {
@@ -85,12 +94,89 @@ public final class EcoModelRenderer {
             return 0.5F;
         }
         if (normal == ForgeDirection.UP) {
-            return 0.95F;
+            return 1.0F;
         }
         if (normal == ForgeDirection.NORTH || normal == ForgeDirection.SOUTH) {
-            return 0.7F;
+            return 0.8F;
         }
-        return 0.55F;
+        return 0.6F;
+    }
+
+    private static int getWorldBrightness(IBlockAccess world, int x, int y, int z, Block block, BakedQuad quad,
+        ModelFacing facing) {
+        ForgeDirection normal = quad.getNormal();
+        if (normal == ForgeDirection.UNKNOWN) {
+            return block.getMixedBrightnessForBlock(world, x, y, z);
+        }
+
+        if (!quad.isBoundaryFace()) {
+            return getInternalBrightness(world, x, y, z, block, facing.getDirection());
+        }
+
+        int sampleX = x + floor(sampleCoordinate(quad, 0) + normal.offsetX * LIGHT_SAMPLE_EPSILON);
+        int sampleY = y + floor(sampleCoordinate(quad, 1) + normal.offsetY * LIGHT_SAMPLE_EPSILON);
+        int sampleZ = z + floor(sampleCoordinate(quad, 2) + normal.offsetZ * LIGHT_SAMPLE_EPSILON);
+        return getVisualBrightness(world, x, y, z, sampleX, sampleY, sampleZ, block, normal);
+    }
+
+    private static int getInternalBrightness(IBlockAccess world, int x, int y, int z, Block block,
+        ForgeDirection openingDirection) {
+        int openingBrightness = getVisualBrightness(world, x, y, z, x, y, z, block, openingDirection);
+        if (openingBrightness != 0) {
+            return openingBrightness;
+        }
+
+        int upward = block.getMixedBrightnessForBlock(world, x, y + 1, z);
+        if (upward != 0) {
+            return upward;
+        }
+        return block.getMixedBrightnessForBlock(world, x, y, z);
+    }
+
+    private static int getVisualBrightness(IBlockAccess world, int x, int y, int z, int sampleX, int sampleY,
+        int sampleZ, Block block, ForgeDirection normal) {
+        if (isVisualSelfOrHidden(world, sampleX, sampleY, sampleZ)) {
+            int offsetX = sampleX + normal.offsetX;
+            int offsetY = sampleY + normal.offsetY;
+            int offsetZ = sampleZ + normal.offsetZ;
+            if (!isVisualSelfOrHidden(world, offsetX, offsetY, offsetZ)) {
+                return block.getMixedBrightnessForBlock(world, offsetX, offsetY, offsetZ);
+            }
+        }
+
+        int brightness = block.getMixedBrightnessForBlock(world, sampleX, sampleY, sampleZ);
+        if (brightness != 0) {
+            return brightness;
+        }
+
+        int upward = block.getMixedBrightnessForBlock(world, x, y + 1, z);
+        if (upward != 0) {
+            return upward;
+        }
+        return block.getMixedBrightnessForBlock(world, x, y, z);
+    }
+
+    private static boolean isVisualSelfOrHidden(IBlockAccess world, int x, int y, int z) {
+        if (ECOFormationVisibility.isHidden(world, x, y, z)) {
+            return true;
+        }
+
+        Block sampleBlock = world.getBlock(x, y, z);
+        return sampleBlock instanceof BlockModernModel || sampleBlock instanceof BlockModelDrive;
+    }
+
+    private static double sampleCoordinate(BakedQuad quad, int axis) {
+        double[][] vertices = quad.getVertices();
+        double total = 0.0D;
+        for (double[] vertex : vertices) {
+            total += vertex[axis];
+        }
+        return total / vertices.length;
+    }
+
+    private static int floor(double value) {
+        int floor = (int) value;
+        return value < floor ? floor - 1 : floor;
     }
 
     private static float getInventoryShade(ForgeDirection normal) {
@@ -117,7 +203,7 @@ public final class EcoModelRenderer {
 
             tessellator.startDrawingQuads();
             ForgeDirection normal = quad.getNormal();
-            float shade = getInventoryShade(normal);
+            float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : getInventoryShade(normal);
             tessellator.setNormal(normal.offsetX, normal.offsetY, normal.offsetZ);
             tessellator.setColorOpaque_F(shade, shade, shade);
             submitQuad(tessellator, quad, icon);

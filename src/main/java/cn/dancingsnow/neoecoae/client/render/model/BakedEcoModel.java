@@ -9,6 +9,8 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 public class BakedEcoModel {
 
+    private static final double BOUNDARY_EPSILON = 0.0001D;
+
     private final ModernModel source;
     private final Map<ModelFacing, List<BakedQuad>> quads = new EnumMap<ModelFacing, List<BakedQuad>>(
         ModelFacing.class);
@@ -30,16 +32,18 @@ public class BakedEcoModel {
 
     private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing) {
         List<BakedQuad> bakedQuads = new ArrayList<BakedQuad>();
+        ModelBounds bounds = calculateBounds(model, facing);
         for (ModelElement element : model.getElements()) {
             for (ModelFace face : element.getFaces()
                 .values()) {
-                bakedQuads.add(bakeFace(model, element, face, facing));
+                bakedQuads.add(bakeFace(model, element, face, facing, bounds));
             }
         }
         return bakedQuads;
     }
 
-    private static BakedQuad bakeFace(ModernModel model, ModelElement element, ModelFace face, ModelFacing facing) {
+    private static BakedQuad bakeFace(ModernModel model, ModelElement element, ModelFace face, ModelFacing facing,
+        ModelBounds bounds) {
         double[][] vertices = faceVertices(element, face.getSide());
         double[][] rotatedVertices = new double[4][3];
         for (int i = 0; i < vertices.length; i++) {
@@ -56,7 +60,78 @@ public class BakedEcoModel {
             cullDirection,
             normal,
             rotatedVertices,
-            rotateUv(uvVertices(face, face.getSide()), face.getRotation()));
+            rotateUv(uvVertices(face, face.getSide()), face.getRotation()),
+            face.isFullBright(),
+            element.isShade(),
+            isBoundaryFace(rotatedVertices, normal, bounds));
+    }
+
+    private static boolean isBoundaryFace(double[][] vertices, ForgeDirection normal, ModelBounds bounds) {
+        switch (normal) {
+            case DOWN:
+                return isPlaneAt(vertices, 1, bounds.minY);
+            case UP:
+                return isPlaneAt(vertices, 1, bounds.maxY);
+            case NORTH:
+                return isPlaneAt(vertices, 2, bounds.minZ);
+            case SOUTH:
+                return isPlaneAt(vertices, 2, bounds.maxZ);
+            case WEST:
+                return isPlaneAt(vertices, 0, bounds.minX);
+            case EAST:
+                return isPlaneAt(vertices, 0, bounds.maxX);
+            default:
+                return true;
+        }
+    }
+
+    private static boolean isPlaneAt(double[][] vertices, int axis, double boundary) {
+        for (double[] vertex : vertices) {
+            if (Math.abs(vertex[axis] - boundary) > BOUNDARY_EPSILON) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static ModelBounds calculateBounds(ModernModel model, ModelFacing facing) {
+        ModelBounds bounds = new ModelBounds();
+        for (ModelElement element : model.getElements()) {
+            double x1 = element.getFrom()[0] / 16.0D;
+            double y1 = element.getFrom()[1] / 16.0D;
+            double z1 = element.getFrom()[2] / 16.0D;
+            double x2 = element.getTo()[0] / 16.0D;
+            double y2 = element.getTo()[1] / 16.0D;
+            double z2 = element.getTo()[2] / 16.0D;
+            bounds.accept(rotateY(new double[] { x1, y1, z1 }, facing));
+            bounds.accept(rotateY(new double[] { x1, y1, z2 }, facing));
+            bounds.accept(rotateY(new double[] { x2, y1, z1 }, facing));
+            bounds.accept(rotateY(new double[] { x2, y1, z2 }, facing));
+            bounds.accept(rotateY(new double[] { x1, y2, z1 }, facing));
+            bounds.accept(rotateY(new double[] { x1, y2, z2 }, facing));
+            bounds.accept(rotateY(new double[] { x2, y2, z1 }, facing));
+            bounds.accept(rotateY(new double[] { x2, y2, z2 }, facing));
+        }
+        return bounds;
+    }
+
+    private static class ModelBounds {
+
+        private double minX = Double.POSITIVE_INFINITY;
+        private double minY = Double.POSITIVE_INFINITY;
+        private double minZ = Double.POSITIVE_INFINITY;
+        private double maxX = Double.NEGATIVE_INFINITY;
+        private double maxY = Double.NEGATIVE_INFINITY;
+        private double maxZ = Double.NEGATIVE_INFINITY;
+
+        private void accept(double[] vertex) {
+            this.minX = Math.min(this.minX, vertex[0]);
+            this.minY = Math.min(this.minY, vertex[1]);
+            this.minZ = Math.min(this.minZ, vertex[2]);
+            this.maxX = Math.max(this.maxX, vertex[0]);
+            this.maxY = Math.max(this.maxY, vertex[1]);
+            this.maxZ = Math.max(this.maxZ, vertex[2]);
+        }
     }
 
     private static String resolveTexture(ModernModel model, String texture) {
