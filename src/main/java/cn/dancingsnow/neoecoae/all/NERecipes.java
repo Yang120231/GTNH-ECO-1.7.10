@@ -72,6 +72,8 @@ public final class NERecipes {
             'C',
             "ingotTungsten");
 
+        registerMachineBlockRecipes();
+
         shapeless(NEItems.aluminumAlloyDust, "dustIron", "dustAluminum", "dustCertusQuartz", "dustCertusQuartz");
         shapeless(NEItems.blackTungstenAlloyDust, "dustTungsten", "dustAluminumAlloy", "dustFluix", "dustFluix");
 
@@ -83,6 +85,184 @@ public final class NERecipes {
         smelt(NEItems.tungstenDust, NEItems.tungstenIngot, 1.0F);
         smelt(NEItems.aluminumAlloyDust, NEItems.aluminumAlloyIngot, 0.9F);
         smelt(NEItems.blackTungstenAlloyDust, NEItems.blackTungstenAlloyIngot, 1.0F);
+    }
+
+    private static void registerMachineBlockRecipes() {
+        shaped(
+            NEBlocks.storageCasing,
+            "AAA",
+            "ABA",
+            "AAA",
+            'A',
+            "ingotAluminumAlloy",
+            'B',
+            NEBlocks.aluminumAlloyCasing);
+        shaped(
+            NEBlocks.computationCasing,
+            "AAA",
+            "ABA",
+            "AAA",
+            'A',
+            "ingotBlackTungstenAlloy",
+            'B',
+            NEBlocks.blackTungstenAlloyCasing);
+        shaped(
+            NEBlocks.craftingCasing,
+            "AAA",
+            "ABA",
+            "AAA",
+            'A',
+            "ingotAluminumAlloy",
+            'B',
+            NEBlocks.blackTungstenAlloyCasing);
+
+        shaped(NEBlocks.storageVent, " A ", "ABA", " A ", 'A', "ingotAluminumAlloy", 'B', NEBlocks.storageCasing);
+        shaped(NEBlocks.craftingVent, " A ", "ABA", " A ", 'A', "ingotAluminumAlloy", 'B', NEBlocks.craftingCasing);
+        shaped(NEBlocks.inputHatch, " A ", "ABA", " A ", 'A', "ingotAluminumAlloy", 'B', "blockGlass");
+        shaped(NEBlocks.outputHatch, " A ", "ABA", " A ", 'A', "ingotTungsten", 'B', "blockGlass");
+
+        shaped(
+            NEBlocks.storageInterface,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotAluminumAlloy",
+            'B',
+            "dustCertusQuartz",
+            'C',
+            NEBlocks.storageCasing,
+            'D',
+            "blockGlass");
+        shaped(
+            NEBlocks.craftingInterface,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotAluminumAlloy",
+            'B',
+            "dustCertusQuartz",
+            'C',
+            NEBlocks.craftingCasing,
+            'D',
+            "blockGlass");
+        shaped(
+            NEBlocks.computationInterface,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotBlackTungstenAlloy",
+            'B',
+            "dustFluix",
+            'C',
+            NEBlocks.computationCasing,
+            'D',
+            "blockGlass");
+
+        shaped(
+            NEBlocks.ecoDrive,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotAluminumAlloy",
+            'B',
+            "dustCertusQuartz",
+            'C',
+            NEBlocks.storageCasing,
+            'D',
+            NEBlocks.storageInterface);
+        shaped(
+            NEBlocks.computationDrive,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotBlackTungstenAlloy",
+            'B',
+            "dustFluix",
+            'C',
+            NEBlocks.computationCasing,
+            'D',
+            NEBlocks.computationInterface);
+
+        shaped(
+            NEBlocks.craftingPatternBus,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotAluminumAlloy",
+            'B',
+            "dustCertusQuartz",
+            'C',
+            NEBlocks.craftingCasing,
+            'D',
+            NEBlocks.craftingInterface);
+        shaped(
+            NEBlocks.craftingWorker,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotBlackTungstenAlloy",
+            'B',
+            "dustFluix",
+            'C',
+            NEBlocks.craftingCasing,
+            'D',
+            NEBlocks.craftingPatternBus);
+        shaped(
+            NEBlocks.computationTransmitter,
+            "ABA",
+            "CDC",
+            "ABA",
+            'A',
+            "ingotBlackTungstenAlloy",
+            'B',
+            "dustFluix",
+            'C',
+            NEBlocks.computationCasing,
+            'D',
+            NEBlocks.computationInterface);
+
+        tieredMachine(
+            NEBlocks.storageSystemL4,
+            NEBlocks.storageSystemL6,
+            NEBlocks.storageSystemL9,
+            NEBlocks.storageCasing,
+            NEBlocks.ecoDrive,
+            "ingotAluminumAlloy");
+        tieredMachine(
+            NEBlocks.craftingSystemL4,
+            NEBlocks.craftingSystemL6,
+            NEBlocks.craftingSystemL9,
+            NEBlocks.craftingCasing,
+            NEBlocks.craftingWorker,
+            "ingotAluminumAlloy");
+        tieredMachine(
+            NEBlocks.computationSystemL4,
+            NEBlocks.computationSystemL6,
+            NEBlocks.computationSystemL9,
+            NEBlocks.computationCasing,
+            NEBlocks.computationDrive,
+            "ingotBlackTungstenAlloy");
+        tieredMachine(
+            NEBlocks.computationCoolingControllerL4,
+            NEBlocks.computationCoolingControllerL6,
+            NEBlocks.computationCoolingControllerL9,
+            NEBlocks.computationCasing,
+            "blockGlass",
+            "ingotBlackTungstenAlloy");
+    }
+
+    private static void tieredMachine(Block tier4, Block tier6, Block tier9, Block casing, Object core,
+        Object material) {
+        shaped(tier4, "ABA", "CDC", "ABA", 'A', material, 'B', "dustCertusQuartz", 'C', casing, 'D', core);
+        shaped(tier6, "ABA", "CDC", "ABA", 'A', material, 'B', "dustFluix", 'C', tier4, 'D', casing);
+        shaped(tier9, "ABA", "CDC", "ABA", 'A', "ingotBlackTungstenAlloy", 'B', "dustFluix", 'C', tier6, 'D', casing);
     }
 
     private static void registerToolRecipes(Object material, Item axe, Item hoe, Item pickaxe, Item shovel,

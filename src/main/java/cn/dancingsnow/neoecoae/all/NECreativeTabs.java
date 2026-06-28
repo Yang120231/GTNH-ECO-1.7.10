@@ -1,19 +1,27 @@
 package cn.dancingsnow.neoecoae.all;
 
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-
 public final class NECreativeTabs {
 
-    private static final Map<String, Integer> TAB_ORDER = createTabOrder();
+    private static final Comparator<ItemStack> TAB_COMPARATOR = (left, right) -> {
+        int order = Integer.compare(getSortOrder(left), getSortOrder(right));
+        if (order != 0) {
+            return order;
+        }
+
+        int name = getRegistryName(left).compareTo(getRegistryName(right));
+        if (name != 0) {
+            return name;
+        }
+
+        return Integer.compare(left.getItemDamage(), right.getItemDamage());
+    };
 
     public static final CreativeTabs NEO_ECO_AE = new CreativeTabs("neoecoae") {
 
@@ -26,31 +34,15 @@ public final class NECreativeTabs {
         @Override
         public void displayAllReleventItems(List itemList) {
             super.displayAllReleventItems(itemList);
-            itemList.sort(new Comparator<ItemStack>() {
-
-                @Override
-                public int compare(ItemStack left, ItemStack right) {
-                    int order = Integer.compare(getSortOrder(left), getSortOrder(right));
-                    if (order != 0) {
-                        return order;
-                    }
-
-                    int name = getRegistryName(left).compareTo(getRegistryName(right));
-                    if (name != 0) {
-                        return name;
-                    }
-
-                    return Integer.compare(left.getItemDamage(), right.getItemDamage());
-                }
-            });
+            itemList.sort(TAB_COMPARATOR);
         }
     };
 
     private NECreativeTabs() {}
 
     private static int getSortOrder(ItemStack stack) {
-        Integer order = TAB_ORDER.get(getRegistryName(stack));
-        return order != null ? order.intValue() : Integer.MAX_VALUE;
+        String name = getLocalRegistryName(stack);
+        return getGroupOrder(name) * 1000 + getItemOrder(name);
     }
 
     private static String getRegistryName(ItemStack stack) {
@@ -61,89 +53,123 @@ public final class NECreativeTabs {
         return name != null ? name : "";
     }
 
-    private static Map<String, Integer> createTabOrder() {
-        Map<String, Integer> order = new HashMap<String, Integer>();
-
-        add(order, "aluminum_ore");
-        add(order, "tungsten_ore");
-        add(order, "raw_aluminum_block");
-        add(order, "raw_tungsten_block");
-        add(order, "aluminum_block");
-        add(order, "tungsten_block");
-        add(order, "aluminum_alloy_block");
-        add(order, "black_tungsten_alloy_block");
-        add(order, "energized_crystal_block");
-        add(order, "energized_superconductive_block");
-        add(order, "energized_fluix_crystal_block");
-
-        add(order, "aluminum_alloy_casing");
-        add(order, "black_tungsten_alloy_casing");
-        add(order, "storage_casing");
-        add(order, "storage_controller_l4");
-        add(order, "storage_controller_l6");
-        add(order, "storage_controller_l9");
-        add(order, "storage_vent");
-        add(order, "storage_interface");
-        add(order, "eco_drive");
-
-        add(order, "crafting_casing");
-        add(order, "crafting_controller_l4");
-        add(order, "crafting_controller_l6");
-        add(order, "crafting_controller_l9");
-        add(order, "input_hatch");
-        add(order, "output_hatch");
-        add(order, "crafting_vent");
-        add(order, "crafting_pattern_bus");
-        add(order, "crafting_worker");
-        add(order, "crafting_interface");
-
-        add(order, "computation_casing");
-        add(order, "computation_controller_l4");
-        add(order, "computation_controller_l6");
-        add(order, "computation_controller_l9");
-        add(order, "computation_cooling_controller_l4");
-        add(order, "computation_cooling_controller_l6");
-        add(order, "computation_cooling_controller_l9");
-        add(order, "computation_drive");
-        add(order, "computation_interface");
-        add(order, "computation_transmitter");
-
-        add(order, "raw_aluminum_ore");
-        add(order, "aluminum_ingot");
-        add(order, "aluminum_dust");
-        add(order, "raw_tungsten_ore");
-        add(order, "tungsten_ingot");
-        add(order, "tungsten_dust");
-        add(order, "aluminum_alloy_ingot");
-        add(order, "aluminum_alloy_dust");
-        add(order, "black_tungsten_alloy_ingot");
-        add(order, "black_tungsten_alloy_dust");
-
-        add(order, "aluminum_sword");
-        add(order, "aluminum_pickaxe");
-        add(order, "aluminum_axe");
-        add(order, "aluminum_shovel");
-        add(order, "aluminum_hoe");
-        add(order, "tungsten_sword");
-        add(order, "tungsten_pickaxe");
-        add(order, "tungsten_axe");
-        add(order, "tungsten_shovel");
-        add(order, "tungsten_hoe");
-        add(order, "aluminum_alloy_sword");
-        add(order, "aluminum_alloy_pickaxe");
-        add(order, "aluminum_alloy_axe");
-        add(order, "aluminum_alloy_shovel");
-        add(order, "aluminum_alloy_hoe");
-        add(order, "black_tungsten_alloy_sword");
-        add(order, "black_tungsten_alloy_pickaxe");
-        add(order, "black_tungsten_alloy_axe");
-        add(order, "black_tungsten_alloy_shovel");
-        add(order, "black_tungsten_alloy_hoe");
-
-        return order;
+    private static String getLocalRegistryName(ItemStack stack) {
+        String name = getRegistryName(stack);
+        int separator = name.indexOf(':');
+        return separator >= 0 ? name.substring(separator + 1) : name;
     }
 
-    private static void add(Map<String, Integer> order, String id) {
-        order.put(NeoECOAE.MODID + ":" + id, Integer.valueOf(order.size()));
+    private static int getGroupOrder(String name) {
+        if (name.endsWith("_ore") || name.startsWith("raw_")
+            || name.endsWith("_block")
+            || name.startsWith("energized_")) {
+            return 0;
+        }
+        if (name.startsWith("storage_") || "eco_drive".equals(name)) {
+            return 1;
+        }
+        if (name.startsWith("crafting_") || "input_hatch".equals(name) || "output_hatch".equals(name)) {
+            return 2;
+        }
+        if (name.startsWith("computation_")) {
+            return 3;
+        }
+        if (name.endsWith("_ingot") || name.endsWith("_dust")) {
+            return 4;
+        }
+        if (isTool(name)) {
+            return 5;
+        }
+        return 9;
+    }
+
+    private static int getItemOrder(String name) {
+        if (name.endsWith("_ore")) {
+            return 0;
+        }
+        if (name.startsWith("raw_") && name.endsWith("_block")) {
+            return 10;
+        }
+        if (name.endsWith("_block")) {
+            return 20;
+        }
+        if (name.endsWith("_casing")) {
+            return 100;
+        }
+        if (name.contains("_system_l4")) {
+            return 200;
+        }
+        if (name.contains("_system_l6")) {
+            return 210;
+        }
+        if (name.contains("_system_l9")) {
+            return 220;
+        }
+        if (name.contains("_cooling_controller_l4")) {
+            return 230;
+        }
+        if (name.contains("_cooling_controller_l6")) {
+            return 240;
+        }
+        if (name.contains("_cooling_controller_l9")) {
+            return 250;
+        }
+        if (name.endsWith("_vent")) {
+            return 300;
+        }
+        if (name.endsWith("_interface")) {
+            return 310;
+        }
+        if (name.endsWith("_drive")) {
+            return 320;
+        }
+        if ("input_hatch".equals(name)) {
+            return 330;
+        }
+        if ("output_hatch".equals(name)) {
+            return 340;
+        }
+        if (name.endsWith("_pattern_bus")) {
+            return 350;
+        }
+        if (name.endsWith("_worker")) {
+            return 360;
+        }
+        if (name.startsWith("raw_")) {
+            return 400;
+        }
+        if (name.endsWith("_ingot")) {
+            return 410;
+        }
+        if (name.endsWith("_dust")) {
+            return 420;
+        }
+        return isTool(name) ? getToolOrder(name) : 900;
+    }
+
+    private static boolean isTool(String name) {
+        return name.endsWith("_sword") || name.endsWith("_pickaxe")
+            || name.endsWith("_axe")
+            || name.endsWith("_shovel")
+            || name.endsWith("_hoe");
+    }
+
+    private static int getToolOrder(String name) {
+        if (name.endsWith("_sword")) {
+            return 500;
+        }
+        if (name.endsWith("_pickaxe")) {
+            return 510;
+        }
+        if (name.endsWith("_axe")) {
+            return 520;
+        }
+        if (name.endsWith("_shovel")) {
+            return 530;
+        }
+        if (name.endsWith("_hoe")) {
+            return 540;
+        }
+        return 590;
     }
 }
