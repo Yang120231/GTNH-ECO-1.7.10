@@ -1,8 +1,13 @@
 package cn.dancingsnow.neoecoae.all;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockCompressed;
 import net.minecraft.block.material.MapColor;
+import net.minecraft.block.material.Material;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.block.BlockComputationDrive;
@@ -11,9 +16,12 @@ import cn.dancingsnow.neoecoae.block.BlockEcoDrive;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.block.ItemBlockModelDrive;
 import cn.dancingsnow.neoecoae.block.ItemBlockModernModel;
+import cn.dancingsnow.neoecoae.block.NEBlock;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public final class NEBlocks {
+
+    private static final List<BlockModernModel> MODERN_MODEL_BLOCKS = new ArrayList<BlockModernModel>();
 
     public static final Block aluminumOre = ore("aluminum_ore", NEItems.rawAluminumOre, 3.0F, 5.0F, 2);
     public static final Block tungstenOre = ore("tungsten_ore", NEItems.rawTungstenOre, 4.0F, 8.0F, 3);
@@ -60,31 +68,41 @@ public final class NEBlocks {
         "black_tungsten_alloy_casing",
         "black_tungsten_alloy_casing",
         new String[] { NeoECOAE.MODID + ":block/black_tungsten_alloy_casing" });
-    public static final Block storageCasing = modelBlock(
+    public static final Block storageCasing = texturedMachineBlock(
         "storage_casing",
-        "storage_casing",
-        new String[] { NeoECOAE.MODID + ":block/storage/casing" });
-    public static final Block computationCasing = modelBlock(
+        NeoECOAE.MODID + ":storage/casing",
+        5.0F,
+        10.0F,
+        2);
+    public static final Block computationCasing = texturedMachineBlock(
         "computation_casing",
-        "computation_casing",
-        new String[] { NeoECOAE.MODID + ":block/compute/casing" });
-    public static final Block craftingCasing = modelBlock(
+        NeoECOAE.MODID + ":compute/casing",
+        5.0F,
+        10.0F,
+        2);
+    public static final Block craftingCasing = texturedMachineBlock(
         "crafting_casing",
-        "crafting_casing",
-        new String[] { NeoECOAE.MODID + ":block/crafting/casing" });
+        NeoECOAE.MODID + ":crafting/casing",
+        5.0F,
+        10.0F,
+        2);
     public static final Block storageVent = directionalModelBlock(
         "storage_vent",
         "storage_vent",
         new String[] { NeoECOAE.MODID + ":block/storage/casing", NeoECOAE.MODID + ":block/storage/casing_back",
             NeoECOAE.MODID + ":block/storage/vents_north", NeoECOAE.MODID + ":block/storage/casing_side" });
-    public static final Block inputHatch = modelBlock(
+    public static final Block inputHatch = texturedMachineBlock(
         "input_hatch",
-        "input_hatch",
-        new String[] { NeoECOAE.MODID + ":block/crafting/hatch_input" });
-    public static final Block outputHatch = modelBlock(
+        NeoECOAE.MODID + ":crafting/hatch_input",
+        5.0F,
+        10.0F,
+        2);
+    public static final Block outputHatch = texturedMachineBlock(
         "output_hatch",
-        "output_hatch",
-        new String[] { NeoECOAE.MODID + ":block/crafting/hatch_output" });
+        NeoECOAE.MODID + ":crafting/hatch_output",
+        5.0F,
+        10.0F,
+        2);
     public static final Block craftingVent = directionalModelBlock(
         "crafting_vent",
         "crafting_vent",
@@ -100,6 +118,10 @@ public final class NEBlocks {
 
     private NEBlocks() {}
 
+    public static List<BlockModernModel> getModernModelBlocks() {
+        return Collections.unmodifiableList(MODERN_MODEL_BLOCKS);
+    }
+
     public static void register() {
         register(aluminumOre, "aluminum_ore");
         register(tungstenOre, "tungsten_ore");
@@ -114,12 +136,12 @@ public final class NEBlocks {
         register(energizedFluixCrystalBlock, "energized_fluix_crystal_block");
         GameRegistry.registerBlock(aluminumAlloyCasing, ItemBlockModernModel.class, "aluminum_alloy_casing");
         GameRegistry.registerBlock(blackTungstenAlloyCasing, ItemBlockModernModel.class, "black_tungsten_alloy_casing");
-        GameRegistry.registerBlock(storageCasing, ItemBlockModernModel.class, "storage_casing");
-        GameRegistry.registerBlock(computationCasing, ItemBlockModernModel.class, "computation_casing");
-        GameRegistry.registerBlock(craftingCasing, ItemBlockModernModel.class, "crafting_casing");
+        register(storageCasing, "storage_casing");
+        register(computationCasing, "computation_casing");
+        register(craftingCasing, "crafting_casing");
         GameRegistry.registerBlock(storageVent, ItemBlockModernModel.class, "storage_vent");
-        GameRegistry.registerBlock(inputHatch, ItemBlockModernModel.class, "input_hatch");
-        GameRegistry.registerBlock(outputHatch, ItemBlockModernModel.class, "output_hatch");
+        register(inputHatch, "input_hatch");
+        register(outputHatch, "output_hatch");
         GameRegistry.registerBlock(craftingVent, ItemBlockModernModel.class, "crafting_vent");
         GameRegistry.registerBlock(craftingPatternBus, ItemBlockModernModel.class, "crafting_pattern_bus");
         GameRegistry.registerBlock(ecoDrive, ItemBlockModelDrive.class, "eco_drive");
@@ -149,12 +171,29 @@ public final class NEBlocks {
         return block;
     }
 
+    private static Block texturedMachineBlock(String id, String texture, float hardness, float resistance,
+        int harvestLevel) {
+        Block block = new NEBlock(Material.iron).setBlockName(id)
+            .setBlockTextureName(texture)
+            .setCreativeTab(NECreativeTabs.NEO_ECO_AE)
+            .setHardness(hardness)
+            .setResistance(resistance)
+            .setStepSound(Block.soundTypeMetal);
+        block.setHarvestLevel("pickaxe", harvestLevel);
+        return block;
+    }
+
     private static Block modelBlock(String id, String modelName, String[] textures) {
-        return new BlockModernModel(id, modelName, textures);
+        return registerModernModelBlock(new BlockModernModel(id, modelName, textures));
     }
 
     private static Block directionalModelBlock(String id, String modelName, String[] textures) {
-        return new BlockDirectionalModernModel(id, modelName, textures);
+        return registerModernModelBlock(new BlockDirectionalModernModel(id, modelName, textures));
+    }
+
+    private static Block registerModernModelBlock(BlockModernModel block) {
+        MODERN_MODEL_BLOCKS.add(block);
+        return block;
     }
 
     private static void register(Block block, String id) {

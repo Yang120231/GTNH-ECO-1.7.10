@@ -68,9 +68,13 @@ public final class EcoModelRenderer {
             return false;
         }
 
-        Block neighbor = world
-            .getBlock(x + cullDirection.offsetX, y + cullDirection.offsetY, z + cullDirection.offsetZ);
-        return neighbor != null && neighbor.isOpaqueCube();
+        return !world.getBlock(x, y, z)
+            .shouldSideBeRendered(
+                world,
+                x + cullDirection.offsetX,
+                y + cullDirection.offsetY,
+                z + cullDirection.offsetZ,
+                cullDirection.ordinal());
     }
 
     private static float getWorldShade(ForgeDirection normal) {

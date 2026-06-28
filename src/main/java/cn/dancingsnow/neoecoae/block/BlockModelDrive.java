@@ -10,11 +10,10 @@ import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.IIcon;
-import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
+import cn.dancingsnow.neoecoae.client.render.model.ModernIconRegistrar;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -81,32 +80,13 @@ public class BlockModelDrive extends Block {
 
     @Override
     public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase placer, ItemStack stack) {
-        world.setBlockMetadataWithNotify(x, y, z, getFacingMetaFromYaw(placer.rotationYaw), 3);
-    }
-
-    public static int getFacingMetaFromYaw(float yaw) {
-        int quadrant = MathHelper.floor_double(yaw * 4.0F / 360.0F + 0.5D) & 3;
-        switch (quadrant) {
-            case 0:
-                return 0; // north
-            case 1:
-                return 1; // east
-            case 2:
-                return 2; // south
-            case 3:
-                return 3; // west
-            default:
-                return 0;
-        }
+        world.setBlockMetadataWithNotify(x, y, z, ModelFacingHelper.getFacingMetaFromYaw(placer.rotationYaw), 3);
     }
 
     @SideOnly(Side.CLIENT)
     @Override
     public void registerBlockIcons(IIconRegister register) {
-        this.modelIcons.clear();
-        for (String texture : this.textureNames) {
-            this.modelIcons.put(texture, register.registerIcon(toLegacyIconName(texture)));
-        }
+        ModernIconRegistrar.registerIcons(register, this.textureNames, this.modelIcons);
         this.particleIcon = this.modelIcons.get(this.particleTextureName);
         this.blockIcon = this.particleIcon;
     }
@@ -120,13 +100,5 @@ public class BlockModelDrive extends Block {
     @Override
     public IIcon getIcon(int side, int meta) {
         return this.particleIcon != null ? this.particleIcon : this.blockIcon;
-    }
-
-    private static String toLegacyIconName(String modernTexture) {
-        String prefix = NeoECOAE.MODID + ":block/";
-        if (modernTexture.startsWith(prefix)) {
-            return NeoECOAE.MODID + ":" + modernTexture.substring(prefix.length());
-        }
-        return modernTexture.replace(":block/", ":");
     }
 }

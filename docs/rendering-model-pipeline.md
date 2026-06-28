@@ -13,7 +13,9 @@
 当前已经接入两类用法：
 
 - `eco_drive`、`computation_drive`：有朝向、有 empty/full 两份模型，后续可以接 TileEntity 状态。
-- `aluminum_alloy_casing`、`black_tungsten_alloy_casing`、`storage_casing`、`computation_casing`、`crafting_casing`、`storage_vent`、`crafting_vent`、`crafting_pattern_bus`、`input_hatch`、`output_hatch`：普通静态模型方块。
+- `aluminum_alloy_casing`、`black_tungsten_alloy_casing`、`storage_vent`、`crafting_vent`、`crafting_pattern_bus`：普通静态现代模型方块。
+
+完整 cube 方块不进入这套管线，直接使用原版 `Block` / `RenderBlocks.renderStandardBlock`。当前 `storage_casing`、`computation_casing`、`crafting_casing`、`input_hatch`、`output_hatch` 已经回退到原版渲染。
 
 ## 资源布局
 
@@ -55,10 +57,10 @@ neoecoae:block/storage/drive/drive_north
 - `texture`：支持 `#texture_key` 到实际贴图 id 的解析。
 - `cullface`：世界渲染中用于邻接实心方块遮挡判断。
 - face `rotation`：支持 0/90/180/270 的面 UV 旋转。
-- `display.gui`：会被解析并保留；当前默认物品路径走 1.7.10 原版方块物品姿态，不主动套用该 transform。
 
 暂不支持：
 
+- `display` 变换。物品栏、手持和掉落物统一交给 1.7.10 原版方块物品姿态。
 - multipart / blockstate variant 系统。
 - Forge custom model loader。
 - tint index。
@@ -70,10 +72,9 @@ neoecoae:block/storage/drive/drive_north
 
 模型数据层：
 
-- `ModernModel`：解析后的模型结构，包含 textures、elements、display transform。
+- `ModernModel`：解析后的模型结构，包含 textures 和 elements。
 - `ModelElement`：单个 cuboid element 的 `from/to` 和 faces。
 - `ModelFace`：单个 face 的方向、贴图引用、UV、cullface、face rotation。
-- `ModelDisplayTransform`：当前主要保存 `display.gui`。
 - `ModelFacing`：水平朝向枚举，当前用 meta `0/1/2/3` 表示 north/east/south/west。
 
 加载与烘焙：
@@ -91,6 +92,8 @@ neoecoae:block/storage/drive/drive_north
 
 - `ClientProxy.registerRenderers`：分配 render id，加载模型，注册 block renderer。
 - `BlockModelDrive`：驱动器类方块基类，统一处理朝向 metadata、icon 注册、particle icon 和 empty/full 模型名。
+- `ModelFacingHelper`：统一处理玩家 yaw 到水平 metadata 的映射。
+- `ModernIconRegistrar`：统一处理现代贴图 id 到 1.7.10 icon 名的转换和注册。
 - `DriveModels`：按驱动器模型名缓存 empty/full 两份 `BakedEcoModel`。
 - `DriveRenderHandler`：驱动器类方块的世界/block inventory 渲染。
 - `ModernBlockRenderHandler`：普通现代模型方块的世界/block inventory 渲染。
@@ -115,7 +118,7 @@ neoecoae:block/storage/drive/drive_north
 
 如果放置朝向不对，优先检查：
 
-- `BlockModelDrive.getFacingMetaFromYaw`
+- `ModelFacingHelper.getFacingMetaFromYaw`
 - `ModelFacing.fromMeta`
 - `BakedEcoModel.rotateY`
 - `BakedEcoModel.rotateDirection`
@@ -132,16 +135,17 @@ neoecoae:block/storage/drive/drive_north
 普通方块使用 `BlockModernModel`，适合没有状态、没有 TileEntity、没有额外动态层的静态模型。
 如果模型需要在放置时按玩家水平朝向旋转，使用 `BlockDirectionalModernModel`；它和驱动器共用 `0/1/2/3 = north/east/south/west` 的 metadata 规则。
 
+如果模型只是完整 cube，不要使用 `BlockModernModel`。直接用普通 `Block` 配 `setBlockTextureName`，让原版处理 AO、面剔除、物品姿态和破坏贴图。
+
 新增一个模型方块时通常做这些事：
 
 1. 把 JSON 放到 `assets/neoecoae/models/block/<model_name>.json`。
 2. 把贴图放到 `assets/neoecoae/textures/blocks/...`。
 3. 在 `NEBlocks` 中用 `modelBlock(id, modelName, textures)` 创建方块；方向型方块用 `directionalModelBlock(id, modelName, textures)`。
 4. 在 `NEBlocks.register` 中用 `ItemBlockModernModel.class` 注册。
-5. 在 `ClientProxy.registerRenderers` 中调用 `ModernBlockModels.load(modelName)`。
-6. 在 `en_US.lang` 和 `zh_CN.lang` 中补名字。
+5. 在 `en_US.lang` 和 `zh_CN.lang` 中补名字。
 
-`BlockModernModel` 的 `textures` 数组必须包含模型会用到的所有现代贴图 id。原因是 1.7.10 的 icon 需要在 `registerBlockIcons` 阶段集中注册，渲染时只从 map 中查 `IIcon`。
+`NEBlocks` 会记录所有通过 `modelBlock` / `directionalModelBlock` 创建的现代模型方块，`ClientProxy` 会遍历这份列表加载模型。`BlockModernModel` 的 `textures` 数组必须包含模型会用到的所有现代贴图 id。原因是 1.7.10 的 icon 需要在 `registerBlockIcons` 阶段集中注册，渲染时只从 map 中查 `IIcon`。
 
 ## 明暗和遮挡
 
@@ -151,7 +155,7 @@ neoecoae:block/storage/drive/drive_north
 
 - `EcoModelRenderer.renderWorld` 使用 `block.getMixedBrightnessForBlock` 取邻接方向亮度。
 - `getWorldShade` 按 face normal 乘一个固定 shade。
-- `cullface` 只在世界渲染里生效，邻接方块 `isOpaqueCube()` 时跳过对应 face。
+- `cullface` 只在世界渲染里生效，并复用原版 `Block.shouldSideBeRendered` 判断邻接方块遮挡。
 - 破坏裂纹渲染时会尊重 `RenderBlocks.overrideBlockTexture`，否则自定义模型会在挖掘阶段显示成过亮的原贴图。
 
 物品栏渲染：
@@ -160,7 +164,7 @@ neoecoae:block/storage/drive/drive_north
 - 物品栏的下表面 shade 比世界更亮，避免模型底部过黑。
 - 物品栏渲染会关闭 `GL_CULL_FACE`，避免角度变化时背面消失。
 - 手持、掉落物和 GUI 都先走原版 `RenderBlocks.renderBlockAsItem`，因此缩放、旋转和 GUI 位置尽量保持 1.7.10 原版方块行为。
-- 如果未来要强制使用 JSON `display.gui` 做专用预览，应新建一个很薄的 GUI-only item renderer，而不是重新接管手持和掉落物姿态。
+- 如果未来要强制使用 JSON `display.gui` 做专用预览，应先恢复 display 解析，再新建一个很薄的 GUI-only item renderer，而不是重新接管手持和掉落物姿态。
 
 如果模型下部偏暗，优先调：
 
@@ -172,7 +176,7 @@ neoecoae:block/storage/drive/drive_north
 
 - JSON face 的 `cullface`
 - `BakedEcoModel.rotateDirection`
-- `EcoModelRenderer.shouldCull`
+- `EcoModelRenderer.shouldCull` / `Block.shouldSideBeRendered`
 - 方块自己的 `isOpaqueCube`
 
 ## 性能策略
@@ -207,7 +211,7 @@ neoecoae:block/storage/drive/drive_north
 | --- | --- |
 | 紫黑缺失贴图 | `BlockModelDrive` 子类贴图列表 / `BlockModernModel.textureNames` 是否包含 JSON 实际引用的贴图 id |
 | 动画贴图紫黑 | 对应 `textures/blocks/*.png.mcmeta` 是否随 PNG 一起迁移 |
-| 世界模型方向错误 | `getFacingMetaFromYaw`、`ModelFacing.fromMeta`、`BakedEcoModel.rotateY` |
+| 世界模型方向错误 | `ModelFacingHelper.getFacingMetaFromYaw`、`ModelFacing.fromMeta`、`BakedEcoModel.rotateY` |
 | 物品栏模型方向错误 | `EcoModelRenderer.renderInventoryBlock`、`RenderBlocks.renderBlockAsItem` 的坐标约定 |
 | 挖掘时整块发白 | `EcoModelRenderer.renderWorld` 是否拿到了 `RenderBlocks.overrideBlockTexture` |
 | 模型底部太暗 | `getInventoryShade` 或 `getWorldShade` |

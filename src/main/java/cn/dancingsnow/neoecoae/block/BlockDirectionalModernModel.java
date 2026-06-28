@@ -14,7 +14,7 @@ public class BlockDirectionalModernModel extends BlockModernModel {
 
     @Override
     public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase placer, ItemStack stack) {
-        world.setBlockMetadataWithNotify(x, y, z, BlockModelDrive.getFacingMetaFromYaw(placer.rotationYaw), 3);
+        world.setBlockMetadataWithNotify(x, y, z, ModelFacingHelper.getFacingMetaFromYaw(placer.rotationYaw), 3);
     }
 
     @Override

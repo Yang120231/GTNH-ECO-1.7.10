@@ -27,16 +27,9 @@ public class ClientProxy extends CommonProxy {
 
         int modernBlockRenderId = RenderingRegistry.getNextAvailableRenderId();
         BlockModernModel.setRenderId(modernBlockRenderId);
-        ModernBlockModels.load("aluminum_alloy_casing");
-        ModernBlockModels.load("black_tungsten_alloy_casing");
-        ModernBlockModels.load("storage_casing");
-        ModernBlockModels.load("computation_casing");
-        ModernBlockModels.load("crafting_casing");
-        ModernBlockModels.load("storage_vent");
-        ModernBlockModels.load("input_hatch");
-        ModernBlockModels.load("output_hatch");
-        ModernBlockModels.load("crafting_vent");
-        ModernBlockModels.load("crafting_pattern_bus");
+        for (BlockModernModel block : NEBlocks.getModernModelBlocks()) {
+            ModernBlockModels.load(block.getModelName());
+        }
         RenderingRegistry.registerBlockHandler(new ModernBlockRenderHandler(modernBlockRenderId));
     }
 }

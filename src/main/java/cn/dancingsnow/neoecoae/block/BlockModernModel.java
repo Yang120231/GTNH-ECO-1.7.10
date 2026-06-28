@@ -9,9 +9,9 @@ import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.util.IIcon;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
+import cn.dancingsnow.neoecoae.client.render.model.ModernIconRegistrar;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -70,10 +70,7 @@ public class BlockModernModel extends Block {
     @SideOnly(Side.CLIENT)
     @Override
     public void registerBlockIcons(IIconRegister register) {
-        this.modelIcons.clear();
-        for (String texture : this.textureNames) {
-            this.modelIcons.put(texture, register.registerIcon(toLegacyIconName(texture)));
-        }
+        ModernIconRegistrar.registerIcons(register, this.textureNames, this.modelIcons);
         this.particleIcon = this.modelIcons.get(this.textureNames[0]);
         this.blockIcon = this.particleIcon;
     }
@@ -87,13 +84,5 @@ public class BlockModernModel extends Block {
     @Override
     public IIcon getIcon(int side, int meta) {
         return this.particleIcon != null ? this.particleIcon : this.blockIcon;
-    }
-
-    private static String toLegacyIconName(String modernTexture) {
-        String prefix = NeoECOAE.MODID + ":block/";
-        if (modernTexture.startsWith(prefix)) {
-            return NeoECOAE.MODID + ":" + modernTexture.substring(prefix.length());
-        }
-        return modernTexture.replace(":block/", ":");
     }
 }

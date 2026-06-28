@@ -38,7 +38,6 @@ public final class ModernModelLoader {
 
         readTextures(json, model);
         readElements(json, model);
-        readDisplay(json, model);
         return model;
     }
 
@@ -186,26 +185,6 @@ public final class ModernModelLoader {
                         .getAsDouble(),
                     rotation));
         }
-    }
-
-    private static void readDisplay(JsonObject json, ModernModel model) {
-        if (!json.has("display")) {
-            return;
-        }
-
-        JsonObject display = json.getAsJsonObject("display");
-        if (!display.has("gui")) {
-            return;
-        }
-
-        JsonObject gui = display.getAsJsonObject("gui");
-        double[] rotation = gui.has("rotation") ? readVector(gui.getAsJsonArray("rotation"))
-            : ModelDisplayTransform.GUI_DEFAULT.getRotation();
-        double[] translation = gui.has("translation") ? readVector(gui.getAsJsonArray("translation"))
-            : ModelDisplayTransform.GUI_DEFAULT.getTranslation();
-        double[] scale = gui.has("scale") ? readVector(gui.getAsJsonArray("scale"))
-            : ModelDisplayTransform.GUI_DEFAULT.getScale();
-        model.setGuiTransform(new ModelDisplayTransform(rotation, translation, scale));
     }
 
     private static double[] readVector(JsonArray array) {
