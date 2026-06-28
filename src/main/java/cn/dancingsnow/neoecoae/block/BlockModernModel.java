@@ -21,6 +21,7 @@ public class BlockModernModel extends Block {
 
     private final String modelName;
     private final String[] textureNames;
+    private final ModelFacing inventoryModelFacing;
 
     @SideOnly(Side.CLIENT)
     private final Map<String, IIcon> modelIcons = new HashMap<String, IIcon>();
@@ -29,9 +30,14 @@ public class BlockModernModel extends Block {
     private IIcon particleIcon;
 
     public BlockModernModel(String id, String modelName, String[] textureNames) {
+        this(id, modelName, textureNames, ModelFacing.NORTH);
+    }
+
+    public BlockModernModel(String id, String modelName, String[] textureNames, ModelFacing inventoryModelFacing) {
         super(Material.iron);
         this.modelName = modelName;
         this.textureNames = textureNames;
+        this.inventoryModelFacing = inventoryModelFacing;
         this.setBlockName(id);
         this.setCreativeTab(NECreativeTabs.NEO_ECO_AE);
         this.setHardness(5.0F);
@@ -50,6 +56,10 @@ public class BlockModernModel extends Block {
 
     public ModelFacing getModelFacing(int meta) {
         return ModelFacing.NORTH;
+    }
+
+    public ModelFacing getInventoryModelFacing() {
+        return this.inventoryModelFacing;
     }
 
     @Override

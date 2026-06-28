@@ -20,8 +20,10 @@ public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
     public void renderInventoryBlock(Block block, int metadata, int modelId, RenderBlocks renderer) {
         if (block instanceof BlockModernModel) {
             BlockModernModel modelBlock = (BlockModernModel) block;
-            EcoModelRenderer
-                .renderInventoryBlock(ModernBlockModels.get(modelBlock.getModelName()), modelBlock.getModelIcons());
+            EcoModelRenderer.renderInventoryBlock(
+                ModernBlockModels.get(modelBlock.getModelName()),
+                modelBlock.getInventoryModelFacing(),
+                modelBlock.getModelIcons());
         }
     }
 

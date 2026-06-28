@@ -12,6 +12,11 @@ public class BlockDirectionalModernModel extends BlockModernModel {
         super(id, modelName, textureNames);
     }
 
+    public BlockDirectionalModernModel(String id, String modelName, String[] textureNames,
+        ModelFacing inventoryModelFacing) {
+        super(id, modelName, textureNames, inventoryModelFacing);
+    }
+
     @Override
     public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase placer, ItemStack stack) {
         world.setBlockMetadataWithNotify(x, y, z, ModelFacingHelper.getFacingMetaFromYaw(placer.rotationYaw), 3);

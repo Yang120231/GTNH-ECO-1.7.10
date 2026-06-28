@@ -46,11 +46,15 @@ public final class EcoModelRenderer {
     }
 
     public static void renderInventoryBlock(BakedEcoModel model, Map<String, IIcon> icons) {
+        renderInventoryBlock(model, ModelFacing.NORTH, icons);
+    }
+
+    public static void renderInventoryBlock(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
         GL11.glPushMatrix();
         GL11.glDisable(GL11.GL_CULL_FACE);
         GL11.glRotated(180.0D, 0.0D, 1.0D, 0.0D);
         GL11.glTranslated(-0.5D, -0.5D, -0.5D);
-        renderInventoryQuads(model, icons);
+        renderInventoryQuads(model, facing, icons);
         GL11.glEnable(GL11.GL_CULL_FACE);
         GL11.glPopMatrix();
     }
@@ -103,9 +107,9 @@ public final class EcoModelRenderer {
         return 0.78F;
     }
 
-    private static void renderInventoryQuads(BakedEcoModel model, Map<String, IIcon> icons) {
+    private static void renderInventoryQuads(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
         Tessellator tessellator = Tessellator.instance;
-        List<BakedQuad> quads = model.getQuads(ModelFacing.NORTH);
+        List<BakedQuad> quads = model.getQuads(facing);
         for (BakedQuad quad : quads) {
             IIcon icon = icons.get(quad.getTexture());
             if (icon == null) {
