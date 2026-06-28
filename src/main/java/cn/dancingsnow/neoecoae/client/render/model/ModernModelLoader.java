@@ -52,7 +52,30 @@ public final class ModernModelLoader {
         if ("block/block".equals(parent) || "minecraft:block/block".equals(parent)) {
             return null;
         }
+        if ("block/cube_all".equals(parent) || "minecraft:block/cube_all".equals(parent)) {
+            return createCubeAllParent();
+        }
         return loadModel(toModelLocation(parent), depth + 1);
+    }
+
+    private static ModernModel createCubeAllParent() {
+        ModernModel model = new ModernModel();
+        ModelElement element = new ModelElement(
+            new double[] { 0.0D, 0.0D, 0.0D },
+            new double[] { 16.0D, 16.0D, 16.0D });
+        addCubeAllFace(element, ForgeDirection.DOWN, "down");
+        addCubeAllFace(element, ForgeDirection.UP, "up");
+        addCubeAllFace(element, ForgeDirection.NORTH, "north");
+        addCubeAllFace(element, ForgeDirection.SOUTH, "south");
+        addCubeAllFace(element, ForgeDirection.WEST, "west");
+        addCubeAllFace(element, ForgeDirection.EAST, "east");
+        model.getElements()
+            .add(element);
+        return model;
+    }
+
+    private static void addCubeAllFace(ModelElement element, ForgeDirection side, String cullFace) {
+        element.addFace(new ModelFace(side, "#all", cullFace, 0.0D, 0.0D, 16.0D, 16.0D, 0));
     }
 
     private static ResourceLocation toModelLocation(String modelId) {

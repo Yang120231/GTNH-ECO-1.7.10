@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import net.minecraft.block.Block;
+import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.IBlockAccess;
@@ -17,13 +18,18 @@ public final class EcoModelRenderer {
 
     public static void renderWorld(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons,
         IBlockAccess world, int x, int y, int z, Block block) {
+        renderWorld(model, facing, icons, world, x, y, z, block, null);
+    }
+
+    public static void renderWorld(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons,
+        IBlockAccess world, int x, int y, int z, Block block, RenderBlocks renderer) {
         Tessellator tessellator = Tessellator.instance;
         tessellator.addTranslation(x, y, z);
         for (BakedQuad quad : model.getQuads(facing)) {
             if (shouldCull(world, x, y, z, quad)) {
                 continue;
             }
-            IIcon icon = icons.get(quad.getTexture());
+            IIcon icon = getWorldIcon(quad, icons, renderer);
             if (icon == null) {
                 continue;
             }
@@ -39,41 +45,6 @@ public final class EcoModelRenderer {
         tessellator.addTranslation(-x, -y, -z);
     }
 
-    public static void renderInventory(BakedEcoModel model, Map<String, IIcon> icons) {
-        ModelDisplayTransform transform = model.getSource()
-            .getGuiTransform();
-        GL11.glPushMatrix();
-        GL11.glDisable(GL11.GL_CULL_FACE);
-        GL11.glTranslated(
-            transform.getTranslation()[0] / 16.0D,
-            transform.getTranslation()[1] / 16.0D,
-            transform.getTranslation()[2] / 16.0D);
-        GL11.glRotated(transform.getRotation()[0], 1.0D, 0.0D, 0.0D);
-        GL11.glRotated(transform.getRotation()[1], 0.0D, 1.0D, 0.0D);
-        GL11.glRotated(transform.getRotation()[2], 0.0D, 0.0D, 1.0D);
-        GL11.glScaled(transform.getScale()[0], transform.getScale()[1], transform.getScale()[2]);
-        GL11.glTranslated(-0.5D, -0.5D, -0.5D);
-
-        Tessellator tessellator = Tessellator.instance;
-        List<BakedQuad> quads = model.getQuads(ModelFacing.NORTH);
-        for (BakedQuad quad : quads) {
-            IIcon icon = icons.get(quad.getTexture());
-            if (icon == null) {
-                continue;
-            }
-
-            tessellator.startDrawingQuads();
-            ForgeDirection normal = quad.getNormal();
-            float shade = getInventoryShade(normal);
-            tessellator.setNormal(normal.offsetX, normal.offsetY, normal.offsetZ);
-            tessellator.setColorOpaque_F(shade, shade, shade);
-            submitQuad(tessellator, quad, icon);
-            tessellator.draw();
-        }
-        GL11.glEnable(GL11.GL_CULL_FACE);
-        GL11.glPopMatrix();
-    }
-
     public static void renderInventoryBlock(BakedEcoModel model, Map<String, IIcon> icons) {
         GL11.glPushMatrix();
         GL11.glDisable(GL11.GL_CULL_FACE);
@@ -82,6 +53,13 @@ public final class EcoModelRenderer {
         renderInventoryQuads(model, icons);
         GL11.glEnable(GL11.GL_CULL_FACE);
         GL11.glPopMatrix();
+    }
+
+    private static IIcon getWorldIcon(BakedQuad quad, Map<String, IIcon> icons, RenderBlocks renderer) {
+        if (renderer != null && renderer.hasOverrideBlockTexture()) {
+            return renderer.overrideBlockTexture;
+        }
+        return icons.get(quad.getTexture());
     }
 
     private static boolean shouldCull(IBlockAccess world, int x, int y, int z, BakedQuad quad) {

@@ -7,20 +7,25 @@ import java.util.Map;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.IIcon;
+import net.minecraft.util.MathHelper;
+import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
-import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class BlockModernModel extends Block {
+public class BlockModelDrive extends Block {
 
     private static int renderId = -1;
 
-    private final String modelName;
+    private final String emptyModelName;
+    private final String fullModelName;
     private final String[] textureNames;
+    private final String particleTextureName;
 
     @SideOnly(Side.CLIENT)
     private final Map<String, IIcon> modelIcons = new HashMap<String, IIcon>();
@@ -28,10 +33,13 @@ public class BlockModernModel extends Block {
     @SideOnly(Side.CLIENT)
     private IIcon particleIcon;
 
-    public BlockModernModel(String id, String modelName, String[] textureNames) {
+    public BlockModelDrive(String id, String emptyModelName, String fullModelName, String[] textureNames,
+        String particleTextureName) {
         super(Material.iron);
-        this.modelName = modelName;
+        this.emptyModelName = emptyModelName;
+        this.fullModelName = fullModelName;
         this.textureNames = textureNames;
+        this.particleTextureName = particleTextureName;
         this.setBlockName(id);
         this.setCreativeTab(NECreativeTabs.NEO_ECO_AE);
         this.setHardness(5.0F);
@@ -41,15 +49,19 @@ public class BlockModernModel extends Block {
     }
 
     public static void setRenderId(int renderId) {
-        BlockModernModel.renderId = renderId;
+        BlockModelDrive.renderId = renderId;
     }
 
-    public String getModelName() {
-        return this.modelName;
+    public String getEmptyModelName() {
+        return this.emptyModelName;
     }
 
-    public ModelFacing getModelFacing(int meta) {
-        return ModelFacing.NORTH;
+    public String getFullModelName() {
+        return this.fullModelName;
+    }
+
+    public String getParticleTextureName() {
+        return this.particleTextureName;
     }
 
     @Override
@@ -67,6 +79,27 @@ public class BlockModernModel extends Block {
         return false;
     }
 
+    @Override
+    public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase placer, ItemStack stack) {
+        world.setBlockMetadataWithNotify(x, y, z, getFacingMetaFromYaw(placer.rotationYaw), 3);
+    }
+
+    public static int getFacingMetaFromYaw(float yaw) {
+        int quadrant = MathHelper.floor_double(yaw * 4.0F / 360.0F + 0.5D) & 3;
+        switch (quadrant) {
+            case 0:
+                return 0; // north
+            case 1:
+                return 1; // east
+            case 2:
+                return 2; // south
+            case 3:
+                return 3; // west
+            default:
+                return 0;
+        }
+    }
+
     @SideOnly(Side.CLIENT)
     @Override
     public void registerBlockIcons(IIconRegister register) {
@@ -74,7 +107,7 @@ public class BlockModernModel extends Block {
         for (String texture : this.textureNames) {
             this.modelIcons.put(texture, register.registerIcon(toLegacyIconName(texture)));
         }
-        this.particleIcon = this.modelIcons.get(this.textureNames[0]);
+        this.particleIcon = this.modelIcons.get(this.particleTextureName);
         this.blockIcon = this.particleIcon;
     }
 

@@ -3,9 +3,9 @@ package cn.dancingsnow.neoecoae.block;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemBlock;
 
-public class ItemBlockEcoDrive extends ItemBlock {
+public class ItemBlockModelDrive extends ItemBlock {
 
-    public ItemBlockEcoDrive(Block block) {
+    public ItemBlockModelDrive(Block block) {
         super(block);
         this.setHasSubtypes(false);
     }

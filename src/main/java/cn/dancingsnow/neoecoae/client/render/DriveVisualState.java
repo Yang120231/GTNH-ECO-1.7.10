@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoae.client.render;
 
-public enum EcoDriveVisualState {
+public enum DriveVisualState {
 
     EMPTY,
     FULL

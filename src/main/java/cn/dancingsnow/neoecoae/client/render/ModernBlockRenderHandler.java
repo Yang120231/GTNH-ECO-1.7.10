@@ -6,7 +6,6 @@ import net.minecraft.world.IBlockAccess;
 
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
-import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 
 public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
@@ -36,13 +35,14 @@ public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
         BlockModernModel modelBlock = (BlockModernModel) block;
         EcoModelRenderer.renderWorld(
             ModernBlockModels.get(modelBlock.getModelName()),
-            ModelFacing.NORTH,
+            modelBlock.getModelFacing(world.getBlockMetadata(x, y, z)),
             modelBlock.getModelIcons(),
             world,
             x,
             y,
             z,
-            block);
+            block,
+            renderer);
         return true;
     }
 

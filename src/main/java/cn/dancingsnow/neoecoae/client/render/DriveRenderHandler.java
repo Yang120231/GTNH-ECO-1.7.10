@@ -4,44 +4,46 @@ import net.minecraft.block.Block;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.world.IBlockAccess;
 
-import cn.dancingsnow.neoecoae.block.BlockEcoDrive;
+import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 
-public class EcoDriveRenderHandler implements ISimpleBlockRenderingHandler {
+public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
 
     private final int renderId;
 
-    public EcoDriveRenderHandler(int renderId) {
+    public DriveRenderHandler(int renderId) {
         this.renderId = renderId;
     }
 
     @Override
     public void renderInventoryBlock(Block block, int metadata, int modelId, RenderBlocks renderer) {
-        if (block instanceof BlockEcoDrive) {
-            EcoModelRenderer.renderInventoryBlock(
-                EcoDriveModels.get(EcoDriveVisualState.EMPTY),
-                ((BlockEcoDrive) block).getModelIcons());
+        if (block instanceof BlockModelDrive) {
+            BlockModelDrive drive = (BlockModelDrive) block;
+            EcoModelRenderer
+                .renderInventoryBlock(DriveModels.get(drive, DriveVisualState.EMPTY), drive.getModelIcons());
         }
     }
 
     @Override
     public boolean renderWorldBlock(IBlockAccess world, int x, int y, int z, Block block, int modelId,
         RenderBlocks renderer) {
-        if (!(block instanceof BlockEcoDrive)) {
+        if (!(block instanceof BlockModelDrive)) {
             return false;
         }
 
+        BlockModelDrive drive = (BlockModelDrive) block;
         EcoModelRenderer.renderWorld(
-            EcoDriveModels.get(EcoDriveVisualState.EMPTY),
+            DriveModels.get(drive, DriveVisualState.EMPTY),
             ModelFacing.fromMeta(world.getBlockMetadata(x, y, z)),
-            ((BlockEcoDrive) block).getModelIcons(),
+            drive.getModelIcons(),
             world,
             x,
             y,
             z,
-            block);
+            block,
+            renderer);
         return true;
     }
 
