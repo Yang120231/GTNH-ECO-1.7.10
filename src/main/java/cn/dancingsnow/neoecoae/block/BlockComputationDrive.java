@@ -18,4 +18,9 @@ public class BlockComputationDrive extends BlockModelDrive {
             TEXTURES,
             NeoECOAE.MODID + ":block/compute/casing_side_east");
     }
+
+    @Override
+    public boolean useFullModelWhenFormed() {
+        return true;
+    }
 }

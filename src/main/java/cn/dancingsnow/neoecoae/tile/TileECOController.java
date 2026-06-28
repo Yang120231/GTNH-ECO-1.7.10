@@ -24,9 +24,11 @@ public class TileECOController extends TileEntity {
     private static final String TAG_MIRRORED = "Mirrored";
     private static final String TAG_FACING_META = "FacingMeta";
     private static final String TAG_HIDDEN_BLOCKS = "HiddenBlocks";
+    private static final String TAG_FORMED_MEMBER_BLOCKS = "FormedMemberBlocks";
     private static final String TAG_X = "X";
     private static final String TAG_Y = "Y";
     private static final String TAG_Z = "Z";
+    private static final String TAG_MEMBER_TIER = "MemberTier";
 
     private ECOControllerSubsystem subsystem = ECOControllerSubsystem.STORAGE;
     private ECOControllerTier tier = ECOControllerTier.L4;
@@ -35,6 +37,7 @@ public class TileECOController extends TileEntity {
     private int facingMeta;
     private String lastFormationMessage = "not scanned";
     private final List<ECOFormationBlockPos> hiddenBlocks = new ArrayList<ECOFormationBlockPos>();
+    private final List<ECOFormationBlockPos> formedMemberBlocks = new ArrayList<ECOFormationBlockPos>();
 
     public TileECOController() {}
 
@@ -96,10 +99,17 @@ public class TileECOController extends TileEntity {
         this.lastFormationMessage = result.getMessage();
         this.mirrored = result.isMirrored();
         this.replaceHiddenBlocks(result.getHiddenBlocks());
+        this.replaceFormedMemberBlocks(result.getFormedMemberBlocks());
         this.setFormed(result.isFormed());
         this.markDirty();
         if (this.worldObj != null) {
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+            for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+                this.worldObj.markBlockForUpdate(pos.getX(), pos.getY(), pos.getZ());
+            }
+            for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+                this.worldObj.markBlockForUpdate(pos.getX(), pos.getY(), pos.getZ());
+            }
         }
         return result;
     }
@@ -110,6 +120,15 @@ public class TileECOController extends TileEntity {
         }
         this.hiddenBlocks.clear();
         this.hiddenBlocks.addAll(newHiddenBlocks);
+    }
+
+    private void replaceFormedMemberBlocks(List<ECOFormationBlockPos> newFormedMemberBlocks) {
+        if (this.worldObj != null) {
+            ECOFormationVisibility
+                .replaceFormedMembers(this.worldObj, this.formedMemberBlocks, newFormedMemberBlocks, this.mirrored);
+        }
+        this.formedMemberBlocks.clear();
+        this.formedMemberBlocks.addAll(newFormedMemberBlocks);
     }
 
     public int getFacingMeta() {
@@ -138,12 +157,14 @@ public class TileECOController extends TileEntity {
     @Override
     public void invalidate() {
         this.replaceHiddenBlocks(new ArrayList<ECOFormationBlockPos>());
+        this.replaceFormedMemberBlocks(new ArrayList<ECOFormationBlockPos>());
         super.invalidate();
     }
 
     @Override
     public void onChunkUnload() {
         this.replaceHiddenBlocks(new ArrayList<ECOFormationBlockPos>());
+        this.replaceFormedMemberBlocks(new ArrayList<ECOFormationBlockPos>());
         super.onChunkUnload();
     }
 
@@ -157,13 +178,14 @@ public class TileECOController extends TileEntity {
         tag.setInteger(TAG_FACING_META, this.facingMeta);
         NBTTagList hiddenTag = new NBTTagList();
         for (ECOFormationBlockPos pos : this.hiddenBlocks) {
-            NBTTagCompound posTag = new NBTTagCompound();
-            posTag.setInteger(TAG_X, pos.getX());
-            posTag.setInteger(TAG_Y, pos.getY());
-            posTag.setInteger(TAG_Z, pos.getZ());
-            hiddenTag.appendTag(posTag);
+            hiddenTag.appendTag(writePos(pos));
         }
         tag.setTag(TAG_HIDDEN_BLOCKS, hiddenTag);
+        NBTTagList formedMemberTag = new NBTTagList();
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            formedMemberTag.appendTag(writePos(pos));
+        }
+        tag.setTag(TAG_FORMED_MEMBER_BLOCKS, formedMemberTag);
     }
 
     @Override
@@ -174,14 +196,8 @@ public class TileECOController extends TileEntity {
         this.formed = tag.getBoolean(TAG_FORMED);
         this.mirrored = tag.getBoolean(TAG_MIRRORED);
         this.facingMeta = tag.getInteger(TAG_FACING_META) & 3;
-        NBTTagList hiddenTag = tag.getTagList(TAG_HIDDEN_BLOCKS, 10);
-        List<ECOFormationBlockPos> newHiddenBlocks = new ArrayList<ECOFormationBlockPos>();
-        for (int i = 0; i < hiddenTag.tagCount(); i++) {
-            NBTTagCompound posTag = hiddenTag.getCompoundTagAt(i);
-            newHiddenBlocks.add(
-                new ECOFormationBlockPos(posTag.getInteger(TAG_X), posTag.getInteger(TAG_Y), posTag.getInteger(TAG_Z)));
-        }
-        this.replaceHiddenBlocks(newHiddenBlocks);
+        this.replaceHiddenBlocks(readPositions(tag.getTagList(TAG_HIDDEN_BLOCKS, 10)));
+        this.replaceFormedMemberBlocks(readPositions(tag.getTagList(TAG_FORMED_MEMBER_BLOCKS, 10)));
         if (this.worldObj != null) {
             this.worldObj.markBlockRangeForRenderUpdate(
                 this.xCoord - 16,
@@ -203,5 +219,35 @@ public class TileECOController extends TileEntity {
     @Override
     public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {
         this.readFromNBT(packet.func_148857_g());
+    }
+
+    private static NBTTagCompound writePos(ECOFormationBlockPos pos) {
+        NBTTagCompound posTag = new NBTTagCompound();
+        posTag.setInteger(TAG_X, pos.getX());
+        posTag.setInteger(TAG_Y, pos.getY());
+        posTag.setInteger(TAG_Z, pos.getZ());
+        if (pos.getTier() != null) {
+            posTag.setString(
+                TAG_MEMBER_TIER,
+                pos.getTier()
+                    .getId());
+        }
+        return posTag;
+    }
+
+    private static List<ECOFormationBlockPos> readPositions(NBTTagList positionsTag) {
+        List<ECOFormationBlockPos> positions = new ArrayList<ECOFormationBlockPos>();
+        for (int i = 0; i < positionsTag.tagCount(); i++) {
+            NBTTagCompound posTag = positionsTag.getCompoundTagAt(i);
+            String tierId = posTag.hasKey(TAG_MEMBER_TIER) ? posTag.getString(TAG_MEMBER_TIER) : "";
+            ECOControllerTier tier = tierId.length() > 0 ? ECOControllerTier.fromId(tierId) : null;
+            positions.add(
+                new ECOFormationBlockPos(
+                    posTag.getInteger(TAG_X),
+                    posTag.getInteger(TAG_Y),
+                    posTag.getInteger(TAG_Z),
+                    tier));
+        }
+        return positions;
     }
 }

@@ -1,6 +1,9 @@
 {
     "parent": "neoecoae:block/crafting_core/parallel_core_formed_base",
     "textures": {
+        "north": "neoecoae:block/crafting/core/parallel_core_north_formed",
+        "top": "neoecoae:block/crafting/casing_formed",
+        "south": "neoecoae:block/crafting/casing_back",
         "side": "neoecoae:block/crafting/core/core_side_c",
         "light": "neoecoae:block/crafting/core/parallel_core_light_c_on",
         "particle": "neoecoae:block/crafting/core/core_side_c"

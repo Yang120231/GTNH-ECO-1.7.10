@@ -10,10 +10,14 @@ import net.minecraft.block.material.MapColor;
 import net.minecraft.block.material.Material;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.block.BlockComputationCoolingController;
 import cn.dancingsnow.neoecoae.block.BlockComputationDrive;
+import cn.dancingsnow.neoecoae.block.BlockComputationTransmitter;
 import cn.dancingsnow.neoecoae.block.BlockDirectionalModernModel;
 import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockEcoDrive;
+import cn.dancingsnow.neoecoae.block.BlockFormedDirectionalModernModel;
+import cn.dancingsnow.neoecoae.block.BlockFormedTexturedMachine;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.block.BlockTieredModernModel;
 import cn.dancingsnow.neoecoae.block.ItemBlockModelDrive;
@@ -86,9 +90,10 @@ public final class NEBlocks {
         5.0F,
         10.0F,
         2);
-    public static final Block craftingCasing = texturedMachineBlock(
+    public static final Block craftingCasing = formedTexturedMachineBlock(
         "crafting_casing",
         NeoECOAE.MODID + ":crafting/casing",
+        NeoECOAE.MODID + ":crafting/casing_formed",
         5.0F,
         10.0F,
         2);
@@ -113,22 +118,35 @@ public final class NEBlocks {
         5.0F,
         10.0F,
         2);
-    public static final Block craftingVent = directionalModelBlock(
-        "crafting_vent",
-        "crafting_vent",
-        new String[] { NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_back",
-            NeoECOAE.MODID + ":block/crafting/casing_side", NeoECOAE.MODID + ":block/crafting/vent_north" });
-    public static final Block craftingPatternBus = directionalModelBlock(
-        "crafting_pattern_bus",
-        "crafting_pattern_bus",
-        new String[] { NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_side",
-            NeoECOAE.MODID + ":block/crafting/pattern_bus", NeoECOAE.MODID + ":block/crafting/casing_back" });
-    public static final Block craftingWorker = directionalModelBlock(
-        "crafting_worker",
-        "crafting_worker",
-        new String[] { NeoECOAE.MODID + ":block/crafting/core/working_core_north",
-            NeoECOAE.MODID + ":block/crafting/core/working_core_light", NeoECOAE.MODID + ":block/crafting/casing",
-            NeoECOAE.MODID + ":block/crafting/casing_back", NeoECOAE.MODID + ":block/crafting/core/core_side" });
+    public static final Block craftingVent = registerModernModelBlock(
+        new BlockFormedDirectionalModernModel(
+            "crafting_vent",
+            "crafting_vent",
+            "crafting_vent_formed",
+            new String[] { NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_back",
+                NeoECOAE.MODID + ":block/crafting/casing_side", NeoECOAE.MODID + ":block/crafting/vent_north",
+                NeoECOAE.MODID + ":block/crafting/casing_formed",
+                NeoECOAE.MODID + ":block/crafting/vent_north_formed" }));
+    public static final Block craftingPatternBus = registerModernModelBlock(
+        new BlockFormedDirectionalModernModel(
+            "crafting_pattern_bus",
+            "crafting_pattern_bus",
+            "crafting_pattern_bus_formed",
+            new String[] { NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_side",
+                NeoECOAE.MODID + ":block/crafting/pattern_bus", NeoECOAE.MODID + ":block/crafting/casing_back",
+                NeoECOAE.MODID + ":block/crafting/casing_formed", NeoECOAE.MODID + ":block/crafting/pattern_bus_formed",
+                NeoECOAE.MODID + ":block/crafting/pattern_bus_formed_light" }));
+    public static final Block craftingWorker = registerModernModelBlock(
+        new BlockFormedDirectionalModernModel(
+            "crafting_worker",
+            "crafting_worker",
+            "crafting_worker_formed",
+            new String[] { NeoECOAE.MODID + ":block/crafting/core/working_core_north",
+                NeoECOAE.MODID + ":block/crafting/core/working_core_north_formed",
+                NeoECOAE.MODID + ":block/crafting/core/working_core_light",
+                NeoECOAE.MODID + ":block/crafting/core/working_core_light_on",
+                NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_formed",
+                NeoECOAE.MODID + ":block/crafting/casing_back", NeoECOAE.MODID + ":block/crafting/core/core_side" }));
     public static final Block craftingInterface = directionalModelBlock(
         "crafting_interface",
         "crafting_interface",
@@ -139,14 +157,21 @@ public final class NEBlocks {
         "computation_interface",
         "computation_interface",
         new String[] { NeoECOAE.MODID + ":block/compute/me_bus", NeoECOAE.MODID + ":block/compute/me_bus_light" });
-    public static final Block computationTransmitter = directionalModelBlock(
-        "computation_transmitter",
-        "computation_transmitter",
-        new String[] { NeoECOAE.MODID + ":block/compute/cable/plug_off", NeoECOAE.MODID + ":block/compute/casing_back",
-            NeoECOAE.MODID + ":block/compute/casing", NeoECOAE.MODID + ":block/compute/transmitter/transmitter_north",
-            NeoECOAE.MODID + ":block/compute/transmitter/transmitter_north_glass",
-            NeoECOAE.MODID + ":block/compute/transmitter/transmitter_side_east",
-            NeoECOAE.MODID + ":block/compute/transmitter/transmitter_side_west" });
+    public static final Block computationTransmitter = registerModernModelBlock(
+        new BlockComputationTransmitter(
+            "computation_transmitter",
+            "computation_transmitter",
+            "computation_transmitter_formed",
+            new String[] { NeoECOAE.MODID + ":block/compute/cable/plug_off",
+                NeoECOAE.MODID + ":block/compute/casing_back", NeoECOAE.MODID + ":block/compute/casing",
+                NeoECOAE.MODID + ":block/compute/transmitter/transmitter_north",
+                NeoECOAE.MODID + ":block/compute/transmitter/transmitter_north_glass",
+                NeoECOAE.MODID + ":block/compute/transmitter/transmitter_side_east",
+                NeoECOAE.MODID + ":block/compute/transmitter/transmitter_side_west",
+                NeoECOAE.MODID + ":block/compute/coolant", NeoECOAE.MODID + ":block/compute/cable/plug_a",
+                NeoECOAE.MODID + ":block/compute/cable/plug_b", NeoECOAE.MODID + ":block/compute/cable/plug_c",
+                NeoECOAE.MODID + ":block/compute/cable/cable_a", NeoECOAE.MODID + ":block/compute/cable/cable_b",
+                NeoECOAE.MODID + ":block/compute/cable/cable_c" }));
     public static final Block computationCoolingControllerL4 = computationCoolingController("l4", "controller_east_a");
     public static final Block computationCoolingControllerL6 = computationCoolingController("l6", "controller_east_b");
     public static final Block computationCoolingControllerL9 = computationCoolingController("l9", "controller_east_c");
@@ -283,6 +308,17 @@ public final class NEBlocks {
         return block;
     }
 
+    private static Block formedTexturedMachineBlock(String id, String texture, String formedTexture, float hardness,
+        float resistance, int harvestLevel) {
+        Block block = new BlockFormedTexturedMachine(texture, formedTexture).setBlockName(id)
+            .setCreativeTab(NECreativeTabs.NEO_ECO_AE)
+            .setHardness(hardness)
+            .setResistance(resistance)
+            .setStepSound(Block.soundTypeMetal);
+        block.setHarvestLevel("pickaxe", harvestLevel);
+        return block;
+    }
+
     private static Block modelBlock(String id, String modelName, String[] textures) {
         return registerModernModelBlock(new BlockModernModel(id, modelName, textures));
     }
@@ -297,14 +333,21 @@ public final class NEBlocks {
     }
 
     private static Block computationCoolingController(String tier, String eastTexture) {
-        return directionalModelBlock(
-            "computation_cooling_controller_" + tier,
-            "computation_cooling_controller/controller_" + tier + "_off",
-            new String[] { NeoECOAE.MODID + ":block/compute/cooling_controller/" + eastTexture,
-                NeoECOAE.MODID + ":block/compute/cooling_controller/controller_north",
-                NeoECOAE.MODID + ":block/compute/casing_back", NeoECOAE.MODID + ":block/compute/casing",
-                NeoECOAE.MODID + ":block/compute/transmitter/transmitter_side_east" },
-            ModelFacing.WEST);
+        return registerModernModelBlock(
+            new BlockComputationCoolingController(
+                "computation_cooling_controller_" + tier,
+                "computation_cooling_controller/controller_" + tier + "_off",
+                "computation_cooling_controller/controller_" + tier + "_formed",
+                "computation_cooling_controller/controller_" + tier + "_formed_mirrored",
+                new String[] { NeoECOAE.MODID + ":block/compute/cooling_controller/" + eastTexture,
+                    NeoECOAE.MODID + ":block/compute/cooling_controller/controller_north",
+                    NeoECOAE.MODID + ":block/compute/casing_back", NeoECOAE.MODID + ":block/compute/casing",
+                    NeoECOAE.MODID + ":block/compute/transmitter/transmitter_side_east",
+                    NeoECOAE.MODID + ":block/compute/coolant",
+                    NeoECOAE.MODID + ":block/compute/cooling_controller/screen_on",
+                    NeoECOAE.MODID + ":block/compute/cooling_controller/" + coolingControllerFormedTexture(tier) },
+                ModelFacing.WEST,
+                controllerTier(tier)));
     }
 
     private static Block energyCell(String tier, String suffix) {
@@ -325,8 +368,10 @@ public final class NEBlocks {
             new BlockTieredModernModel(
                 "crafting_parallel_core_" + tier,
                 "crafting_core/parallel_core_" + tier,
+                "crafting_core/parallel_core_" + tier + "_formed",
                 new String[] { NeoECOAE.MODID + ":block/crafting/core/parallel_core_north",
                     NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_back",
+                    NeoECOAE.MODID + ":block/crafting/casing_formed",
                     NeoECOAE.MODID + ":block/crafting/core/core_side_" + suffix,
                     NeoECOAE.MODID + ":block/crafting/core/parallel_core_light_" + suffix,
                     NeoECOAE.MODID + ":block/crafting/core/parallel_core_light_" + suffix + "_on",
@@ -339,6 +384,7 @@ public final class NEBlocks {
             new BlockTieredModernModel(
                 "computation_parallel_core_" + tier,
                 "computation_core/parallel_core_" + tier,
+                "computation_core/parallel_core_" + tier + "_formed",
                 new String[] { NeoECOAE.MODID + ":block/compute/core/parallel_core_north",
                     NeoECOAE.MODID + ":block/compute/casing", NeoECOAE.MODID + ":block/compute/casing_back",
                     NeoECOAE.MODID + ":block/compute/core/core_side_" + suffix,
@@ -352,6 +398,7 @@ public final class NEBlocks {
             new BlockTieredModernModel(
                 "computation_threading_core_" + tier,
                 "computation_core/threading_core_" + tier,
+                "computation_core/threading_core_" + tier + "_formed",
                 new String[] { NeoECOAE.MODID + ":block/compute/core/threading_core_north",
                     NeoECOAE.MODID + ":block/compute/casing", NeoECOAE.MODID + ":block/compute/casing_back",
                     NeoECOAE.MODID + ":block/compute/core/core_side_" + suffix,
@@ -420,6 +467,16 @@ public final class NEBlocks {
             return "controller_formed_b";
         }
         return "controller_formed_c";
+    }
+
+    private static String coolingControllerFormedTexture(String tier) {
+        if ("l4".equals(tier)) {
+            return "controller_a_formed";
+        }
+        if ("l6".equals(tier)) {
+            return "controller_b_formed";
+        }
+        return "controller_c_formed";
     }
 
     private static String screenOnTexture(String tier) {

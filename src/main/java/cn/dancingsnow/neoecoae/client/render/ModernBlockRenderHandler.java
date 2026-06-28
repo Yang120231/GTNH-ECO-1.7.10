@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.IBlockAccess;
 
+import cn.dancingsnow.neoecoae.block.BlockComputationTransmitter;
 import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
@@ -42,9 +43,12 @@ public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
         }
 
         BlockModernModel modelBlock = (BlockModernModel) block;
+        boolean formedMember = ECOFormationVisibility.shouldRenderFormedMember(world, x, y, z);
+        boolean mirroredFormedMember = ECOFormationVisibility.isMirroredFormedMember(world, x, y, z);
         EcoModelRenderer.renderWorld(
             ModernBlockModels.get(getWorldModelName(modelBlock, world, x, y, z)),
-            modelBlock.getModelFacing(world.getBlockMetadata(x, y, z)),
+            formedMember ? modelBlock.getFormedModelFacing(world.getBlockMetadata(x, y, z), mirroredFormedMember)
+                : modelBlock.getModelFacing(world.getBlockMetadata(x, y, z)),
             modelBlock.getModelIcons(),
             world,
             x,
@@ -56,6 +60,25 @@ public class ModernBlockRenderHandler implements ISimpleBlockRenderingHandler {
     }
 
     private static String getWorldModelName(BlockModernModel block, IBlockAccess world, int x, int y, int z) {
+        if (ECOFormationVisibility.shouldRenderFormedMember(world, x, y, z)) {
+            String mirroredFormedModelName = ECOFormationVisibility.isMirroredFormedMember(world, x, y, z)
+                ? block.getMirroredFormedModelName()
+                : null;
+            if (mirroredFormedModelName != null) {
+                return mirroredFormedModelName;
+            }
+
+            if (block instanceof BlockComputationTransmitter) {
+                return ((BlockComputationTransmitter) block)
+                    .getFormedModelName(ECOFormationVisibility.getFormedMemberTier(world, x, y, z));
+            }
+
+            String formedModelName = block.getFormedModelName();
+            if (formedModelName != null) {
+                return formedModelName;
+            }
+        }
+
         if (!(block instanceof BlockECOController)) {
             return block.getModelName();
         }

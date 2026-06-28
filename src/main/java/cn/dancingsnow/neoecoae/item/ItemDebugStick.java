@@ -8,6 +8,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
+import cn.dancingsnow.neoecoae.multiblock.ECODebugStructureBuilder;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationResult;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
@@ -30,13 +31,19 @@ public class ItemDebugStick extends Item {
 
         TileECOController controller = (TileECOController) tile;
         if (!world.isRemote) {
-            ECOFormationResult result = controller.scanFormation();
-            sendStatus(player, controller, result);
+            if (player.isSneaking()) {
+                ECOFormationResult result = controller.scanFormation();
+                sendStatus(player, controller, result, -1);
+            } else {
+                ECODebugStructureBuilder.BuildResult buildResult = ECODebugStructureBuilder.buildDefault(controller);
+                sendStatus(player, controller, buildResult.getFormationResult(), buildResult.getPlacedBlocks());
+            }
         }
         return true;
     }
 
-    private static void sendStatus(EntityPlayer player, TileECOController controller, ECOFormationResult result) {
+    private static void sendStatus(EntityPlayer player, TileECOController controller, ECOFormationResult result,
+        int placedBlocks) {
         player.addChatMessage(new ChatComponentText("ECO Controller"));
         player.addChatMessage(
             new ChatComponentText(
@@ -51,6 +58,14 @@ public class ItemDebugStick extends Item {
                 "Facing: " + controller.getFacing()
                     .name()
                     .toLowerCase()));
+        if (placedBlocks >= 0) {
+            player.addChatMessage(
+                new ChatComponentText(
+                    "Generated: length " + ECODebugStructureBuilder.DEFAULT_LENGTH
+                        + ", changed "
+                        + placedBlocks
+                        + " blocks"));
+        }
         player.addChatMessage(new ChatComponentText("Formed: " + controller.isFormed()));
         player.addChatMessage(new ChatComponentText("Mirrored: " + controller.isMirrored()));
         player.addChatMessage(new ChatComponentText("Scan: " + result.getMessage()));

@@ -38,10 +38,12 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
         }
 
         BlockModelDrive drive = (BlockModelDrive) block;
+        boolean formed = ECOFormationVisibility.shouldRenderFormedMember(world, x, y, z);
         EcoModelRenderer.renderWorld(
-            DriveModels.get(drive, DriveVisualState.EMPTY),
+            DriveModels
+                .get(drive, formed && drive.useFullModelWhenFormed() ? DriveVisualState.FULL : DriveVisualState.EMPTY),
             ModelFacing.fromMeta(world.getBlockMetadata(x, y, z)),
-            drive.getModelIcons(),
+            formed ? drive.getFormedModelIcons() : drive.getModelIcons(),
             world,
             x,
             y,

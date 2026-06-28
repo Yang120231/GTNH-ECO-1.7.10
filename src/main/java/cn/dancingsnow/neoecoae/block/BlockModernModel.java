@@ -57,8 +57,24 @@ public class BlockModernModel extends Block {
         return this.modelName;
     }
 
+    public String getFormedModelName() {
+        return null;
+    }
+
+    public String getMirroredFormedModelName() {
+        return null;
+    }
+
+    public String[] getAdditionalFormedModelNames() {
+        return new String[0];
+    }
+
     public ModelFacing getModelFacing(int meta) {
         return ModelFacing.NORTH;
+    }
+
+    public ModelFacing getFormedModelFacing(int meta, boolean mirrored) {
+        return this.getModelFacing(meta);
     }
 
     public ModelFacing getInventoryModelFacing() {

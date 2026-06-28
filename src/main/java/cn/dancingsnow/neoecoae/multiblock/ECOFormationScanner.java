@@ -149,8 +149,10 @@ public final class ECOFormationScanner {
         if (!validateBlocks(world, tails, NEBlocks.storageCasing)) {
             return ECOFormationResult.failed("storage tail casing");
         }
-        return ECOFormationResult
-            .formed(mirrored, storageHiddenBlocks(c, front, top, down, staticSide, expandSide, back));
+        return ECOFormationResult.formed(
+            mirrored,
+            storageHiddenBlocks(c, front, top, down, staticSide, expandSide, back),
+            storageFormedMembers(storageStart, storageEnd));
     }
 
     private static ECOFormationResult verifyCrafting(TileECOController controller, ForgeDirection front,
@@ -178,6 +180,10 @@ public final class ECOFormationScanner {
             || !isBlock(world, interfacePos.offset(top), NEBlocks.inputHatch)
             || !isBlock(world, interfacePos.offset(down), NEBlocks.outputHatch)) {
             return ECOFormationResult.failed("crafting interface/hatches");
+        }
+        if (!isBlock(world, c.offset(top), NEBlocks.craftingCasing)
+            || !isBlock(world, c.offset(down), NEBlocks.craftingCasing)) {
+            return ECOFormationResult.failed("crafting controller cap");
         }
 
         Pos workerStart = c.offset(expandSide)
@@ -235,8 +241,25 @@ public final class ECOFormationScanner {
         if (!validateBlocks(world, endCasings, NEBlocks.craftingCasing)) {
             return ECOFormationResult.failed("crafting tail casing");
         }
-        return ECOFormationResult
-            .formed(mirrored, craftingHiddenBlocks(c, front, top, down, interfaceSide, expandSide, back));
+        return ECOFormationResult.formed(
+            mirrored,
+            craftingHiddenBlocks(c, front, top, down, interfaceSide, expandSide, back),
+            craftingFormedMembers(
+                workerStart,
+                upperParallelEnd,
+                lowerParallelEnd,
+                workerStart.offset(back)
+                    .offset(top),
+                upperPatternEnd,
+                workerStart.offset(back)
+                    .offset(down),
+                lowerPatternEnd,
+                workerStart.offset(back),
+                ventEnd,
+                endCasings,
+                expandSide,
+                top,
+                down));
     }
 
     private static ECOFormationResult verifyComputation(TileECOController controller, ForgeDirection front,
@@ -267,6 +290,10 @@ public final class ECOFormationScanner {
             NEBlocks.computationInterface,
             NEBlocks.computationCasing)) {
             return ECOFormationResult.failed("computation interface column");
+        }
+        if (!isBlock(world, c.offset(top), NEBlocks.computationCasing)
+            || !isBlock(world, c.offset(down), NEBlocks.computationCasing)) {
+            return ECOFormationResult.failed("computation controller cap");
         }
 
         Pos connectorStart = c.offset(expandSide)
@@ -343,22 +370,21 @@ public final class ECOFormationScanner {
         }
         return ECOFormationResult.formed(
             mirrored,
-            computationHiddenBlocks(
-                c,
-                front,
-                top,
-                down,
-                interfaceSide,
-                expandSide,
-                back,
+            computationHiddenBlocks(c, front, top, down, interfaceSide, expandSide, back, tailCasings),
+            computationFormedMembers(
                 connectorStart,
                 connectorEnd,
                 threadingStart,
                 threadingEnd,
+                upperParallelEnd,
+                lowerParallelEnd,
                 upperDriveEnd,
                 lowerDriveEnd,
-                upperParallelEnd,
-                lowerParallelEnd));
+                coolerPos,
+                tier,
+                expandSide,
+                top,
+                down));
     }
 
     private static List<ECOFormationBlockPos> storageHiddenBlocks(Pos controller, ForgeDirection front,
@@ -407,8 +433,7 @@ public final class ECOFormationScanner {
 
     private static List<ECOFormationBlockPos> computationHiddenBlocks(Pos controller, ForgeDirection front,
         ForgeDirection top, ForgeDirection down, ForgeDirection interfaceSide, ForgeDirection expandSide,
-        ForgeDirection back, Pos connectorStart, Pos connectorEnd, Pos threadingStart, Pos threadingEnd,
-        Pos upperDriveEnd, Pos lowerDriveEnd, Pos upperParallelEnd, Pos lowerParallelEnd) {
+        ForgeDirection back, List<Pos> tailCasings) {
         List<ECOFormationBlockPos> hidden = new ArrayList<ECOFormationBlockPos>();
         addControllerModelVolume(hidden, controller, front, interfaceSide, expandSide, back, top, down);
         addColumn(hidden, controller.offset(interfaceSide), top, down);
@@ -426,19 +451,49 @@ public final class ECOFormationScanner {
                 .offset(interfaceSide),
             top,
             down);
+        for (Pos tailCasing : tailCasings) {
+            hidden.add(tailCasing.toPublicPos());
+        }
 
-        addLine(hidden, connectorStart, connectorEnd);
-        addLine(hidden, threadingStart, threadingEnd);
-        addLine(hidden, connectorStart.offset(top), upperDriveEnd);
-        addLine(hidden, connectorStart.offset(down), lowerDriveEnd);
-        addLine(hidden, threadingStart.offset(top), upperParallelEnd);
-        addLine(hidden, threadingStart.offset(down), lowerParallelEnd);
-        addLine(hidden, threadingEnd.offset(expandSide), threadingEnd.offset(expandSide));
-        addLine(hidden, upperDriveEnd.offset(expandSide), upperDriveEnd.offset(expandSide));
-        addLine(hidden, lowerDriveEnd.offset(expandSide), lowerDriveEnd.offset(expandSide));
-        addLine(hidden, upperParallelEnd.offset(expandSide), upperParallelEnd.offset(expandSide));
-        addLine(hidden, lowerParallelEnd.offset(expandSide), lowerParallelEnd.offset(expandSide));
         return hidden;
+    }
+
+    private static List<ECOFormationBlockPos> craftingFormedMembers(Pos workerStart, Pos upperParallelEnd,
+        Pos lowerParallelEnd, Pos upperPatternStart, Pos upperPatternEnd, Pos lowerPatternStart, Pos lowerPatternEnd,
+        Pos ventStart, Pos ventEnd, List<Pos> tailCasings, ForgeDirection expandSide, ForgeDirection top,
+        ForgeDirection down) {
+        List<ECOFormationBlockPos> formedMembers = new ArrayList<ECOFormationBlockPos>();
+        addLine(formedMembers, workerStart, upperParallelEnd.offset(down));
+        addLine(formedMembers, workerStart.offset(top), upperParallelEnd);
+        addLine(formedMembers, workerStart.offset(down), lowerParallelEnd);
+        addLine(formedMembers, ventStart, ventEnd);
+        addLine(formedMembers, upperPatternStart, upperPatternEnd);
+        addLine(formedMembers, lowerPatternStart, lowerPatternEnd);
+        for (Pos tailCasing : tailCasings) {
+            formedMembers.add(tailCasing.toPublicPos());
+        }
+        return formedMembers;
+    }
+
+    private static List<ECOFormationBlockPos> storageFormedMembers(Pos storageStart, Pos storageEnd) {
+        List<ECOFormationBlockPos> formedMembers = new ArrayList<ECOFormationBlockPos>();
+        addLine(formedMembers, storageStart, storageEnd);
+        return formedMembers;
+    }
+
+    private static List<ECOFormationBlockPos> computationFormedMembers(Pos connectorStart, Pos connectorEnd,
+        Pos threadingStart, Pos threadingEnd, Pos upperParallelEnd, Pos lowerParallelEnd, Pos upperDriveEnd,
+        Pos lowerDriveEnd, Pos coolerPos, ECOControllerTier tier, ForgeDirection expandSide, ForgeDirection top,
+        ForgeDirection down) {
+        List<ECOFormationBlockPos> formedMembers = new ArrayList<ECOFormationBlockPos>();
+        addLine(formedMembers, connectorStart, connectorEnd, tier);
+        addLine(formedMembers, threadingStart, threadingEnd, tier);
+        addLine(formedMembers, threadingStart.offset(top), upperParallelEnd, tier);
+        addLine(formedMembers, threadingStart.offset(down), lowerParallelEnd, tier);
+        addLine(formedMembers, connectorStart.offset(top), upperDriveEnd, tier);
+        addLine(formedMembers, connectorStart.offset(down), lowerDriveEnd, tier);
+        formedMembers.add(coolerPos.toPublicPos(tier));
+        return formedMembers;
     }
 
     private static void addControllerModelVolume(List<ECOFormationBlockPos> hidden, Pos controller,
@@ -482,6 +537,10 @@ public final class ECOFormationScanner {
     }
 
     private static void addLine(List<ECOFormationBlockPos> hidden, Pos from, Pos to) {
+        addLine(hidden, from, to, null);
+    }
+
+    private static void addLine(List<ECOFormationBlockPos> hidden, Pos from, Pos to, ECOControllerTier tier) {
         int minX = Math.min(from.x, to.x);
         int minY = Math.min(from.y, to.y);
         int minZ = Math.min(from.z, to.z);
@@ -491,7 +550,7 @@ public final class ECOFormationScanner {
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    hidden.add(new ECOFormationBlockPos(x, y, z));
+                    hidden.add(new ECOFormationBlockPos(x, y, z, tier));
                 }
             }
         }
@@ -685,6 +744,10 @@ public final class ECOFormationScanner {
 
         private ECOFormationBlockPos toPublicPos() {
             return new ECOFormationBlockPos(this.x, this.y, this.z);
+        }
+
+        private ECOFormationBlockPos toPublicPos(ECOControllerTier tier) {
+            return new ECOFormationBlockPos(this.x, this.y, this.z, tier);
         }
     }
 }

@@ -1,5 +1,8 @@
 package cn.dancingsnow.neoecoae.block;
 
+import java.util.Collections;
+import java.util.Map;
+
 import cn.dancingsnow.neoecoae.NeoECOAE;
 
 public class BlockEcoDrive extends BlockModelDrive {
@@ -16,5 +19,12 @@ public class BlockEcoDrive extends BlockModelDrive {
             "eco_drive_full",
             TEXTURES,
             NeoECOAE.MODID + ":block/storage/casing_side");
+    }
+
+    @Override
+    public Map<String, String> getFormedTextureOverrides() {
+        return Collections.singletonMap(
+            NeoECOAE.MODID + ":block/storage/drive/drive_north",
+            NeoECOAE.MODID + ":block/storage/drive/drive_north_on");
     }
 }

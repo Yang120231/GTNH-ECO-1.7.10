@@ -30,6 +30,9 @@ public class BlockModelDrive extends Block {
     private final Map<String, IIcon> modelIcons = new HashMap<String, IIcon>();
 
     @SideOnly(Side.CLIENT)
+    private final Map<String, IIcon> formedModelIcons = new HashMap<String, IIcon>();
+
+    @SideOnly(Side.CLIENT)
     private IIcon particleIcon;
 
     public BlockModelDrive(String id, String emptyModelName, String fullModelName, String[] textureNames,
@@ -59,6 +62,14 @@ public class BlockModelDrive extends Block {
 
     public String getFullModelName() {
         return this.fullModelName;
+    }
+
+    public Map<String, String> getFormedTextureOverrides() {
+        return Collections.emptyMap();
+    }
+
+    public boolean useFullModelWhenFormed() {
+        return false;
     }
 
     public String getParticleTextureName() {
@@ -103,11 +114,25 @@ public class BlockModelDrive extends Block {
         ModernIconRegistrar.registerIcons(register, this.textureNames, this.modelIcons);
         this.particleIcon = this.modelIcons.get(this.particleTextureName);
         this.blockIcon = this.particleIcon;
+        this.formedModelIcons.clear();
+        this.formedModelIcons.putAll(this.modelIcons);
+        for (Map.Entry<String, String> entry : this.getFormedTextureOverrides()
+            .entrySet()) {
+            IIcon overrideIcon = this.modelIcons.get(entry.getValue());
+            if (overrideIcon != null) {
+                this.formedModelIcons.put(entry.getKey(), overrideIcon);
+            }
+        }
     }
 
     @SideOnly(Side.CLIENT)
     public Map<String, IIcon> getModelIcons() {
         return Collections.unmodifiableMap(this.modelIcons);
+    }
+
+    @SideOnly(Side.CLIENT)
+    public Map<String, IIcon> getFormedModelIcons() {
+        return Collections.unmodifiableMap(this.formedModelIcons);
     }
 
     @SideOnly(Side.CLIENT)

@@ -34,6 +34,18 @@ public class ClientProxy extends CommonProxy {
                 BlockECOController controller = (BlockECOController) block;
                 ModernBlockModels.load(controller.getFormedModelName());
                 ModernBlockModels.load(controller.getMirroredFormedModelName());
+            } else {
+                String formedModelName = block.getFormedModelName();
+                if (formedModelName != null) {
+                    ModernBlockModels.load(formedModelName);
+                }
+                String mirroredFormedModelName = block.getMirroredFormedModelName();
+                if (mirroredFormedModelName != null) {
+                    ModernBlockModels.load(mirroredFormedModelName);
+                }
+                for (String additionalFormedModelName : block.getAdditionalFormedModelNames()) {
+                    ModernBlockModels.load(additionalFormedModelName);
+                }
             }
         }
         RenderingRegistry.registerBlockHandler(new ModernBlockRenderHandler(modernBlockRenderId));
