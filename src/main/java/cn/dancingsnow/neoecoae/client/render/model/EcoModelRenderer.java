@@ -43,7 +43,7 @@ public final class EcoModelRenderer {
 
             int brightness = quad.isFullBright() ? FULL_BRIGHTNESS
                 : getWorldBrightness(world, x, y, z, block, quad, facing);
-            float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : getWorldShade(quad.getNormal());
+            float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : quad.getWorldShade();
             tessellator.setBrightness(brightness);
             tessellator.setColorOpaque_F(shade, shade, shade);
             submitQuad(tessellator, quad, icon);
@@ -73,10 +73,10 @@ public final class EcoModelRenderer {
     }
 
     private static boolean shouldCull(IBlockAccess world, int x, int y, int z, BakedQuad quad) {
-        ForgeDirection cullDirection = quad.getCullDirection();
-        if (cullDirection == ForgeDirection.UNKNOWN) {
+        if (!quad.isCullable()) {
             return false;
         }
+        ForgeDirection cullDirection = quad.getCullDirection();
 
         int neighborX = x + cullDirection.offsetX;
         int neighborY = y + cullDirection.offsetY;
@@ -87,19 +87,6 @@ public final class EcoModelRenderer {
 
         return !world.getBlock(x, y, z)
             .shouldSideBeRendered(world, neighborX, neighborY, neighborZ, cullDirection.ordinal());
-    }
-
-    private static float getWorldShade(ForgeDirection normal) {
-        if (normal == ForgeDirection.DOWN) {
-            return 0.5F;
-        }
-        if (normal == ForgeDirection.UP) {
-            return 1.0F;
-        }
-        if (normal == ForgeDirection.NORTH || normal == ForgeDirection.SOUTH) {
-            return 0.8F;
-        }
-        return 0.6F;
     }
 
     private static int getWorldBrightness(IBlockAccess world, int x, int y, int z, Block block, BakedQuad quad,
@@ -113,9 +100,9 @@ public final class EcoModelRenderer {
             return getInternalBrightness(world, x, y, z, block, facing.getDirection());
         }
 
-        int sampleX = x + floor(sampleCoordinate(quad, 0) + normal.offsetX * LIGHT_SAMPLE_EPSILON);
-        int sampleY = y + floor(sampleCoordinate(quad, 1) + normal.offsetY * LIGHT_SAMPLE_EPSILON);
-        int sampleZ = z + floor(sampleCoordinate(quad, 2) + normal.offsetZ * LIGHT_SAMPLE_EPSILON);
+        int sampleX = x + floor(quad.getSampleX() + normal.offsetX * LIGHT_SAMPLE_EPSILON);
+        int sampleY = y + floor(quad.getSampleY() + normal.offsetY * LIGHT_SAMPLE_EPSILON);
+        int sampleZ = z + floor(quad.getSampleZ() + normal.offsetZ * LIGHT_SAMPLE_EPSILON);
         return getVisualBrightness(world, x, y, z, sampleX, sampleY, sampleZ, block, normal);
     }
 
@@ -165,15 +152,6 @@ public final class EcoModelRenderer {
         return sampleBlock instanceof BlockModernModel || sampleBlock instanceof BlockModelDrive;
     }
 
-    private static double sampleCoordinate(BakedQuad quad, int axis) {
-        double[][] vertices = quad.getVertices();
-        double total = 0.0D;
-        for (double[] vertex : vertices) {
-            total += vertex[axis];
-        }
-        return total / vertices.length;
-    }
-
     private static int floor(double value) {
         int floor = (int) value;
         return value < floor ? floor - 1 : floor;
@@ -195,20 +173,20 @@ public final class EcoModelRenderer {
     private static void renderInventoryQuads(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
         Tessellator tessellator = Tessellator.instance;
         List<BakedQuad> quads = model.getQuads(facing);
+        tessellator.startDrawingQuads();
         for (BakedQuad quad : quads) {
             IIcon icon = icons.get(quad.getTexture());
             if (icon == null) {
                 continue;
             }
 
-            tessellator.startDrawingQuads();
             ForgeDirection normal = quad.getNormal();
             float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : getInventoryShade(normal);
             tessellator.setNormal(normal.offsetX, normal.offsetY, normal.offsetZ);
             tessellator.setColorOpaque_F(shade, shade, shade);
             submitQuad(tessellator, quad, icon);
-            tessellator.draw();
         }
+        tessellator.draw();
     }
 
     private static void submitQuad(Tessellator tessellator, BakedQuad quad, IIcon icon) {

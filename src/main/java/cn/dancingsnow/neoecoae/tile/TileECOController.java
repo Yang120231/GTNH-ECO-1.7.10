@@ -96,25 +96,28 @@ public class TileECOController extends TileEntity {
 
     public ECOFormationResult scanFormation() {
         ECOFormationResult result = ECOFormationScanner.scan(this);
+        boolean mirroredChanged = this.mirrored != result.isMirrored();
+        boolean stateChanged = this.formed != result.isFormed() || this.mirrored != result.isMirrored()
+            || !samePositions(this.hiddenBlocks, result.getHiddenBlocks())
+            || !samePositions(this.formedMemberBlocks, result.getFormedMemberBlocks());
         this.lastFormationMessage = result.getMessage();
         this.mirrored = result.isMirrored();
         this.replaceHiddenBlocks(result.getHiddenBlocks());
-        this.replaceFormedMemberBlocks(result.getFormedMemberBlocks());
+        this.replaceFormedMemberBlocks(result.getFormedMemberBlocks(), mirroredChanged);
         this.setFormed(result.isFormed());
-        this.markDirty();
-        if (this.worldObj != null) {
+        if (stateChanged) {
+            this.markDirty();
+        }
+        if (stateChanged && this.worldObj != null) {
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
-            for (ECOFormationBlockPos pos : this.hiddenBlocks) {
-                this.worldObj.markBlockForUpdate(pos.getX(), pos.getY(), pos.getZ());
-            }
-            for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
-                this.worldObj.markBlockForUpdate(pos.getX(), pos.getY(), pos.getZ());
-            }
         }
         return result;
     }
 
     private void replaceHiddenBlocks(List<ECOFormationBlockPos> newHiddenBlocks) {
+        if (samePositions(this.hiddenBlocks, newHiddenBlocks)) {
+            return;
+        }
         if (this.worldObj != null) {
             ECOFormationVisibility.replace(this.worldObj, this.hiddenBlocks, newHiddenBlocks);
         }
@@ -123,6 +126,13 @@ public class TileECOController extends TileEntity {
     }
 
     private void replaceFormedMemberBlocks(List<ECOFormationBlockPos> newFormedMemberBlocks) {
+        this.replaceFormedMemberBlocks(newFormedMemberBlocks, false);
+    }
+
+    private void replaceFormedMemberBlocks(List<ECOFormationBlockPos> newFormedMemberBlocks, boolean force) {
+        if (!force && samePositions(this.formedMemberBlocks, newFormedMemberBlocks)) {
+            return;
+        }
         if (this.worldObj != null) {
             ECOFormationVisibility
                 .replaceFormedMembers(this.worldObj, this.formedMemberBlocks, newFormedMemberBlocks, this.mirrored);
@@ -214,6 +224,20 @@ public class TileECOController extends TileEntity {
         NBTTagCompound tag = new NBTTagCompound();
         this.writeToNBT(tag);
         return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
+    }
+
+    private static boolean samePositions(List<ECOFormationBlockPos> left, List<ECOFormationBlockPos> right) {
+        if (left.size() != right.size()) {
+            return false;
+        }
+        for (int i = 0; i < left.size(); i++) {
+            ECOFormationBlockPos a = left.get(i);
+            ECOFormationBlockPos b = right.get(i);
+            if (a.getX() != b.getX() || a.getY() != b.getY() || a.getZ() != b.getZ() || a.getTier() != b.getTier()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override

@@ -30,6 +30,19 @@ public class BakedEcoModel {
         return this.quads.get(facing);
     }
 
+    public int getQuadCount(ModelFacing facing) {
+        return this.quads.get(facing)
+            .size();
+    }
+
+    public int getMaxQuadCount() {
+        int max = 0;
+        for (List<BakedQuad> facingQuads : this.quads.values()) {
+            max = Math.max(max, facingQuads.size());
+        }
+        return max;
+    }
+
     private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing) {
         List<BakedQuad> bakedQuads = new ArrayList<BakedQuad>();
         ModelBounds bounds = calculateBounds(model, facing);

@@ -1,11 +1,10 @@
 package cn.dancingsnow.neoecoae.multiblock;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
+import net.minecraft.util.LongHashMap;
 import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
@@ -13,14 +12,15 @@ import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 
 public final class ECOFormationVisibility {
 
-    private static final Set<Key> HIDDEN_BLOCKS = new HashSet<Key>();
-    private static final Set<SimpleKey> CLIENT_HIDDEN_BLOCKS = new HashSet<SimpleKey>();
-    private static final Set<Key> FORMED_MEMBER_BLOCKS = new HashSet<Key>();
-    private static final Set<SimpleKey> CLIENT_FORMED_MEMBER_BLOCKS = new HashSet<SimpleKey>();
-    private static final Set<Key> MIRRORED_FORMED_MEMBER_BLOCKS = new HashSet<Key>();
-    private static final Set<SimpleKey> CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS = new HashSet<SimpleKey>();
-    private static final Map<Key, ECOControllerTier> FORMED_MEMBER_TIERS = new HashMap<Key, ECOControllerTier>();
-    private static final Map<SimpleKey, ECOControllerTier> CLIENT_FORMED_MEMBER_TIERS = new HashMap<SimpleKey, ECOControllerTier>();
+    private static final Object PRESENT = new Object();
+    private static final Map<Integer, LongHashMap> HIDDEN_BLOCKS = new HashMap<Integer, LongHashMap>();
+    private static final LongHashMap CLIENT_HIDDEN_BLOCKS = new LongHashMap();
+    private static final Map<Integer, LongHashMap> FORMED_MEMBER_BLOCKS = new HashMap<Integer, LongHashMap>();
+    private static final LongHashMap CLIENT_FORMED_MEMBER_BLOCKS = new LongHashMap();
+    private static final Map<Integer, LongHashMap> MIRRORED_FORMED_MEMBER_BLOCKS = new HashMap<Integer, LongHashMap>();
+    private static final LongHashMap CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS = new LongHashMap();
+    private static final Map<Integer, LongHashMap> FORMED_MEMBER_TIERS = new HashMap<Integer, LongHashMap>();
+    private static final LongHashMap CLIENT_FORMED_MEMBER_TIERS = new LongHashMap();
 
     private ECOFormationVisibility() {}
 
@@ -35,45 +35,45 @@ public final class ECOFormationVisibility {
 
     public static boolean isHidden(IBlockAccess world, int x, int y, int z) {
         if (world instanceof World) {
-            return HIDDEN_BLOCKS.contains(new Key((World) world, x, y, z))
-                || CLIENT_HIDDEN_BLOCKS.contains(new SimpleKey(x, y, z));
+            return contains(HIDDEN_BLOCKS, (World) world, x, y, z)
+                || CLIENT_HIDDEN_BLOCKS.containsItem(posKey(x, y, z));
         }
-        return CLIENT_HIDDEN_BLOCKS.contains(new SimpleKey(x, y, z));
+        return CLIENT_HIDDEN_BLOCKS.containsItem(posKey(x, y, z));
     }
 
     public static boolean shouldRenderFormedMember(IBlockAccess world, int x, int y, int z) {
         if (world instanceof World) {
-            return FORMED_MEMBER_BLOCKS.contains(new Key((World) world, x, y, z))
-                || CLIENT_FORMED_MEMBER_BLOCKS.contains(new SimpleKey(x, y, z));
+            return contains(FORMED_MEMBER_BLOCKS, (World) world, x, y, z)
+                || CLIENT_FORMED_MEMBER_BLOCKS.containsItem(posKey(x, y, z));
         }
-        return CLIENT_FORMED_MEMBER_BLOCKS.contains(new SimpleKey(x, y, z));
+        return CLIENT_FORMED_MEMBER_BLOCKS.containsItem(posKey(x, y, z));
     }
 
     public static boolean isMirroredFormedMember(IBlockAccess world, int x, int y, int z) {
         if (world instanceof World) {
-            return MIRRORED_FORMED_MEMBER_BLOCKS.contains(new Key((World) world, x, y, z))
-                || CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.contains(new SimpleKey(x, y, z));
+            return contains(MIRRORED_FORMED_MEMBER_BLOCKS, (World) world, x, y, z)
+                || CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.containsItem(posKey(x, y, z));
         }
-        return CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.contains(new SimpleKey(x, y, z));
+        return CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.containsItem(posKey(x, y, z));
     }
 
     public static ECOControllerTier getFormedMemberTier(IBlockAccess world, int x, int y, int z) {
-        SimpleKey simpleKey = new SimpleKey(x, y, z);
+        long key = posKey(x, y, z);
         if (world instanceof World) {
-            ECOControllerTier tier = FORMED_MEMBER_TIERS.get(new Key((World) world, x, y, z));
-            return tier != null ? tier : CLIENT_FORMED_MEMBER_TIERS.get(simpleKey);
+            ECOControllerTier tier = getTier((World) world, x, y, z);
+            return tier != null ? tier : (ECOControllerTier) CLIENT_FORMED_MEMBER_TIERS.getValueByKey(key);
         }
-        return CLIENT_FORMED_MEMBER_TIERS.get(simpleKey);
+        return (ECOControllerTier) CLIENT_FORMED_MEMBER_TIERS.getValueByKey(key);
     }
 
     private static void add(World world, List<ECOFormationBlockPos> positions) {
         for (ECOFormationBlockPos pos : positions) {
-            HIDDEN_BLOCKS.add(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
+            mapFor(HIDDEN_BLOCKS, world).add(posKey(pos), PRESENT);
             if (world.isRemote) {
-                CLIENT_HIDDEN_BLOCKS.add(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
+                CLIENT_HIDDEN_BLOCKS.add(posKey(pos), PRESENT);
             }
-            mark(world, pos);
         }
+        mark(world, positions);
     }
 
     public static void replaceFormedMembers(World world, List<ECOFormationBlockPos> oldPositions,
@@ -87,116 +87,117 @@ public final class ECOFormationVisibility {
 
     private static void addFormedMembers(World world, List<ECOFormationBlockPos> positions, boolean mirrored) {
         for (ECOFormationBlockPos pos : positions) {
-            FORMED_MEMBER_BLOCKS.add(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
+            long key = posKey(pos);
+            mapFor(FORMED_MEMBER_BLOCKS, world).add(key, PRESENT);
             if (pos.getTier() != null) {
-                FORMED_MEMBER_TIERS.put(new Key(world, pos.getX(), pos.getY(), pos.getZ()), pos.getTier());
+                mapFor(FORMED_MEMBER_TIERS, world).add(key, pos.getTier());
             }
             if (world.isRemote) {
-                CLIENT_FORMED_MEMBER_BLOCKS.add(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
+                CLIENT_FORMED_MEMBER_BLOCKS.add(key, PRESENT);
                 if (pos.getTier() != null) {
-                    CLIENT_FORMED_MEMBER_TIERS.put(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()), pos.getTier());
+                    CLIENT_FORMED_MEMBER_TIERS.add(key, pos.getTier());
                 }
             }
             if (mirrored) {
-                MIRRORED_FORMED_MEMBER_BLOCKS.add(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
+                mapFor(MIRRORED_FORMED_MEMBER_BLOCKS, world).add(key, PRESENT);
                 if (world.isRemote) {
-                    CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.add(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
+                    CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.add(key, PRESENT);
                 }
             }
-            mark(world, pos);
         }
+        mark(world, positions);
     }
 
     private static void removeFormedMembers(World world, List<ECOFormationBlockPos> positions) {
         for (ECOFormationBlockPos pos : positions) {
-            FORMED_MEMBER_BLOCKS.remove(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
-            FORMED_MEMBER_TIERS.remove(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
+            long key = posKey(pos);
+            remove(FORMED_MEMBER_BLOCKS, world, key);
+            remove(FORMED_MEMBER_TIERS, world, key);
             if (world.isRemote) {
-                CLIENT_FORMED_MEMBER_BLOCKS.remove(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
-                CLIENT_FORMED_MEMBER_TIERS.remove(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
+                CLIENT_FORMED_MEMBER_BLOCKS.remove(key);
+                CLIENT_FORMED_MEMBER_TIERS.remove(key);
             }
-            MIRRORED_FORMED_MEMBER_BLOCKS.remove(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
+            remove(MIRRORED_FORMED_MEMBER_BLOCKS, world, key);
             if (world.isRemote) {
-                CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.remove(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
+                CLIENT_MIRRORED_FORMED_MEMBER_BLOCKS.remove(key);
             }
-            mark(world, pos);
         }
+        mark(world, positions);
     }
 
     private static void remove(World world, List<ECOFormationBlockPos> positions) {
         for (ECOFormationBlockPos pos : positions) {
-            HIDDEN_BLOCKS.remove(new Key(world, pos.getX(), pos.getY(), pos.getZ()));
+            remove(HIDDEN_BLOCKS, world, posKey(pos));
             if (world.isRemote) {
-                CLIENT_HIDDEN_BLOCKS.remove(new SimpleKey(pos.getX(), pos.getY(), pos.getZ()));
+                CLIENT_HIDDEN_BLOCKS.remove(posKey(pos));
             }
-            mark(world, pos);
+        }
+        mark(world, positions);
+    }
+
+    private static void mark(World world, List<ECOFormationBlockPos> positions) {
+        if (positions.isEmpty()) {
+            return;
+        }
+
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        for (ECOFormationBlockPos pos : positions) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+        world.markBlockRangeForRenderUpdate(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private static boolean contains(Map<Integer, LongHashMap> byDimension, World world, int x, int y, int z) {
+        LongHashMap positions = byDimension.get(dimensionId(world));
+        return positions != null && positions.containsItem(posKey(x, y, z));
+    }
+
+    private static ECOControllerTier getTier(World world, int x, int y, int z) {
+        LongHashMap tiers = FORMED_MEMBER_TIERS.get(dimensionId(world));
+        return tiers == null ? null : (ECOControllerTier) tiers.getValueByKey(posKey(x, y, z));
+    }
+
+    private static LongHashMap mapFor(Map<Integer, LongHashMap> byDimension, World world) {
+        Integer dimension = dimensionId(world);
+        LongHashMap positions = byDimension.get(dimension);
+        if (positions == null) {
+            positions = new LongHashMap();
+            byDimension.put(dimension, positions);
+        }
+        return positions;
+    }
+
+    private static void remove(Map<Integer, LongHashMap> byDimension, World world, long key) {
+        Integer dimension = dimensionId(world);
+        LongHashMap positions = byDimension.get(dimension);
+        if (positions == null) {
+            return;
+        }
+        positions.remove(key);
+        if (positions.getNumHashElements() == 0) {
+            byDimension.remove(dimension);
         }
     }
 
-    private static final class SimpleKey {
-
-        private final int x;
-        private final int y;
-        private final int z;
-
-        private SimpleKey(int x, int y, int z) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (!(obj instanceof SimpleKey)) {
-                return false;
-            }
-            SimpleKey other = (SimpleKey) obj;
-            return this.x == other.x && this.y == other.y && this.z == other.z;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = this.x;
-            result = 31 * result + this.y;
-            result = 31 * result + this.z;
-            return result;
-        }
+    private static Integer dimensionId(World world) {
+        return Integer.valueOf(world.provider.dimensionId);
     }
 
-    private static void mark(World world, ECOFormationBlockPos pos) {
-        world.markBlockRangeForRenderUpdate(pos.getX(), pos.getY(), pos.getZ(), pos.getX(), pos.getY(), pos.getZ());
+    private static long posKey(ECOFormationBlockPos pos) {
+        return posKey(pos.getX(), pos.getY(), pos.getZ());
     }
 
-    private static final class Key {
-
-        private final int dimension;
-        private final int x;
-        private final int y;
-        private final int z;
-
-        private Key(World world, int x, int y, int z) {
-            this.dimension = world.provider.dimensionId;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (!(obj instanceof Key)) {
-                return false;
-            }
-            Key other = (Key) obj;
-            return this.dimension == other.dimension && this.x == other.x && this.y == other.y && this.z == other.z;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = this.dimension;
-            result = 31 * result + this.x;
-            result = 31 * result + this.y;
-            result = 31 * result + this.z;
-            return result;
-        }
+    private static long posKey(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFFL);
     }
 }
