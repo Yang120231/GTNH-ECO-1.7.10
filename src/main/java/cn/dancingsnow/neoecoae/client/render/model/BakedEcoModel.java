@@ -21,17 +21,8 @@ public class BakedEcoModel {
         }
     }
 
-    public ModernModel getSource() {
-        return this.source;
-    }
-
     public List<BakedQuad> getQuads(ModelFacing facing) {
         return this.quads.get(facing);
-    }
-
-    public int getQuadCount(ModelFacing facing) {
-        return this.quads.get(facing)
-            .size();
     }
 
     public int getMaxQuadCount() {

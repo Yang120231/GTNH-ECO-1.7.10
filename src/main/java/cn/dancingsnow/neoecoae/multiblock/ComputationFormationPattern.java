@@ -118,7 +118,7 @@ final class ComputationFormationPattern implements ECOFormationPattern {
             return ECOFormationResult.failed("computation repeat lines");
         }
 
-        List<Pos> tails = new ArrayList<Pos>();
+        List<Pos> tails = new ArrayList<>();
         tails.add(connectorEnd);
         tails.add(threadingEnd);
         tails.add(upperDriveEnd);
@@ -134,7 +134,7 @@ final class ComputationFormationPattern implements ECOFormationPattern {
             return ECOFormationResult.failed("computation cooling controller");
         }
 
-        List<Pos> tailCasings = new ArrayList<Pos>();
+        List<Pos> tailCasings = new ArrayList<>();
         tailCasings.add(threadingEnd.offset(directions.expandSide));
         tailCasings.add(upperDriveEnd.offset(directions.expandSide));
         tailCasings.add(lowerDriveEnd.offset(directions.expandSide));
@@ -162,7 +162,7 @@ final class ComputationFormationPattern implements ECOFormationPattern {
 
     private List<ECOFormationBlockPos> hiddenBlocks(Pos controller, FormationDirections directions,
         List<Pos> tailCasings) {
-        List<ECOFormationBlockPos> hidden = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> hidden = new ArrayList<>();
         addControllerModelVolume(
             hidden,
             controller,
@@ -196,7 +196,7 @@ final class ComputationFormationPattern implements ECOFormationPattern {
     private List<ECOFormationBlockPos> formedMembers(Pos connectorStart, Pos connectorEnd, Pos threadingStart,
         Pos threadingEnd, Pos upperParallelEnd, Pos lowerParallelEnd, Pos upperDriveEnd, Pos lowerDriveEnd,
         Pos coolerPos, ECOControllerTier tier, FormationDirections directions) {
-        List<ECOFormationBlockPos> formedMembers = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> formedMembers = new ArrayList<>();
         addLine(formedMembers, connectorStart, connectorEnd, tier);
         addLine(formedMembers, threadingStart, threadingEnd, tier);
         addLine(formedMembers, threadingStart.offset(directions.top), upperParallelEnd, tier);

@@ -20,21 +20,6 @@ public class BakedQuad {
     private final double sampleZ;
 
     public BakedQuad(String texture, String cullFace, ForgeDirection cullDirection, ForgeDirection normal,
-        double[][] vertices, double[][] uv) {
-        this(texture, cullFace, cullDirection, normal, vertices, uv, false, true, true);
-    }
-
-    public BakedQuad(String texture, String cullFace, ForgeDirection cullDirection, ForgeDirection normal,
-        double[][] vertices, double[][] uv, boolean fullBright) {
-        this(texture, cullFace, cullDirection, normal, vertices, uv, fullBright, true, true);
-    }
-
-    public BakedQuad(String texture, String cullFace, ForgeDirection cullDirection, ForgeDirection normal,
-        double[][] vertices, double[][] uv, boolean fullBright, boolean shade) {
-        this(texture, cullFace, cullDirection, normal, vertices, uv, fullBright, shade, true);
-    }
-
-    public BakedQuad(String texture, String cullFace, ForgeDirection cullDirection, ForgeDirection normal,
         double[][] vertices, double[][] uv, boolean fullBright, boolean shade, boolean boundaryFace) {
         this.texture = texture;
         this.cullFace = cullFace;
@@ -54,10 +39,6 @@ public class BakedQuad {
 
     public String getTexture() {
         return this.texture;
-    }
-
-    public String getCullFace() {
-        return this.cullFace;
     }
 
     public ForgeDirection getCullDirection() {

@@ -17,8 +17,8 @@ public class ECOFormationResult {
         this.formed = formed;
         this.mirrored = mirrored;
         this.message = message;
-        this.hiddenBlocks = new ArrayList<ECOFormationBlockPos>(hiddenBlocks);
-        this.formedMemberBlocks = new ArrayList<ECOFormationBlockPos>(formedMemberBlocks);
+        this.hiddenBlocks = new ArrayList<>(hiddenBlocks);
+        this.formedMemberBlocks = new ArrayList<>(formedMemberBlocks);
     }
 
     public static ECOFormationResult formed(boolean mirrored, List<ECOFormationBlockPos> hiddenBlocks) {

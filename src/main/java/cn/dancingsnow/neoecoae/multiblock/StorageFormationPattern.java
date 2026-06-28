@@ -105,7 +105,7 @@ final class StorageFormationPattern implements ECOFormationPattern {
 
         Pos tailCasing = storageEnd.offset(directions.expandSide)
             .offset(directions.top);
-        List<Pos> tails = new ArrayList<Pos>();
+        List<Pos> tails = new ArrayList<>();
         tails.add(upperEnergyEnd.offset(directions.expandSide));
         tails.add(lowerEnergyEnd.offset(directions.expandSide));
         tails.add(ventEnd.offset(directions.expandSide));
@@ -125,7 +125,7 @@ final class StorageFormationPattern implements ECOFormationPattern {
     }
 
     private List<ECOFormationBlockPos> hiddenBlocks(Pos controller, FormationDirections directions) {
-        List<ECOFormationBlockPos> hidden = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> hidden = new ArrayList<>();
         addColumn(hidden, controller.offset(directions.interfaceSide), directions.top, directions.down);
         addColumn(hidden, controller.offset(directions.back), directions.top, directions.down);
         addColumn(
@@ -144,7 +144,7 @@ final class StorageFormationPattern implements ECOFormationPattern {
     }
 
     private List<ECOFormationBlockPos> formedMembers(Pos storageStart, Pos storageEnd) {
-        List<ECOFormationBlockPos> formedMembers = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> formedMembers = new ArrayList<>();
         addLine(formedMembers, storageStart, storageEnd);
         return formedMembers;
     }

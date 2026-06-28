@@ -115,7 +115,7 @@ final class CraftingFormationPattern implements ECOFormationPattern {
             return ECOFormationResult.failed("crafting repeat lines");
         }
 
-        List<Pos> endCasings = new ArrayList<Pos>();
+        List<Pos> endCasings = new ArrayList<>();
         endCasings.add(workerEnd.offset(directions.expandSide));
         endCasings.add(upperParallelEnd.offset(directions.expandSide));
         endCasings.add(lowerParallelEnd.offset(directions.expandSide));
@@ -148,7 +148,7 @@ final class CraftingFormationPattern implements ECOFormationPattern {
     }
 
     private List<ECOFormationBlockPos> hiddenBlocks(Pos controller, FormationDirections directions) {
-        List<ECOFormationBlockPos> hidden = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> hidden = new ArrayList<>();
         addControllerModelVolume(
             hidden,
             controller,
@@ -178,7 +178,7 @@ final class CraftingFormationPattern implements ECOFormationPattern {
     private List<ECOFormationBlockPos> formedMembers(Pos workerStart, Pos upperParallelEnd, Pos lowerParallelEnd,
         Pos upperPatternStart, Pos upperPatternEnd, Pos lowerPatternStart, Pos lowerPatternEnd, Pos ventStart,
         Pos ventEnd, List<Pos> tailCasings, FormationDirections directions) {
-        List<ECOFormationBlockPos> formedMembers = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> formedMembers = new ArrayList<>();
         addLine(formedMembers, workerStart, upperParallelEnd.offset(directions.down));
         addLine(formedMembers, workerStart.offset(directions.top), upperParallelEnd);
         addLine(formedMembers, workerStart.offset(directions.down), lowerParallelEnd);

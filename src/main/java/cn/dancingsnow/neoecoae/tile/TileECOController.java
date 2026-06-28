@@ -278,7 +278,7 @@ public class TileECOController extends TileEntity {
     }
 
     private static List<ECOFormationBlockPos> readPositions(NBTTagList positionsTag) {
-        List<ECOFormationBlockPos> positions = new ArrayList<ECOFormationBlockPos>();
+        List<ECOFormationBlockPos> positions = new ArrayList<>();
         for (int i = 0; i < positionsTag.tagCount(); i++) {
             NBTTagCompound posTag = positionsTag.getCompoundTagAt(i);
             String tierId = posTag.hasKey(TAG_MEMBER_TIER) ? posTag.getString(TAG_MEMBER_TIER) : "";
