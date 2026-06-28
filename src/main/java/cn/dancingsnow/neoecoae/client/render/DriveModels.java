@@ -10,12 +10,15 @@ import cn.dancingsnow.neoecoae.client.render.model.ModernModelLoader;
 
 public final class DriveModels {
 
-    private static final Map<String, BakedEcoModel> EMPTY_MODELS = new HashMap<String, BakedEcoModel>();
-    private static final Map<String, BakedEcoModel> FULL_MODELS = new HashMap<String, BakedEcoModel>();
+    private static final Map<String, BakedEcoModel> EMPTY_MODELS = new HashMap<>();
+    private static final Map<String, BakedEcoModel> FULL_MODELS = new HashMap<>();
 
     private DriveModels() {}
 
     public static void load(BlockModelDrive block) {
+        if (EMPTY_MODELS.containsKey(block.getEmptyModelName()) && FULL_MODELS.containsKey(block.getFullModelName())) {
+            return;
+        }
         BakedEcoModel emptyModel = new BakedEcoModel(ModernModelLoader.loadBlockModel(block.getEmptyModelName()));
         BakedEcoModel fullModel = new BakedEcoModel(ModernModelLoader.loadBlockModel(block.getFullModelName()));
         EMPTY_MODELS.put(block.getEmptyModelName(), emptyModel);

@@ -1,9 +1,12 @@
 package cn.dancingsnow.neoecoae;
 
+import net.minecraftforge.common.MinecraftForge;
+
 import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
+import cn.dancingsnow.neoecoae.client.ClientEventHandler;
 import cn.dancingsnow.neoecoae.client.render.DriveModels;
 import cn.dancingsnow.neoecoae.client.render.DriveRenderHandler;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockModels;
@@ -16,6 +19,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        MinecraftForge.EVENT_BUS.register(ClientEventHandler.INSTANCE);
         registerRenderers();
     }
 

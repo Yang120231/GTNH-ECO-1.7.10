@@ -17,7 +17,7 @@ import cn.dancingsnow.neoecoae.client.render.model.ModernIconRegistrar;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class BlockModelDrive extends Block {
+public class BlockModelDrive extends Block implements IModelIconProvider {
 
     private static int renderId = -1;
 
@@ -27,10 +27,10 @@ public class BlockModelDrive extends Block {
     private final String particleTextureName;
 
     @SideOnly(Side.CLIENT)
-    private final Map<String, IIcon> modelIcons = new HashMap<String, IIcon>();
+    private final Map<String, IIcon> modelIcons = new HashMap<>();
 
     @SideOnly(Side.CLIENT)
-    private final Map<String, IIcon> formedModelIcons = new HashMap<String, IIcon>();
+    private final Map<String, IIcon> formedModelIcons = new HashMap<>();
 
     @SideOnly(Side.CLIENT)
     private IIcon particleIcon;

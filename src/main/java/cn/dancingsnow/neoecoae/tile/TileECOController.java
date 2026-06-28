@@ -1,7 +1,9 @@
 package cn.dancingsnow.neoecoae.tile;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -36,8 +38,8 @@ public class TileECOController extends TileEntity {
     private boolean mirrored;
     private int facingMeta;
     private String lastFormationMessage = "not scanned";
-    private final List<ECOFormationBlockPos> hiddenBlocks = new ArrayList<ECOFormationBlockPos>();
-    private final List<ECOFormationBlockPos> formedMemberBlocks = new ArrayList<ECOFormationBlockPos>();
+    private final List<ECOFormationBlockPos> hiddenBlocks = new ArrayList<>();
+    private final List<ECOFormationBlockPos> formedMemberBlocks = new ArrayList<>();
 
     public TileECOController() {}
 
@@ -96,22 +98,35 @@ public class TileECOController extends TileEntity {
 
     public ECOFormationResult scanFormation() {
         ECOFormationResult result = ECOFormationScanner.scan(this);
-        boolean mirroredChanged = this.mirrored != result.isMirrored();
-        boolean stateChanged = this.formed != result.isFormed() || this.mirrored != result.isMirrored()
-            || !samePositions(this.hiddenBlocks, result.getHiddenBlocks())
-            || !samePositions(this.formedMemberBlocks, result.getFormedMemberBlocks());
+        this.applyFormationResult(result);
+        return result;
+    }
+
+    private void applyFormationResult(ECOFormationResult result) {
+        FormationChange change = this.calculateFormationChange(result);
         this.lastFormationMessage = result.getMessage();
         this.mirrored = result.isMirrored();
         this.replaceHiddenBlocks(result.getHiddenBlocks());
-        this.replaceFormedMemberBlocks(result.getFormedMemberBlocks(), mirroredChanged);
+        this.replaceFormedMemberBlocks(result.getFormedMemberBlocks(), change.mirroredChanged);
         this.setFormed(result.isFormed());
-        if (stateChanged) {
+        this.syncFormationChange(change);
+    }
+
+    private FormationChange calculateFormationChange(ECOFormationResult result) {
+        boolean mirroredChanged = this.mirrored != result.isMirrored();
+        boolean stateChanged = this.formed != result.isFormed() || mirroredChanged
+            || !samePositions(this.hiddenBlocks, result.getHiddenBlocks())
+            || !samePositions(this.formedMemberBlocks, result.getFormedMemberBlocks());
+        return new FormationChange(stateChanged, mirroredChanged);
+    }
+
+    private void syncFormationChange(FormationChange change) {
+        if (change.stateChanged) {
             this.markDirty();
         }
-        if (stateChanged && this.worldObj != null) {
+        if (change.stateChanged && this.worldObj != null) {
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
         }
-        return result;
     }
 
     private void replaceHiddenBlocks(List<ECOFormationBlockPos> newHiddenBlocks) {
@@ -166,15 +181,15 @@ public class TileECOController extends TileEntity {
 
     @Override
     public void invalidate() {
-        this.replaceHiddenBlocks(new ArrayList<ECOFormationBlockPos>());
-        this.replaceFormedMemberBlocks(new ArrayList<ECOFormationBlockPos>());
+        this.replaceHiddenBlocks(new ArrayList<>());
+        this.replaceFormedMemberBlocks(new ArrayList<>());
         super.invalidate();
     }
 
     @Override
     public void onChunkUnload() {
-        this.replaceHiddenBlocks(new ArrayList<ECOFormationBlockPos>());
-        this.replaceFormedMemberBlocks(new ArrayList<ECOFormationBlockPos>());
+        this.replaceHiddenBlocks(new ArrayList<>());
+        this.replaceFormedMemberBlocks(new ArrayList<>());
         super.onChunkUnload();
     }
 
@@ -227,17 +242,20 @@ public class TileECOController extends TileEntity {
     }
 
     private static boolean samePositions(List<ECOFormationBlockPos> left, List<ECOFormationBlockPos> right) {
-        if (left.size() != right.size()) {
-            return false;
+        Set<ECOFormationBlockPos> leftSet = new HashSet<ECOFormationBlockPos>(left);
+        Set<ECOFormationBlockPos> rightSet = new HashSet<ECOFormationBlockPos>(right);
+        return leftSet.equals(rightSet);
+    }
+
+    private static final class FormationChange {
+
+        private final boolean stateChanged;
+        private final boolean mirroredChanged;
+
+        private FormationChange(boolean stateChanged, boolean mirroredChanged) {
+            this.stateChanged = stateChanged;
+            this.mirroredChanged = mirroredChanged;
         }
-        for (int i = 0; i < left.size(); i++) {
-            ECOFormationBlockPos a = left.get(i);
-            ECOFormationBlockPos b = right.get(i);
-            if (a.getX() != b.getX() || a.getY() != b.getY() || a.getZ() != b.getZ() || a.getTier() != b.getTier()) {
-                return false;
-            }
-        }
-        return true;
     }
 
     @Override
@@ -264,7 +282,7 @@ public class TileECOController extends TileEntity {
         for (int i = 0; i < positionsTag.tagCount(); i++) {
             NBTTagCompound posTag = positionsTag.getCompoundTagAt(i);
             String tierId = posTag.hasKey(TAG_MEMBER_TIER) ? posTag.getString(TAG_MEMBER_TIER) : "";
-            ECOControllerTier tier = tierId.length() > 0 ? ECOControllerTier.fromId(tierId) : null;
+            ECOControllerTier tier = !tierId.isEmpty() ? ECOControllerTier.fromId(tierId) : null;
             positions.add(
                 new ECOFormationBlockPos(
                     posTag.getInteger(TAG_X),

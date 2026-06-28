@@ -37,7 +37,7 @@ public final class ModernModelLoader {
         ModernModel model = parentModel != null ? parentModel.copy() : new ModernModel();
 
         readTextures(json, model);
-        readElements(json, model);
+        readElements(json, model, location.toString());
         readChildren(json, model, depth);
         return model;
     }
@@ -67,7 +67,7 @@ public final class ModernModelLoader {
         ModernModel parentModel = loadParent(json, depth);
         ModernModel model = parentModel != null ? parentModel.copy() : new ModernModel();
         readTextures(json, model);
-        readElements(json, model);
+        readElements(json, model, "inline model");
         readChildren(json, model, depth);
         return model;
     }
@@ -152,7 +152,7 @@ public final class ModernModelLoader {
         }
     }
 
-    private static void readElements(JsonObject json, ModernModel model) {
+    private static void readElements(JsonObject json, ModernModel model, String modelName) {
         if (!json.has("elements")) {
             return;
         }
@@ -160,19 +160,23 @@ public final class ModernModelLoader {
         model.getElements()
             .clear();
         JsonArray elements = json.getAsJsonArray("elements");
-        for (JsonElement elementValue : elements) {
+        for (int i = 0; i < elements.size(); i++) {
+            JsonElement elementValue = elements.get(i);
             JsonObject elementJson = elementValue.getAsJsonObject();
             if (hasUnsupportedRotation(elementJson)) {
                 NeoECOAE.LOG.warn("Skipping non-zero model element rotation in lightweight renderer");
                 continue;
             }
 
+            require(elementJson, "from", modelName, "element " + i);
+            require(elementJson, "to", modelName, "element " + i);
+            require(elementJson, "faces", modelName, "element " + i);
             ModelElement element = new ModelElement(
                 readVector(elementJson.getAsJsonArray("from")),
                 readVector(elementJson.getAsJsonArray("to")),
                 !elementJson.has("shade") || elementJson.get("shade")
                     .getAsBoolean());
-            readFaces(elementJson.getAsJsonObject("faces"), element);
+            readFaces(elementJson.getAsJsonObject("faces"), element, modelName, "element " + i);
             model.getElements()
                 .add(element);
         }
@@ -188,7 +192,7 @@ public final class ModernModelLoader {
             .getAsDouble() != 0.0D;
     }
 
-    private static void readFaces(JsonObject faces, ModelElement element) {
+    private static void readFaces(JsonObject faces, ModelElement element, String modelName, String elementName) {
         for (Entry<String, JsonElement> entry : faces.entrySet()) {
             ForgeDirection side = toDirection(entry.getKey());
             if (side == ForgeDirection.UNKNOWN) {
@@ -197,7 +201,18 @@ public final class ModernModelLoader {
 
             JsonObject faceJson = entry.getValue()
                 .getAsJsonObject();
+            require(faceJson, "uv", modelName, elementName + " face " + entry.getKey());
+            require(faceJson, "texture", modelName, elementName + " face " + entry.getKey());
             JsonArray uv = faceJson.getAsJsonArray("uv");
+            if (uv.size() != 4) {
+                throw new IllegalStateException(
+                    "Model " + modelName
+                        + " "
+                        + elementName
+                        + " face "
+                        + entry.getKey()
+                        + " must have exactly 4 uv values");
+            }
             String cullFace = faceJson.has("cullface") ? faceJson.get("cullface")
                 .getAsString() : null;
             int rotation = faceJson.has("rotation") ? faceJson.get("rotation")
@@ -236,6 +251,9 @@ public final class ModernModelLoader {
     }
 
     private static double[] readVector(JsonArray array) {
+        if (array.size() != 3) {
+            throw new IllegalStateException("Model vector must have exactly 3 values");
+        }
         return new double[] { array.get(0)
             .getAsDouble(),
             array.get(1)
@@ -264,5 +282,11 @@ public final class ModernModelLoader {
             return ForgeDirection.EAST;
         }
         return ForgeDirection.UNKNOWN;
+    }
+
+    private static void require(JsonObject json, String member, String modelName, String owner) {
+        if (!json.has(member)) {
+            throw new IllegalStateException("Model " + modelName + " " + owner + " is missing '" + member + "'");
+        }
     }
 }

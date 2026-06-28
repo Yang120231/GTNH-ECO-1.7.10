@@ -16,7 +16,7 @@ import cn.dancingsnow.neoecoae.client.render.model.ModernIconRegistrar;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class BlockModernModel extends Block {
+public class BlockModernModel extends Block implements IModelIconProvider {
 
     private static int renderId = -1;
 
@@ -25,7 +25,7 @@ public class BlockModernModel extends Block {
     private final ModelFacing inventoryModelFacing;
 
     @SideOnly(Side.CLIENT)
-    private final Map<String, IIcon> modelIcons = new HashMap<String, IIcon>();
+    private final Map<String, IIcon> modelIcons = new HashMap<>();
 
     @SideOnly(Side.CLIENT)
     private IIcon particleIcon;

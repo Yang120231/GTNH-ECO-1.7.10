@@ -35,4 +35,22 @@ public class ECOFormationBlockPos {
     public ECOControllerTier getTier() {
         return this.tier;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof ECOFormationBlockPos)) {
+            return false;
+        }
+        ECOFormationBlockPos other = (ECOFormationBlockPos) obj;
+        return this.x == other.x && this.y == other.y && this.z == other.z && this.tier == other.tier;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = this.x;
+        result = 31 * result + this.y;
+        result = 31 * result + this.z;
+        result = 31 * result + (this.tier != null ? this.tier.hashCode() : 0);
+        return result;
+    }
 }

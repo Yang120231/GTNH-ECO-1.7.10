@@ -9,11 +9,14 @@ import cn.dancingsnow.neoecoae.client.render.model.ModernModelLoader;
 
 public final class ModernBlockModels {
 
-    private static final Map<String, BakedEcoModel> MODELS = new HashMap<String, BakedEcoModel>();
+    private static final Map<String, BakedEcoModel> MODELS = new HashMap<>();
 
     private ModernBlockModels() {}
 
     public static void load(String modelName) {
+        if (MODELS.containsKey(modelName)) {
+            return;
+        }
         BakedEcoModel model = new BakedEcoModel(ModernModelLoader.loadBlockModel(modelName));
         MODELS.put(modelName, model);
         NeoECOAE.LOG.debug("Loaded modern block model {} with {} quads", modelName, model.getMaxQuadCount());

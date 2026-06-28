@@ -12,8 +12,7 @@ public class BakedEcoModel {
     private static final double BOUNDARY_EPSILON = 0.0001D;
 
     private final ModernModel source;
-    private final Map<ModelFacing, List<BakedQuad>> quads = new EnumMap<ModelFacing, List<BakedQuad>>(
-        ModelFacing.class);
+    private final Map<ModelFacing, List<BakedQuad>> quads = new EnumMap<>(ModelFacing.class);
 
     public BakedEcoModel(ModernModel source) {
         this.source = source;
@@ -44,7 +43,7 @@ public class BakedEcoModel {
     }
 
     private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing) {
-        List<BakedQuad> bakedQuads = new ArrayList<BakedQuad>();
+        List<BakedQuad> bakedQuads = new ArrayList<>();
         ModelBounds bounds = calculateBounds(model, facing);
         for (ModelElement element : model.getElements()) {
             for (ModelFace face : element.getFaces()
