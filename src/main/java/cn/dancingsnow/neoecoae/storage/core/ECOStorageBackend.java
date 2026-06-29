@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoae.storage.core;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Collections;
 
 import net.minecraft.nbt.NBTTagCompound;
 
@@ -68,6 +69,18 @@ public final class ECOStorageBackend {
 
     public ECOStorageSnapshot snapshot() {
         return new ECOStorageSnapshot(this.revision, this.used, this.entries);
+    }
+
+    public Map<ECOStorageKey, ECOAmount> getEntriesView() {
+        return Collections.unmodifiableMap(this.entries);
+    }
+
+    public int getTypeCount() {
+        return this.entries.size();
+    }
+
+    public boolean isEmpty() {
+        return this.entries.isEmpty();
     }
 
     public long getRevision() {

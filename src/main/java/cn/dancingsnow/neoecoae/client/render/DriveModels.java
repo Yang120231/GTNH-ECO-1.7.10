@@ -25,6 +25,7 @@ public final class DriveModels {
         EMPTY_MODELS.put(block.getEmptyModelName(), emptyModel);
         FULL_MODELS.put(block.getFullModelName(), fullModel);
         ECOStorageCellRenderModels.preload();
+        ComputationDriveRenderModels.preload();
         NeoECOAE.LOG.debug(
             "Loaded drive models {}/{} with {}/{} quads",
             block.getEmptyModelName(),

@@ -25,13 +25,32 @@ public class BakedEcoModel {
         boolean modelBoundsAreWorldBoundary) {
         for (ModelFacing facing : ModelFacing.values()) {
             this.quads
-                .put(facing, bakeFacing(source, facing, offsetX, offsetY, offsetZ, modelBoundsAreWorldBoundary));
+                .put(
+                    facing,
+                    bakeFacing(
+                        source,
+                        facing,
+                        offsetX,
+                        offsetY,
+                        offsetZ,
+                        modelBoundsAreWorldBoundary,
+                        IdentityTransform.INSTANCE));
         }
     }
 
     public static BakedEcoModel offsetSubModel(ModernModel source, double offsetX, double offsetY, double offsetZ) {
         return new BakedEcoModel(source, offsetX, offsetY, offsetZ, false);
     }
+
+    public static BakedEcoModel transformedSubModel(ModernModel source, VertexTransform transform) {
+        BakedEcoModel model = new BakedEcoModel();
+        for (ModelFacing facing : ModelFacing.values()) {
+            model.quads.put(facing, bakeRawFacing(source, facing, transform));
+        }
+        return model;
+    }
+
+    private BakedEcoModel() {}
 
     public List<BakedQuad> getQuads(ModelFacing facing) {
         return this.quads.get(facing);
@@ -46,9 +65,9 @@ public class BakedEcoModel {
     }
 
     private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing, double offsetX,
-        double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary) {
+        double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary, VertexTransform transform) {
         List<BakedQuad> bakedQuads = new ArrayList<>();
-        ModelBounds bounds = calculateBounds(model, facing, offsetX, offsetY, offsetZ);
+        ModelBounds bounds = calculateBounds(model, facing, offsetX, offsetY, offsetZ, transform);
         for (ModelElement element : model.getElements()) {
             for (ModelFace face : element.getFaces()
                 .values()) {
@@ -62,18 +81,32 @@ public class BakedEcoModel {
                         offsetX,
                         offsetY,
                         offsetZ,
-                        modelBoundsAreWorldBoundary));
+                        modelBoundsAreWorldBoundary,
+                        transform));
+            }
+        }
+        return bakedQuads;
+    }
+
+    private static List<BakedQuad> bakeRawFacing(ModernModel model, ModelFacing facing, VertexTransform transform) {
+        List<BakedQuad> bakedQuads = new ArrayList<>();
+        ModelBounds bounds = calculateRawBounds(model, facing, transform);
+        for (ModelElement element : model.getElements()) {
+            for (ModelFace face : element.getFaces()
+                .values()) {
+                bakedQuads.add(bakeRawFace(model, element, face, facing, bounds, transform));
             }
         }
         return bakedQuads;
     }
 
     private static BakedQuad bakeFace(ModernModel model, ModelElement element, ModelFace face, ModelFacing facing,
-        ModelBounds bounds, double offsetX, double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary) {
+        ModelBounds bounds, double offsetX, double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary,
+        VertexTransform transform) {
         double[][] vertices = faceVertices(element, face.getSide());
         double[][] rotatedVertices = new double[4][3];
         for (int i = 0; i < vertices.length; i++) {
-            rotatedVertices[i] = rotateY(offset(vertices[i], offsetX, offsetY, offsetZ), facing);
+            rotatedVertices[i] = transform.apply(rotateY(offset(vertices[i], offsetX, offsetY, offsetZ), facing), facing);
         }
 
         String cullFace = face.getCullFace();
@@ -90,6 +123,27 @@ public class BakedEcoModel {
             face.isFullBright(),
             element.isShade(),
             modelBoundsAreWorldBoundary && isBoundaryFace(rotatedVertices, normal, bounds));
+    }
+
+    private static BakedQuad bakeRawFace(ModernModel model, ModelElement element, ModelFace face, ModelFacing facing,
+        ModelBounds bounds, VertexTransform transform) {
+        double[][] vertices = faceVertices(element, face.getSide());
+        double[][] transformedVertices = new double[4][3];
+        for (int i = 0; i < vertices.length; i++) {
+            transformedVertices[i] = transform.apply(vertices[i], facing);
+        }
+
+        ForgeDirection normal = rotateDirection(face.getSide(), facing);
+        return new BakedQuad(
+            resolveTexture(model, face.getTexture()),
+            face.getCullFace(),
+            ForgeDirection.UNKNOWN,
+            normal,
+            transformedVertices,
+            rotateUv(uvVertices(face, face.getSide()), face.getRotation()),
+            face.isFullBright(),
+            element.isShade(),
+            isBoundaryFace(transformedVertices, normal, bounds));
     }
 
     private static boolean isBoundaryFace(double[][] vertices, ForgeDirection normal, ModelBounds bounds) {
@@ -121,7 +175,7 @@ public class BakedEcoModel {
     }
 
     private static ModelBounds calculateBounds(ModernModel model, ModelFacing facing, double offsetX, double offsetY,
-        double offsetZ) {
+        double offsetZ, VertexTransform transform) {
         ModelBounds bounds = new ModelBounds();
         for (ModelElement element : model.getElements()) {
             double x1 = element.getFrom()[0] / 16.0D;
@@ -130,14 +184,35 @@ public class BakedEcoModel {
             double x2 = element.getTo()[0] / 16.0D;
             double y2 = element.getTo()[1] / 16.0D;
             double z2 = element.getTo()[2] / 16.0D;
-            bounds.accept(rotateY(offset(new double[] { x1, y1, z1 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x1, y1, z2 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x2, y1, z1 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x2, y1, z2 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x1, y2, z1 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x1, y2, z2 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x2, y2, z1 }, offsetX, offsetY, offsetZ), facing));
-            bounds.accept(rotateY(offset(new double[] { x2, y2, z2 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y1, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y1, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y1, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y1, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y2, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y2, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y2, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y2, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+        }
+        return bounds;
+    }
+
+    private static ModelBounds calculateRawBounds(ModernModel model, ModelFacing facing, VertexTransform transform) {
+        ModelBounds bounds = new ModelBounds();
+        for (ModelElement element : model.getElements()) {
+            double x1 = element.getFrom()[0] / 16.0D;
+            double y1 = element.getFrom()[1] / 16.0D;
+            double z1 = element.getFrom()[2] / 16.0D;
+            double x2 = element.getTo()[0] / 16.0D;
+            double y2 = element.getTo()[1] / 16.0D;
+            double z2 = element.getTo()[2] / 16.0D;
+            bounds.accept(transform.apply(new double[] { x1, y1, z1 }, facing));
+            bounds.accept(transform.apply(new double[] { x1, y1, z2 }, facing));
+            bounds.accept(transform.apply(new double[] { x2, y1, z1 }, facing));
+            bounds.accept(transform.apply(new double[] { x2, y1, z2 }, facing));
+            bounds.accept(transform.apply(new double[] { x1, y2, z1 }, facing));
+            bounds.accept(transform.apply(new double[] { x1, y2, z2 }, facing));
+            bounds.accept(transform.apply(new double[] { x2, y2, z1 }, facing));
+            bounds.accept(transform.apply(new double[] { x2, y2, z2 }, facing));
         }
         return bounds;
     }
@@ -317,5 +392,20 @@ public class BakedEcoModel {
             return ForgeDirection.EAST;
         }
         return ForgeDirection.UNKNOWN;
+    }
+
+    public interface VertexTransform {
+
+        double[] apply(double[] vertex, ModelFacing facing);
+    }
+
+    private enum IdentityTransform implements VertexTransform {
+
+        INSTANCE;
+
+        @Override
+        public double[] apply(double[] vertex, ModelFacing facing) {
+            return vertex;
+        }
     }
 }

@@ -7,7 +7,9 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.World;
+import net.minecraft.world.Explosion;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
@@ -107,9 +109,34 @@ public class BlockEcoDrive extends BlockModelDrive {
     }
 
     @Override
+    public boolean removedByPlayer(World world, EntityPlayer player, int x, int y, int z, boolean willHarvest) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileECODrive && !((TileECODrive) tile).prepareForWorldRemoval()) {
+            if (!world.isRemote && player != null) {
+                player.addChatMessage(new ChatComponentTranslation("chat.neoecoae.storage.infinite_remove_blocked"));
+            }
+            return false;
+        }
+        return super.removedByPlayer(world, player, x, y, z, willHarvest);
+    }
+
+    @Override
+    public void onBlockExploded(World world, int x, int y, int z, Explosion explosion) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileECODrive && !((TileECODrive) tile).prepareForWorldRemoval()) {
+            return;
+        }
+        super.onBlockExploded(world, x, y, z, explosion);
+    }
+
+    @Override
     public void breakBlock(World world, int x, int y, int z, net.minecraft.block.Block block, int meta) {
         TileEntity tile = world.getTileEntity(x, y, z);
         if (tile instanceof TileECODrive) {
+            TileECODrive drive = (TileECODrive) tile;
+            if (!drive.prepareForWorldRemoval()) {
+                return;
+            }
             ItemStack stack = ((TileECODrive) tile).getCellStack();
             if (stack != null) {
                 dropStack(world, x, y, z, stack);

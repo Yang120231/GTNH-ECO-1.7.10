@@ -34,7 +34,7 @@ public final class ECOStorageCellAccess {
             return;
         }
         if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
-            ECOStorageCellMetadata.writeSummary(stack, backend.getUsed().toLongSaturated(), backend.snapshot().getTypeCount());
+            ECOStorageCellMetadata.writeSummary(stack, backend.getUsed().toLongSaturated(), backend.getTypeCount());
             return;
         }
         NBTTagCompound root = stack.getTagCompound();

@@ -62,6 +62,10 @@ public final class EcoModelRenderer {
         GL11.glPopMatrix();
     }
 
+    public static void renderItemModel(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
+        renderInventoryQuads(model, facing, icons);
+    }
+
     private static IIcon getWorldIcon(BakedQuad quad, Map<String, IIcon> icons, RenderBlocks renderer) {
         if (renderer != null && renderer.hasOverrideBlockTexture()) {
             return renderer.overrideBlockTexture;

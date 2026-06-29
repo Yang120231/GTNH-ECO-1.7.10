@@ -7,7 +7,9 @@ import java.util.Map;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.renderer.texture.IIconRegister;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.IIcon;
+import net.minecraft.world.Explosion;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
@@ -106,6 +108,22 @@ public class BlockModernModel extends Block implements IModelIconProvider {
     public void breakBlock(World world, int x, int y, int z, Block block, int meta) {
         super.breakBlock(world, x, y, z, block, meta);
         ModelLightingHelper.updateNeighborLighting(world, x, y, z);
+    }
+
+    @Override
+    public boolean removedByPlayer(World world, EntityPlayer player, int x, int y, int z, boolean willHarvest) {
+        if (!ECOStorageStructureRemovalGuard.canRemoveOrNotify(world, player, x, y, z)) {
+            return false;
+        }
+        return super.removedByPlayer(world, player, x, y, z, willHarvest);
+    }
+
+    @Override
+    public void onBlockExploded(World world, int x, int y, int z, Explosion explosion) {
+        if (!ECOStorageStructureRemovalGuard.canRemove(world, x, y, z)) {
+            return;
+        }
+        super.onBlockExploded(world, x, y, z, explosion);
     }
 
     @SideOnly(Side.CLIENT)

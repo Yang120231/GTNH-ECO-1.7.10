@@ -60,7 +60,7 @@ public class ECOStorageDomainData extends WorldSavedData {
 
     public boolean isDomainEmpty(UUID domainId) {
         ECOStorageBackend backend = this.domains.get(domainId);
-        return backend == null || backend.snapshot().getEntries().isEmpty();
+        return backend == null || backend.isEmpty();
     }
 
     public void removeDomain(UUID domainId) {
@@ -85,7 +85,7 @@ public class ECOStorageDomainData extends WorldSavedData {
             return;
         }
         ECOStorageBackend domain = this.getOrCreateDomain(domainId);
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : source.snapshot().getEntries().entrySet()) {
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : source.getEntriesView().entrySet()) {
             domain.insert(entry.getKey(), entry.getValue(), false);
         }
         committed.add(diskId);
@@ -130,7 +130,7 @@ public class ECOStorageDomainData extends WorldSavedData {
         tag.setInteger("dataVersion", DATA_VERSION);
         NBTTagList list = new NBTTagList();
         for (Map.Entry<UUID, ECOStorageBackend> entry : this.domains.entrySet()) {
-            if (entry.getValue().snapshot().getEntries().isEmpty()) {
+            if (entry.getValue().isEmpty()) {
                 continue;
             }
             NBTTagCompound domainTag = new NBTTagCompound();

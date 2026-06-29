@@ -13,7 +13,7 @@ import io.netty.buffer.ByteBuf;
 
 public class ContainerECOStorageController extends HostUiStateContainer {
 
-    private static final int STATE_VERSION = 3;
+    private static final int STATE_VERSION = 4;
     private static final int CONTROLLER_SLOT_COUNT = 1;
     public static final int INFINITE_COMPONENT_SLOT_FRAME_X = 145;
     public static final int INFINITE_COMPONENT_SLOT_FRAME_Y = 131;

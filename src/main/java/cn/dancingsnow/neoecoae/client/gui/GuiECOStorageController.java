@@ -1,15 +1,68 @@
 package cn.dancingsnow.neoecoae.client.gui;
 
-import java.util.ArrayList;
-import java.util.List;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.COMPONENT_SLOT_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.COMPONENT_SLOT_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.LEFT_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.LEFT_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.LEFT_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.LEFT_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_CELL_SIZE;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_EMPTY_BORDER;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_AREA_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_AREA_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_LABEL_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_ROWS;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_ROW_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_ROW_STEP;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_TOP;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.PRIORITY_TAB_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.PRIORITY_TAB_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.STORAGE_GAUGE_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.STORAGE_GAUGE_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.STORAGE_GAUGE_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.STORAGE_GAUGE_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.TAB_SIZE;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.TEXT_STEP;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.TEXT_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.TEXT_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_DETAIL_LINE_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_DETAIL_W;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_DETAIL_X;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_DETAIL_Y;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 
+import org.lwjgl.input.Mouse;
+
+import appeng.client.gui.widgets.GuiTabButton;
+import appeng.core.localization.GuiText;
 import cn.dancingsnow.neoecoae.gui.HostUiLayouts;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOStorageController;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostSnapshot;
+import cn.dancingsnow.neoecoae.network.NENetwork;
+import cn.dancingsnow.neoecoae.network.PacketStorageHostAction;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -17,53 +70,18 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class GuiECOStorageController extends GuiHostMachineBase {
 
-    private static final int LEFT_X = 8;
-    private static final int LEFT_Y = 24;
-    private static final int LEFT_W = 162;
-    private static final int LEFT_H = 132;
-    private static final int TEXT_X = LEFT_X + 8;
-    private static final int TEXT_Y = LEFT_Y + 8;
-    private static final int TEXT_STEP = 13;
-    private static final int RIGHT_X = 174;
-    private static final int RIGHT_Y = 24;
-    private static final int RIGHT_W = 344 - RIGHT_X - 4;
-    private static final int RIGHT_H = 132;
-    private static final int STORAGE_GAUGE_W = 32;
-    private static final int STORAGE_GAUGE_H = 92;
-    private static final int STORAGE_GAUGE_X = RIGHT_X + 18;
-    private static final int STORAGE_GAUGE_Y = RIGHT_Y + 23;
-    private static final int USAGE_DETAIL_X = STORAGE_GAUGE_X + STORAGE_GAUGE_W + 10;
-    private static final int USAGE_DETAIL_Y = STORAGE_GAUGE_Y + 5;
-    private static final int USAGE_DETAIL_W = RIGHT_X + RIGHT_W - 10 - USAGE_DETAIL_X;
-    private static final int USAGE_DETAIL_LINE_H = 12;
-    private static final int RIGHT_DARK_X = RIGHT_X + 8;
-    private static final int RIGHT_DARK_Y = STORAGE_GAUGE_Y - 4;
-    private static final int RIGHT_DARK_W = RIGHT_W - 16;
-    private static final int RIGHT_DARK_H = STORAGE_GAUGE_H + 8;
-    private static final int MATRIX_X = RIGHT_X;
-    private static final int MATRIX_Y = 171;
-    private static final int MATRIX_W = 166;
-    private static final int MATRIX_H = HostUiLayouts.STORAGE.hotbarY() + 18 - MATRIX_Y;
-    private static final int MATRIX_GRID_ROWS = 3;
-    private static final int MATRIX_CELL_SIZE = 10;
-    private static final int MATRIX_LEGEND_X = MATRIX_X + 116;
-    private static final int MATRIX_GRID_AREA_X = MATRIX_X + 8;
-    private static final int MATRIX_GRID_AREA_W = MATRIX_LEGEND_X - MATRIX_GRID_AREA_X - 8;
-    private static final int MATRIX_GRID_LABEL_Y = MATRIX_Y + MATRIX_H - 17;
-    private static final int MATRIX_LEGEND_ROW_H = 8;
-    private static final int MATRIX_LEGEND_ROW_STEP = 11;
-    private static final int MATRIX_LEGEND_TOP = MATRIX_Y
-            + (MATRIX_H - (MATRIX_LEGEND_ROW_STEP * 5 + MATRIX_LEGEND_ROW_H)) / 2;
-    private static final int MATRIX_LEGEND_W = MATRIX_X + MATRIX_W - MATRIX_LEGEND_X - 8;
-    private static final int MATRIX_EMPTY_BORDER = 0xFF1D1A24;
-    private static final int COMPONENT_SLOT_X = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_FRAME_X;
-    private static final int COMPONENT_SLOT_Y = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_FRAME_Y;
     private static final long USAGE_ANIMATION_MS = 500L;
     private static final double USAGE_ANIMATION_EPSILON = 0.0001D;
     private static final float USAGE_PERCENT_SCALE = 0.9F;
+    private static final int MATRIX_SCROLL_THRESHOLD_COLUMNS = 10;
+    private static final int MATRIX_SCROLL_STEP = 1;
+    private static final Map<String, Integer> MATRIX_SCROLL_OFFSETS = new HashMap<String, Integer>();
 
     private final ContainerECOStorageController container;
+    private final TileECOController controller;
+    private GuiTabButton priorityButton;
     private List<String> hoveredLines;
+    private int matrixScrollColumn;
     private double usageAnimationStart = 0.0D;
     private double usageAnimationTarget = -1.0D;
     private long usageAnimationStartMs = 0L;
@@ -75,6 +93,37 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     private GuiECOStorageController(ContainerECOStorageController container) {
         super(container, HostUiLayouts.STORAGE.width(), HostUiLayouts.STORAGE.height());
         this.container = container;
+        this.controller = container.getController();
+    }
+
+    @Override
+    public void initGui() {
+        super.initGui();
+        this.matrixScrollColumn = savedMatrixScroll(this.controller);
+        this.priorityButton = StoragePriorityTabs.priorityButton(this.guiLeft, this.guiTop, this.itemRender);
+        this.buttonList.add(this.priorityButton);
+    }
+
+    @Override
+    public void handleMouseInput() {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0) {
+            return;
+        }
+        int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
+        int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
+        if (!this.isMouseIn(MATRIX_GRID_AREA_X, this.matrixGridY(), MATRIX_GRID_AREA_W, this.matrixGridHeight(), mouseX,
+            mouseY)) {
+            return;
+        }
+        int maxScroll = this.maxMatrixScroll(this.container.state());
+        if (maxScroll <= 0) {
+            this.updateMatrixScroll(0);
+            return;
+        }
+        int direction = wheel < 0 ? MATRIX_SCROLL_STEP : -MATRIX_SCROLL_STEP;
+        this.updateMatrixScroll(this.matrixScrollColumn + direction);
     }
 
     @Override
@@ -87,7 +136,20 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     @Override
+    protected void actionPerformed(GuiButton button) {
+        if (button == this.priorityButton) {
+            NENetwork.CHANNEL.sendToServer(
+                new PacketStorageHostAction(this.controller, PacketStorageHostAction.Action.OPEN_PRIORITY));
+            return;
+        }
+        super.actionPerformed(button);
+    }
+
+    @Override
     protected void drawHostBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+        if (this.priorityButton != null) {
+            this.priorityButton.enabled = true;
+        }
         this.drawDarkInsetRect(LEFT_X, LEFT_Y, LEFT_W, LEFT_H);
         this.drawDarkInsetRect(RIGHT_X, RIGHT_Y, RIGHT_W, RIGHT_H);
         this.drawDarkInsetRect(MATRIX_X, MATRIX_Y, MATRIX_W, MATRIX_H);
@@ -106,6 +168,17 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawMatrices(state, mouseX, mouseY);
         this.drawLocalText(tr("container.inventory", "Inventory"), HostUiLayouts.STORAGE.inventoryX(), 159,
                 HostUiStyle.TEXT_MUTED);
+        this.drawPriorityTooltip(state, mouseX, mouseY);
+    }
+
+    private void drawPriorityTooltip(StorageHostSnapshot state, int mouseX, int mouseY) {
+        if (this.priorityButton != null && this.isMouseIn(PRIORITY_TAB_X, PRIORITY_TAB_Y, TAB_SIZE, TAB_SIZE, mouseX,
+            mouseY)) {
+            List<String> lines = new ArrayList<String>();
+            lines.add(GuiText.Priority.getLocal());
+            lines.add(EnumChatFormatting.GRAY + this.formatNumber(state.priority));
+            this.hoveredLines = lines;
+        }
     }
 
     private void drawHeader(StorageHostSnapshot state) {
@@ -167,7 +240,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawLocalCenteredScaled(
                 infiniteMode ? "\u221e" : percent(ratio),
                 STORAGE_GAUGE_X,
-                RIGHT_Y + 119,
+                RIGHT_Y + 120,
                 STORAGE_GAUGE_W,
                 8,
                 infiniteMode ? HostUiStyle.MATRIX_USAGE_INFINITE : HostUiStyle.usedValueColor(state.usedBytes,
@@ -221,23 +294,32 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawLocalText(tr("gui.neoecoae.storage_ui.matrices", "Storage Matrices"), MATRIX_X + 8, MATRIX_Y + 8,
                 HostUiStyle.DARK_TEXT_PRIMARY);
         int columns = this.matrixColumnCount(state);
-        int availableColumns = Math.max(1, MATRIX_GRID_AREA_W / MATRIX_CELL_SIZE);
-        columns = Math.min(columns, availableColumns);
-        int totalCells = columns * MATRIX_GRID_ROWS;
+        int visibleColumns = Math.min(columns, this.visibleMatrixColumns());
+        this.updateMatrixScroll(Math.min(this.matrixScrollColumn, this.maxMatrixScroll(state)));
+        int totalCells = visibleColumns * MATRIX_GRID_ROWS;
         int gridX = MATRIX_GRID_AREA_X + (MATRIX_GRID_AREA_W - columns * MATRIX_CELL_SIZE) / 2;
-        int gridY = MATRIX_Y + 24;
+        if (columns > visibleColumns) {
+            gridX = MATRIX_GRID_AREA_X;
+        }
+        int gridY = this.matrixGridY();
+        this.beginScissor(MATRIX_GRID_AREA_X, gridY, MATRIX_GRID_AREA_W, this.matrixGridHeight());
         for (int index = 0; index < totalCells; index++) {
-            int column = index / MATRIX_GRID_ROWS;
+            int column = this.matrixScrollColumn + index / MATRIX_GRID_ROWS;
             int row = index % MATRIX_GRID_ROWS;
-            int x = gridX + column * MATRIX_CELL_SIZE;
+            int visibleColumn = column - this.matrixScrollColumn;
+            int x = gridX + visibleColumn * MATRIX_CELL_SIZE;
             int y = gridY + row * MATRIX_CELL_SIZE;
             StorageHostSnapshot.MatrixCell cell = this.findMatrixCell(state, row, column);
             boolean hovered = this.isMouseIn(x, y, MATRIX_CELL_SIZE, MATRIX_CELL_SIZE, mouseX, mouseY);
             this.drawMatrixCell(x, y, cell, hovered);
             if (hovered) {
                 this.hoveredLines = cell != null && cell.hasCell ? this.matrixTooltip(cell)
-                        : this.emptyMatrixTooltip(index);
+                        : this.emptyMatrixTooltip(column * MATRIX_GRID_ROWS + row);
             }
+        }
+        this.endScissor();
+        if (this.maxMatrixScroll(state) > 0) {
+            this.drawMatrixScrollMarker(state);
         }
         this.drawLocalCentered(
                 tr("gui.neoecoae.storage_ui.load_distribution", "Load Distribution"),
@@ -246,6 +328,43 @@ public class GuiECOStorageController extends GuiHostMachineBase {
                 MATRIX_GRID_AREA_W,
                 HostUiStyle.DARK_TEXT_MUTED);
         this.drawMatrixLegend(MATRIX_LEGEND_X, MATRIX_LEGEND_TOP);
+    }
+
+    private int visibleMatrixColumns() {
+        return Math.max(1, Math.min(MATRIX_SCROLL_THRESHOLD_COLUMNS, MATRIX_GRID_AREA_W / MATRIX_CELL_SIZE));
+    }
+
+    private int matrixGridY() {
+        return MATRIX_Y + 24;
+    }
+
+    private int matrixGridHeight() {
+        return MATRIX_GRID_ROWS * MATRIX_CELL_SIZE;
+    }
+
+    private int maxMatrixScroll(StorageHostSnapshot state) {
+        return Math.max(0, this.matrixColumnCount(state) - this.visibleMatrixColumns());
+    }
+
+    private void updateMatrixScroll(int scrollColumn) {
+        int maxScroll = this.maxMatrixScroll(this.container.state());
+        int clamped = Math.max(0, Math.min(scrollColumn, maxScroll));
+        if (this.matrixScrollColumn == clamped) {
+            return;
+        }
+        this.matrixScrollColumn = clamped;
+        MATRIX_SCROLL_OFFSETS.put(matrixScrollKey(this.controller), Integer.valueOf(clamped));
+    }
+
+    private void drawMatrixScrollMarker(StorageHostSnapshot state) {
+        int trackX = MATRIX_GRID_AREA_X;
+        int trackY = MATRIX_GRID_LABEL_Y - 4;
+        int trackW = MATRIX_GRID_AREA_W;
+        int maxScroll = Math.max(1, this.maxMatrixScroll(state));
+        int thumbW = Math.max(8, trackW * this.visibleMatrixColumns() / Math.max(1, this.matrixColumnCount(state)));
+        int thumbX = trackX + (trackW - thumbW) * this.matrixScrollColumn / maxScroll;
+        drawRect(trackX, trackY, trackX + trackW, trackY + 2, 0xFF2C2833);
+        drawRect(thumbX, trackY, thumbX + thumbW, trackY + 2, 0xFFBEB6D4);
     }
 
     private void drawUsedTotal(String prefix, long used, long total, String suffix, int x, int y,
@@ -295,6 +414,19 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             columns = Math.max(columns, cell.column + 1);
         }
         return Math.max(1, columns);
+    }
+
+    private static int savedMatrixScroll(TileECOController controller) {
+        Integer value = MATRIX_SCROLL_OFFSETS.get(matrixScrollKey(controller));
+        return value == null ? 0 : Math.max(0, value.intValue());
+    }
+
+    private static String matrixScrollKey(TileECOController controller) {
+        if (controller == null || controller.getWorldObj() == null) {
+            return "unknown";
+        }
+        return controller.getWorldObj().provider.dimensionId + ":" + controller.xCoord + ":" + controller.yCoord + ":"
+            + controller.zCoord;
     }
 
     private double maxMatrixLoad(StorageHostSnapshot state) {

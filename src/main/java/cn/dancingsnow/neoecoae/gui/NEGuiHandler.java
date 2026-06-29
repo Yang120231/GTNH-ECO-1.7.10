@@ -4,6 +4,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import appeng.container.implementations.ContainerPriority;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOComputationController;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
@@ -29,6 +30,9 @@ public final class NEGuiHandler implements IGuiHandler {
         if (id == NEGuiIds.ECO_STORAGE_CONTROLLER) {
             return new ContainerECOStorageController(player.inventory, controller);
         }
+        if (id == NEGuiIds.ECO_STORAGE_PRIORITY) {
+            return new ContainerPriority(player.inventory, controller);
+        }
         if (id == NEGuiIds.ECO_COMPUTATION_CONTROLLER) {
             return new ContainerECOComputationController(player.inventory, controller);
         }
@@ -42,6 +46,9 @@ public final class NEGuiHandler implements IGuiHandler {
     @SideOnly(Side.CLIENT)
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
         TileECOController controller = getController(id, world, x, y, z);
+        if (controller != null && id == NEGuiIds.ECO_STORAGE_PRIORITY) {
+            return NeoECOAE.proxy.createStoragePriorityGui(player.inventory, controller);
+        }
         return controller == null ? null : NeoECOAE.proxy.createHostControllerGui(id, player.inventory, controller);
     }
 
@@ -54,7 +61,7 @@ public final class NEGuiHandler implements IGuiHandler {
             return null;
         }
         TileECOController controller = (TileECOController) tile;
-        if (id == NEGuiIds.ECO_STORAGE_CONTROLLER) {
+        if (id == NEGuiIds.ECO_STORAGE_CONTROLLER || id == NEGuiIds.ECO_STORAGE_PRIORITY) {
             return controller.getSubsystem() == ECOControllerSubsystem.STORAGE ? controller : null;
         }
         if (id == NEGuiIds.ECO_COMPUTATION_CONTROLLER) {

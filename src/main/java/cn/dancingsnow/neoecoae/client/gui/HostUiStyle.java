@@ -46,7 +46,7 @@ final class HostUiStyle {
     static final int MATRIX_USAGE_HIGH = 0xFFFF9D32;
     static final int MATRIX_USAGE_FULL = 0xFFFF5151;
     static final int MATRIX_USAGE_INFINITE = 0xFFD8A8FF;
-    static final int MATRIX_USAGE_EMPTY = 0xFF050508;
+    static final int MATRIX_USAGE_EMPTY = 0xFF413E4E;
 
     private HostUiStyle() {}
 

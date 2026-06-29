@@ -40,12 +40,17 @@ public class ECOStorageDriveProvider implements ICellProvider {
         }
         List<IMEInventoryHandler> handlers = new ArrayList<IMEInventoryHandler>();
         for (ECOFormationBlockPos pos : this.drivePositions) {
-            if (!(this.world.getTileEntity(pos.getX(), pos.getY(), pos.getZ()) instanceof TileECODrive)) {
+            net.minecraft.tileentity.TileEntity tile = this.world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (!(tile instanceof TileECODrive)) {
                 continue;
             }
-            TileECODrive drive = (TileECODrive) this.world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            TileECODrive drive = (TileECODrive) tile;
             ItemStack stack = drive.getCellStack();
-            IMEInventoryHandler handler = ECOCellHandler.INSTANCE.getCellInventory(stack, null, channel);
+            IMEInventoryHandler handler = ECOCellHandler.INSTANCE.getCellInventory(
+                stack,
+                null,
+                channel,
+                this.getPriority());
             if (handler != null) {
                 handlers.add(handler);
             }
@@ -55,7 +60,7 @@ public class ECOStorageDriveProvider implements ICellProvider {
 
     @Override
     public int getPriority() {
-        return 0;
+        return this.controller == null ? 0 : this.controller.getPriority();
     }
 
     public boolean containsDrive(int x, int y, int z) {

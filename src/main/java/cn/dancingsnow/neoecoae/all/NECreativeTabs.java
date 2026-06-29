@@ -65,13 +65,14 @@ public final class NECreativeTabs {
             || name.startsWith("energized_")) {
             return 0;
         }
-        if (name.startsWith("storage_") || "eco_drive".equals(name)) {
+        if (name.startsWith("storage_") || "eco_drive".equals(name) || name.startsWith("eco_item_")
+            || name.startsWith("eco_cell_component_") || "eco_infinite_cell_component".equals(name)) {
             return 1;
         }
         if (name.startsWith("crafting_") || "input_hatch".equals(name) || "output_hatch".equals(name)) {
             return 2;
         }
-        if (name.startsWith("computation_")) {
+        if (name.startsWith("computation_") || name.startsWith("eco_computation_cell_")) {
             return 3;
         }
         if (name.endsWith("_ingot") || name.endsWith("_dust")) {
@@ -123,11 +124,35 @@ public final class NECreativeTabs {
         if (name.endsWith("_interface")) {
             return 310;
         }
-        if (name.startsWith("energy_cell_")) {
+        if ("eco_item_cell_housing".equals(name)) {
+            return 312;
+        }
+        if ("eco_cell_component_16m".equals(name) || "eco_item_storage_cell_16m".equals(name)) {
+            return 313;
+        }
+        if ("eco_cell_component_64m".equals(name) || "eco_item_storage_cell_64m".equals(name)) {
+            return 314;
+        }
+        if ("eco_cell_component_256m".equals(name) || "eco_item_storage_cell_256m".equals(name)) {
             return 315;
+        }
+        if ("eco_infinite_cell_component".equals(name)) {
+            return 316;
+        }
+        if (name.startsWith("energy_cell_")) {
+            return 317;
         }
         if (name.endsWith("_drive")) {
             return 320;
+        }
+        if ("eco_computation_cell_l4".equals(name)) {
+            return 321;
+        }
+        if ("eco_computation_cell_l6".equals(name)) {
+            return 322;
+        }
+        if ("eco_computation_cell_l9".equals(name)) {
+            return 323;
         }
         if ("input_hatch".equals(name)) {
             return 330;

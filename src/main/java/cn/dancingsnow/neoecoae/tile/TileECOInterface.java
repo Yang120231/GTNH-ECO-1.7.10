@@ -15,6 +15,7 @@ import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
 import appeng.api.util.AECableType;
 import appeng.api.util.DimensionalCoord;
+import appeng.helpers.IPriorityHost;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
@@ -22,11 +23,9 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
-public class TileECOInterface extends TileEntity implements IGridProxyable, IActionHost {
+public class TileECOInterface extends TileEntity implements IGridProxyable, IActionHost, IPriorityHost {
 
     private static final String TAG_SUBSYSTEM = "Subsystem";
-    private static final int CONTROLLER_SEARCH_RADIUS = 16;
-
     private ECOControllerSubsystem subsystem = ECOControllerSubsystem.STORAGE;
     private final AENetworkProxy proxy;
     private IStorageGrid registeredStorageGrid;
@@ -53,6 +52,20 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
 
     public TileECOController getBoundController() {
         return this.subsystem == ECOControllerSubsystem.STORAGE ? this.findController() : null;
+    }
+
+    @Override
+    public int getPriority() {
+        TileECOController controller = this.getBoundController();
+        return controller == null ? 0 : controller.getPriority();
+    }
+
+    @Override
+    public void setPriority(int newValue) {
+        TileECOController controller = this.getBoundController();
+        if (controller != null) {
+            controller.setPriority(newValue);
+        }
     }
 
     public boolean isNetworkOnline() {
@@ -210,6 +223,9 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     }
 
     private TileECOController findController() {
+        if (this.worldObj == null) {
+            return null;
+        }
         if (this.cachedController != null
             && this.cachedController.getWorldObj() == this.worldObj
             && this.cachedController.getSubsystem() == this.subsystem
@@ -218,24 +234,16 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
         }
         TileECOController best = null;
         int bestDistance = Integer.MAX_VALUE;
-        for (int x = this.xCoord - CONTROLLER_SEARCH_RADIUS; x <= this.xCoord + CONTROLLER_SEARCH_RADIUS; x++) {
-            for (int y = this.yCoord - 3; y <= this.yCoord + 3; y++) {
-                for (int z = this.zCoord - CONTROLLER_SEARCH_RADIUS; z <= this.zCoord + CONTROLLER_SEARCH_RADIUS; z++) {
-                    TileEntity tile = this.worldObj.getTileEntity(x, y, z);
-                    if (!(tile instanceof TileECOController)) {
-                        continue;
-                    }
-                    TileECOController controller = (TileECOController) tile;
-                    if (controller.getSubsystem() != this.subsystem || !controller.isFormed()
-                        || !controller.isHiddenMember(this.xCoord, this.yCoord, this.zCoord)) {
-                        continue;
-                    }
-                    int distance = Math.abs(this.xCoord - x) + Math.abs(this.yCoord - y) + Math.abs(this.zCoord - z);
-                    if (distance < bestDistance) {
-                        bestDistance = distance;
-                        best = controller;
-                    }
-                }
+        for (TileECOController controller : ECOControllerRegistry.controllers(this.worldObj)) {
+            if (controller.getSubsystem() != this.subsystem || !controller.isFormed()
+                || !controller.isHiddenMember(this.xCoord, this.yCoord, this.zCoord)) {
+                continue;
+            }
+            int distance = Math.abs(this.xCoord - controller.xCoord) + Math.abs(this.yCoord - controller.yCoord)
+                + Math.abs(this.zCoord - controller.zCoord);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                best = controller;
             }
         }
         this.cachedController = best;

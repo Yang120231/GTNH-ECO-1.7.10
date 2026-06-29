@@ -10,7 +10,6 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
-import cn.dancingsnow.neoecoae.storage.ae2.ECOStorageDriveProvider;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
@@ -38,6 +37,7 @@ public class TileECODrive extends TileEntity implements IInventory {
     private boolean clientOnline;
     private int cellLedColor;
     private int clientCellLedColor;
+    private TileECOController cachedController;
 
     public boolean hasCell() {
         return this.cellStack != null || this.clientHasCell;
@@ -74,9 +74,12 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (slot != 0 || this.cellStack == null || amount <= 0) {
             return null;
         }
+        if (!this.canExtractCellStack()) {
+            return null;
+        }
         ItemStack removed;
         if (this.cellStack.stackSize <= amount) {
-            removed = this.cellStack;
+            removed = this.cellStack.copy();
             this.cellStack = null;
         } else {
             removed = this.cellStack.splitStack(amount);
@@ -96,7 +99,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (!this.canExtractCellStack()) {
             return null;
         }
-        ItemStack stack = this.cellStack;
+        ItemStack stack = this.cellStack == null ? null : this.cellStack.copy();
         this.cellStack = null;
         if (stack != null) {
             this.onInventoryChanged();
@@ -175,6 +178,18 @@ public class TileECODrive extends TileEntity implements IInventory {
         return controller == null
             ? !ECOStorageCellMetadata.hasNonPortableState(this.cellStack)
             : controller.canExtractDriveCell(this);
+    }
+
+    public boolean canRemoveFromWorld() {
+        TileECOController controller = this.findController();
+        if (controller != null && controller.protectsWorldPosition(this.xCoord, this.yCoord, this.zCoord)) {
+            return false;
+        }
+        return this.cellStack == null || this.canExtractCellStack();
+    }
+
+    public boolean prepareForWorldRemoval() {
+        return this.canRemoveFromWorld();
     }
 
     @Override
@@ -292,33 +307,25 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (this.worldObj == null || controller == null) {
             return false;
         }
-        for (Object tile : this.worldObj.loadedTileEntityList) {
-            if (!(tile instanceof TileECOInterface)) {
-                continue;
-            }
-            TileECOInterface ecoInterface = (TileECOInterface) tile;
-            if (ecoInterface.getBoundController() == controller && ecoInterface.isNetworkOnline()) {
-                return true;
-            }
-        }
-        return false;
+        return controller.hasOnlineStorageInterface();
     }
 
     private TileECOController findController() {
         if (this.worldObj == null) {
             return null;
         }
-        for (Object tile : this.worldObj.loadedTileEntityList) {
-            if (tile instanceof TileECOController) {
-                TileECOController controller = (TileECOController) tile;
-                if (controller.isFormed()) {
-                    ECOStorageDriveProvider provider = controller.createStorageDriveProvider();
-                    if (provider.containsDrive(this.xCoord, this.yCoord, this.zCoord)) {
-                        return controller;
-                    }
-                }
+        if (this.cachedController != null && this.cachedController.getWorldObj() == this.worldObj
+            && this.cachedController.isFormed()
+            && this.cachedController.hasFormedMemberBlock(this.xCoord, this.yCoord, this.zCoord)) {
+            return this.cachedController;
+        }
+        for (TileECOController controller : ECOControllerRegistry.controllers(this.worldObj)) {
+            if (controller.isFormed() && controller.hasFormedMemberBlock(this.xCoord, this.yCoord, this.zCoord)) {
+                this.cachedController = controller;
+                return controller;
             }
         }
+        this.cachedController = null;
         return null;
     }
 

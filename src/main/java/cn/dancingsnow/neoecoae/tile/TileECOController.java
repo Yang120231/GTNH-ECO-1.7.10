@@ -18,6 +18,7 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.Constants;
 
+import appeng.helpers.IPriorityHost;
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
@@ -33,7 +34,7 @@ import cn.dancingsnow.neoecoae.storage.domain.ECOStorageHostMode;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata;
 
-public class TileECOController extends TileEntity implements IInventory {
+public class TileECOController extends TileEntity implements IInventory, IPriorityHost {
 
     private static final String TAG_SUBSYSTEM = "Subsystem";
     private static final String TAG_TIER = "Tier";
@@ -51,6 +52,7 @@ public class TileECOController extends TileEntity implements IInventory {
     private static final String TAG_HOST_DOMAIN_ID = "HostDomainId";
     private static final String TAG_MEMBER_DISKS = "MemberDiskIds";
     private static final String TAG_MIGRATION_STEPS = "MigrationSteps";
+    private static final String TAG_PRIORITY = "Priority";
     private static final String TAG_DISK_ID = "DiskId";
     private static final String TAG_STEP = "Step";
     private static final int REQUIRED_INFINITE_COMPONENTS = 64;
@@ -72,6 +74,7 @@ public class TileECOController extends TileEntity implements IInventory {
     private ECOStorageHostMode hostMode = ECOStorageHostMode.UNFORMED;
     private UUID hostDomainId;
     private int storageBackendRevision;
+    private int priority;
     private final List<UUID> memberDiskIds = new ArrayList<UUID>();
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<UUID, Integer>();
 
@@ -125,6 +128,31 @@ public class TileECOController extends TileEntity implements IInventory {
         return new ArrayList<ECOFormationBlockPos>(this.formedMemberBlocks);
     }
 
+    boolean hasFormedMemberBlock(int x, int y, int z) {
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            if (pos.getX() == x && pos.getY() == y && pos.getZ() == z) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean hasOnlineStorageInterface() {
+        if (this.worldObj == null) {
+            return false;
+        }
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface) {
+                TileECOInterface ecoInterface = (TileECOInterface) tile;
+                if (ecoInterface.getSubsystem() == ECOControllerSubsystem.STORAGE && ecoInterface.isNetworkOnline()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public int getRequiredInfiniteDriveCount() {
         return REQUIRED_INFINITE_DRIVES;
     }
@@ -152,6 +180,23 @@ public class TileECOController extends TileEntity implements IInventory {
 
     public boolean isInfiniteStorageUnlocked() {
         return this.canUseHostDomainStorage();
+    }
+
+    @Override
+    public int getPriority() {
+        return this.priority;
+    }
+
+    @Override
+    public void setPriority(int priority) {
+        if (this.worldObj != null && this.worldObj.isRemote) {
+            return;
+        }
+        if (this.priority == priority) {
+            return;
+        }
+        this.priority = priority;
+        this.onStorageBackendChanged();
     }
 
     public void onHostDomainContentChanged() {
@@ -186,7 +231,37 @@ public class TileECOController extends TileEntity implements IInventory {
     }
 
     public boolean canTakeInfiniteStorageComponent() {
-        return !this.isInfiniteStorageUnlocked() || this.canExitInfiniteMode();
+        if (this.worldObj != null && this.worldObj.isRemote) {
+            return true;
+        }
+        return !this.hasInfiniteModeState() || this.canExitInfiniteMode();
+    }
+
+    public boolean canRemoveFromWorld() {
+        if (this.worldObj != null && this.worldObj.isRemote) {
+            return true;
+        }
+        return !this.hasInfiniteModeState() || this.canExitInfiniteMode();
+    }
+
+    public boolean prepareForWorldRemoval() {
+        if (this.worldObj != null && this.worldObj.isRemote) {
+            return true;
+        }
+        if (!this.canRemoveFromWorld()) {
+            return false;
+        }
+        if (this.hasInfiniteModeState()) {
+            this.exitInfiniteMode();
+        }
+        return true;
+    }
+
+    public boolean protectsWorldPosition(int x, int y, int z) {
+        if (this.worldObj != null && this.worldObj.isRemote) {
+            return false;
+        }
+        return this.hasInfiniteModeState() && this.isFormedStructureBlock(x, y, z);
     }
 
     public String getLastFormationMessage() {
@@ -217,10 +292,15 @@ public class TileECOController extends TileEntity implements IInventory {
 
     private void applyFormationResult(ECOFormationResult result) {
         FormationChange change = this.calculateFormationChange(result);
+        boolean preserveInfiniteMembers = this.hasInfiniteModeState() && !result.isFormed();
         this.lastFormationMessage = result.getMessage();
-        this.mirrored = result.isMirrored();
-        this.replaceHiddenBlocks(result.getHiddenBlocks());
-        this.replaceFormedMemberBlocks(result.getFormedMemberBlocks(), change.mirroredChanged);
+        if (!preserveInfiniteMembers) {
+            this.mirrored = result.isMirrored();
+            this.replaceHiddenBlocks(result.getHiddenBlocks());
+            this.replaceFormedMemberBlocks(result.getFormedMemberBlocks(), change.mirroredChanged);
+        } else {
+            this.clearFormationVisibility();
+        }
         this.setFormed(result.isFormed());
         this.updateHostStorageState();
         this.syncFormationChange(change);
@@ -464,6 +544,31 @@ public class TileECOController extends TileEntity implements IInventory {
         return true;
     }
 
+    private boolean hasInfiniteModeState() {
+        return this.hostMode == ECOStorageHostMode.MIGRATING_TO_INFINITE
+            || this.hostMode == ECOStorageHostMode.FORMED_INFINITE
+            || this.hostDomainId != null
+            || !this.memberDiskIds.isEmpty()
+            || !this.migrationSteps.isEmpty();
+    }
+
+    private boolean isFormedStructureBlock(int x, int y, int z) {
+        if (this.xCoord == x && this.yCoord == y && this.zCoord == z) {
+            return true;
+        }
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            if (pos.getX() == x && pos.getY() == y && pos.getZ() == z) {
+                return true;
+            }
+        }
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            if (pos.getX() == x && pos.getY() == y && pos.getZ() == z) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private void exitInfiniteMode() {
         if (!this.canExitInfiniteMode()) {
             return;
@@ -530,10 +635,12 @@ public class TileECOController extends TileEntity implements IInventory {
         if (slot != 0 || this.infiniteStorageComponent == null || amount <= 0) {
             return null;
         }
-        boolean wasInfiniteUnlocked = this.isInfiniteStorageUnlocked();
         if (!this.canTakeInfiniteStorageComponent()) {
             return null;
         }
+        boolean shouldExitInfiniteMode = this.worldObj == null || !this.worldObj.isRemote
+            ? this.hasInfiniteModeState()
+            : false;
         ItemStack removed;
         if (this.infiniteStorageComponent.stackSize <= amount) {
             removed = this.infiniteStorageComponent.copy();
@@ -544,7 +651,7 @@ public class TileECOController extends TileEntity implements IInventory {
                 this.infiniteStorageComponent = null;
             }
         }
-        if (wasInfiniteUnlocked) {
+        if (shouldExitInfiniteMode) {
             this.exitInfiniteMode();
         }
         this.onInfiniteComponentChanged();
@@ -553,14 +660,21 @@ public class TileECOController extends TileEntity implements IInventory {
 
     @Override
     public ItemStack getStackInSlotOnClosing(int slot) {
-        if (slot != 0) {
+        if (slot != 0 || this.infiniteStorageComponent == null) {
             return null;
         }
-        ItemStack stack = this.infiniteStorageComponent;
-        this.infiniteStorageComponent = null;
-        if (stack != null) {
-            this.onInfiniteComponentChanged();
+        if (!this.canTakeInfiniteStorageComponent()) {
+            return null;
         }
+        boolean shouldExitInfiniteMode = this.worldObj == null || !this.worldObj.isRemote
+            ? this.hasInfiniteModeState()
+            : false;
+        ItemStack stack = this.infiniteStorageComponent.copy();
+        this.infiniteStorageComponent = null;
+        if (shouldExitInfiniteMode) {
+            this.exitInfiniteMode();
+        }
+        this.onInfiniteComponentChanged();
         return stack;
     }
 
@@ -570,7 +684,7 @@ public class TileECOController extends TileEntity implements IInventory {
             return;
         }
         boolean removingInfiniteComponent = stack == null && this.infiniteStorageComponent != null
-            && this.isInfiniteStorageUnlocked();
+            && this.hasInfiniteModeState();
         if (removingInfiniteComponent && !this.canExitInfiniteMode()) {
             return;
         }
@@ -630,16 +744,34 @@ public class TileECOController extends TileEntity implements IInventory {
 
     @Override
     public void invalidate() {
-        this.replaceHiddenBlocks(new ArrayList<>());
-        this.replaceFormedMemberBlocks(new ArrayList<>());
+        ECOControllerRegistry.unregister(this);
+        this.clearFormationVisibility();
         super.invalidate();
     }
 
     @Override
     public void onChunkUnload() {
-        this.replaceHiddenBlocks(new ArrayList<>());
-        this.replaceFormedMemberBlocks(new ArrayList<>());
+        ECOControllerRegistry.unregister(this);
+        this.clearFormationVisibility();
         super.onChunkUnload();
+    }
+
+    @Override
+    public void validate() {
+        super.validate();
+        ECOControllerRegistry.register(this);
+    }
+
+    private void clearFormationVisibility() {
+        if (this.worldObj == null) {
+            return;
+        }
+        ECOFormationVisibility.replace(this.worldObj, this.hiddenBlocks, new ArrayList<ECOFormationBlockPos>());
+        ECOFormationVisibility.replaceFormedMembers(
+            this.worldObj,
+            this.formedMemberBlocks,
+            new ArrayList<ECOFormationBlockPos>(),
+            this.mirrored);
     }
 
     @Override
@@ -651,6 +783,7 @@ public class TileECOController extends TileEntity implements IInventory {
         tag.setBoolean(TAG_MIRRORED, this.mirrored);
         tag.setInteger(TAG_FACING_META, this.facingMeta);
         tag.setString(TAG_HOST_MODE, this.hostMode.getId());
+        tag.setInteger(TAG_PRIORITY, this.priority);
         if (this.hostDomainId != null) {
             tag.setString(TAG_HOST_DOMAIN_ID, this.hostDomainId.toString());
         }
@@ -695,6 +828,7 @@ public class TileECOController extends TileEntity implements IInventory {
         this.mirrored = tag.getBoolean(TAG_MIRRORED);
         this.facingMeta = tag.getInteger(TAG_FACING_META) & 3;
         this.hostMode = ECOStorageHostMode.fromId(tag.getString(TAG_HOST_MODE));
+        this.priority = tag.getInteger(TAG_PRIORITY);
         this.hostDomainId = tag.hasKey(TAG_HOST_DOMAIN_ID) ? readUuid(tag.getString(TAG_HOST_DOMAIN_ID)) : null;
         this.infiniteStorageComponent = tag.hasKey(TAG_INFINITE_COMPONENT)
             ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_INFINITE_COMPONENT))

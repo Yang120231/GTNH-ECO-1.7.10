@@ -25,14 +25,21 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
     private final ItemStack cellStack;
     private final ISaveProvider saveProvider;
     private final StorageChannel channel;
+    private final int priority;
     private ECOStorageBackend backend;
     private long cachedRevision = Long.MIN_VALUE;
     private IItemList<StackType> cachedAvailableItems;
 
     public ECOCellInventoryHandler(ItemStack cellStack, ISaveProvider saveProvider, StorageChannel channel) {
+        this(cellStack, saveProvider, channel, 0);
+    }
+
+    public ECOCellInventoryHandler(ItemStack cellStack, ISaveProvider saveProvider, StorageChannel channel,
+        int priority) {
         this.cellStack = cellStack;
         this.saveProvider = saveProvider;
         this.channel = channel;
+        this.priority = priority;
         this.backend = ECOStorageCellAccess.load(cellStack);
     }
 
@@ -105,7 +112,7 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
 
     @Override
     public int getPriority() {
-        return 0;
+        return this.priority;
     }
 
     @Override
@@ -142,8 +149,7 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
             return this.cachedAvailableItems;
         }
         IItemList<StackType> out = this.channel.createList();
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : this.backend.snapshot()
-            .getEntries()
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : this.backend.getEntriesView()
             .entrySet()) {
             long amount = entry.getValue()
                 .toLongSaturated();

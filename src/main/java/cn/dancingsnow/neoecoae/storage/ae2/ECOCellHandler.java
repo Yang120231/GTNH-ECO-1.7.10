@@ -26,10 +26,15 @@ public class ECOCellHandler implements ICellHandler {
 
     @Override
     public IMEInventoryHandler getCellInventory(ItemStack is, ISaveProvider host, StorageChannel channel) {
+        return this.getCellInventory(is, host, channel, 0);
+    }
+
+    public IMEInventoryHandler getCellInventory(ItemStack is, ISaveProvider host, StorageChannel channel,
+        int priority) {
         if (!this.isCell(is) || channel == null) {
             return null;
         }
-        return new ECOCellInventoryHandler(is, host, channel);
+        return new ECOCellInventoryHandler(is, host, channel, priority);
     }
 
     @Override
@@ -58,7 +63,6 @@ public class ECOCellHandler implements ICellHandler {
         }
         ECOCellInventoryHandler ecoHandler = (ECOCellInventoryHandler) handler;
         int types = ecoHandler.getBackend()
-            .snapshot()
             .getTypeCount();
         if (types == 0) {
             return 1;

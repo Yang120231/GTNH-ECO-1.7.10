@@ -232,11 +232,16 @@ public final class ModernModelLoader {
     }
 
     private static boolean isFullBright(JsonObject faceJson) {
-        if (!faceJson.has("neoforge_data")) {
+        JsonObject data = null;
+        if (faceJson.has("neoforge_data")) {
+            data = faceJson.getAsJsonObject("neoforge_data");
+        } else if (faceJson.has("forge_data")) {
+            data = faceJson.getAsJsonObject("forge_data");
+        }
+        if (data == null) {
             return false;
         }
 
-        JsonObject data = faceJson.getAsJsonObject("neoforge_data");
         int blockLight = data.has("block_light") ? data.get("block_light")
             .getAsInt() : 0;
         int skyLight = data.has("sky_light") ? data.get("sky_light")

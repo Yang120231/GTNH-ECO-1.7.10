@@ -51,4 +51,9 @@ public class CommonProxy {
         TileECOController controller) {
         return null;
     }
+
+    public Object createStoragePriorityGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileECOController controller) {
+        return null;
+    }
 }

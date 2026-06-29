@@ -106,7 +106,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
 
     @Override
     public int getPriority() {
-        return 0;
+        return this.controller.getPriority();
     }
 
     @Override
@@ -142,7 +142,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             return this.cachedAvailableItems;
         }
         IItemList<StackType> out = this.channel.createList();
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.snapshot().getEntries().entrySet()) {
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesView().entrySet()) {
             StackType stack = this.toAEStack(entry.getKey(), entry.getValue().toLongSaturated());
             if (stack != null) {
                 out.addStorage(stack);

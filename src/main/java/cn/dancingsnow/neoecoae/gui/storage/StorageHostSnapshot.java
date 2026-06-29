@@ -12,7 +12,6 @@ import net.minecraftforge.common.util.ForgeDirection;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageSnapshot;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageDomainData;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageHostMode;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
@@ -34,6 +33,7 @@ public final class StorageHostSnapshot {
         0,
         0,
         16,
+        0,
         false,
         0L,
         0L,
@@ -48,6 +48,7 @@ public final class StorageHostSnapshot {
     public final int infiniteComponentCount;
     public final int formedDriveCount;
     public final int requiredDriveCount;
+    public final int priority;
     public final boolean allDrivesL9;
     public final long usedBytes;
     public final long totalBytes;
@@ -57,7 +58,7 @@ public final class StorageHostSnapshot {
     public final List<MatrixCell> matrixCells;
 
     private StorageHostSnapshot(boolean formed, String tier, String hostMode, int infiniteComponentCount,
-        int formedDriveCount, int requiredDriveCount, boolean allDrivesL9, long usedBytes, long totalBytes,
+        int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes, long totalBytes,
         long usedTypes, long totalTypes, List<TypeStat> typeStats, List<MatrixCell> matrixCells) {
         this.formed = formed;
         this.tier = tier;
@@ -65,6 +66,7 @@ public final class StorageHostSnapshot {
         this.infiniteComponentCount = infiniteComponentCount;
         this.formedDriveCount = formedDriveCount;
         this.requiredDriveCount = requiredDriveCount;
+        this.priority = priority;
         this.allDrivesL9 = allDrivesL9;
         this.usedBytes = usedBytes;
         this.totalBytes = totalBytes;
@@ -87,11 +89,14 @@ public final class StorageHostSnapshot {
         long totalTypes = 0L;
         long usedTypes = 0L;
 
-        if (controller.canUseHostDomainStorage()) {
-            ECOStorageSnapshot domain = ECOStorageDomainData.get(controller.getWorldObj()).snapshot(controller.getHostDomainId());
-            usedBytes = domain.getUsed().toLongSaturated();
-            usedTypes = domain.getTypeCount();
-            addDomainStats(domain, itemStats, fluidStats);
+        boolean hostDomainStorage = controller.canUseHostDomainStorage();
+        if (hostDomainStorage && controller.getWorldObj() != null) {
+            ECOStorageBackend domain = ECOStorageDomainData.get(controller.getWorldObj()).getDomain(controller.getHostDomainId());
+            if (domain != null) {
+                usedBytes = domain.getUsed().toLongSaturated();
+                usedTypes = domain.getTypeCount();
+                addBackendStats(domain, itemStats, fluidStats);
+            }
         }
 
         MatrixGridLayout layout = MatrixGridLayout.from(controller, positions);
@@ -102,12 +107,13 @@ public final class StorageHostSnapshot {
             int column = layout.columnFor(pos);
             MatrixCell cell = MatrixCell.empty(row, column);
             if (tile instanceof TileECODrive) {
-                cell = MatrixCell.fromDrive(row, column, (TileECODrive) tile);
+                MatrixRead matrix = MatrixRead.fromDrive((TileECODrive) tile);
+                cell = MatrixCell.fromMatrix(row, column, matrix);
                 if (cell.hasCell) {
                     totalBytes = saturatedAdd(totalBytes, cell.totalBytes);
                     totalTypes = saturatedAdd(totalTypes, cell.totalTypes);
-                    addDriveStats((TileECODrive) tile, itemStats, fluidStats);
-                    if (!controller.canUseHostDomainStorage()) {
+                    addDriveStats(matrix, itemStats, fluidStats);
+                    if (!hostDomainStorage) {
                         usedBytes = saturatedAdd(usedBytes, cell.usedBytes);
                         usedTypes = saturatedAdd(usedTypes, cell.usedTypes);
                     }
@@ -126,6 +132,7 @@ public final class StorageHostSnapshot {
             controller.getInfiniteStorageComponentCount(),
             positions.size(),
             controller.getRequiredInfiniteDriveCount(),
+            controller.getPriority(),
             controller.areAllFormedDrivesL9MatricesForDisplay(),
             usedBytes,
             totalBytes,
@@ -142,6 +149,7 @@ public final class StorageHostSnapshot {
         buf.writeInt(this.infiniteComponentCount);
         buf.writeInt(this.formedDriveCount);
         buf.writeInt(this.requiredDriveCount);
+        buf.writeInt(this.priority);
         buf.writeBoolean(this.allDrivesL9);
         buf.writeLong(this.usedBytes);
         buf.writeLong(this.totalBytes);
@@ -166,6 +174,7 @@ public final class StorageHostSnapshot {
         int infiniteComponentCount = buf.readInt();
         int formedDriveCount = buf.readInt();
         int requiredDriveCount = buf.readInt();
+        int priority = buf.readInt();
         boolean allDrivesL9 = buf.readBoolean();
         long usedBytes = safeLong(buf.readLong());
         long totalBytes = safeLong(buf.readLong());
@@ -188,6 +197,7 @@ public final class StorageHostSnapshot {
             infiniteComponentCount,
             formedDriveCount,
             requiredDriveCount,
+            priority,
             allDrivesL9,
             usedBytes,
             totalBytes,
@@ -208,23 +218,16 @@ public final class StorageHostSnapshot {
         return Math.max(0L, value);
     }
 
-    private static void addDriveStats(TileECODrive drive, TypeAccumulator itemStats, TypeAccumulator fluidStats) {
-        ItemStack stack = drive.getCellStack();
-        if (stack == null || ECOStorageCellMetadata.hasNonPortableState(stack)) {
+    private static void addDriveStats(MatrixRead matrix, TypeAccumulator itemStats, TypeAccumulator fluidStats) {
+        if (matrix == null || !matrix.hasCell || matrix.nonPortable || matrix.backend == null) {
             return;
         }
-        ECOStorageSnapshot snapshot = ECOStorageCellAccess.load(stack).snapshot();
-        addSnapshotStats(snapshot, itemStats, fluidStats);
+        addBackendStats(matrix.backend, itemStats, fluidStats);
     }
 
-    private static void addDomainStats(ECOStorageSnapshot domain, TypeAccumulator itemStats,
+    private static void addBackendStats(ECOStorageBackend backend, TypeAccumulator itemStats,
         TypeAccumulator fluidStats) {
-        addSnapshotStats(domain, itemStats, fluidStats);
-    }
-
-    private static void addSnapshotStats(ECOStorageSnapshot snapshot, TypeAccumulator itemStats,
-        TypeAccumulator fluidStats) {
-        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : snapshot.getEntries().entrySet()) {
+        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend.getEntriesView().entrySet()) {
             TypeAccumulator stats = accumulatorFor(entry.getKey().getChannel(), itemStats, fluidStats);
             stats.usedBytes = saturatedAdd(stats.usedBytes, entry.getValue().toLongSaturated());
             stats.usedTypes = saturatedAdd(stats.usedTypes, 1L);
@@ -261,6 +264,75 @@ public final class StorageHostSnapshot {
         private TypeAccumulator(String typeId, String displayName) {
             this.typeId = typeId;
             this.displayName = displayName;
+        }
+    }
+
+    private static final class MatrixRead {
+
+        private final boolean hasCell;
+        private final String tier;
+        private final String mode;
+        private final boolean nonPortable;
+        private final long usedBytes;
+        private final long totalBytes;
+        private final long usedTypes;
+        private final long totalTypes;
+        private final ECOStorageBackend backend;
+
+        private MatrixRead(boolean hasCell, String tier, String mode, boolean nonPortable, long usedBytes,
+            long totalBytes, long usedTypes, long totalTypes, ECOStorageBackend backend) {
+            this.hasCell = hasCell;
+            this.tier = tier;
+            this.mode = mode;
+            this.nonPortable = nonPortable;
+            this.usedBytes = usedBytes;
+            this.totalBytes = totalBytes;
+            this.usedTypes = usedTypes;
+            this.totalTypes = totalTypes;
+            this.backend = backend;
+        }
+
+        private static MatrixRead empty() {
+            return new MatrixRead(false, "", ECOStorageCellMode.PORTABLE.getId(), false, 0L, 0L, 0L, 0L, null);
+        }
+
+        private static MatrixRead fromDrive(TileECODrive drive) {
+            ItemStack stack = drive.getCellStack();
+            if (stack == null || !(stack.getItem() instanceof IECOStorageMatrixItem)) {
+                return empty();
+            }
+            IECOStorageMatrixItem matrix = (IECOStorageMatrixItem) stack.getItem();
+            String fallbackTier = stack.getItem() instanceof cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem
+                ? ((cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
+                : "";
+            String tier = ECOStorageCellAccess.readTier(stack, fallbackTier);
+            String mode = ECOStorageCellMetadata.getMode(stack).getId();
+            long totalBytes = matrix.getDisplayBytes(stack);
+            long totalTypes = 0L;
+            boolean nonPortable = ECOStorageCellMetadata.hasNonPortableState(stack);
+            if (nonPortable) {
+                return new MatrixRead(
+                    true,
+                    tier,
+                    mode,
+                    true,
+                    ECOStorageCellMetadata.getSummaryUsed(stack),
+                    totalBytes,
+                    ECOStorageCellMetadata.getSummaryTypes(stack),
+                    totalTypes,
+                    null);
+            }
+            ECOStorageBackend backend = ECOStorageCellAccess.load(stack);
+            return new MatrixRead(
+                true,
+                tier,
+                mode,
+                false,
+                backend.getUsed().toLongSaturated(),
+                totalBytes,
+                backend.getTypeCount(),
+                totalTypes,
+                backend);
         }
     }
 
@@ -414,31 +486,20 @@ public final class StorageHostSnapshot {
             return new MatrixCell(row, column, false, "", ECOStorageCellMode.PORTABLE.getId(), 0L, 0L, 0L, 0L);
         }
 
-        private static MatrixCell fromDrive(int row, int column, TileECODrive drive) {
-            ItemStack stack = drive.getCellStack();
-            if (stack == null || !(stack.getItem() instanceof IECOStorageMatrixItem)) {
+        private static MatrixCell fromMatrix(int row, int column, MatrixRead matrix) {
+            if (matrix == null || !matrix.hasCell) {
                 return empty(row, column);
             }
-            IECOStorageMatrixItem matrix = (IECOStorageMatrixItem) stack.getItem();
-            String fallbackTier = stack.getItem() instanceof cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem
-                ? ((cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
-                : "";
-            String tier = ECOStorageCellAccess.readTier(stack, fallbackTier);
-            String mode = ECOStorageCellMetadata.getMode(stack).getId();
-            long totalBytes = matrix.getDisplayBytes(stack);
-            long totalTypes = 0L;
-            long usedBytes;
-            long usedTypes;
-            if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
-                usedBytes = ECOStorageCellMetadata.getSummaryUsed(stack);
-                usedTypes = ECOStorageCellMetadata.getSummaryTypes(stack);
-            } else {
-                ECOStorageBackend backend = ECOStorageCellAccess.load(stack);
-                ECOStorageSnapshot snapshot = backend.snapshot();
-                usedBytes = snapshot.getUsed().toLongSaturated();
-                usedTypes = snapshot.getTypeCount();
-            }
-            return new MatrixCell(row, column, true, tier, mode, usedBytes, totalBytes, usedTypes, totalTypes);
+            return new MatrixCell(
+                row,
+                column,
+                true,
+                matrix.tier,
+                matrix.mode,
+                matrix.usedBytes,
+                matrix.totalBytes,
+                matrix.usedTypes,
+                matrix.totalTypes);
         }
 
         private void write(ByteBuf buf) {

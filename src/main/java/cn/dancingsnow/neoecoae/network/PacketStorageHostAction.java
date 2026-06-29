@@ -8,7 +8,8 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.gui.container.ContainerECOStorageController;
+import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.gui.NEGuiIds;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
@@ -45,7 +46,8 @@ public class PacketStorageHostAction implements IMessage {
     }
 
     public enum Action {
-        RESERVED
+        OPEN_PRIORITY,
+        OPEN_STORAGE
     }
 
     public static class Handler implements IMessageHandler<PacketStorageHostAction, IMessage> {
@@ -62,9 +64,24 @@ public class PacketStorageHostAction implements IMessage {
             if (controller.getSubsystem() != ECOControllerSubsystem.STORAGE || !controller.isUseableByPlayer(player)) {
                 return null;
             }
-            if (!(player.openContainer instanceof ContainerECOStorageController)
-                || ((ContainerECOStorageController) player.openContainer).getController() != controller) {
-                return null;
+            if (message.action == Action.OPEN_PRIORITY.ordinal()) {
+                if (controller.isFormed()) {
+                    player.openGui(
+                        NeoECOAE.instance,
+                        NEGuiIds.ECO_STORAGE_PRIORITY,
+                        world,
+                        controller.xCoord,
+                        controller.yCoord,
+                        controller.zCoord);
+                }
+            } else if (message.action == Action.OPEN_STORAGE.ordinal()) {
+                player.openGui(
+                    NeoECOAE.instance,
+                    NEGuiIds.ECO_STORAGE_CONTROLLER,
+                    world,
+                    controller.xCoord,
+                    controller.yCoord,
+                    controller.zCoord);
             }
             return null;
         }

@@ -8,10 +8,14 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.IBlockAccess;
 
+import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
+import cn.dancingsnow.neoecoae.block.BlockComputationDrive;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
+import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
+import cn.dancingsnow.neoecoae.tile.TileComputationDrive;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
 import cpw.mods.fml.client.registry.ISimpleBlockRenderingHandler;
 
@@ -57,10 +61,14 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
 
         BlockModelDrive drive = (BlockModelDrive) block;
         boolean formed = ECOFormationVisibility.shouldRenderFormedMember(world, x, y, z);
-        TileECODrive ecoDriveTile = getEcoDriveTile(world, x, y, z);
-        boolean occupied = drive.useFullModelWhenOccupied() && ecoDriveTile != null && ecoDriveTile.hasCell();
-        boolean lit = ecoDriveTile != null && ecoDriveTile.isOnlineForRender();
         ModelFacing facing = ModelFacing.fromMeta(world.getBlockMetadata(x, y, z));
+        TileECODrive ecoDriveTile = getEcoDriveTile(world, x, y, z);
+        TileComputationDrive computationDriveTile = getComputationDriveTile(world, x, y, z);
+        boolean computationDrive = block instanceof BlockComputationDrive;
+        boolean occupied = drive.useFullModelWhenOccupied()
+            && (computationDrive ? computationDriveTile != null && computationDriveTile.hasCell()
+                : ecoDriveTile != null && ecoDriveTile.hasCell());
+        boolean lit = ecoDriveTile != null && ecoDriveTile.isOnlineForRender();
         EcoModelRenderer.renderWorld(
             DriveModels
                 .get(
@@ -75,8 +83,13 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
             z,
             block,
             renderer);
-        renderInsertedEcoCell(world, x, y, z, block, renderer, drive, occupied, facing, ecoDriveTile);
-        renderCellStatusLed(x, y, z, occupied, facing, ecoDriveTile, drive);
+        if (computationDrive) {
+            renderInsertedComputationCell(world, x, y, z, block, renderer, drive, occupied, formed, facing,
+                computationDriveTile);
+        } else {
+            renderInsertedEcoCell(world, x, y, z, block, renderer, drive, occupied, facing, ecoDriveTile);
+            renderCellStatusLed(x, y, z, occupied, facing, ecoDriveTile, drive);
+        }
         return true;
     }
 
@@ -95,6 +108,51 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
             z,
             block,
             renderer);
+    }
+
+    private static void renderInsertedComputationCell(IBlockAccess world, int x, int y, int z, Block block,
+        RenderBlocks renderer, BlockModelDrive drive, boolean occupied, boolean formed, ModelFacing facing,
+        TileComputationDrive computationDriveTile) {
+        if (!occupied || computationDriveTile == null || !computationDriveTile.hasCellForRendering()) {
+            return;
+        }
+        ECOControllerTier driveTier = ECOFormationVisibility.getFormedMemberTier(world, x, y, z);
+        EcoModelRenderer.renderWorld(
+            ComputationDriveRenderModels.getCell(computationDriveTile.getCellTierForRender(), formed, driveTier),
+            facing,
+            drive.getModelIcons(),
+            world,
+            x,
+            y,
+            z,
+            block,
+            renderer);
+        renderComputationCable(world, x, y, z, block, renderer, drive, formed, facing, computationDriveTile, driveTier);
+    }
+
+    private static void renderComputationCable(IBlockAccess world, int x, int y, int z, Block block,
+        RenderBlocks renderer, BlockModelDrive drive, boolean formed, ModelFacing facing,
+        TileComputationDrive computationDriveTile, ECOControllerTier driveTier) {
+        if (!formed || driveTier == null) {
+            return;
+        }
+        String cellTierName = computationDriveTile.getCellTierForRender();
+        boolean connected = ComputationDriveRenderModels.canWork(cellTierName, driveTier);
+        ECOControllerTier cableTier = connected ? ComputationDriveRenderModels.tierForCell(cellTierName) : driveTier;
+        EcoModelRenderer.renderWorld(
+            ComputationDriveRenderModels.getCable(cableTier, connected, isLowerComputationDrive(world, x, y, z)),
+            facing,
+            drive.getModelIcons(),
+            world,
+            x,
+            y,
+            z,
+            block,
+            renderer);
+    }
+
+    private static boolean isLowerComputationDrive(IBlockAccess world, int x, int y, int z) {
+        return world.getBlock(x, y + 1, z) == NEBlocks.computationTransmitter;
     }
 
     private static void renderCellStatusLed(int x, int y, int z, boolean occupied, ModelFacing facing,
@@ -173,6 +231,18 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
         }
         tile = Minecraft.getMinecraft().theWorld.getTileEntity(x, y, z);
         return tile instanceof TileECODrive ? (TileECODrive) tile : null;
+    }
+
+    private static TileComputationDrive getComputationDriveTile(IBlockAccess world, int x, int y, int z) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileComputationDrive) {
+            return (TileComputationDrive) tile;
+        }
+        if (Minecraft.getMinecraft().theWorld == null) {
+            return null;
+        }
+        tile = Minecraft.getMinecraft().theWorld.getTileEntity(x, y, z);
+        return tile instanceof TileComputationDrive ? (TileComputationDrive) tile : null;
     }
 
     @Override
