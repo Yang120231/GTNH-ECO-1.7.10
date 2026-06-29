@@ -11,14 +11,26 @@ public class BakedEcoModel {
 
     private static final double BOUNDARY_EPSILON = 0.0001D;
 
-    private final ModernModel source;
     private final Map<ModelFacing, List<BakedQuad>> quads = new EnumMap<>(ModelFacing.class);
 
     public BakedEcoModel(ModernModel source) {
-        this.source = source;
+        this(source, 0.0D, 0.0D, 0.0D);
+    }
+
+    private BakedEcoModel(ModernModel source, double offsetX, double offsetY, double offsetZ) {
+        this(source, offsetX, offsetY, offsetZ, true);
+    }
+
+    private BakedEcoModel(ModernModel source, double offsetX, double offsetY, double offsetZ,
+        boolean modelBoundsAreWorldBoundary) {
         for (ModelFacing facing : ModelFacing.values()) {
-            this.quads.put(facing, bakeFacing(source, facing));
+            this.quads
+                .put(facing, bakeFacing(source, facing, offsetX, offsetY, offsetZ, modelBoundsAreWorldBoundary));
         }
+    }
+
+    public static BakedEcoModel offsetSubModel(ModernModel source, double offsetX, double offsetY, double offsetZ) {
+        return new BakedEcoModel(source, offsetX, offsetY, offsetZ, false);
     }
 
     public List<BakedQuad> getQuads(ModelFacing facing) {
@@ -33,24 +45,35 @@ public class BakedEcoModel {
         return max;
     }
 
-    private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing) {
+    private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing, double offsetX,
+        double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary) {
         List<BakedQuad> bakedQuads = new ArrayList<>();
-        ModelBounds bounds = calculateBounds(model, facing);
+        ModelBounds bounds = calculateBounds(model, facing, offsetX, offsetY, offsetZ);
         for (ModelElement element : model.getElements()) {
             for (ModelFace face : element.getFaces()
                 .values()) {
-                bakedQuads.add(bakeFace(model, element, face, facing, bounds));
+                bakedQuads.add(
+                    bakeFace(
+                        model,
+                        element,
+                        face,
+                        facing,
+                        bounds,
+                        offsetX,
+                        offsetY,
+                        offsetZ,
+                        modelBoundsAreWorldBoundary));
             }
         }
         return bakedQuads;
     }
 
     private static BakedQuad bakeFace(ModernModel model, ModelElement element, ModelFace face, ModelFacing facing,
-        ModelBounds bounds) {
+        ModelBounds bounds, double offsetX, double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary) {
         double[][] vertices = faceVertices(element, face.getSide());
         double[][] rotatedVertices = new double[4][3];
         for (int i = 0; i < vertices.length; i++) {
-            rotatedVertices[i] = rotateY(vertices[i], facing);
+            rotatedVertices[i] = rotateY(offset(vertices[i], offsetX, offsetY, offsetZ), facing);
         }
 
         String cullFace = face.getCullFace();
@@ -66,7 +89,7 @@ public class BakedEcoModel {
             rotateUv(uvVertices(face, face.getSide()), face.getRotation()),
             face.isFullBright(),
             element.isShade(),
-            isBoundaryFace(rotatedVertices, normal, bounds));
+            modelBoundsAreWorldBoundary && isBoundaryFace(rotatedVertices, normal, bounds));
     }
 
     private static boolean isBoundaryFace(double[][] vertices, ForgeDirection normal, ModelBounds bounds) {
@@ -97,7 +120,8 @@ public class BakedEcoModel {
         return true;
     }
 
-    private static ModelBounds calculateBounds(ModernModel model, ModelFacing facing) {
+    private static ModelBounds calculateBounds(ModernModel model, ModelFacing facing, double offsetX, double offsetY,
+        double offsetZ) {
         ModelBounds bounds = new ModelBounds();
         for (ModelElement element : model.getElements()) {
             double x1 = element.getFrom()[0] / 16.0D;
@@ -106,14 +130,14 @@ public class BakedEcoModel {
             double x2 = element.getTo()[0] / 16.0D;
             double y2 = element.getTo()[1] / 16.0D;
             double z2 = element.getTo()[2] / 16.0D;
-            bounds.accept(rotateY(new double[] { x1, y1, z1 }, facing));
-            bounds.accept(rotateY(new double[] { x1, y1, z2 }, facing));
-            bounds.accept(rotateY(new double[] { x2, y1, z1 }, facing));
-            bounds.accept(rotateY(new double[] { x2, y1, z2 }, facing));
-            bounds.accept(rotateY(new double[] { x1, y2, z1 }, facing));
-            bounds.accept(rotateY(new double[] { x1, y2, z2 }, facing));
-            bounds.accept(rotateY(new double[] { x2, y2, z1 }, facing));
-            bounds.accept(rotateY(new double[] { x2, y2, z2 }, facing));
+            bounds.accept(rotateY(offset(new double[] { x1, y1, z1 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x1, y1, z2 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x2, y1, z1 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x2, y1, z2 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x1, y2, z1 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x1, y2, z2 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x2, y2, z1 }, offsetX, offsetY, offsetZ), facing));
+            bounds.accept(rotateY(offset(new double[] { x2, y2, z2 }, offsetX, offsetY, offsetZ), facing));
         }
         return bounds;
     }
@@ -239,6 +263,10 @@ public class BakedEcoModel {
         }
 
         return new double[] { rotatedX + 0.5D, vertex[1], rotatedZ + 0.5D };
+    }
+
+    private static double[] offset(double[] vertex, double offsetX, double offsetY, double offsetZ) {
+        return new double[] { vertex[0] + offsetX, vertex[1] + offsetY, vertex[2] + offsetZ };
     }
 
     private static ForgeDirection rotateDirection(ForgeDirection direction, ModelFacing facing) {

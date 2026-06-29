@@ -1,6 +1,8 @@
 package cn.dancingsnow.neoecoae.block;
 
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
@@ -89,5 +91,63 @@ public class BlockECOController extends BlockDirectionalModernModel {
         if (tile instanceof TileECOController) {
             ((TileECOController) tile).setFacingMeta(world.getBlockMetadata(x, y, z));
         }
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
+        float hitY, float hitZ) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (!(tile instanceof TileECOController) || this.subsystem != ECOControllerSubsystem.STORAGE) {
+            return false;
+        }
+        TileECOController controller = (TileECOController) tile;
+        ItemStack held = player.getHeldItem();
+        if (held != null && controller.isItemValidForSlot(0, held)) {
+            if (!world.isRemote) {
+                ItemStack existing = controller.getStackInSlot(0);
+                int room = controller.getInventoryStackLimit() - (existing == null ? 0 : existing.stackSize);
+                if (room <= 0) {
+                    return true;
+                }
+                int moved = Math.min(room, held.stackSize);
+                if (existing == null) {
+                    ItemStack inserted = held.copy();
+                    inserted.stackSize = moved;
+                    controller.setInventorySlotContents(0, inserted);
+                } else {
+                    existing.stackSize += moved;
+                    controller.setInventorySlotContents(0, existing);
+                }
+                held.stackSize -= moved;
+                if (held.stackSize <= 0) {
+                    player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
+                }
+                player.inventory.markDirty();
+            }
+            return true;
+        }
+        if (player.isSneaking() && held == null && controller.getStackInSlot(0) != null) {
+            if (!world.isRemote) {
+                ItemStack removed = controller.decrStackSize(0, controller.getStackInSlot(0).stackSize);
+                if (removed != null) {
+                    player.inventory.setInventorySlotContents(player.inventory.currentItem, removed);
+                    player.inventory.markDirty();
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void breakBlock(World world, int x, int y, int z, net.minecraft.block.Block block, int meta) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileECOController) {
+            ItemStack stack = ((TileECOController) tile).getStackInSlot(0);
+            if (stack != null && !world.isRemote) {
+                world.spawnEntityInWorld(new EntityItem(world, x + 0.5D, y + 0.5D, z + 0.5D, stack.copy()));
+            }
+        }
+        super.breakBlock(world, x, y, z, block, meta);
     }
 }

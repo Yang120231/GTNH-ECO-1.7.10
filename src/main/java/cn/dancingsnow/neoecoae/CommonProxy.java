@@ -5,6 +5,7 @@ import cn.dancingsnow.neoecoae.all.NEItems;
 import cn.dancingsnow.neoecoae.all.NEOreDictionary;
 import cn.dancingsnow.neoecoae.all.NERecipes;
 import cn.dancingsnow.neoecoae.all.NETileEntities;
+import cn.dancingsnow.neoecoae.storage.ae2.NEAE2Storage;
 import cn.dancingsnow.neoecoae.world.NEOreWorldGenerator;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -30,6 +31,7 @@ public class CommonProxy {
 
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes." (Remove if not needed)
     public void init(FMLInitializationEvent event) {
+        NEAE2Storage.register();
         NERecipes.register();
     }
 

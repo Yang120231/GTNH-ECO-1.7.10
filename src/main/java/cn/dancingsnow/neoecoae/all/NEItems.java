@@ -77,6 +77,7 @@ public final class NEItems {
         register(blackTungstenAlloyIngot, "black_tungsten_alloy_ingot");
         register(blackTungstenAlloyDust, "black_tungsten_alloy_dust");
         register(debug, "debug");
+        NEStorageItems.register();
 
         register(aluminumAxe, "aluminum_axe");
         register(aluminumHoe, "aluminum_hoe");
