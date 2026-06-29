@@ -176,6 +176,7 @@ tile.eco_drive.tooltip.line.1=&7安装存储矩阵后由主机统一接入 AE2 �
 tile.computation_drive.tooltip.summary=&7可驱动闪存晶阵
 tile.computation_drive.tooltip.line.0=&7可驱动的闪存晶阵等级由计算子系统主机决定
 tile.computation_drive.tooltip.line.1=&7当前：模型已迁移，闪存晶阵逻辑待接入
+chat.neoecoae.computation.cell_remove_blocked=存在合成任务时不可取出计算闪存晶阵
 tile.computation_interface.tooltip.summary=&7计算子系统接口
 tile.computation_interface.tooltip.line.0=&7用于连接 ME 网络与计算子系统
 tile.computation_interface.tooltip.line.1=&7当前：模型已迁移，网络逻辑待接入

@@ -338,7 +338,8 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
             node == null ? null : node.getGrid(),
             craftingGrid,
             controller.getComputationHostStats(),
-            node != null && node.isActive());
+            node != null && node.isActive(),
+            controller.getComputationCpuSelectionMode());
     }
 
     private void unregisterComputationCpus() {

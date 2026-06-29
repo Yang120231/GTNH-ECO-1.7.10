@@ -246,6 +246,7 @@ tile.eco_drive.tooltip.line.1=&7Installed matrices are exposed to AE2 through th
 tile.computation_drive.tooltip.summary=&7Can drive flash crystal matrices
 tile.computation_drive.tooltip.line.0=&7The drivable flash crystal matrix tier depends on the computation subsystem host
 tile.computation_drive.tooltip.line.1=&7Current: model migrated; flash matrix logic pending
+chat.neoecoae.computation.cell_remove_blocked=Computation flash matrices cannot be removed while crafting jobs are active
 tile.computation_interface.tooltip.summary=&7Computation subsystem interface
 tile.computation_interface.tooltip.line.0=&7Connects the ME network and the computation subsystem
 tile.computation_interface.tooltip.line.1=&7Current: model migrated; network logic pending

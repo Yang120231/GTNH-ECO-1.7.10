@@ -5,6 +5,7 @@ import java.util.Iterator;
 
 import net.minecraft.nbt.NBTTagCompound;
 
+import appeng.api.config.CraftingAllow;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.crafting.ICraftingJob;
@@ -19,6 +20,7 @@ import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.util.Platform;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
 public class ECOComputationVirtualCpu extends CraftingCPUCluster {
@@ -32,6 +34,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     private boolean active;
     private IGrid grid;
     private boolean released;
+    private CraftingAllow craftingAllowMode = CraftingAllow.ALLOW_ALL;
 
     ECOComputationVirtualCpu(ECOComputationCpuPool pool, TileECOInterface host, int serial) {
         super(
@@ -44,13 +47,11 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         this.isComplete = true;
     }
 
-    void configureIdle(long storage, int coProcessors, IGrid grid, boolean active) {
+    void configureIdle(long storage, int coProcessors, IGrid grid, boolean active,
+        ComputationCpuSelectionMode cpuSelectionMode) {
         this.reservedStorage = Math.max(0L, storage);
         this.availableStorage = this.reservedStorage;
-        this.coProcessors = Math.max(0, coProcessors);
-        this.accelerator = this.coProcessors;
-        this.grid = grid;
-        this.active = active;
+        this.updateResources(coProcessors, grid, active, cpuSelectionMode);
         this.myName = this.pool.nameFor(this.serial, false);
     }
 
@@ -84,18 +85,19 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         return new ComputationTaskInfo(output == null ? null : output.getItemStack(), this.getElapsedTime());
     }
 
-    void updateGrid(IGrid grid, boolean active) {
-        this.grid = grid;
-        this.active = active;
-    }
-
-    boolean restoreFromNBT(NBTTagCompound data, long reservedStorage, int coProcessors, IGrid grid, boolean active) {
-        this.reservedStorage = Math.max(0L, reservedStorage);
-        this.availableStorage = this.reservedStorage;
+    void updateResources(int coProcessors, IGrid grid, boolean active, ComputationCpuSelectionMode cpuSelectionMode) {
         this.coProcessors = Math.max(0, coProcessors);
         this.accelerator = this.coProcessors;
         this.grid = grid;
         this.active = active;
+        this.craftingAllowMode = allowMode(cpuSelectionMode);
+    }
+
+    boolean restoreFromNBT(NBTTagCompound data, long reservedStorage, int coProcessors, IGrid grid, boolean active,
+        ComputationCpuSelectionMode cpuSelectionMode) {
+        this.reservedStorage = Math.max(0L, reservedStorage);
+        this.availableStorage = this.reservedStorage;
+        this.updateResources(coProcessors, grid, active, cpuSelectionMode);
         this.released = false;
         this.machineSrc = new MachineSource(this.host);
         try {
@@ -235,6 +237,14 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     }
 
     @Override
+    public CraftingAllow getCraftingAllowMode() {
+        return this.craftingAllowMode;
+    }
+
+    @Override
+    public void changeCraftingAllowMode(CraftingAllow mode) {}
+
+    @Override
     public String getName() {
         return this.myName;
     }
@@ -273,5 +283,15 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         this.released = true;
         this.active = false;
         this.pool.onCpuJobFinished(this);
+    }
+
+    private static CraftingAllow allowMode(ComputationCpuSelectionMode mode) {
+        if (mode == ComputationCpuSelectionMode.PLAYER_ONLY) {
+            return CraftingAllow.ONLY_PLAYER;
+        }
+        if (mode == ComputationCpuSelectionMode.MACHINE_ONLY) {
+            return CraftingAllow.ONLY_NONPLAYER;
+        }
+        return CraftingAllow.ALLOW_ALL;
     }
 }

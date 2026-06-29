@@ -4,6 +4,7 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
@@ -86,6 +87,11 @@ public class BlockComputationDrive extends BlockModelDrive {
 
         if (drive.getCellStack() != null && (held == null || player.isSneaking())) {
             if (!world.isRemote) {
+                if (!drive.canExtractCellStack()) {
+                    player
+                        .addChatMessage(new ChatComponentTranslation("chat.neoecoae.computation.cell_remove_blocked"));
+                    return true;
+                }
                 ItemStack removed = drive.getStackInSlotOnClosing(0);
                 if (removed == null) {
                     return true;

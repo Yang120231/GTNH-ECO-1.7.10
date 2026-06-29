@@ -20,6 +20,7 @@ public class TileComputationDrive extends TileEntity implements IInventory {
     private ItemStack cellStack;
     private boolean clientHasCell;
     private String clientCellTier = "";
+    private TileECOController cachedController;
 
     public boolean hasCell() {
         return this.cellStack != null || this.clientHasCell;
@@ -53,6 +54,9 @@ public class TileComputationDrive extends TileEntity implements IInventory {
         if (slot != 0 || this.cellStack == null || amount <= 0) {
             return null;
         }
+        if (!this.canExtractCellStack()) {
+            return null;
+        }
         ItemStack removed;
         if (this.cellStack.stackSize <= amount) {
             removed = this.cellStack.copy();
@@ -70,6 +74,9 @@ public class TileComputationDrive extends TileEntity implements IInventory {
     @Override
     public ItemStack getStackInSlotOnClosing(int slot) {
         if (slot != 0) {
+            return null;
+        }
+        if (!this.canExtractCellStack()) {
             return null;
         }
         ItemStack stack = this.cellStack == null ? null : this.cellStack.copy();
@@ -125,6 +132,11 @@ public class TileComputationDrive extends TileEntity implements IInventory {
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack) {
         return slot == 0 && isComputationCell(stack);
+    }
+
+    public boolean canExtractCellStack() {
+        TileECOController controller = this.findController();
+        return controller == null || !controller.hasActiveComputationTasks();
     }
 
     @Override
@@ -188,9 +200,34 @@ public class TileComputationDrive extends TileEntity implements IInventory {
     }
 
     private void onInventoryChanged() {
+        TileECOController controller = this.findController();
+        if (controller != null) {
+            controller.onComputationHostCapacityChanged();
+        }
         this.clientHasCell = this.cellStack != null;
         this.clientCellTier = this.cellStack != null ? getCellTier(this.cellStack) : "";
         this.markDirty();
+    }
+
+    private TileECOController findController() {
+        if (this.worldObj == null) {
+            return null;
+        }
+        if (this.cachedController != null && this.cachedController.getWorldObj() == this.worldObj
+            && this.cachedController.getSubsystem() == ECOControllerSubsystem.COMPUTATION
+            && this.cachedController.isFormed()
+            && this.cachedController.hasFormedMemberBlock(this.xCoord, this.yCoord, this.zCoord)) {
+            return this.cachedController;
+        }
+        for (TileECOController controller : ECOControllerRegistry.controllers(this.worldObj)) {
+            if (controller.getSubsystem() == ECOControllerSubsystem.COMPUTATION && controller.isFormed()
+                && controller.hasFormedMemberBlock(this.xCoord, this.yCoord, this.zCoord)) {
+                this.cachedController = controller;
+                return controller;
+            }
+        }
+        this.cachedController = null;
+        return null;
     }
 
     public static boolean isComputationCell(ItemStack stack) {

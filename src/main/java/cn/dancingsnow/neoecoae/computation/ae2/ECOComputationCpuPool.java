@@ -13,6 +13,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
 import cn.dancingsnow.neoecoae.gui.computation.ComputationHostStats;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
@@ -35,7 +36,9 @@ public final class ECOComputationCpuPool {
     private ICraftingGrid attachedGrid;
     private IGrid grid;
     private long totalStorage;
+    private int totalThreads;
     private int coProcessors;
+    private ComputationCpuSelectionMode cpuSelectionMode = ComputationCpuSelectionMode.ANY;
     private int nextSerial = 1;
     private boolean syncing;
 
@@ -43,7 +46,8 @@ public final class ECOComputationCpuPool {
         this.host = host;
     }
 
-    public void refresh(IGrid grid, ICraftingGrid craftingGrid, ComputationHostStats stats, boolean active) {
+    public void refresh(IGrid grid, ICraftingGrid craftingGrid, ComputationHostStats stats, boolean active,
+        ComputationCpuSelectionMode cpuSelectionMode) {
         boolean gridChanged = this.attachedGrid != craftingGrid;
         if (gridChanged) {
             this.detach();
@@ -52,15 +56,17 @@ public final class ECOComputationCpuPool {
 
         this.grid = grid;
         this.totalStorage = stats == null ? 0L : stats.totalBytes;
+        this.totalThreads = stats == null ? 0 : stats.totalThreads;
         this.coProcessors = stats == null ? 0 : stats.parallelCount;
+        this.cpuSelectionMode = cpuSelectionMode == null ? ComputationCpuSelectionMode.ANY : cpuSelectionMode;
 
         this.restorePendingCpus(grid, active);
         this.removeFinishedCpus();
-        long idleStorage = active ? Math.max(0L, this.totalStorage - this.usedReservedStorage()) : 0L;
+        long idleStorage = active && this.runningCpuCount() < this.totalThreads
+            ? Math.max(0L, this.totalStorage - this.usedReservedStorage())
+            : 0L;
         this.ensureIdleCpu(idleStorage, active);
-        for (ECOComputationVirtualCpu cpu : this.cpus) {
-            cpu.updateGrid(grid, active);
-        }
+        this.updateCpuResources(active);
 
         this.syncCurrent();
     }
@@ -175,7 +181,12 @@ public final class ECOComputationCpuPool {
         if (required <= 0L || required > this.idleCpu.reservedStorage()) {
             return false;
         }
-        this.idleCpu.configureIdle(required, this.coProcessors, this.grid, true);
+        this.idleCpu.configureIdle(
+            required,
+            this.coProcessorsFor(this.idleCpu, this.runningCpuCount() + 1),
+            this.grid,
+            true,
+            this.cpuSelectionMode);
         this.idleCpu = null;
         return true;
     }
@@ -193,7 +204,12 @@ public final class ECOComputationCpuPool {
     }
 
     void onCpuJobAccepted(ECOComputationVirtualCpu cpu) {
-        this.ensureIdleCpu(Math.max(0L, this.totalStorage - this.usedReservedStorage()), this.grid != null);
+        boolean active = this.grid != null;
+        long idleStorage = active && this.runningCpuCount() < this.totalThreads
+            ? Math.max(0L, this.totalStorage - this.usedReservedStorage())
+            : 0L;
+        this.ensureIdleCpu(idleStorage, active);
+        this.updateCpuResources(active);
         this.syncCurrent();
     }
 
@@ -218,7 +234,7 @@ public final class ECOComputationCpuPool {
             this.idleCpu = new ECOComputationVirtualCpu(this, this.host, this.nextSerial++);
             this.cpus.add(this.idleCpu);
         }
-        this.idleCpu.configureIdle(storage, this.coProcessors, this.grid, active);
+        this.idleCpu.configureIdle(storage, 0, this.grid, active, this.cpuSelectionMode);
     }
 
     private void syncCurrent() {
@@ -301,9 +317,52 @@ public final class ECOComputationCpuPool {
             return null;
         }
         ECOComputationVirtualCpu cpu = new ECOComputationVirtualCpu(this, this.host, serial);
-        boolean restored = cpu
-            .restoreFromNBT(cpuTag.getCompoundTag(TAG_RUNTIME), reservedStorage, this.coProcessors, grid, active);
+        boolean restored = cpu.restoreFromNBT(
+            cpuTag.getCompoundTag(TAG_RUNTIME),
+            reservedStorage,
+            this.coProcessors,
+            grid,
+            active,
+            this.cpuSelectionMode);
         return restored ? cpu : null;
+    }
+
+    private void updateCpuResources(boolean active) {
+        int participants = this.runningCpuCount() + (this.idleCpu == null ? 0 : 1);
+        for (ECOComputationVirtualCpu cpu : this.cpus) {
+            if (this.isPendingRelease(cpu)) {
+                continue;
+            }
+            cpu.updateResources(this.coProcessorsFor(cpu, participants), this.grid, active, this.cpuSelectionMode);
+        }
+    }
+
+    private int coProcessorsFor(ECOComputationVirtualCpu target, int participants) {
+        if (target == null || participants <= 0 || this.coProcessors <= 0) {
+            return 0;
+        }
+        int base = this.coProcessors / participants;
+        int remainder = this.coProcessors % participants;
+        int rank = 0;
+        for (ECOComputationVirtualCpu cpu : this.cpus) {
+            if (cpu == target) {
+                break;
+            }
+            if (cpu == this.idleCpu || this.isRunningCpu(cpu)) {
+                rank++;
+            }
+        }
+        return base + (rank < remainder ? 1 : 0);
+    }
+
+    private int runningCpuCount() {
+        int count = 0;
+        for (ECOComputationVirtualCpu cpu : this.cpus) {
+            if (this.isRunningCpu(cpu)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private long usedReservedStorage() {

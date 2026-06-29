@@ -235,6 +235,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return this.collectComputationRuntime().taskEntries;
     }
 
+    public boolean hasActiveComputationTasks() {
+        return this.collectComputationRuntime().usedThreads > 0L;
+    }
+
     private ComputationRuntime collectComputationRuntime() {
         ComputationRuntime runtime = new ComputationRuntime();
         if (this.subsystem != ECOControllerSubsystem.COMPUTATION || this.worldObj == null) {
@@ -267,6 +271,20 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             return;
         }
         this.computationCpuSelectionMode = this.computationCpuSelectionMode.next();
+        this.refreshComputationInterfaces();
+        this.markDirty();
+        if (this.worldObj != null) {
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        }
+    }
+
+    public void onComputationHostCapacityChanged() {
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION) {
+            return;
+        }
+        this.computationHostStatsDirty = true;
+        this.refreshComputationHostDisplayState(true);
+        this.refreshComputationInterfaces();
         this.markDirty();
         if (this.worldObj != null) {
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
@@ -459,6 +477,21 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             return;
         }
         this.computationInterfaceOnline = this.hasOnlineInterface(ECOControllerSubsystem.COMPUTATION);
+    }
+
+    private void refreshComputationInterfaces() {
+        if (this.worldObj == null || this.subsystem != ECOControllerSubsystem.COMPUTATION) {
+            return;
+        }
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface) {
+                TileECOInterface ecoInterface = (TileECOInterface) tile;
+                if (ecoInterface.getSubsystem() == ECOControllerSubsystem.COMPUTATION) {
+                    ecoInterface.requestComputationCpuRefresh();
+                }
+            }
+        }
     }
 
     private void updateHostStorageState() {
