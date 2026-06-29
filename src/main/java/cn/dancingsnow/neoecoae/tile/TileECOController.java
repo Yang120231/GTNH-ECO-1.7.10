@@ -71,6 +71,7 @@ public class TileECOController extends TileEntity implements IInventory {
     private ItemStack infiniteStorageComponent;
     private ECOStorageHostMode hostMode = ECOStorageHostMode.UNFORMED;
     private UUID hostDomainId;
+    private int storageBackendRevision;
     private final List<UUID> memberDiskIds = new ArrayList<UUID>();
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<UUID, Integer>();
 
@@ -114,6 +115,22 @@ public class TileECOController extends TileEntity implements IInventory {
 
     public boolean isMirrored() {
         return this.mirrored;
+    }
+
+    public ECOStorageHostMode getHostMode() {
+        return this.hostMode;
+    }
+
+    public List<ECOFormationBlockPos> getFormedMemberBlocks() {
+        return new ArrayList<ECOFormationBlockPos>(this.formedMemberBlocks);
+    }
+
+    public int getRequiredInfiniteDriveCount() {
+        return REQUIRED_INFINITE_DRIVES;
+    }
+
+    public boolean areAllFormedDrivesL9MatricesForDisplay() {
+        return this.areAllFormedDrivesL9Matrices();
     }
 
     public boolean isHiddenMember(int x, int y, int z) {
@@ -176,6 +193,18 @@ public class TileECOController extends TileEntity implements IInventory {
         return new ECOStorageDriveProvider(this.worldObj, this.formed ? this.formedMemberBlocks : new ArrayList<ECOFormationBlockPos>(), this);
     }
 
+    public int getStorageBackendRevision() {
+        return this.storageBackendRevision;
+    }
+
+    public void onStorageBackendChanged() {
+        this.storageBackendRevision++;
+        this.markDirty();
+        if (this.worldObj != null) {
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        }
+    }
+
     public ECOFormationResult scanFormation() {
         ECOFormationResult result = ECOFormationScanner.scan(this);
         this.applyFormationResult(result);
@@ -203,6 +232,7 @@ public class TileECOController extends TileEntity implements IInventory {
 
     private void syncFormationChange(FormationChange change) {
         if (change.stateChanged) {
+            this.storageBackendRevision++;
             this.markDirty();
         }
         if (change.stateChanged && this.worldObj != null) {
@@ -249,6 +279,7 @@ public class TileECOController extends TileEntity implements IInventory {
         }
         if (this.hostMode == ECOStorageHostMode.UNFORMED) {
             this.hostMode = ECOStorageHostMode.FORMED_NORMAL;
+            this.storageBackendRevision++;
             this.markDirty();
         }
         if (this.hostMode == ECOStorageHostMode.FORMED_NORMAL && this.isInfiniteUnlockConfigured()) {
@@ -309,6 +340,7 @@ public class TileECOController extends TileEntity implements IInventory {
         }
         this.hostDomainId = domainId;
         this.hostMode = ECOStorageHostMode.MIGRATING_TO_INFINITE;
+        this.storageBackendRevision++;
         this.memberDiskIds.clear();
         this.memberDiskIds.addAll(diskIds);
         this.migrationSteps.clear();
@@ -368,6 +400,7 @@ public class TileECOController extends TileEntity implements IInventory {
         if (complete) {
             this.hostMode = ECOStorageHostMode.FORMED_INFINITE;
             this.migrationSteps.clear();
+            this.storageBackendRevision++;
             this.markDirty();
             if (this.worldObj != null) {
                 this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
@@ -443,6 +476,7 @@ public class TileECOController extends TileEntity implements IInventory {
         this.memberDiskIds.clear();
         this.migrationSteps.clear();
         this.hostMode = this.formed ? ECOStorageHostMode.FORMED_NORMAL : ECOStorageHostMode.UNFORMED;
+        this.storageBackendRevision++;
         this.markDirty();
     }
 

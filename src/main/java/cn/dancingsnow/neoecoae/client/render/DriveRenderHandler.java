@@ -44,6 +44,7 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
         boolean formed = ECOFormationVisibility.shouldRenderFormedMember(world, x, y, z);
         TileECODrive ecoDriveTile = getEcoDriveTile(world, x, y, z);
         boolean occupied = drive.useFullModelWhenOccupied() && ecoDriveTile != null && ecoDriveTile.hasCell();
+        boolean lit = ecoDriveTile != null && ecoDriveTile.isOnlineForRender();
         ModelFacing facing = ModelFacing.fromMeta(world.getBlockMetadata(x, y, z));
         EcoModelRenderer.renderWorld(
             DriveModels
@@ -52,7 +53,7 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
                     formed && drive.useFullModelWhenFormed() || occupied ? DriveVisualState.FULL
                         : DriveVisualState.EMPTY),
             facing,
-            formed ? drive.getFormedModelIcons() : drive.getModelIcons(),
+            lit ? drive.getFormedModelIcons() : drive.getModelIcons(),
             world,
             x,
             y,

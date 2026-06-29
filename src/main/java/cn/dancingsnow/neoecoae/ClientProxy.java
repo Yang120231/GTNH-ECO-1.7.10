@@ -7,10 +7,15 @@ import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.ClientEventHandler;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOComputationController;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOCraftingController;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageController;
 import cn.dancingsnow.neoecoae.client.render.DriveModels;
 import cn.dancingsnow.neoecoae.client.render.DriveRenderHandler;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockModels;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockRenderHandler;
+import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.client.registry.RenderingRegistry;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 
@@ -21,6 +26,18 @@ public class ClientProxy extends CommonProxy {
         super.init(event);
         MinecraftForge.EVENT_BUS.register(ClientEventHandler.INSTANCE);
         registerRenderers();
+    }
+
+    @Override
+    public Object createHostControllerGui(int id, net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileECOController controller) {
+        if (id == NEGuiIds.ECO_COMPUTATION_CONTROLLER) {
+            return new GuiECOComputationController(playerInventory, controller);
+        }
+        if (id == NEGuiIds.ECO_CRAFTING_CONTROLLER) {
+            return new GuiECOCraftingController(playerInventory, controller);
+        }
+        return new GuiECOStorageController(playerInventory, controller);
     }
 
     private void registerRenderers() {

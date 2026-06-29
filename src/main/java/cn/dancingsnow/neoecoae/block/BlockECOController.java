@@ -7,7 +7,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
+import cn.dancingsnow.neoecoae.gui.NEGuiIds;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -97,46 +99,23 @@ public class BlockECOController extends BlockDirectionalModernModel {
     public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
         float hitY, float hitZ) {
         TileEntity tile = world.getTileEntity(x, y, z);
-        if (!(tile instanceof TileECOController) || this.subsystem != ECOControllerSubsystem.STORAGE) {
+        if (!(tile instanceof TileECOController)) {
             return false;
         }
-        TileECOController controller = (TileECOController) tile;
-        ItemStack held = player.getHeldItem();
-        if (held != null && controller.isItemValidForSlot(0, held)) {
-            if (!world.isRemote) {
-                ItemStack existing = controller.getStackInSlot(0);
-                int room = controller.getInventoryStackLimit() - (existing == null ? 0 : existing.stackSize);
-                if (room <= 0) {
-                    return true;
-                }
-                int moved = Math.min(room, held.stackSize);
-                if (existing == null) {
-                    ItemStack inserted = held.copy();
-                    inserted.stackSize = moved;
-                    controller.setInventorySlotContents(0, inserted);
-                } else {
-                    existing.stackSize += moved;
-                    controller.setInventorySlotContents(0, existing);
-                }
-                held.stackSize -= moved;
-                if (held.stackSize <= 0) {
-                    player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
-                }
-                player.inventory.markDirty();
-            }
-            return true;
+        if (!world.isRemote) {
+            player.openGui(NeoECOAE.instance, this.guiId(), world, x, y, z);
         }
-        if (player.isSneaking() && held == null && controller.getStackInSlot(0) != null) {
-            if (!world.isRemote) {
-                ItemStack removed = controller.decrStackSize(0, controller.getStackInSlot(0).stackSize);
-                if (removed != null) {
-                    player.inventory.setInventorySlotContents(player.inventory.currentItem, removed);
-                    player.inventory.markDirty();
-                }
-            }
-            return true;
+        return true;
+    }
+
+    private int guiId() {
+        if (this.subsystem == ECOControllerSubsystem.COMPUTATION) {
+            return NEGuiIds.ECO_COMPUTATION_CONTROLLER;
         }
-        return false;
+        if (this.subsystem == ECOControllerSubsystem.CRAFTING) {
+            return NEGuiIds.ECO_CRAFTING_CONTROLLER;
+        }
+        return NEGuiIds.ECO_STORAGE_CONTROLLER;
     }
 
     @Override

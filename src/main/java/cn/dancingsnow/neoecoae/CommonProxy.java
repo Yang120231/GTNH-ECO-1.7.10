@@ -5,12 +5,16 @@ import cn.dancingsnow.neoecoae.all.NEItems;
 import cn.dancingsnow.neoecoae.all.NEOreDictionary;
 import cn.dancingsnow.neoecoae.all.NERecipes;
 import cn.dancingsnow.neoecoae.all.NETileEntities;
+import cn.dancingsnow.neoecoae.gui.NEGuiHandler;
+import cn.dancingsnow.neoecoae.network.NENetwork;
 import cn.dancingsnow.neoecoae.storage.ae2.NEAE2Storage;
+import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.world.NEOreWorldGenerator;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public class CommonProxy {
@@ -19,6 +23,7 @@ public class CommonProxy {
     // GameRegistry." (Remove if not needed)
     public void preInit(FMLPreInitializationEvent event) {
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
+        NENetwork.register();
         NEBlocks.register();
         NETileEntities.register();
         NEItems.register();
@@ -31,6 +36,7 @@ public class CommonProxy {
 
     // load "Do your mod setup. Build whatever data structures you care about. Register recipes." (Remove if not needed)
     public void init(FMLInitializationEvent event) {
+        NetworkRegistry.INSTANCE.registerGuiHandler(NeoECOAE.instance, NEGuiHandler.INSTANCE);
         NEAE2Storage.register();
         NERecipes.register();
     }
@@ -40,4 +46,9 @@ public class CommonProxy {
 
     // register server commands in this event handler (Remove if not needed)
     public void serverStarting(FMLServerStartingEvent event) {}
+
+    public Object createHostControllerGui(int id, net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileECOController controller) {
+        return null;
+    }
 }

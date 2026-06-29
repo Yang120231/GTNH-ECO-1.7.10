@@ -15,6 +15,7 @@ import cn.dancingsnow.neoecoae.block.BlockComputationDrive;
 import cn.dancingsnow.neoecoae.block.BlockComputationTransmitter;
 import cn.dancingsnow.neoecoae.block.BlockDirectionalModernModel;
 import cn.dancingsnow.neoecoae.block.BlockECOController;
+import cn.dancingsnow.neoecoae.block.BlockECOInterface;
 import cn.dancingsnow.neoecoae.block.BlockEcoDrive;
 import cn.dancingsnow.neoecoae.block.BlockFormedDirectionalModernModel;
 import cn.dancingsnow.neoecoae.block.BlockFormedTexturedMachine;
@@ -102,10 +103,11 @@ public final class NEBlocks {
         "storage_vent",
         new String[] { NeoECOAE.MODID + ":block/storage/casing", NeoECOAE.MODID + ":block/storage/casing_back",
             NeoECOAE.MODID + ":block/storage/vents_north", NeoECOAE.MODID + ":block/storage/casing_side" });
-    public static final Block storageInterface = directionalModelBlock(
+    public static final Block storageInterface = interfaceBlock(
         "storage_interface",
         "storage_interface",
-        new String[] { NeoECOAE.MODID + ":block/storage/me_bus", NeoECOAE.MODID + ":block/storage/me_bus_light" });
+        new String[] { NeoECOAE.MODID + ":block/storage/me_bus", NeoECOAE.MODID + ":block/storage/me_bus_light" },
+        ECOControllerSubsystem.STORAGE);
     public static final Block inputHatch = texturedMachineBlock(
         "input_hatch",
         NeoECOAE.MODID + ":crafting/hatch_input",
@@ -147,16 +149,18 @@ public final class NEBlocks {
                 NeoECOAE.MODID + ":block/crafting/core/working_core_light_on",
                 NeoECOAE.MODID + ":block/crafting/casing", NeoECOAE.MODID + ":block/crafting/casing_formed",
                 NeoECOAE.MODID + ":block/crafting/casing_back", NeoECOAE.MODID + ":block/crafting/core/core_side" }));
-    public static final Block craftingInterface = directionalModelBlock(
+    public static final Block craftingInterface = interfaceBlock(
         "crafting_interface",
         "crafting_interface",
-        new String[] { NeoECOAE.MODID + ":block/crafting/me_bus", NeoECOAE.MODID + ":block/crafting/me_bus_light" });
+        new String[] { NeoECOAE.MODID + ":block/crafting/me_bus", NeoECOAE.MODID + ":block/crafting/me_bus_light" },
+        ECOControllerSubsystem.CRAFTING);
     public static final Block ecoDrive = new BlockEcoDrive();
     public static final Block computationDrive = new BlockComputationDrive();
-    public static final Block computationInterface = directionalModelBlock(
+    public static final Block computationInterface = interfaceBlock(
         "computation_interface",
         "computation_interface",
-        new String[] { NeoECOAE.MODID + ":block/compute/me_bus", NeoECOAE.MODID + ":block/compute/me_bus_light" });
+        new String[] { NeoECOAE.MODID + ":block/compute/me_bus", NeoECOAE.MODID + ":block/compute/me_bus_light" },
+        ECOControllerSubsystem.COMPUTATION);
     public static final Block computationTransmitter = registerModernModelBlock(
         new BlockComputationTransmitter(
             "computation_transmitter",
@@ -330,6 +334,11 @@ public final class NEBlocks {
     private static Block directionalModelBlock(String id, String modelName, String[] textures,
         ModelFacing inventoryFacing) {
         return registerModernModelBlock(new BlockDirectionalModernModel(id, modelName, textures, inventoryFacing));
+    }
+
+    private static Block interfaceBlock(String id, String modelName, String[] textures,
+        ECOControllerSubsystem subsystem) {
+        return registerModernModelBlock(new BlockECOInterface(id, modelName, textures, subsystem));
     }
 
     private static Block computationCoolingController(String tier, String eastTexture) {

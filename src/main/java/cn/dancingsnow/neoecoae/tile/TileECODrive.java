@@ -20,10 +20,13 @@ public class TileECODrive extends TileEntity implements IInventory {
     private static final String TAG_CELL = "Cell";
     private static final String TAG_HAS_CELL = "HasCell";
     private static final String TAG_CELL_TIER = "CellTier";
+    private static final String TAG_ONLINE = "Online";
 
     private ItemStack cellStack;
     private boolean clientHasCell;
     private String clientCellTier = "";
+    private boolean online;
+    private boolean clientOnline;
 
     public boolean hasCell() {
         return this.cellStack != null || this.clientHasCell;
@@ -35,6 +38,10 @@ public class TileECODrive extends TileEntity implements IInventory {
 
     public String getCellTierForRender() {
         return this.cellStack != null ? getCellTier(this.cellStack) : this.clientCellTier;
+    }
+
+    public boolean isOnlineForRender() {
+        return this.worldObj != null && this.worldObj.isRemote ? this.clientOnline : this.online;
     }
 
     @Override
@@ -176,6 +183,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setBoolean(TAG_HAS_CELL, this.cellStack != null);
         tag.setString(TAG_CELL_TIER, this.cellStack != null ? getCellTier(this.cellStack) : "");
+        tag.setBoolean(TAG_ONLINE, this.online);
         return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
     }
 
@@ -184,6 +192,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         NBTTagCompound tag = packet.func_148857_g();
         this.clientHasCell = tag.getBoolean(TAG_HAS_CELL);
         this.clientCellTier = tag.getString(TAG_CELL_TIER);
+        this.clientOnline = tag.getBoolean(TAG_ONLINE);
         if (this.worldObj != null) {
             this.worldObj.markBlockRangeForRenderUpdate(
                 this.xCoord,
@@ -196,7 +205,49 @@ public class TileECODrive extends TileEntity implements IInventory {
     }
 
     private void onInventoryChanged() {
+        TileECOController controller = this.findController();
+        if (controller != null) {
+            controller.onStorageBackendChanged();
+        }
+        this.updateOnlineState(controller);
         this.markDirty();
+    }
+
+    @Override
+    public void updateEntity() {
+        if (this.worldObj == null || this.worldObj.isRemote || this.worldObj.getTotalWorldTime() % 20L != 0L) {
+            return;
+        }
+        this.updateOnlineState(this.findController());
+    }
+
+    public void refreshOnlineState(TileECOController controller) {
+        this.updateOnlineState(controller);
+    }
+
+    private void updateOnlineState(TileECOController controller) {
+        boolean nowOnline = controller != null && this.hasCell() && this.hasOnlineInterface(controller);
+        if (this.online == nowOnline) {
+            return;
+        }
+        this.online = nowOnline;
+        this.markDirty();
+    }
+
+    private boolean hasOnlineInterface(TileECOController controller) {
+        if (this.worldObj == null || controller == null) {
+            return false;
+        }
+        for (Object tile : this.worldObj.loadedTileEntityList) {
+            if (!(tile instanceof TileECOInterface)) {
+                continue;
+            }
+            TileECOInterface ecoInterface = (TileECOInterface) tile;
+            if (ecoInterface.getBoundController() == controller && ecoInterface.isNetworkOnline()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private TileECOController findController() {

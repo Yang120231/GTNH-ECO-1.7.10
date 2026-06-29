@@ -20,6 +20,9 @@ public class NeoECOAE {
     public static final String MODID = "neoecoae";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
+    @Mod.Instance(MODID)
+    public static NeoECOAE instance;
+
     @SidedProxy(clientSide = "cn.dancingsnow.neoecoae.ClientProxy", serverSide = "cn.dancingsnow.neoecoae.CommonProxy")
     public static CommonProxy proxy;
 
