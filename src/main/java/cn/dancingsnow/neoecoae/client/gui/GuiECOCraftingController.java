@@ -9,7 +9,7 @@ import net.minecraft.util.StatCollector;
 
 import cn.dancingsnow.neoecoae.gui.HostUiLayouts;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
-import cn.dancingsnow.neoecoae.gui.state.SimpleHostUiState;
+import cn.dancingsnow.neoecoae.gui.crafting.CraftingHostSnapshot;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -51,7 +51,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
-        SimpleHostUiState state = this.container.state();
+        CraftingHostSnapshot state = this.container.state();
         int color = HostUiStyle.tierColor(state.tier);
         this.drawLocalText(
             tr("gui.neoecoae.crafting_ui.title", "ECO Crafting Host") + " " + state.tier,
@@ -84,22 +84,65 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             color);
         this.drawLocalText(tr("gui.neoecoae.crafting_ui.modules", "Modules"), 158, 34, HostUiStyle.TEXT_PRIMARY);
         this.drawLocalText(
-            tr("gui.neoecoae.crafting_ui.parallel", "Parallel") + ": 0",
+            tr("gui.neoecoae.crafting_ui.patterns", "Patterns") + ": " + this.formatNumber(state.patternCount),
             158,
             52,
-            HostUiStyle.TEXT_MUTED);
+            HostUiStyle.TEXT_VALUE);
         this.drawLocalText(
-            tr("gui.neoecoae.crafting_ui.cooling", "Cooling") + ": " + yesNo(false),
+            tr("gui.neoecoae.crafting_ui.workers", "Workers") + ": " + this.formatNumber(state.workerCount),
             158,
             66,
-            HostUiStyle.TEXT_MUTED);
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.parallel_cores", "Parallel Cores") + ": "
+                + this.formatNumber(state.parallelCoreCount),
+            158,
+            80,
+            HostUiStyle.TEXT_VALUE);
+
         this.drawLocalText(tr("gui.neoecoae.crafting_ui.tasks", "Crafting Tasks"), 158, 114, HostUiStyle.TEXT_PRIMARY);
-        this.drawLocalCentered(
-            tr("gui.neoecoae.host_ui.no_runtime_data", "Runtime backend not connected yet"),
-            150,
-            136,
-            144,
-            HostUiStyle.TEXT_MUTED);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.input_cache", "Input Cache") + ": " + this.formatNumber(state.inputCacheCount),
+            158,
+            132,
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.output_cache", "Output Cache") + ": "
+                + this.formatNumber(state.outputCacheCount),
+            158,
+            146,
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.running_tasks", "Running") + ": " + this.formatNumber(state.runningTaskCount),
+            158,
+            160,
+            state.runningTaskCount > 0 ? HostUiStyle.TEXT_GOOD : HostUiStyle.TEXT_MUTED);
+
+        this.drawLocalText(tr("gui.neoecoae.crafting_ui.fast_path", "Fast Path"), 20, 118, HostUiStyle.TEXT_PRIMARY);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.fast_path_hits", "Hits") + ": " + this.formatNumber(state.fastPathHitCount),
+            20,
+            134,
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.fast_path_fallbacks", "Fallbacks") + ": "
+                + this.formatNumber(state.fastPathFallbackCount),
+            20,
+            148,
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.fast_path_queue", "Queue") + ": "
+                + this.formatNumber(state.fastPathQueueDepth),
+            82,
+            134,
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.fast_path_utilization", "Util") + ": "
+                + this.formatNumber(state.fastPathUtilizationPercent)
+                + "%",
+            82,
+            148,
+            HostUiStyle.TEXT_VALUE);
         this.drawLocalText(
             tr("container.inventory", "Inventory"),
             HostUiLayouts.CRAFTING.inventoryX(),
@@ -110,10 +153,38 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         }
     }
 
-    private static List<String> tooltip(SimpleHostUiState state) {
+    private List<String> tooltip(CraftingHostSnapshot state) {
         List<String> lines = new ArrayList<String>();
         lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.crafting_ui.title", "ECO Crafting Host"));
         lines.add(tr("gui.neoecoae.host_ui.formation", "Formation") + ": " + state.formationMessage);
+        lines.add(tr("gui.neoecoae.crafting_ui.patterns", "Patterns") + ": " + this.formatNumber(state.patternCount));
+        lines.add(tr("gui.neoecoae.crafting_ui.workers", "Workers") + ": " + this.formatNumber(state.workerCount));
+        lines.add(
+            tr("gui.neoecoae.crafting_ui.parallel_cores", "Parallel Cores") + ": "
+                + this.formatNumber(state.parallelCoreCount));
+        lines.add(
+            tr("gui.neoecoae.crafting_ui.input_cache", "Input Cache") + ": "
+                + this.formatNumber(state.inputCacheCount));
+        lines.add(
+            tr("gui.neoecoae.crafting_ui.output_cache", "Output Cache") + ": "
+                + this.formatNumber(state.outputCacheCount));
+        lines.add(
+            tr("gui.neoecoae.crafting_ui.running_tasks", "Running") + ": " + this.formatNumber(state.runningTaskCount));
+        lines.add(
+            tr("gui.neoecoae.crafting_ui.fast_path_hits", "Hits") + ": "
+                + this.formatNumber(state.fastPathHitCount)
+                + " / "
+                + tr("gui.neoecoae.crafting_ui.fast_path_fallbacks", "Fallbacks")
+                + ": "
+                + this.formatNumber(state.fastPathFallbackCount));
+        lines.add(
+            tr("gui.neoecoae.crafting_ui.fast_path_queue", "Queue") + ": "
+                + this.formatNumber(state.fastPathQueueDepth)
+                + " / "
+                + tr("gui.neoecoae.crafting_ui.fast_path_utilization", "Util")
+                + ": "
+                + this.formatNumber(state.fastPathUtilizationPercent)
+                + "%");
         return lines;
     }
 

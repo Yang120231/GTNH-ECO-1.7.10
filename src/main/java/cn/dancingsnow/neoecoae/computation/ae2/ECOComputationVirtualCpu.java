@@ -20,14 +20,18 @@ import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.util.Platform;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingThread;
 import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
 public class ECOComputationVirtualCpu extends CraftingCPUCluster {
 
+    private static final String TAG_BATCH_RUNTIME = "EcoBatchRuntime";
+
     private final ECOComputationCpuPool pool;
     private final TileECOInterface host;
     private final int serial;
+    private final ECOCraftingThread batchRuntime = new ECOCraftingThread();
 
     private long reservedStorage;
     private int coProcessors;
@@ -105,6 +109,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         } catch (RuntimeException e) {
             return false;
         }
+        this.readBatchRuntime(data);
         this.myName = this.pool.nameFor(this.serial, true);
         return this.shouldPersist();
     }
@@ -112,6 +117,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     NBTTagCompound writeRuntimeNBT() {
         NBTTagCompound data = new NBTTagCompound();
         super.writeToNBT(data);
+        this.writeBatchRuntime(data);
         return data;
     }
 
@@ -128,6 +134,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         if (link == null) {
             this.releaseFromPool();
         } else {
+            this.onBatchJobAccepted(job);
             this.myName = this.pool.nameFor(this.serial, true);
             this.pool.onCpuJobAccepted(this);
         }
@@ -137,18 +144,21 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     @Override
     protected void completeJob() {
         super.completeJob();
+        this.completeBatchJob();
         this.releaseFromPool();
     }
 
     @Override
     public void cancel() {
         super.cancel();
+        this.failBatchJob("cpu canceled");
         this.releaseFromPool();
     }
 
     @Override
     public void destroy() {
         this.active = false;
+        this.disableBatchRuntime("cpu destroyed");
         this.releaseFromPool();
         super.destroy();
     }
@@ -167,6 +177,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         if (!this.isActive()) {
             return;
         }
+        this.tickBatchRuntime();
 
         if (this.myLastLink != null && this.myLastLink.isCanceled()) {
             this.myLastLink = null;
@@ -283,6 +294,73 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         this.released = true;
         this.active = false;
         this.pool.onCpuJobFinished(this);
+    }
+
+    private void readBatchRuntime(NBTTagCompound data) {
+        if (!data.hasKey(TAG_BATCH_RUNTIME)) {
+            return;
+        }
+        try {
+            this.batchRuntime.readFromNBT(data.getCompoundTag(TAG_BATCH_RUNTIME));
+        } catch (RuntimeException e) {
+            this.batchRuntime.disable(
+                e.getClass()
+                    .getSimpleName());
+        }
+    }
+
+    private void writeBatchRuntime(NBTTagCompound data) {
+        try {
+            NBTTagCompound batchTag = new NBTTagCompound();
+            this.batchRuntime.writeToNBT(batchTag);
+            data.setTag(TAG_BATCH_RUNTIME, batchTag);
+        } catch (RuntimeException ignored) {}
+    }
+
+    private void onBatchJobAccepted(ICraftingJob job) {
+        try {
+            this.batchRuntime.enqueue(job);
+        } catch (RuntimeException e) {
+            this.batchRuntime.disable(
+                e.getClass()
+                    .getSimpleName());
+        }
+    }
+
+    private void tickBatchRuntime() {
+        try {
+            this.batchRuntime.tick(this.accelerator + 1);
+        } catch (RuntimeException e) {
+            this.batchRuntime.disable(
+                e.getClass()
+                    .getSimpleName());
+        }
+    }
+
+    private void completeBatchJob() {
+        try {
+            this.batchRuntime.completeCurrent();
+        } catch (RuntimeException e) {
+            this.batchRuntime.disable(
+                e.getClass()
+                    .getSimpleName());
+        }
+    }
+
+    private void failBatchJob(String reason) {
+        try {
+            this.batchRuntime.failCurrent(reason);
+        } catch (RuntimeException e) {
+            this.batchRuntime.disable(
+                e.getClass()
+                    .getSimpleName());
+        }
+    }
+
+    private void disableBatchRuntime(String reason) {
+        try {
+            this.batchRuntime.disable(reason);
+        } catch (RuntimeException ignored) {}
     }
 
     private static CraftingAllow allowMode(ComputationCpuSelectionMode mode) {

@@ -7,16 +7,16 @@ import net.minecraft.item.ItemStack;
 
 import cn.dancingsnow.neoecoae.gui.HostUiLayouts;
 import cn.dancingsnow.neoecoae.gui.HostUiStateContainer;
-import cn.dancingsnow.neoecoae.gui.state.SimpleHostUiState;
+import cn.dancingsnow.neoecoae.gui.crafting.CraftingHostSnapshot;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import io.netty.buffer.ByteBuf;
 
 public class ContainerECOCraftingController extends HostUiStateContainer {
 
-    private static final int STATE_VERSION = 1;
+    private static final int STATE_VERSION = 2;
 
     private final TileECOController controller;
-    private SimpleHostUiState state = SimpleHostUiState.EMPTY;
+    private CraftingHostSnapshot state = CraftingHostSnapshot.EMPTY;
 
     public ContainerECOCraftingController(InventoryPlayer playerInventory, TileECOController controller) {
         this.controller = controller;
@@ -36,7 +36,7 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
     @Override
     protected void writeHostUiState(ByteBuf buffer) {
         buffer.writeByte(STATE_VERSION);
-        SimpleHostUiState.create(this.controller)
+        CraftingHostSnapshot.create(this.controller)
             .write(buffer);
     }
 
@@ -46,10 +46,10 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
         if (version != STATE_VERSION) {
             throw new IllegalArgumentException("Unsupported Crafting UI state version: " + version);
         }
-        this.state = SimpleHostUiState.read(buffer);
+        this.state = CraftingHostSnapshot.read(buffer);
     }
 
-    public SimpleHostUiState state() {
+    public CraftingHostSnapshot state() {
         return this.state;
     }
 

@@ -55,6 +55,15 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private static final String TAG_MIGRATION_STEPS = "MigrationSteps";
     private static final String TAG_PRIORITY = "Priority";
     private static final String TAG_COMPUTATION_CPU_MODE = "ComputationCpuMode";
+    private static final String TAG_CRAFTING_PATTERN_COUNT = "CraftingPatternCount";
+    private static final String TAG_CRAFTING_PATTERN_BUS_COUNT = "CraftingPatternBusCount";
+    private static final String TAG_CRAFTING_WORKER_COUNT = "CraftingWorkerCount";
+    private static final String TAG_CRAFTING_RUNNING_WORKER_COUNT = "CraftingRunningWorkerCount";
+    private static final String TAG_CRAFTING_PARALLEL_COUNT = "CraftingParallelCount";
+    private static final String TAG_CRAFTING_PARALLEL_CORE_COUNT = "CraftingParallelCoreCount";
+    private static final String TAG_CRAFTING_INPUT_CACHED_ITEMS = "CraftingInputCachedItems";
+    private static final String TAG_CRAFTING_OUTPUT_CACHED_ITEMS = "CraftingOutputCachedItems";
+    private static final String TAG_CRAFTING_OCCUPIED_CACHE_SLOTS = "CraftingOccupiedCacheSlots";
     private static final String TAG_DISK_ID = "DiskId";
     private static final String TAG_STEP = "Step";
     private static final int REQUIRED_INFINITE_COMPONENTS = 64;
@@ -80,6 +89,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private ComputationCpuSelectionMode computationCpuSelectionMode = ComputationCpuSelectionMode.ANY;
     private ComputationHostStats computationHostStats = ComputationHostStats.EMPTY;
     private boolean computationHostStatsDirty = true;
+    private CraftingHostStats craftingHostStats = CraftingHostStats.EMPTY;
+    private boolean craftingHostStatsDirty = true;
     private boolean computationInterfaceOnline;
     private final List<UUID> memberDiskIds = new ArrayList<UUID>();
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<UUID, Integer>();
@@ -141,6 +152,19 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             }
         }
         return false;
+    }
+
+    boolean hasHiddenMemberBlock(int x, int y, int z) {
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            if (pos.getX() == x && pos.getY() == y && pos.getZ() == z) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    boolean hasCraftingMemberBlock(int x, int y, int z) {
+        return this.hasFormedMemberBlock(x, y, z) || this.hasHiddenMemberBlock(x, y, z);
     }
 
     boolean hasOnlineStorageInterface() {
@@ -223,6 +247,124 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return this.computationHostStats;
     }
 
+    public CraftingHostStats getCraftingHostStats() {
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return CraftingHostStats.EMPTY;
+        }
+        if (this.craftingHostStatsDirty) {
+            this.refreshCraftingHostStats();
+        }
+        return this.craftingHostStats;
+    }
+
+    public int getCraftingPatternCount() {
+        return this.getCraftingHostStats().patternCount;
+    }
+
+    public int getCraftingWorkerCount() {
+        return this.getCraftingHostStats().workerCount;
+    }
+
+    public int getCraftingParallelCount() {
+        return this.getCraftingHostStats().parallelCount;
+    }
+
+    public List<TileCraftingPatternBus> getCraftingPatternBuses() {
+        List<TileCraftingPatternBus> buses = new ArrayList<TileCraftingPatternBus>();
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING || this.worldObj == null || !this.formed) {
+            return buses;
+        }
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileCraftingPatternBus) {
+                buses.add((TileCraftingPatternBus) tile);
+            }
+        }
+        return buses;
+    }
+
+    public TileCraftingWorker findAvailableCraftingWorker() {
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING || this.worldObj == null || !this.formed) {
+            return null;
+        }
+        TileCraftingWorker firstWorker = null;
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileCraftingWorker) {
+                TileCraftingWorker worker = (TileCraftingWorker) tile;
+                if (firstWorker == null) {
+                    firstWorker = worker;
+                }
+                if (!worker.isRunning()) {
+                    return worker;
+                }
+            }
+        }
+        return firstWorker;
+    }
+
+    public boolean acceptCraftingOutput(ItemStack stack) {
+        if (stack == null) {
+            return true;
+        }
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING || this.worldObj == null || !this.formed) {
+            return false;
+        }
+        ItemStack remaining = stack.copy();
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface) {
+                TileECOInterface ecoInterface = (TileECOInterface) tile;
+                if (ecoInterface.getSubsystem() == ECOControllerSubsystem.CRAFTING && ecoInterface.isNetworkOnline()) {
+                    remaining = ecoInterface.injectCraftingOutput(remaining);
+                    if (remaining == null) {
+                        this.onCraftingHostStateChanged();
+                        return true;
+                    }
+                }
+            }
+        }
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileCraftingHatch) {
+                TileCraftingHatch hatch = (TileCraftingHatch) tile;
+                if (!hatch.isInput() && hatch.insertOutput(remaining)) {
+                    this.onCraftingHostStateChanged();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public int getCraftingParallelCoreCount() {
+        return this.getCraftingHostStats().parallelCoreCount;
+    }
+
+    public int getCraftingInputCacheCount() {
+        return this.getCraftingHostStats().inputCachedItems;
+    }
+
+    public int getCraftingOutputCacheCount() {
+        return this.getCraftingHostStats().outputCachedItems;
+    }
+
+    public int getCraftingRunningTaskCount() {
+        return this.getCraftingHostStats().runningWorkerCount;
+    }
+
+    public int getCraftingFastPathQueueDepth() {
+        return this.getCraftingHostStats().runningWorkerCount;
+    }
+
+    public int getCraftingFastPathCapacity() {
+        return this.getCraftingHostStats().workerCount;
+    }
+
+    public void onCraftingHostChanged() {
+        this.onCraftingHostStateChanged();
+    }
+
     public long getUsedComputationThreads() {
         return this.collectComputationRuntime().usedThreads;
     }
@@ -285,6 +427,19 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.computationHostStatsDirty = true;
         this.refreshComputationHostDisplayState(true);
         this.refreshComputationInterfaces();
+        this.markDirty();
+        if (this.worldObj != null) {
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        }
+    }
+
+    public void onCraftingHostStateChanged() {
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return;
+        }
+        this.craftingHostStatsDirty = true;
+        this.refreshCraftingHostStats();
+        this.refreshCraftingInterfaces();
         this.markDirty();
         if (this.worldObj != null) {
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
@@ -398,6 +553,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         this.setFormed(result.isFormed());
         this.refreshComputationHostDisplayState(change.stateChanged);
+        this.refreshCraftingHostDisplayState(change.stateChanged);
         this.updateHostStorageState();
         this.syncFormationChange(change);
     }
@@ -446,6 +602,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.formedMemberBlocks.clear();
         this.formedMemberBlocks.addAll(newFormedMemberBlocks);
         this.computationHostStatsDirty = true;
+        this.craftingHostStatsDirty = true;
     }
 
     private void refreshComputationHostDisplayState(boolean forceStatsRefresh) {
@@ -492,6 +649,42 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                 }
             }
         }
+    }
+
+    private void refreshCraftingInterfaces() {
+        if (this.worldObj == null || this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return;
+        }
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface) {
+                TileECOInterface ecoInterface = (TileECOInterface) tile;
+                if (ecoInterface.getSubsystem() == ECOControllerSubsystem.CRAFTING) {
+                    ecoInterface.requestCraftingProviderRefresh();
+                }
+            }
+        }
+    }
+
+    private void refreshCraftingHostDisplayState(boolean forceStatsRefresh) {
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            this.craftingHostStats = CraftingHostStats.EMPTY;
+            this.craftingHostStatsDirty = false;
+            return;
+        }
+        if (forceStatsRefresh || this.craftingHostStatsDirty) {
+            this.refreshCraftingHostStats();
+        }
+    }
+
+    private void refreshCraftingHostStats() {
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING || !this.formed) {
+            this.craftingHostStats = CraftingHostStats.EMPTY;
+            this.craftingHostStatsDirty = false;
+            return;
+        }
+        this.craftingHostStats = CraftingHostStats.create(this, this.formedMemberBlocks, this.hiddenBlocks);
+        this.craftingHostStatsDirty = false;
     }
 
     private void updateHostStorageState() {
@@ -934,6 +1127,16 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         tag.setString(TAG_HOST_MODE, this.hostMode.getId());
         tag.setInteger(TAG_PRIORITY, this.priority);
         tag.setInteger(TAG_COMPUTATION_CPU_MODE, this.computationCpuSelectionMode.ordinal());
+        CraftingHostStats craftingStats = this.getCraftingHostStats();
+        tag.setInteger(TAG_CRAFTING_PATTERN_COUNT, craftingStats.patternCount);
+        tag.setInteger(TAG_CRAFTING_PATTERN_BUS_COUNT, craftingStats.patternBusCount);
+        tag.setInteger(TAG_CRAFTING_WORKER_COUNT, craftingStats.workerCount);
+        tag.setInteger(TAG_CRAFTING_RUNNING_WORKER_COUNT, craftingStats.runningWorkerCount);
+        tag.setInteger(TAG_CRAFTING_PARALLEL_COUNT, craftingStats.parallelCount);
+        tag.setInteger(TAG_CRAFTING_PARALLEL_CORE_COUNT, craftingStats.parallelCoreCount);
+        tag.setInteger(TAG_CRAFTING_INPUT_CACHED_ITEMS, craftingStats.inputCachedItems);
+        tag.setInteger(TAG_CRAFTING_OUTPUT_CACHED_ITEMS, craftingStats.outputCachedItems);
+        tag.setInteger(TAG_CRAFTING_OCCUPIED_CACHE_SLOTS, craftingStats.occupiedCacheSlots);
         if (this.hostDomainId != null) {
             tag.setString(TAG_HOST_DOMAIN_ID, this.hostDomainId.toString());
         }
@@ -987,6 +1190,17 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.priority = tag.getInteger(TAG_PRIORITY);
         this.computationCpuSelectionMode = ComputationCpuSelectionMode
             .fromOrdinal(tag.getInteger(TAG_COMPUTATION_CPU_MODE));
+        this.craftingHostStats = CraftingHostStats.fromSaved(
+            tag.getInteger(TAG_CRAFTING_PATTERN_COUNT),
+            tag.getInteger(TAG_CRAFTING_PATTERN_BUS_COUNT),
+            tag.getInteger(TAG_CRAFTING_WORKER_COUNT),
+            tag.getInteger(TAG_CRAFTING_RUNNING_WORKER_COUNT),
+            tag.getInteger(TAG_CRAFTING_PARALLEL_COUNT),
+            tag.getInteger(TAG_CRAFTING_PARALLEL_CORE_COUNT),
+            tag.getInteger(TAG_CRAFTING_INPUT_CACHED_ITEMS),
+            tag.getInteger(TAG_CRAFTING_OUTPUT_CACHED_ITEMS),
+            tag.getInteger(TAG_CRAFTING_OCCUPIED_CACHE_SLOTS));
+        this.craftingHostStatsDirty = this.subsystem == ECOControllerSubsystem.CRAFTING && this.formed;
         this.hostDomainId = tag.hasKey(TAG_HOST_DOMAIN_ID) ? readUuid(tag.getString(TAG_HOST_DOMAIN_ID)) : null;
         this.infiniteStorageComponent = tag.hasKey(TAG_INFINITE_COMPONENT)
             ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_INFINITE_COMPONENT))

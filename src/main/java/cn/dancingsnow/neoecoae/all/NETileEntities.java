@@ -2,6 +2,9 @@ package cn.dancingsnow.neoecoae.all;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.tile.TileComputationDrive;
+import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
+import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
+import cn.dancingsnow.neoecoae.tile.TileCraftingWorker;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
@@ -16,5 +19,8 @@ public final class NETileEntities {
         GameRegistry.registerTileEntity(TileECODrive.class, NeoECOAE.MODID + ":eco_drive");
         GameRegistry.registerTileEntity(TileComputationDrive.class, NeoECOAE.MODID + ":computation_drive");
         GameRegistry.registerTileEntity(TileECOInterface.class, NeoECOAE.MODID + ":eco_interface");
+        GameRegistry.registerTileEntity(TileCraftingPatternBus.class, NeoECOAE.MODID + ":crafting_pattern_bus");
+        GameRegistry.registerTileEntity(TileCraftingWorker.class, NeoECOAE.MODID + ":crafting_worker");
+        GameRegistry.registerTileEntity(TileCraftingHatch.class, NeoECOAE.MODID + ":crafting_hatch");
     }
 }

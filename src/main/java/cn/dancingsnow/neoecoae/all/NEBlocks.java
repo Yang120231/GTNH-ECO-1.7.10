@@ -13,6 +13,9 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.block.BlockComputationCoolingController;
 import cn.dancingsnow.neoecoae.block.BlockComputationDrive;
 import cn.dancingsnow.neoecoae.block.BlockComputationTransmitter;
+import cn.dancingsnow.neoecoae.block.BlockCraftingHatch;
+import cn.dancingsnow.neoecoae.block.BlockCraftingPatternBus;
+import cn.dancingsnow.neoecoae.block.BlockCraftingWorker;
 import cn.dancingsnow.neoecoae.block.BlockDirectionalModernModel;
 import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockECOInterface;
@@ -108,18 +111,16 @@ public final class NEBlocks {
         "storage_interface",
         new String[] { NeoECOAE.MODID + ":block/storage/me_bus", NeoECOAE.MODID + ":block/storage/me_bus_light" },
         ECOControllerSubsystem.STORAGE);
-    public static final Block inputHatch = texturedMachineBlock(
+    public static final Block inputHatch = craftingHatch(
         "input_hatch",
         NeoECOAE.MODID + ":crafting/hatch_input",
-        5.0F,
-        10.0F,
-        2);
-    public static final Block outputHatch = texturedMachineBlock(
+        NeoECOAE.MODID + ":crafting/hatch_input_formed",
+        true);
+    public static final Block outputHatch = craftingHatch(
         "output_hatch",
         NeoECOAE.MODID + ":crafting/hatch_output",
-        5.0F,
-        10.0F,
-        2);
+        NeoECOAE.MODID + ":crafting/hatch_output_formed",
+        false);
     public static final Block craftingVent = registerModernModelBlock(
         new BlockFormedDirectionalModernModel(
             "crafting_vent",
@@ -130,7 +131,7 @@ public final class NEBlocks {
                 NeoECOAE.MODID + ":block/crafting/casing_formed",
                 NeoECOAE.MODID + ":block/crafting/vent_north_formed" }));
     public static final Block craftingPatternBus = registerModernModelBlock(
-        new BlockFormedDirectionalModernModel(
+        new BlockCraftingPatternBus(
             "crafting_pattern_bus",
             "crafting_pattern_bus",
             "crafting_pattern_bus_formed",
@@ -139,7 +140,7 @@ public final class NEBlocks {
                 NeoECOAE.MODID + ":block/crafting/casing_formed", NeoECOAE.MODID + ":block/crafting/pattern_bus_formed",
                 NeoECOAE.MODID + ":block/crafting/pattern_bus_formed_light" }));
     public static final Block craftingWorker = registerModernModelBlock(
-        new BlockFormedDirectionalModernModel(
+        new BlockCraftingWorker(
             "crafting_worker",
             "crafting_worker",
             "crafting_worker_formed",
@@ -320,6 +321,16 @@ public final class NEBlocks {
             .setResistance(resistance)
             .setStepSound(Block.soundTypeMetal);
         block.setHarvestLevel("pickaxe", harvestLevel);
+        return block;
+    }
+
+    private static Block craftingHatch(String id, String texture, String formedTexture, boolean input) {
+        Block block = new BlockCraftingHatch(texture, formedTexture, input).setBlockName(id)
+            .setCreativeTab(NECreativeTabs.NEO_ECO_AE)
+            .setHardness(5.0F)
+            .setResistance(10.0F)
+            .setStepSound(Block.soundTypeMetal);
+        block.setHarvestLevel("pickaxe", 2);
         return block;
     }
 

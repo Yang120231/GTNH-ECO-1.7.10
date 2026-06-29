@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.tile;
 import java.util.EnumSet;
 import java.util.List;
 
+import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetworkManager;
@@ -11,27 +12,36 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.ICraftingGrid;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.networking.crafting.ICraftingProvider;
+import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.events.MENetworkCellArrayUpdate;
 import appeng.api.networking.security.IActionHost;
+import appeng.api.networking.security.MachineSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.DimensionalCoord;
 import appeng.helpers.IPriorityHost;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
+import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.block.BlockECOInterface;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
 import cn.dancingsnow.neoecoae.computation.ae2.ECOComputationCpuPool;
+import cn.dancingsnow.neoecoae.crafting.ae2.ECOCraftingAe2Registration;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
-public class TileECOInterface extends TileEntity implements IGridProxyable, IActionHost, IPriorityHost {
+public class TileECOInterface extends TileEntity
+    implements IGridProxyable, IActionHost, IPriorityHost, ICraftingProvider {
 
     private static final String TAG_SUBSYSTEM = "Subsystem";
     private static final String TAG_COMPUTATION_CPU_POOL = "ComputationCpuPool";
@@ -45,6 +55,9 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     private boolean computationCpuRefreshQueued;
     private long computationCpuRefreshQueuedTick;
     private final ECOComputationCpuPool computationCpuPool = new ECOComputationCpuPool(this);
+    private boolean craftingProviderRefreshQueued;
+    private long craftingProviderRefreshQueuedTick;
+    private final ECOCraftingAe2Registration craftingAe2Registration = new ECOCraftingAe2Registration(this);
 
     public TileECOInterface() {
         this(ECOControllerSubsystem.STORAGE);
@@ -111,6 +124,31 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
         this.computationCpuRefreshQueuedTick = this.worldObj.getTotalWorldTime();
     }
 
+    public void requestCraftingProviderRefresh() {
+        if (this.worldObj == null || this.worldObj.isRemote) {
+            return;
+        }
+        this.craftingProviderRefreshQueued = true;
+        this.craftingProviderRefreshQueuedTick = this.worldObj.getTotalWorldTime();
+    }
+
+    public ItemStack injectCraftingOutput(ItemStack stack) {
+        if (stack == null || this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return stack;
+        }
+        IStorageGrid storageGrid = this.currentStorageGrid();
+        if (storageGrid == null) {
+            return stack;
+        }
+        IAEItemStack aeStack = AEItemStack.create(stack);
+        if (aeStack == null) {
+            return stack;
+        }
+        IAEItemStack leftover = storageGrid.getItemInventory()
+            .injectItems(aeStack, Actionable.MODULATE, new MachineSource(this));
+        return leftover == null ? null : leftover.getItemStack();
+    }
+
     @Override
     public AENetworkProxy getProxy() {
         return this.proxy;
@@ -141,7 +179,10 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
 
     @Override
     public void gridChanged() {
-        this.refreshSubsystemRegistration();
+        this.refreshSubsystemRegistration(false);
+        if (this.subsystem == ECOControllerSubsystem.CRAFTING) {
+            this.requestCraftingProviderRefresh();
+        }
     }
 
     @Override
@@ -153,6 +194,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     @Override
     public void invalidate() {
         this.unregisterStorageProvider();
+        this.unregisterCraftingProvider();
         this.shutdownComputationCpus();
         this.proxy.invalidate();
         super.invalidate();
@@ -161,6 +203,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     @Override
     public void onChunkUnload() {
         this.unregisterStorageProvider();
+        this.unregisterCraftingProvider();
         this.unregisterComputationCpus();
         this.proxy.onChunkUnload();
         super.onChunkUnload();
@@ -179,10 +222,15 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
         if (this.computationCpuRefreshQueued
             && this.worldObj.getTotalWorldTime() > this.computationCpuRefreshQueuedTick) {
             this.computationCpuRefreshQueued = false;
-            this.refreshSubsystemRegistration();
+            this.refreshSubsystemRegistration(false);
+        }
+        if (this.craftingProviderRefreshQueued
+            && this.worldObj.getTotalWorldTime() > this.craftingProviderRefreshQueuedTick) {
+            this.craftingProviderRefreshQueued = false;
+            this.refreshSubsystemRegistration(true);
         }
         if (this.worldObj.getTotalWorldTime() % 20L == 0L) {
-            this.refreshSubsystemRegistration();
+            this.refreshSubsystemRegistration(false);
         }
     }
 
@@ -190,6 +238,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         this.unregisterComputationCpus();
+        this.unregisterCraftingProvider();
         this.setSubsystem(ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM)));
         this.computationCpuPool.readFromNBT(tag.getCompoundTag(TAG_COMPUTATION_CPU_POOL));
         this.proxy.readFromNBT(tag);
@@ -238,8 +287,15 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     }
 
     private void refreshSubsystemRegistration() {
+        this.refreshSubsystemRegistration(false);
+    }
+
+    private void refreshSubsystemRegistration(boolean forceCraftingPatternRefresh) {
         if (this.subsystem == ECOControllerSubsystem.STORAGE) {
             this.refreshBackendRegistration();
+        }
+        if (this.subsystem == ECOControllerSubsystem.CRAFTING) {
+            this.refreshCraftingProviderRegistration(forceCraftingPatternRefresh);
         }
         if (this.subsystem == ECOControllerSubsystem.COMPUTATION) {
             this.refreshComputationCpuRegistration();
@@ -261,6 +317,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
             return;
         }
         this.unregisterStorageProvider();
+        this.unregisterCraftingProvider();
         this.subsystem = normalized;
         this.proxy.setVisualRepresentation(this.interfaceStack());
         this.cachedController = null;
@@ -342,8 +399,32 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
             controller.getComputationCpuSelectionMode());
     }
 
+    private void refreshCraftingProviderRegistration(boolean forcePatternRefresh) {
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            this.unregisterCraftingProvider();
+            return;
+        }
+        TileECOController controller = this.findController();
+        if (controller == null || !controller.isFormed()) {
+            this.unregisterCraftingProvider();
+            return;
+        }
+        ICraftingGrid craftingGrid = this.currentCraftingGrid();
+        if (craftingGrid == null) {
+            this.unregisterCraftingProvider();
+            return;
+        }
+        IGridNode node = this.proxy.getNode();
+        this.craftingAe2Registration
+            .refresh(craftingGrid, node, controller, node != null && node.isActive(), forcePatternRefresh);
+    }
+
     private void unregisterComputationCpus() {
         this.computationCpuPool.detach();
+    }
+
+    private void unregisterCraftingProvider() {
+        this.craftingAe2Registration.detach();
     }
 
     private void shutdownComputationCpus() {
@@ -432,5 +513,25 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
             return new ItemStack(NEBlocks.computationInterface);
         }
         return new ItemStack(NEBlocks.storageInterface);
+    }
+
+    @Override
+    public void provideCrafting(ICraftingProviderHelper craftingTracker) {
+        this.craftingAe2Registration.provideFallbackCrafting(craftingTracker);
+    }
+
+    @Override
+    public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
+        return this.craftingAe2Registration.pushFallbackPattern(patternDetails, table);
+    }
+
+    @Override
+    public boolean isBusy() {
+        return this.craftingAe2Registration.isFallbackBusy();
+    }
+
+    @Override
+    public ItemStack getCrafterIcon() {
+        return this.craftingAe2Registration.getCrafterIcon();
     }
 }
