@@ -26,11 +26,7 @@ public class ECOCellHandler implements ICellHandler {
 
     @Override
     public IMEInventoryHandler getCellInventory(ItemStack is, ISaveProvider host, StorageChannel channel) {
-        if (!this.isCell(is) || channel != StorageChannel.ITEMS) {
-            return null;
-        }
-        IECOStorageMatrixItem matrix = (IECOStorageMatrixItem) is.getItem();
-        if (matrix.getStorageChannel(is) != channel) {
+        if (!this.isCell(is) || channel == null) {
             return null;
         }
         return new ECOCellInventoryHandler(is, host, channel);

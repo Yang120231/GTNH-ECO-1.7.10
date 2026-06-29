@@ -9,7 +9,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import appeng.api.storage.StorageChannel;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
@@ -107,7 +106,7 @@ public final class StorageHostSnapshot {
                 if (cell.hasCell) {
                     totalBytes = saturatedAdd(totalBytes, cell.totalBytes);
                     totalTypes = saturatedAdd(totalTypes, cell.totalTypes);
-                    addCellStats(cell, itemStats, fluidStats);
+                    addDriveStats((TileECODrive) tile, itemStats, fluidStats);
                     if (!controller.canUseHostDomainStorage()) {
                         usedBytes = saturatedAdd(usedBytes, cell.usedBytes);
                         usedTypes = saturatedAdd(usedTypes, cell.usedTypes);
@@ -209,17 +208,23 @@ public final class StorageHostSnapshot {
         return Math.max(0L, value);
     }
 
-    private static void addCellStats(MatrixCell cell, TypeAccumulator itemStats, TypeAccumulator fluidStats) {
-        TypeAccumulator stats = accumulatorFor(cell.typeId, itemStats, fluidStats);
-        stats.usedBytes = saturatedAdd(stats.usedBytes, cell.usedBytes);
-        stats.totalBytes = saturatedAdd(stats.totalBytes, cell.totalBytes);
-        stats.usedTypes = saturatedAdd(stats.usedTypes, cell.usedTypes);
-        stats.totalTypes = saturatedAdd(stats.totalTypes, cell.totalTypes);
+    private static void addDriveStats(TileECODrive drive, TypeAccumulator itemStats, TypeAccumulator fluidStats) {
+        ItemStack stack = drive.getCellStack();
+        if (stack == null || ECOStorageCellMetadata.hasNonPortableState(stack)) {
+            return;
+        }
+        ECOStorageSnapshot snapshot = ECOStorageCellAccess.load(stack).snapshot();
+        addSnapshotStats(snapshot, itemStats, fluidStats);
     }
 
     private static void addDomainStats(ECOStorageSnapshot domain, TypeAccumulator itemStats,
         TypeAccumulator fluidStats) {
-        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : domain.getEntries().entrySet()) {
+        addSnapshotStats(domain, itemStats, fluidStats);
+    }
+
+    private static void addSnapshotStats(ECOStorageSnapshot snapshot, TypeAccumulator itemStats,
+        TypeAccumulator fluidStats) {
+        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : snapshot.getEntries().entrySet()) {
             TypeAccumulator stats = accumulatorFor(entry.getKey().getChannel(), itemStats, fluidStats);
             stats.usedBytes = saturatedAdd(stats.usedBytes, entry.getValue().toLongSaturated());
             stats.usedTypes = saturatedAdd(stats.usedTypes, 1L);
@@ -385,7 +390,6 @@ public final class StorageHostSnapshot {
         public final int row;
         public final int column;
         public final boolean hasCell;
-        public final String typeId;
         public final String tier;
         public final String mode;
         public final long usedBytes;
@@ -393,12 +397,11 @@ public final class StorageHostSnapshot {
         public final long usedTypes;
         public final long totalTypes;
 
-        private MatrixCell(int row, int column, boolean hasCell, String typeId, String tier, String mode, long usedBytes,
+        private MatrixCell(int row, int column, boolean hasCell, String tier, String mode, long usedBytes,
             long totalBytes, long usedTypes, long totalTypes) {
             this.row = row;
             this.column = column;
             this.hasCell = hasCell;
-            this.typeId = typeId;
             this.tier = tier;
             this.mode = mode;
             this.usedBytes = usedBytes;
@@ -408,7 +411,7 @@ public final class StorageHostSnapshot {
         }
 
         private static MatrixCell empty(int row, int column) {
-            return new MatrixCell(row, column, false, "item", "", ECOStorageCellMode.PORTABLE.getId(), 0L, 0L, 0L, 0L);
+            return new MatrixCell(row, column, false, "", ECOStorageCellMode.PORTABLE.getId(), 0L, 0L, 0L, 0L);
         }
 
         private static MatrixCell fromDrive(int row, int column, TileECODrive drive) {
@@ -417,14 +420,13 @@ public final class StorageHostSnapshot {
                 return empty(row, column);
             }
             IECOStorageMatrixItem matrix = (IECOStorageMatrixItem) stack.getItem();
-            String typeId = typeIdFor(matrix.getStorageChannel(stack));
             String fallbackTier = stack.getItem() instanceof cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem
                 ? ((cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
                 : "";
             String tier = ECOStorageCellAccess.readTier(stack, fallbackTier);
             String mode = ECOStorageCellMetadata.getMode(stack).getId();
             long totalBytes = matrix.getDisplayBytes(stack);
-            long totalTypes = totalBytes > 0L ? totalBytes : 0L;
+            long totalTypes = 0L;
             long usedBytes;
             long usedTypes;
             if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
@@ -436,18 +438,13 @@ public final class StorageHostSnapshot {
                 usedBytes = snapshot.getUsed().toLongSaturated();
                 usedTypes = snapshot.getTypeCount();
             }
-            return new MatrixCell(row, column, true, typeId, tier, mode, usedBytes, totalBytes, usedTypes, totalTypes);
-        }
-
-        private static String typeIdFor(StorageChannel channel) {
-            return channel == StorageChannel.FLUIDS ? "fluid" : "item";
+            return new MatrixCell(row, column, true, tier, mode, usedBytes, totalBytes, usedTypes, totalTypes);
         }
 
         private void write(ByteBuf buf) {
             buf.writeInt(this.row);
             buf.writeInt(this.column);
             buf.writeBoolean(this.hasCell);
-            writeString(buf, this.typeId);
             writeString(buf, this.tier);
             writeString(buf, this.mode);
             buf.writeLong(this.usedBytes);
@@ -461,7 +458,6 @@ public final class StorageHostSnapshot {
                 buf.readInt(),
                 buf.readInt(),
                 buf.readBoolean(),
-                readString(buf),
                 readString(buf),
                 readString(buf),
                 safeLong(buf.readLong()),

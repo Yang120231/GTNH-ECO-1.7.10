@@ -101,6 +101,11 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     protected final void drawStorageGauge(int x, int y, double percentage, boolean reverseColor) {
         double clamped = Math.max(0.0D, Math.min(1.0D, percentage));
+        this.drawStorageGauge(x, y, clamped, HostUiStyle.storageGaugeColor(clamped, reverseColor));
+    }
+
+    protected final void drawStorageGauge(int x, int y, double percentage, int color) {
+        double clamped = Math.max(0.0D, Math.min(1.0D, percentage));
         if (clamped <= 0.0D) {
             return;
         }
@@ -109,7 +114,6 @@ abstract class GuiHostMachineBase extends GuiContainer {
         int top = y;
         int bodyHeight = STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT;
         int barHeight = (int) Math.round(bodyHeight * clamped);
-        int color = HostUiStyle.storageGaugeColor(clamped, reverseColor);
         float alpha = (float) (color >>> 24 & 0xFF) / 255.0F;
         float red = (float) (color >>> 16 & 0xFF) / 255.0F;
         float green = (float) (color >>> 8 & 0xFF) / 255.0F;

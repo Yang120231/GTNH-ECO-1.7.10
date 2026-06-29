@@ -52,13 +52,15 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     private static final int MATRIX_GRID_LABEL_Y = MATRIX_Y + MATRIX_H - 17;
     private static final int MATRIX_LEGEND_ROW_H = 8;
     private static final int MATRIX_LEGEND_ROW_STEP = 11;
-    private static final int MATRIX_LEGEND_TOP = MATRIX_Y + (MATRIX_H - (MATRIX_LEGEND_ROW_STEP * 5 + MATRIX_LEGEND_ROW_H)) / 2;
+    private static final int MATRIX_LEGEND_TOP = MATRIX_Y
+            + (MATRIX_H - (MATRIX_LEGEND_ROW_STEP * 5 + MATRIX_LEGEND_ROW_H)) / 2;
     private static final int MATRIX_LEGEND_W = MATRIX_X + MATRIX_W - MATRIX_LEGEND_X - 8;
     private static final int MATRIX_EMPTY_BORDER = 0xFF1D1A24;
     private static final int COMPONENT_SLOT_X = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_FRAME_X;
     private static final int COMPONENT_SLOT_Y = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_FRAME_Y;
     private static final long USAGE_ANIMATION_MS = 500L;
     private static final double USAGE_ANIMATION_EPSILON = 0.0001D;
+    private static final float USAGE_PERCENT_SCALE = 0.9F;
 
     private final ContainerECOStorageController container;
     private List<String> hoveredLines;
@@ -90,7 +92,8 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawDarkInsetRect(RIGHT_X, RIGHT_Y, RIGHT_W, RIGHT_H);
         this.drawDarkInsetRect(MATRIX_X, MATRIX_Y, MATRIX_W, MATRIX_H);
         this.drawSlotTexture(this.guiLeft + COMPONENT_SLOT_X, this.guiTop + COMPONENT_SLOT_Y);
-        this.drawPlayerInventorySlots(HostUiLayouts.STORAGE.inventoryX(), HostUiLayouts.STORAGE.inventoryY(), HostUiLayouts.STORAGE.hotbarY());
+        this.drawPlayerInventorySlots(HostUiLayouts.STORAGE.inventoryX(), HostUiLayouts.STORAGE.inventoryY(),
+                HostUiLayouts.STORAGE.hotbarY());
     }
 
     @Override
@@ -101,11 +104,13 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawUsage(state, mouseX, mouseY);
         this.drawComponent(state, mouseX, mouseY);
         this.drawMatrices(state, mouseX, mouseY);
-        this.drawLocalText(tr("container.inventory", "Inventory"), HostUiLayouts.STORAGE.inventoryX(), 159, HostUiStyle.TEXT_MUTED);
+        this.drawLocalText(tr("container.inventory", "Inventory"), HostUiLayouts.STORAGE.inventoryX(), 159,
+                HostUiStyle.TEXT_MUTED);
     }
 
     private void drawHeader(StorageHostSnapshot state) {
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.title", "ECO Storage Host") + " " + state.tier, 8, 8, HostUiStyle.TEXT_PRIMARY);
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.title", "ECO Storage Host") + " " + state.tier, 8, 8,
+                HostUiStyle.TEXT_PRIMARY);
         String label = tr("gui.neoecoae.storage_ui.formed", "Formed") + ": ";
         String value = yesNo(state.formed);
         int width = this.fontRendererObj.getStringWidth(label) + this.fontRendererObj.getStringWidth(value);
@@ -116,64 +121,80 @@ public class GuiECOStorageController extends GuiHostMachineBase {
 
     private void drawMonitor(StorageHostSnapshot state) {
         int y = TEXT_Y;
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.energy_monitor", "Energy Monitor"), TEXT_X, y, HostUiStyle.DARK_TEXT_PRIMARY);
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.energy_monitor", "Energy Monitor"), TEXT_X, y,
+                HostUiStyle.DARK_TEXT_PRIMARY);
         y += TEXT_STEP;
-        this.drawUsedTotal(tr("gui.neoecoae.storage_ui.energy_storage", "Energy Storage") + ": ", 0L, 0L, " AE", TEXT_X, y, false);
+        this.drawUsedTotal(tr("gui.neoecoae.storage_ui.energy_storage", "Energy Storage") + ": ", 0L, 0L, " AE", TEXT_X,
+                y, false);
         y += TEXT_STEP + 4;
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.item_storage", "Item Storage"), TEXT_X, y, HostUiStyle.tierColor(state.tier));
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.item_storage", "Item Storage"), TEXT_X, y,
+                HostUiStyle.tierColor(state.tier));
         y += TEXT_STEP;
         this.drawLocalText(
-            formatNumber(state.usedTypes) + " " + tr("gui.neoecoae.storage_ui.types", "Types"),
-            TEXT_X,
-            y,
-            HostUiStyle.usedValueColor(state.usedTypes, state.totalTypes));
+                formatNumber(state.usedTypes) + " " + tr("gui.neoecoae.storage_ui.types", "Types"),
+                TEXT_X,
+                y,
+                HostUiStyle.DARK_TEXT_USED);
         y += TEXT_STEP;
-        this.drawUsedTotal("", state.usedBytes, state.totalBytes, " " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"), TEXT_X, y, true);
+        this.drawUsedTotal("", state.usedBytes, state.totalBytes, " " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"),
+                TEXT_X, y, true);
         y += TEXT_STEP + 4;
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.host_mode", "Mode") + ": " + modeName(state.hostMode), TEXT_X, y, HostUiStyle.DARK_TEXT_VALUE);
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.host_mode", "Mode") + ": " + modeName(state.hostMode), TEXT_X, y,
+                HostUiStyle.DARK_TEXT_VALUE);
         y += TEXT_STEP;
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.drives", "Drives") + ": " + state.formedDriveCount + " / " + state.requiredDriveCount, TEXT_X, y, state.formedDriveCount >= state.requiredDriveCount ? HostUiStyle.DARK_TEXT_SUCCESS : HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalText(
+                tr("gui.neoecoae.storage_ui.drives", "Drives") + ": " + state.formedDriveCount + " / "
+                        + state.requiredDriveCount,
+                TEXT_X, y, state.formedDriveCount >= state.requiredDriveCount ? HostUiStyle.DARK_TEXT_SUCCESS
+                        : HostUiStyle.DARK_TEXT_MUTED);
         y += TEXT_STEP;
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.l9_ready", "All L9 Matrices") + ": " + yesNo(state.allDrivesL9), TEXT_X, y, state.allDrivesL9 ? HostUiStyle.DARK_TEXT_SUCCESS : HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.l9_ready", "All L9 Matrices") + ": " + yesNo(state.allDrivesL9),
+                TEXT_X, y, state.allDrivesL9 ? HostUiStyle.DARK_TEXT_SUCCESS : HostUiStyle.DARK_TEXT_MUTED);
     }
 
     private void drawUsage(StorageHostSnapshot state, int mouseX, int mouseY) {
-        this.drawLocalCentered(tr("gui.neoecoae.storage_ui.usage", "Usage"), RIGHT_X, RIGHT_Y + 8, RIGHT_W, HostUiStyle.DARK_TEXT_PRIMARY);
-        double ratio = this.animatedUsageRatio(ratio(state.usedBytes, state.totalBytes));
+        this.drawLocalCentered(tr("gui.neoecoae.storage_ui.usage", "Usage"), RIGHT_X, RIGHT_Y + 8, RIGHT_W,
+                HostUiStyle.DARK_TEXT_PRIMARY);
+        boolean infiniteMode = isInfiniteMode(state);
+        double ratio = infiniteMode ? 1.0D : this.animatedUsageRatio(ratio(state.usedBytes, state.totalBytes));
         this.drawTinyInsetLocal(RIGHT_DARK_X, RIGHT_DARK_Y, RIGHT_DARK_W, RIGHT_DARK_H, 0xFF201E27);
-        this.drawStorageGauge(STORAGE_GAUGE_X, STORAGE_GAUGE_Y, ratio, false);
-        this.drawUsageDetails(state);
-        this.drawLocalCentered(
-            percent(ratio),
-            STORAGE_GAUGE_X,
-            RIGHT_Y + 119,
-            STORAGE_GAUGE_W,
-            HostUiStyle.usedValueColor(state.usedBytes, state.totalBytes));
-        if (this.isMouseIn(RIGHT_X, RIGHT_Y, RIGHT_W, RIGHT_H, mouseX, mouseY)) {
-            List<String> lines = new ArrayList<String>();
-            lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.storage_ui.usage", "Usage"));
-            lines.add(tr("gui.neoecoae.storage_ui.bytes", "Bytes") + ": " + formatStorageBytes(state.usedBytes) + " / " + formatStorageBytes(state.totalBytes));
-            lines.add(tr("gui.neoecoae.storage_ui.types", "Types") + ": " + formatNumber(state.usedTypes) + " / " + formatNumber(state.totalTypes));
-            this.hoveredLines = lines;
+        if (infiniteMode) {
+            this.drawStorageGauge(STORAGE_GAUGE_X, STORAGE_GAUGE_Y, ratio, HostUiStyle.MATRIX_USAGE_INFINITE);
+        } else {
+            this.drawStorageGauge(STORAGE_GAUGE_X, STORAGE_GAUGE_Y, ratio, false);
         }
+        this.drawUsageDetails(state);
+        this.drawLocalCenteredScaled(
+                infiniteMode ? "\u221e" : percent(ratio),
+                STORAGE_GAUGE_X,
+                RIGHT_Y + 119,
+                STORAGE_GAUGE_W,
+                8,
+                infiniteMode ? HostUiStyle.MATRIX_USAGE_INFINITE : HostUiStyle.usedValueColor(state.usedBytes,
+                        state.totalBytes),
+                USAGE_PERCENT_SCALE);
     }
 
     private void drawUsageDetails(StorageHostSnapshot state) {
         int y = USAGE_DETAIL_Y;
+        boolean infiniteMode = isInfiniteMode(state);
         this.drawDetailLine(
-            tr("gui.neoecoae.storage_ui.max_load", "Max Load") + ": " + percent(this.maxMatrixLoad(state)),
-            y,
-            HostUiStyle.DARK_TEXT_WARNING);
+                tr("gui.neoecoae.storage_ui.max_load", "Max Load") + ": "
+                        + (infiniteMode ? "-" : percent(this.maxMatrixLoad(state))),
+                y,
+                HostUiStyle.DARK_TEXT_WARNING);
         y += USAGE_DETAIL_LINE_H;
         this.drawDetailLine(
-            tr("gui.neoecoae.storage_ui.avg_load", "Avg Load") + ": " + percent(this.averageMatrixLoad(state)),
-            y,
-            HostUiStyle.DARK_TEXT_MUTED);
+                tr("gui.neoecoae.storage_ui.avg_load", "Avg Load") + ": "
+                        + (infiniteMode ? "-" : percent(this.averageMatrixLoad(state))),
+                y,
+                HostUiStyle.DARK_TEXT_MUTED);
         y += USAGE_DETAIL_LINE_H;
         this.drawDetailLine(
-            tr("gui.neoecoae.storage_ui.idle_matrices", "Idle") + ": " + this.idleMatrixCount(state),
-            y,
-            HostUiStyle.DARK_TEXT_MUTED);
+                tr("gui.neoecoae.storage_ui.idle_matrices", "Idle") + ": "
+                        + (infiniteMode ? "-" : this.idleMatrixCount(state)),
+                y,
+                HostUiStyle.DARK_TEXT_MUTED);
         y += USAGE_DETAIL_LINE_H + 4;
         for (StorageHostSnapshot.TypeStat stat : state.typeStats) {
             this.drawDetailLine(this.typeStatLine(stat), y, this.typeColor(stat.typeId));
@@ -182,7 +203,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     private void drawDetailLine(String text, int y, int color) {
-        this.drawLocalCenteredScaled(text, USAGE_DETAIL_X, y, USAGE_DETAIL_W, USAGE_DETAIL_LINE_H, color, 0.82F);
+        this.drawLocalCenteredScaled(text, USAGE_DETAIL_X, y, USAGE_DETAIL_W, USAGE_DETAIL_LINE_H, color, 1F);
     }
 
     private void drawComponent(StorageHostSnapshot state, int mouseX, int mouseY) {
@@ -190,13 +211,15 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             List<String> lines = new ArrayList<String>();
             lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.storage_ui.infinite_component", "Infinite Component"));
             lines.add(state.infiniteComponentCount + " / 64");
-            lines.add(tr("gui.neoecoae.storage_ui.infinite_hint", "L9 + 64 components + 16 L9 matrices unlocks infinite mode"));
+            lines.add(tr("gui.neoecoae.storage_ui.infinite_hint",
+                    "L9 + 64 components + 16 L9 matrices unlocks infinite mode"));
             this.hoveredLines = lines;
         }
     }
 
     private void drawMatrices(StorageHostSnapshot state, int mouseX, int mouseY) {
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.matrices", "Storage Matrices"), MATRIX_X + 8, MATRIX_Y + 8, HostUiStyle.DARK_TEXT_PRIMARY);
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.matrices", "Storage Matrices"), MATRIX_X + 8, MATRIX_Y + 8,
+                HostUiStyle.DARK_TEXT_PRIMARY);
         int columns = this.matrixColumnCount(state);
         int availableColumns = Math.max(1, MATRIX_GRID_AREA_W / MATRIX_CELL_SIZE);
         columns = Math.min(columns, availableColumns);
@@ -212,19 +235,21 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             boolean hovered = this.isMouseIn(x, y, MATRIX_CELL_SIZE, MATRIX_CELL_SIZE, mouseX, mouseY);
             this.drawMatrixCell(x, y, cell, hovered);
             if (hovered) {
-                this.hoveredLines = cell != null && cell.hasCell ? this.matrixTooltip(cell) : this.emptyMatrixTooltip(index);
+                this.hoveredLines = cell != null && cell.hasCell ? this.matrixTooltip(cell)
+                        : this.emptyMatrixTooltip(index);
             }
         }
         this.drawLocalCentered(
-            tr("gui.neoecoae.storage_ui.load_distribution", "Load Distribution"),
-            MATRIX_GRID_AREA_X,
-            MATRIX_GRID_LABEL_Y,
-            MATRIX_GRID_AREA_W,
-            HostUiStyle.DARK_TEXT_MUTED);
+                tr("gui.neoecoae.storage_ui.load_distribution", "Load Distribution"),
+                MATRIX_GRID_AREA_X,
+                MATRIX_GRID_LABEL_Y,
+                MATRIX_GRID_AREA_W,
+                HostUiStyle.DARK_TEXT_MUTED);
         this.drawMatrixLegend(MATRIX_LEGEND_X, MATRIX_LEGEND_TOP);
     }
 
-    private void drawUsedTotal(String prefix, long used, long total, String suffix, int x, int y, boolean storageBytes) {
+    private void drawUsedTotal(String prefix, long used, long total, String suffix, int x, int y,
+            boolean storageBytes) {
         int cursor = this.drawLocalSegment(prefix, x, y, HostUiStyle.DARK_TEXT_MUTED);
         String usedText = storageBytes ? this.formatStorageBytes(used) : this.formatNumber(used);
         String totalText = storageBytes ? this.formatStorageBytes(total) : this.formatNumber(total);
@@ -235,13 +260,24 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     private void drawMatrixCell(int x, int y, StorageHostSnapshot.MatrixCell cell, boolean hovered) {
-        int color = cell != null && cell.hasCell ? HostUiStyle.matrixUsageColor(cell.usedBytes, cell.totalBytes) : HostUiStyle.MATRIX_USAGE_EMPTY;
+        int color = cell != null && cell.hasCell ? this.matrixCellColor(cell)
+                : HostUiStyle.MATRIX_USAGE_EMPTY;
         int border = hovered ? 0xFFE5E0F0 : cell != null && cell.hasCell ? 0xFF292331 : MATRIX_EMPTY_BORDER;
         drawRect(x, y, x + MATRIX_CELL_SIZE, y + MATRIX_CELL_SIZE, border);
         drawRect(x + 1, y + 1, x + MATRIX_CELL_SIZE - 1, y + MATRIX_CELL_SIZE - 1, color);
         if (cell != null && cell.hasCell) {
-            drawRect(x + 2, y + 2, x + MATRIX_CELL_SIZE - 2, y + 4, HostUiStyle.matrixUsageHighlight(cell.usedBytes, cell.totalBytes));
+            drawRect(x + 2, y + 2, x + MATRIX_CELL_SIZE - 2, y + 4,
+                    this.matrixCellHighlight(cell));
         }
+    }
+
+    private int matrixCellColor(StorageHostSnapshot.MatrixCell cell) {
+        return isInfiniteMatrix(cell) ? HostUiStyle.MATRIX_USAGE_INFINITE
+                : HostUiStyle.matrixUsageColor(cell.usedBytes, cell.totalBytes);
+    }
+
+    private int matrixCellHighlight(StorageHostSnapshot.MatrixCell cell) {
+        return isInfiniteMatrix(cell) ? 0xFFEAD4FF : HostUiStyle.matrixUsageHighlight(cell.usedBytes, cell.totalBytes);
     }
 
     private StorageHostSnapshot.MatrixCell findMatrixCell(StorageHostSnapshot state, int row, int column) {
@@ -295,7 +331,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
 
     private String typeStatLine(StorageHostSnapshot.TypeStat stat) {
         return typeName(stat.typeId) + ": " + formatStorageBytes(stat.usedBytes) + ", " + formatNumber(stat.usedTypes)
-            + " " + tr("gui.neoecoae.storage_ui.types", "Types");
+                + " " + tr("gui.neoecoae.storage_ui.types", "Types");
     }
 
     private static String typeName(String typeId) {
@@ -315,20 +351,21 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawLegendKey(x, y + MATRIX_LEGEND_ROW_STEP * 2, HostUiStyle.MATRIX_USAGE_HIGH, "75-90%");
         this.drawLegendKey(x, y + MATRIX_LEGEND_ROW_STEP * 3, HostUiStyle.MATRIX_USAGE_FULL, "90%+");
         this.drawLegendKey(
-            x,
-            y + MATRIX_LEGEND_ROW_STEP * 4,
-            HostUiStyle.MATRIX_USAGE_INFINITE,
-            tr("gui.neoecoae.storage_ui.legend.infinite", "Infinite"));
+                x,
+                y + MATRIX_LEGEND_ROW_STEP * 4,
+                HostUiStyle.MATRIX_USAGE_INFINITE,
+                tr("gui.neoecoae.storage_ui.legend.infinite", "Infinite"));
         this.drawLegendKey(
-            x,
-            y + MATRIX_LEGEND_ROW_STEP * 5,
-            HostUiStyle.MATRIX_USAGE_EMPTY,
-            tr("gui.neoecoae.storage_ui.legend.empty", "Empty"));
+                x,
+                y + MATRIX_LEGEND_ROW_STEP * 5,
+                HostUiStyle.MATRIX_USAGE_EMPTY,
+                tr("gui.neoecoae.storage_ui.legend.empty", "Empty"));
     }
 
     private void drawLegendKey(int x, int y, int color, String label) {
         drawRect(x, y + 1, x + 6, y + 7, color);
-        this.drawLocalCenteredScaled(label, x + 8, y, MATRIX_LEGEND_W - 8, MATRIX_LEGEND_ROW_H, HostUiStyle.DARK_TEXT_MUTED, 0.72F);
+        this.drawLocalCenteredScaled(label, x + 8, y, MATRIX_LEGEND_W - 8, MATRIX_LEGEND_ROW_H,
+                HostUiStyle.DARK_TEXT_MUTED, 0.72F);
     }
 
     private void drawTinyInsetLocal(int x, int y, int width, int height, int innerColor) {
@@ -341,14 +378,16 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         List<String> lines = new ArrayList<String>();
         lines.add(EnumChatFormatting.AQUA + cell.tier + " " + tr("gui.neoecoae.storage_ui.matrix", "Storage Matrix"));
         lines.add(tr("gui.neoecoae.storage_ui.mode", "Mode") + ": " + modeName(cell.mode));
-        lines.add(tr("gui.neoecoae.storage_ui.bytes", "Bytes") + ": " + formatStorageBytes(cell.usedBytes) + " / " + formatStorageBytes(cell.totalBytes));
-        lines.add(tr("gui.neoecoae.storage_ui.types", "Types") + ": " + formatNumber(cell.usedTypes) + " / " + formatNumber(cell.totalTypes));
+        lines.add(tr("gui.neoecoae.storage_ui.bytes", "Bytes") + ": " + (isInfiniteMatrix(cell) ? "\u221e"
+                : formatStorageBytes(cell.usedBytes) + " / " + formatStorageBytes(cell.totalBytes)));
+        lines.add(tr("gui.neoecoae.storage_ui.types", "Types") + ": " + formatNumber(cell.usedTypes));
         return lines;
     }
 
     private List<String> emptyMatrixTooltip(int index) {
         List<String> lines = new ArrayList<String>();
-        lines.add(EnumChatFormatting.DARK_GRAY + tr("gui.neoecoae.storage_ui.matrix", "Storage Matrix") + " #" + (index + 1));
+        lines.add(EnumChatFormatting.DARK_GRAY + tr("gui.neoecoae.storage_ui.matrix", "Storage Matrix") + " #"
+                + (index + 1));
         lines.add(tr("gui.neoecoae.storage_ui.no_matrix_installed", "No storage matrix installed"));
         return lines;
     }
@@ -371,6 +410,14 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         return Math.max(0.0D, Math.min(1.0D, (double) used / (double) total));
     }
 
+    private static boolean isInfiniteMode(StorageHostSnapshot state) {
+        return state != null && "formed_infinite".equals(state.hostMode);
+    }
+
+    private static boolean isInfiniteMatrix(StorageHostSnapshot.MatrixCell cell) {
+        return cell != null && ("domain_member".equals(cell.mode) || "migrating".equals(cell.mode));
+    }
+
     private double animatedUsageRatio(double target) {
         long now = System.currentTimeMillis();
         if (this.usageAnimationTarget < 0.0D) {
@@ -387,7 +434,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
 
     private double currentAnimatedUsageRatio(long now) {
         double elapsed = Math.max(0.0D, Math.min(1.0D,
-            (double) (now - this.usageAnimationStartMs) / (double) USAGE_ANIMATION_MS));
+                (double) (now - this.usageAnimationStartMs) / (double) USAGE_ANIMATION_MS));
         double eased = cubicBezierEase(elapsed);
         return this.usageAnimationStart + (this.usageAnimationTarget - this.usageAnimationStart) * eased;
     }
@@ -424,7 +471,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             return tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating");
         }
         if ("domain_member".equals(mode)) {
-            return tr("gui.neoecoae.storage_ui.mode.domain_member", "Domain Member");
+            return tr("gui.neoecoae.storage_ui.mode.domain_member", "Infinite Member");
         }
         if ("formed_normal".equals(mode)) {
             return tr("gui.neoecoae.storage_ui.mode.normal", "Normal");

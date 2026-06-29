@@ -185,6 +185,10 @@ public class TileECOController extends TileEntity implements IInventory {
         return isInfiniteStorageComponent(this.infiniteStorageComponent) ? this.infiniteStorageComponent.stackSize : 0;
     }
 
+    public boolean canTakeInfiniteStorageComponent() {
+        return !this.isInfiniteStorageUnlocked() || this.canExitInfiniteMode();
+    }
+
     public String getLastFormationMessage() {
         return this.lastFormationMessage;
     }
@@ -526,21 +530,22 @@ public class TileECOController extends TileEntity implements IInventory {
         if (slot != 0 || this.infiniteStorageComponent == null || amount <= 0) {
             return null;
         }
-        if (this.isInfiniteStorageUnlocked() && !this.canExitInfiniteMode()) {
+        boolean wasInfiniteUnlocked = this.isInfiniteStorageUnlocked();
+        if (!this.canTakeInfiniteStorageComponent()) {
             return null;
-        }
-        if (this.isInfiniteStorageUnlocked()) {
-            this.exitInfiniteMode();
         }
         ItemStack removed;
         if (this.infiniteStorageComponent.stackSize <= amount) {
-            removed = this.infiniteStorageComponent;
+            removed = this.infiniteStorageComponent.copy();
             this.infiniteStorageComponent = null;
         } else {
             removed = this.infiniteStorageComponent.splitStack(amount);
             if (this.infiniteStorageComponent.stackSize <= 0) {
                 this.infiniteStorageComponent = null;
             }
+        }
+        if (wasInfiniteUnlocked) {
+            this.exitInfiniteMode();
         }
         this.onInfiniteComponentChanged();
         return removed;
@@ -564,9 +569,17 @@ public class TileECOController extends TileEntity implements IInventory {
         if (slot != 0) {
             return;
         }
+        boolean removingInfiniteComponent = stack == null && this.infiniteStorageComponent != null
+            && this.isInfiniteStorageUnlocked();
+        if (removingInfiniteComponent && !this.canExitInfiniteMode()) {
+            return;
+        }
         this.infiniteStorageComponent = stack;
         if (this.infiniteStorageComponent != null && this.infiniteStorageComponent.stackSize > this.getInventoryStackLimit()) {
             this.infiniteStorageComponent.stackSize = this.getInventoryStackLimit();
+        }
+        if (removingInfiniteComponent) {
+            this.exitInfiniteMode();
         }
         this.onInfiniteComponentChanged();
     }

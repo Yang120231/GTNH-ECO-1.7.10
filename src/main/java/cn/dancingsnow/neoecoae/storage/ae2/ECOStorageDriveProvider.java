@@ -34,12 +34,9 @@ public class ECOStorageDriveProvider implements ICellProvider {
             return Collections.emptyList();
         }
         if (this.controller != null && this.controller.canUseHostDomainStorage()) {
-            if (channel == StorageChannel.ITEMS) {
-                List<IMEInventoryHandler> domainHandlers = new ArrayList<IMEInventoryHandler>();
-                domainHandlers.add(new ECOHostDomainInventoryHandler(this.controller));
-                return domainHandlers;
-            }
-            return Collections.emptyList();
+            List<IMEInventoryHandler> domainHandlers = new ArrayList<IMEInventoryHandler>();
+            domainHandlers.add(new ECOHostDomainInventoryHandler(this.controller, channel));
+            return domainHandlers;
         }
         List<IMEInventoryHandler> handlers = new ArrayList<IMEInventoryHandler>();
         for (ECOFormationBlockPos pos : this.drivePositions) {

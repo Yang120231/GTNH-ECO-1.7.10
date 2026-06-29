@@ -11,6 +11,7 @@ import net.minecraft.tileentity.TileEntity;
 
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOStorageDriveProvider;
+import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata;
@@ -21,12 +22,22 @@ public class TileECODrive extends TileEntity implements IInventory {
     private static final String TAG_HAS_CELL = "HasCell";
     private static final String TAG_CELL_TIER = "CellTier";
     private static final String TAG_ONLINE = "Online";
+    private static final String TAG_CELL_LED_COLOR = "CellLedColor";
+
+    private static final int LED_OFF = 0x000000;
+    private static final int LED_LOW = 0x45F05A;
+    private static final int LED_MEDIUM = 0xFFEA4A;
+    private static final int LED_HIGH = 0xFF9D32;
+    private static final int LED_FULL = 0xFF5151;
+    private static final int LED_INFINITE_MEMBER = 0xD8A8FF;
 
     private ItemStack cellStack;
     private boolean clientHasCell;
     private String clientCellTier = "";
     private boolean online;
     private boolean clientOnline;
+    private int cellLedColor;
+    private int clientCellLedColor;
 
     public boolean hasCell() {
         return this.cellStack != null || this.clientHasCell;
@@ -42,6 +53,10 @@ public class TileECODrive extends TileEntity implements IInventory {
 
     public boolean isOnlineForRender() {
         return this.worldObj != null && this.worldObj.isRemote ? this.clientOnline : this.online;
+    }
+
+    public int getCellLedColorForRender() {
+        return this.worldObj != null && this.worldObj.isRemote ? this.clientCellLedColor : this.cellLedColor;
     }
 
     @Override
@@ -157,7 +172,9 @@ public class TileECODrive extends TileEntity implements IInventory {
 
     public boolean canExtractCellStack() {
         TileECOController controller = this.findController();
-        return controller == null || controller.canExtractDriveCell(this);
+        return controller == null
+            ? !ECOStorageCellMetadata.hasNonPortableState(this.cellStack)
+            : controller.canExtractDriveCell(this);
     }
 
     @Override
@@ -176,6 +193,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         this.cellStack = tag.hasKey(TAG_CELL) ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_CELL)) : null;
         this.clientHasCell = this.cellStack != null;
         this.clientCellTier = this.cellStack != null ? getCellTier(this.cellStack) : "";
+        this.cellLedColor = this.computeCellLedColor(this.online);
     }
 
     @Override
@@ -184,6 +202,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         tag.setBoolean(TAG_HAS_CELL, this.cellStack != null);
         tag.setString(TAG_CELL_TIER, this.cellStack != null ? getCellTier(this.cellStack) : "");
         tag.setBoolean(TAG_ONLINE, this.online);
+        tag.setInteger(TAG_CELL_LED_COLOR, this.cellLedColor);
         return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
     }
 
@@ -193,6 +212,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         this.clientHasCell = tag.getBoolean(TAG_HAS_CELL);
         this.clientCellTier = tag.getString(TAG_CELL_TIER);
         this.clientOnline = tag.getBoolean(TAG_ONLINE);
+        this.clientCellLedColor = tag.getInteger(TAG_CELL_LED_COLOR);
         if (this.worldObj != null) {
             this.worldObj.markBlockRangeForRenderUpdate(
                 this.xCoord,
@@ -209,7 +229,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (controller != null) {
             controller.onStorageBackendChanged();
         }
-        this.updateOnlineState(controller);
+        this.updateVisualState(controller);
         this.markDirty();
     }
 
@@ -218,20 +238,54 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (this.worldObj == null || this.worldObj.isRemote || this.worldObj.getTotalWorldTime() % 20L != 0L) {
             return;
         }
-        this.updateOnlineState(this.findController());
+        this.updateVisualState(this.findController());
     }
 
     public void refreshOnlineState(TileECOController controller) {
-        this.updateOnlineState(controller);
+        this.updateVisualState(controller);
     }
 
-    private void updateOnlineState(TileECOController controller) {
+    private void updateVisualState(TileECOController controller) {
         boolean nowOnline = controller != null && this.hasCell() && this.hasOnlineInterface(controller);
-        if (this.online == nowOnline) {
+        int nowLedColor = this.computeCellLedColor(nowOnline);
+        if (this.online == nowOnline && this.cellLedColor == nowLedColor) {
             return;
         }
         this.online = nowOnline;
+        this.cellLedColor = nowLedColor;
         this.markDirty();
+    }
+
+    private int computeCellLedColor(boolean nowOnline) {
+        if (!nowOnline || this.cellStack == null) {
+            return LED_OFF;
+        }
+        if (ECOStorageCellMetadata.hasNonPortableState(this.cellStack)) {
+            return LED_INFINITE_MEMBER;
+        }
+        if (!(this.cellStack.getItem() instanceof IECOStorageMatrixItem)) {
+            return LED_OFF;
+        }
+        long total = Math.max(0L, ((IECOStorageMatrixItem) this.cellStack.getItem()).getDisplayBytes(this.cellStack));
+        if (total <= 0L) {
+            return LED_LOW;
+        }
+        ECOStorageBackend backend = ECOStorageCellAccess.load(this.cellStack);
+        long used = backend.getUsed().toLongSaturated();
+        if (used >= total) {
+            return LED_FULL;
+        }
+        double ratio = (double) used / (double) total;
+        if (ratio >= 0.90D) {
+            return LED_FULL;
+        }
+        if (ratio >= 0.75D) {
+            return LED_HIGH;
+        }
+        if (ratio >= 0.50D) {
+            return LED_MEDIUM;
+        }
+        return LED_LOW;
     }
 
     private boolean hasOnlineInterface(TileECOController controller) {

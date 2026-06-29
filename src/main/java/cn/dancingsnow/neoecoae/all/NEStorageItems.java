@@ -9,13 +9,13 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 
-import appeng.api.storage.StorageChannel;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.client.tooltip.NETooltips;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageSnapshot;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
+import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata;
 import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 import cpw.mods.fml.common.registry.GameRegistry;
 import cpw.mods.fml.relauncher.Side;
@@ -87,17 +87,8 @@ public final class NEStorageItems {
             setMaxStackSize(1);
         }
 
-        public String getChannel() {
-            return "item";
-        }
-
         public String getTier() {
             return tier;
-        }
-
-        @Override
-        public StorageChannel getStorageChannel(ItemStack stack) {
-            return StorageChannel.ITEMS;
         }
 
         @Override
@@ -107,7 +98,7 @@ public final class NEStorageItems {
 
         @Override
         public void onCreated(ItemStack stack, net.minecraft.world.World world, EntityPlayer player) {
-            ECOStorageCellAccess.writeCellIdentity(stack, "item", this.tier);
+            ECOStorageCellAccess.writeCellIdentity(stack, "universal", this.tier);
         }
 
         @SideOnly(Side.CLIENT)
@@ -126,6 +117,9 @@ public final class NEStorageItems {
             tooltip.add(
                 EnumChatFormatting.GREEN + formatLong(snapshot.getTypeCount()) + EnumChatFormatting.GRAY + " "
                     + translate("tooltip.neoecoae.storage.types"));
+            if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
+                tooltip.add(EnumChatFormatting.LIGHT_PURPLE + translate("tooltip.neoecoae.storage.infinite_locked"));
+            }
             NETooltips.addBlockTooltips(stack, tooltip);
         }
 

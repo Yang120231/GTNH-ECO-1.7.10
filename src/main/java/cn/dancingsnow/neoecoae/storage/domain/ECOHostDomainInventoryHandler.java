@@ -10,7 +10,6 @@ import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.StorageChannel;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOAE2KeyConverter;
@@ -19,19 +18,22 @@ import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
-public class ECOHostDomainInventoryHandler implements IMEInventoryHandler<IAEItemStack> {
+public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implements IMEInventoryHandler<StackType> {
 
     private final TileECOController controller;
+    private final StorageChannel channel;
     private long cachedRevision = Long.MIN_VALUE;
-    private IItemList<IAEItemStack> cachedAvailableItems;
+    private IItemList<StackType> cachedAvailableItems;
 
-    public ECOHostDomainInventoryHandler(TileECOController controller) {
+    public ECOHostDomainInventoryHandler(TileECOController controller, StorageChannel channel) {
         this.controller = controller;
+        this.channel = channel;
     }
 
     @Override
-    public IAEItemStack injectItems(IAEItemStack input, Actionable type, BaseActionSource src) {
-        if (input == null || input.getStackSize() <= 0L || !this.controller.canUseHostDomainStorage()) {
+    public StackType injectItems(StackType input, Actionable type, BaseActionSource src) {
+        if (input == null || input.getStackSize() <= 0L || input.getChannel() != this.channel
+            || !this.controller.canUseHostDomainStorage()) {
             return input;
         }
         ECOStorageBackend backend = this.getBackend();
@@ -47,12 +49,13 @@ public class ECOHostDomainInventoryHandler implements IMEInventoryHandler<IAEIte
             this.markChanged();
         }
         long remaining = input.getStackSize() - inserted.toLongSaturated();
-        return remaining <= 0L ? null : input.copy().setStackSize(remaining);
+        return remaining <= 0L ? null : (StackType) input.copy().setStackSize(remaining);
     }
 
     @Override
-    public IAEItemStack extractItems(IAEItemStack request, Actionable mode, BaseActionSource src) {
-        if (request == null || request.getStackSize() <= 0L || !this.controller.canUseHostDomainStorage()) {
+    public StackType extractItems(StackType request, Actionable mode, BaseActionSource src) {
+        if (request == null || request.getStackSize() <= 0L || request.getChannel() != this.channel
+            || !this.controller.canUseHostDomainStorage()) {
             return null;
         }
         ECOStorageBackend backend = this.getBackend();
@@ -67,21 +70,21 @@ public class ECOHostDomainInventoryHandler implements IMEInventoryHandler<IAEIte
         if (mode == Actionable.MODULATE) {
             this.markChanged();
         }
-        return request.copy().setStackSize(extracted.toLongSaturated());
+        return (StackType) request.copy().setStackSize(extracted.toLongSaturated());
     }
 
     @Override
-    public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out, int iteration) {
-        IItemList<IAEItemStack> snapshot = this.getCachedAvailableItems();
-        for (IAEItemStack stack : snapshot) {
-            out.addStorage(stack.copy());
+    public IItemList<StackType> getAvailableItems(IItemList<StackType> out, int iteration) {
+        IItemList<StackType> snapshot = this.getCachedAvailableItems();
+        for (StackType stack : snapshot) {
+            out.addStorage((StackType) stack.copy());
         }
         return out;
     }
 
     @Override
     public StorageChannel getChannel() {
-        return StorageChannel.ITEMS;
+        return this.channel;
     }
 
     @Override
@@ -90,14 +93,15 @@ public class ECOHostDomainInventoryHandler implements IMEInventoryHandler<IAEIte
     }
 
     @Override
-    public boolean isPrioritized(IAEItemStack input) {
+    public boolean isPrioritized(StackType input) {
         ECOStorageBackend backend = this.getBackend();
-        return backend != null && input != null && backend.getAmount(ECOAE2KeyConverter.toKey(input)).compareTo(ECOAmount.ZERO) > 0;
+        return backend != null && input != null && input.getChannel() == this.channel
+            && backend.getAmount(ECOAE2KeyConverter.toKey(input)).compareTo(ECOAmount.ZERO) > 0;
     }
 
     @Override
-    public boolean canAccept(IAEItemStack input) {
-        return input != null && input.getChannel() == StorageChannel.ITEMS && this.controller.canUseHostDomainStorage();
+    public boolean canAccept(StackType input) {
+        return input != null && input.getChannel() == this.channel && this.controller.canUseHostDomainStorage();
     }
 
     @Override
@@ -116,7 +120,7 @@ public class ECOHostDomainInventoryHandler implements IMEInventoryHandler<IAEIte
     }
 
     @Override
-    public IMEInventory<IAEItemStack> getInternal() {
+    public IMEInventory<StackType> getInternal() {
         return this;
     }
 
@@ -128,25 +132,32 @@ public class ECOHostDomainInventoryHandler implements IMEInventoryHandler<IAEIte
         return ECOStorageDomainData.get(world).getOrCreateDomain(this.controller.getHostDomainId());
     }
 
-    private IItemList<IAEItemStack> getCachedAvailableItems() {
+    private IItemList<StackType> getCachedAvailableItems() {
         ECOStorageBackend backend = this.getBackend();
         if (backend == null) {
-            return StorageChannel.ITEMS.createList();
+            return this.channel.createList();
         }
         long revision = backend.getRevision();
         if (this.cachedAvailableItems != null && this.cachedRevision == revision) {
             return this.cachedAvailableItems;
         }
-        IItemList<IAEItemStack> out = StorageChannel.ITEMS.createList();
+        IItemList<StackType> out = this.channel.createList();
         for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.snapshot().getEntries().entrySet()) {
-            IAEStack stack = ECOAE2KeyConverter.toItemStack(entry.getKey(), entry.getValue().toLongSaturated());
-            if (stack instanceof IAEItemStack) {
-                out.addStorage((IAEItemStack) stack);
+            StackType stack = this.toAEStack(entry.getKey(), entry.getValue().toLongSaturated());
+            if (stack != null) {
+                out.addStorage(stack);
             }
         }
         this.cachedRevision = revision;
         this.cachedAvailableItems = out;
         return out;
+    }
+
+    private StackType toAEStack(ECOStorageKey key, long amount) {
+        if (this.channel == StorageChannel.ITEMS) {
+            return (StackType) ECOAE2KeyConverter.toItemStack(key, amount);
+        }
+        return (StackType) ECOAE2KeyConverter.toFluidStack(key, amount);
     }
 
     private void markChanged() {
