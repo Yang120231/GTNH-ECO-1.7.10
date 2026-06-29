@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Set;
 
 import appeng.api.networking.crafting.ICraftingGrid;
+import appeng.crafting.CraftingLink;
 import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.NeoECOAE;
@@ -22,6 +23,7 @@ final class ECOComputationCpuBridge {
         }
         detachOwned(clusters, owner);
         clusters.addAll(cpus);
+        addLinks(grid, cpus);
         return true;
     }
 
@@ -36,6 +38,18 @@ final class ECOComputationCpuBridge {
         clusters.removeIf(
             cluster -> cluster instanceof ECOComputationVirtualCpu
                 && ((ECOComputationVirtualCpu) cluster).belongsToPool(owner));
+    }
+
+    private static void addLinks(ICraftingGrid grid, Collection<ECOComputationVirtualCpu> cpus) {
+        if (!(grid instanceof CraftingGridCache)) {
+            return;
+        }
+        CraftingGridCache cache = (CraftingGridCache) grid;
+        for (ECOComputationVirtualCpu cpu : cpus) {
+            if (cpu.getLastCraftingLink() instanceof CraftingLink) {
+                cache.addLink((CraftingLink) cpu.getLastCraftingLink());
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")

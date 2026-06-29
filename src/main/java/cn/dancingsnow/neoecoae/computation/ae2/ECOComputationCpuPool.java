@@ -5,6 +5,10 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraftforge.common.util.Constants;
+
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
@@ -14,9 +18,18 @@ import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
 public final class ECOComputationCpuPool {
 
+    private static final String TAG_VERSION = "EcoComputationCpuPoolVersion";
+    private static final String TAG_NEXT_SERIAL = "NextSerial";
+    private static final String TAG_CPUS = "Cpus";
+    private static final String TAG_SERIAL = "Serial";
+    private static final String TAG_RESERVED_STORAGE = "ReservedStorage";
+    private static final String TAG_RUNTIME = "Runtime";
+    private static final int VERSION = 1;
+
     private final TileECOInterface host;
     private final List<ECOComputationVirtualCpu> cpus = new ArrayList<ECOComputationVirtualCpu>();
     private final List<ECOComputationVirtualCpu> pendingRelease = new ArrayList<ECOComputationVirtualCpu>();
+    private final List<NBTTagCompound> pendingRestore = new ArrayList<NBTTagCompound>();
 
     private ECOComputationVirtualCpu idleCpu;
     private ICraftingGrid attachedGrid;
@@ -41,6 +54,7 @@ public final class ECOComputationCpuPool {
         this.totalStorage = stats == null ? 0L : stats.totalBytes;
         this.coProcessors = stats == null ? 0 : stats.parallelCount;
 
+        this.restorePendingCpus(grid, active);
         this.removeFinishedCpus();
         long idleStorage = active ? Math.max(0L, this.totalStorage - this.usedReservedStorage()) : 0L;
         this.ensureIdleCpu(idleStorage, active);
@@ -59,6 +73,48 @@ public final class ECOComputationCpuPool {
         this.grid = null;
     }
 
+    public void readFromNBT(NBTTagCompound tag) {
+        this.pendingRestore.clear();
+        this.cpus.clear();
+        this.pendingRelease.clear();
+        this.idleCpu = null;
+        this.nextSerial = Math.max(1, tag.getInteger(TAG_NEXT_SERIAL));
+        if (tag.getInteger(TAG_VERSION) != VERSION) {
+            return;
+        }
+        NBTTagList cpuTags = tag.getTagList(TAG_CPUS, Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < cpuTags.tagCount(); i++) {
+            this.pendingRestore.add(cpuTags.getCompoundTagAt(i));
+        }
+    }
+
+    public void writeToNBT(NBTTagCompound tag) {
+        tag.setInteger(TAG_VERSION, VERSION);
+        tag.setInteger(TAG_NEXT_SERIAL, this.nextSerial);
+        NBTTagList cpuTags = new NBTTagList();
+        for (ECOComputationVirtualCpu cpu : this.cpus) {
+            if (cpu.shouldPersist()) {
+                cpuTags.appendTag(this.writeCpu(cpu));
+            }
+        }
+        for (NBTTagCompound pending : this.pendingRestore) {
+            cpuTags.appendTag((NBTTagCompound) pending.copy());
+        }
+        tag.setTag(TAG_CPUS, cpuTags);
+    }
+
+    public boolean hasPersistentState() {
+        if (!this.pendingRestore.isEmpty()) {
+            return true;
+        }
+        for (ECOComputationVirtualCpu cpu : this.cpus) {
+            if (cpu.shouldPersist()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void shutdown() {
         List<ECOComputationVirtualCpu> snapshot = new ArrayList<ECOComputationVirtualCpu>(this.cpus);
         for (ECOComputationVirtualCpu cpu : snapshot) {
@@ -66,6 +122,7 @@ public final class ECOComputationCpuPool {
         }
         this.cpus.clear();
         this.pendingRelease.clear();
+        this.pendingRestore.clear();
         this.idleCpu = null;
         this.detach();
     }
@@ -142,6 +199,7 @@ public final class ECOComputationCpuPool {
 
     void onCpuJobFinished(ECOComputationVirtualCpu cpu) {
         this.release(cpu);
+        this.host.requestComputationCpuRefresh();
     }
 
     String nameFor(int serial, boolean busy) {
@@ -170,6 +228,22 @@ public final class ECOComputationCpuPool {
                 ECOComputationCpuBridge.sync(this.attachedGrid, this, this.registeredCpus());
             } finally {
                 this.syncing = false;
+            }
+        }
+    }
+
+    private void restorePendingCpus(IGrid grid, boolean active) {
+        if (this.pendingRestore.isEmpty()) {
+            return;
+        }
+        Iterator<NBTTagCompound> iterator = this.pendingRestore.iterator();
+        while (iterator.hasNext()) {
+            NBTTagCompound cpuTag = iterator.next();
+            ECOComputationVirtualCpu cpu = this.readCpu(cpuTag, grid, active);
+            iterator.remove();
+            if (cpu != null) {
+                this.cpus.add(cpu);
+                this.nextSerial = Math.max(this.nextSerial, cpu.serial() + 1);
             }
         }
     }
@@ -207,6 +281,29 @@ public final class ECOComputationCpuPool {
 
     private boolean isPendingRelease(ECOComputationVirtualCpu cpu) {
         return this.pendingRelease.contains(cpu);
+    }
+
+    private NBTTagCompound writeCpu(ECOComputationVirtualCpu cpu) {
+        NBTTagCompound cpuTag = new NBTTagCompound();
+        cpuTag.setInteger(TAG_SERIAL, cpu.serial());
+        cpuTag.setLong(TAG_RESERVED_STORAGE, cpu.reservedStorage());
+        cpuTag.setTag(TAG_RUNTIME, cpu.writeRuntimeNBT());
+        return cpuTag;
+    }
+
+    private ECOComputationVirtualCpu readCpu(NBTTagCompound cpuTag, IGrid grid, boolean active) {
+        if (!cpuTag.hasKey(TAG_RUNTIME, Constants.NBT.TAG_COMPOUND)) {
+            return null;
+        }
+        int serial = Math.max(1, cpuTag.getInteger(TAG_SERIAL));
+        long reservedStorage = Math.max(0L, cpuTag.getLong(TAG_RESERVED_STORAGE));
+        if (reservedStorage <= 0L) {
+            return null;
+        }
+        ECOComputationVirtualCpu cpu = new ECOComputationVirtualCpu(this, this.host, serial);
+        boolean restored = cpu
+            .restoreFromNBT(cpuTag.getCompoundTag(TAG_RUNTIME), reservedStorage, this.coProcessors, grid, active);
+        return restored ? cpu : null;
     }
 
     private long usedReservedStorage() {

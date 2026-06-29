@@ -3,6 +3,8 @@ package cn.dancingsnow.neoecoae.computation.ae2;
 import java.util.Collections;
 import java.util.Iterator;
 
+import net.minecraft.nbt.NBTTagCompound;
+
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.crafting.ICraftingJob;
@@ -60,8 +62,18 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         return this.reservedStorage;
     }
 
+    int serial() {
+        return this.serial;
+    }
+
     long usedStorageForDisplay() {
         return this.isBusy() ? this.getUsedStorage() : 0L;
+    }
+
+    boolean shouldPersist() {
+        return !this.released && (this.isBusy() || this.getLastCraftingLink() != null
+            || this.getUsedStorage() > 0L
+            || !this.inventory.isEmpty());
     }
 
     ComputationTaskInfo taskEntry() {
@@ -75,6 +87,30 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     void updateGrid(IGrid grid, boolean active) {
         this.grid = grid;
         this.active = active;
+    }
+
+    boolean restoreFromNBT(NBTTagCompound data, long reservedStorage, int coProcessors, IGrid grid, boolean active) {
+        this.reservedStorage = Math.max(0L, reservedStorage);
+        this.availableStorage = this.reservedStorage;
+        this.coProcessors = Math.max(0, coProcessors);
+        this.accelerator = this.coProcessors;
+        this.grid = grid;
+        this.active = active;
+        this.released = false;
+        this.machineSrc = new MachineSource(this.host);
+        try {
+            super.readFromNBT(data);
+        } catch (RuntimeException e) {
+            return false;
+        }
+        this.myName = this.pool.nameFor(this.serial, true);
+        return this.shouldPersist();
+    }
+
+    NBTTagCompound writeRuntimeNBT() {
+        NBTTagCompound data = new NBTTagCompound();
+        super.writeToNBT(data);
+        return data;
     }
 
     @Override
