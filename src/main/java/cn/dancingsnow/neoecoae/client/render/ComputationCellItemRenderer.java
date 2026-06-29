@@ -38,10 +38,8 @@ public class ComputationCellItemRenderer implements IItemRenderer {
         GL11.glPushMatrix();
         applyTransform(type);
         Minecraft.getMinecraft().renderEngine.bindTexture(TextureMap.locationBlocksTexture);
-        EcoModelRenderer.renderItemModel(
-            ComputationCellItemModels.get(cell.getTier()),
-            ModelFacing.NORTH,
-            cell.getModelIcons());
+        EcoModelRenderer
+            .renderItemModel(ComputationCellItemModels.get(cell.getTier()), ModelFacing.NORTH, cell.getModelIcons());
         GL11.glPopMatrix();
     }
 

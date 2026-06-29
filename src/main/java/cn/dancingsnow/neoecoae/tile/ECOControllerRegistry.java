@@ -11,8 +11,7 @@ import net.minecraft.world.World;
 
 final class ECOControllerRegistry {
 
-    private static final WeakHashMap<World, Set<TileECOController>> CONTROLLERS =
-        new WeakHashMap<World, Set<TileECOController>>();
+    private static final WeakHashMap<World, Set<TileECOController>> CONTROLLERS = new WeakHashMap<World, Set<TileECOController>>();
 
     private ECOControllerRegistry() {}
 

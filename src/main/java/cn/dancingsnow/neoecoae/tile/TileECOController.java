@@ -1,8 +1,8 @@
 package cn.dancingsnow.neoecoae.tile;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,14 +21,15 @@ import net.minecraftforge.common.util.Constants;
 import appeng.helpers.IPriorityHost;
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
+import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
+import cn.dancingsnow.neoecoae.gui.computation.ComputationHostStats;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationResult;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationScanner;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOStorageDriveProvider;
-import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageDomainData;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageHostMode;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
@@ -53,6 +54,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private static final String TAG_MEMBER_DISKS = "MemberDiskIds";
     private static final String TAG_MIGRATION_STEPS = "MigrationSteps";
     private static final String TAG_PRIORITY = "Priority";
+    private static final String TAG_COMPUTATION_CPU_MODE = "ComputationCpuMode";
     private static final String TAG_DISK_ID = "DiskId";
     private static final String TAG_STEP = "Step";
     private static final int REQUIRED_INFINITE_COMPONENTS = 64;
@@ -75,6 +77,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private UUID hostDomainId;
     private int storageBackendRevision;
     private int priority;
+    private ComputationCpuSelectionMode computationCpuSelectionMode = ComputationCpuSelectionMode.ANY;
+    private ComputationHostStats computationHostStats = ComputationHostStats.EMPTY;
+    private boolean computationHostStatsDirty = true;
+    private boolean computationInterfaceOnline;
     private final List<UUID> memberDiskIds = new ArrayList<UUID>();
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<UUID, Integer>();
 
@@ -138,6 +144,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     boolean hasOnlineStorageInterface() {
+        return this.hasOnlineInterface(ECOControllerSubsystem.STORAGE);
+    }
+
+    private boolean hasOnlineInterface(ECOControllerSubsystem targetSubsystem) {
         if (this.worldObj == null) {
             return false;
         }
@@ -145,7 +155,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (tile instanceof TileECOInterface) {
                 TileECOInterface ecoInterface = (TileECOInterface) tile;
-                if (ecoInterface.getSubsystem() == ECOControllerSubsystem.STORAGE && ecoInterface.isNetworkOnline()) {
+                if (ecoInterface.getSubsystem() == targetSubsystem && ecoInterface.isNetworkOnline()) {
                     return true;
                 }
             }
@@ -197,6 +207,70 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         this.priority = priority;
         this.onStorageBackendChanged();
+    }
+
+    public ComputationCpuSelectionMode getComputationCpuSelectionMode() {
+        return this.computationCpuSelectionMode;
+    }
+
+    public ComputationHostStats getComputationHostStats() {
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION) {
+            return ComputationHostStats.EMPTY;
+        }
+        if (this.computationHostStatsDirty) {
+            this.refreshComputationHostStats();
+        }
+        return this.computationHostStats;
+    }
+
+    public long getUsedComputationThreads() {
+        return this.collectComputationRuntime().usedThreads;
+    }
+
+    public long getUsedComputationStorageBytes() {
+        return this.collectComputationRuntime().usedStorageBytes;
+    }
+
+    public List<ComputationTaskInfo> getComputationTaskEntries() {
+        return this.collectComputationRuntime().taskEntries;
+    }
+
+    private ComputationRuntime collectComputationRuntime() {
+        ComputationRuntime runtime = new ComputationRuntime();
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION || this.worldObj == null) {
+            return runtime;
+        }
+        Set<ECOFormationBlockPos> visitedInterfaces = new HashSet<ECOFormationBlockPos>();
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            if (!visitedInterfaces.add(pos)) {
+                continue;
+            }
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface) {
+                TileECOInterface ecoInterface = (TileECOInterface) tile;
+                if (ecoInterface.getSubsystem() == ECOControllerSubsystem.COMPUTATION) {
+                    runtime.addThreads(ecoInterface.getComputationActiveThreads());
+                    runtime.addStorageBytes(ecoInterface.getComputationUsedStorageBytes());
+                    runtime.taskEntries.addAll(ecoInterface.getComputationTaskEntries());
+                }
+            }
+        }
+        return runtime;
+    }
+
+    public boolean isComputationHostActive() {
+        return this.subsystem == ECOControllerSubsystem.COMPUTATION && this.formed && this.computationInterfaceOnline;
+    }
+
+    public void cycleComputationCpuSelectionMode() {
+        if (this.worldObj != null && this.worldObj.isRemote) {
+            return;
+        }
+        this.computationCpuSelectionMode = this.computationCpuSelectionMode.next();
+        this.markDirty();
+        if (this.worldObj != null) {
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        }
     }
 
     public void onHostDomainContentChanged() {
@@ -269,7 +343,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public ECOStorageDriveProvider createStorageDriveProvider() {
-        return new ECOStorageDriveProvider(this.worldObj, this.formed ? this.formedMemberBlocks : new ArrayList<ECOFormationBlockPos>(), this);
+        return new ECOStorageDriveProvider(
+            this.worldObj,
+            this.formed ? this.formedMemberBlocks : new ArrayList<ECOFormationBlockPos>(),
+            this);
     }
 
     public int getStorageBackendRevision() {
@@ -302,6 +379,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             this.clearFormationVisibility();
         }
         this.setFormed(result.isFormed());
+        this.refreshComputationHostDisplayState(change.stateChanged);
         this.updateHostStorageState();
         this.syncFormationChange(change);
     }
@@ -349,6 +427,38 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         this.formedMemberBlocks.clear();
         this.formedMemberBlocks.addAll(newFormedMemberBlocks);
+        this.computationHostStatsDirty = true;
+    }
+
+    private void refreshComputationHostDisplayState(boolean forceStatsRefresh) {
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION) {
+            this.computationHostStats = ComputationHostStats.EMPTY;
+            this.computationHostStatsDirty = false;
+            this.computationInterfaceOnline = false;
+            return;
+        }
+        if (forceStatsRefresh || this.computationHostStatsDirty) {
+            this.refreshComputationHostStats();
+        }
+        this.refreshComputationInterfaceOnline();
+    }
+
+    private void refreshComputationHostStats() {
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION || !this.formed) {
+            this.computationHostStats = ComputationHostStats.EMPTY;
+            this.computationHostStatsDirty = false;
+            return;
+        }
+        this.computationHostStats = ComputationHostStats.create(this, this.formedMemberBlocks);
+        this.computationHostStatsDirty = false;
+    }
+
+    private void refreshComputationInterfaceOnline() {
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION || !this.formed) {
+            this.computationInterfaceOnline = false;
+            return;
+        }
+        this.computationInterfaceOnline = this.hasOnlineInterface(ECOControllerSubsystem.COMPUTATION);
     }
 
     private void updateHostStorageState() {
@@ -374,8 +484,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private boolean isInfiniteUnlockConfigured() {
-        return this.subsystem == ECOControllerSubsystem.STORAGE
-            && this.tier == ECOControllerTier.L9
+        return this.subsystem == ECOControllerSubsystem.STORAGE && this.tier == ECOControllerTier.L9
             && this.getInfiniteStorageComponentCount() >= REQUIRED_INFINITE_COMPONENTS
             && this.formedMemberBlocks.size() >= REQUIRED_INFINITE_DRIVES
             && this.areAllFormedDrivesL9Matrices();
@@ -437,7 +546,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private boolean resumeInfiniteMigration() {
-        if (this.worldObj == null || this.worldObj.isRemote || this.hostDomainId == null
+        if (this.worldObj == null || this.worldObj.isRemote
+            || this.hostDomainId == null
             || this.hostMode != ECOStorageHostMode.MIGRATING_TO_INFINITE) {
             return false;
         }
@@ -451,7 +561,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                 return changed;
             }
             ItemStack stack = drive.getCellStack();
-            int step = this.migrationSteps.containsKey(diskId) ? this.migrationSteps.get(diskId).intValue() : MIGRATION_NOT_STARTED;
+            int step = this.migrationSteps.containsKey(diskId) ? this.migrationSteps.get(diskId)
+                .intValue() : MIGRATION_NOT_STARTED;
             if (step < MIGRATION_COPYING) {
                 this.setMigrationStep(diskId, MIGRATION_COPYING);
                 changed = true;
@@ -475,8 +586,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         boolean complete = !this.memberDiskIds.isEmpty();
         for (UUID diskId : this.memberDiskIds) {
-            if (!this.migrationSteps.containsKey(diskId)
-                || this.migrationSteps.get(diskId).intValue() != MIGRATION_BOUND_AS_MEMBER) {
+            if (!this.migrationSteps.containsKey(diskId) || this.migrationSteps.get(diskId)
+                .intValue() != MIGRATION_BOUND_AS_MEMBER) {
                 complete = false;
                 break;
             }
@@ -529,11 +640,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private boolean canExitInfiniteMode() {
-        if (this.worldObj == null || this.hostDomainId == null || this.hostMode != ECOStorageHostMode.FORMED_INFINITE
+        if (this.worldObj == null || this.hostDomainId == null
+            || this.hostMode != ECOStorageHostMode.FORMED_INFINITE
             || !this.formed) {
             return false;
         }
-        if (!ECOStorageDomainData.get(this.worldObj).isDomainEmpty(this.hostDomainId)) {
+        if (!ECOStorageDomainData.get(this.worldObj)
+            .isDomainEmpty(this.hostDomainId)) {
             return false;
         }
         for (UUID diskId : this.memberDiskIds) {
@@ -580,7 +693,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                 drive.markDirty();
             }
         }
-        ECOStorageDomainData.get(this.worldObj).removeDomain(this.hostDomainId);
+        ECOStorageDomainData.get(this.worldObj)
+            .removeDomain(this.hostDomainId);
         this.hostDomainId = null;
         this.memberDiskIds.clear();
         this.migrationSteps.clear();
@@ -602,9 +716,12 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private static boolean isL9StorageMatrix(ItemStack stack) {
-        return stack != null && "256M".equals(ECOStorageCellAccess.readTier(stack, stack.getItem() instanceof NEStorageItems.ECOStorageCellItem
-            ? ((NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
-            : ""));
+        return stack != null && "256M".equals(
+            ECOStorageCellAccess.readTier(
+                stack,
+                stack.getItem() instanceof NEStorageItems.ECOStorageCellItem
+                    ? ((NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
+                    : ""));
     }
 
     public int getFacingMeta() {
@@ -638,8 +755,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (!this.canTakeInfiniteStorageComponent()) {
             return null;
         }
-        boolean shouldExitInfiniteMode = this.worldObj == null || !this.worldObj.isRemote
-            ? this.hasInfiniteModeState()
+        boolean shouldExitInfiniteMode = this.worldObj == null || !this.worldObj.isRemote ? this.hasInfiniteModeState()
             : false;
         ItemStack removed;
         if (this.infiniteStorageComponent.stackSize <= amount) {
@@ -666,8 +782,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (!this.canTakeInfiniteStorageComponent()) {
             return null;
         }
-        boolean shouldExitInfiniteMode = this.worldObj == null || !this.worldObj.isRemote
-            ? this.hasInfiniteModeState()
+        boolean shouldExitInfiniteMode = this.worldObj == null || !this.worldObj.isRemote ? this.hasInfiniteModeState()
             : false;
         ItemStack stack = this.infiniteStorageComponent.copy();
         this.infiniteStorageComponent = null;
@@ -689,7 +804,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             return;
         }
         this.infiniteStorageComponent = stack;
-        if (this.infiniteStorageComponent != null && this.infiniteStorageComponent.stackSize > this.getInventoryStackLimit()) {
+        if (this.infiniteStorageComponent != null
+            && this.infiniteStorageComponent.stackSize > this.getInventoryStackLimit()) {
             this.infiniteStorageComponent.stackSize = this.getInventoryStackLimit();
         }
         if (removingInfiniteComponent) {
@@ -784,6 +900,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         tag.setInteger(TAG_FACING_META, this.facingMeta);
         tag.setString(TAG_HOST_MODE, this.hostMode.getId());
         tag.setInteger(TAG_PRIORITY, this.priority);
+        tag.setInteger(TAG_COMPUTATION_CPU_MODE, this.computationCpuSelectionMode.ordinal());
         if (this.hostDomainId != null) {
             tag.setString(TAG_HOST_DOMAIN_ID, this.hostDomainId.toString());
         }
@@ -812,8 +929,14 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         NBTTagList migrationTag = new NBTTagList();
         for (Map.Entry<UUID, Integer> entry : this.migrationSteps.entrySet()) {
             NBTTagCompound stepTag = new NBTTagCompound();
-            stepTag.setString(TAG_DISK_ID, entry.getKey().toString());
-            stepTag.setInteger(TAG_STEP, entry.getValue().intValue());
+            stepTag.setString(
+                TAG_DISK_ID,
+                entry.getKey()
+                    .toString());
+            stepTag.setInteger(
+                TAG_STEP,
+                entry.getValue()
+                    .intValue());
             migrationTag.appendTag(stepTag);
         }
         tag.setTag(TAG_MIGRATION_STEPS, migrationTag);
@@ -829,6 +952,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.facingMeta = tag.getInteger(TAG_FACING_META) & 3;
         this.hostMode = ECOStorageHostMode.fromId(tag.getString(TAG_HOST_MODE));
         this.priority = tag.getInteger(TAG_PRIORITY);
+        this.computationCpuSelectionMode = ComputationCpuSelectionMode
+            .fromOrdinal(tag.getInteger(TAG_COMPUTATION_CPU_MODE));
         this.hostDomainId = tag.hasKey(TAG_HOST_DOMAIN_ID) ? readUuid(tag.getString(TAG_HOST_DOMAIN_ID)) : null;
         this.infiniteStorageComponent = tag.hasKey(TAG_INFINITE_COMPONENT)
             ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_INFINITE_COMPONENT))
@@ -838,7 +963,9 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.memberDiskIds.clear();
         NBTTagList memberDiskTag = tag.getTagList(TAG_MEMBER_DISKS, Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < memberDiskTag.tagCount(); i++) {
-            UUID diskId = readUuid(memberDiskTag.getCompoundTagAt(i).getString(TAG_DISK_ID));
+            UUID diskId = readUuid(
+                memberDiskTag.getCompoundTagAt(i)
+                    .getString(TAG_DISK_ID));
             if (diskId != null) {
                 this.memberDiskIds.add(diskId);
             }
@@ -876,6 +1003,21 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return leftSet.equals(rightSet);
     }
 
+    private static final class ComputationRuntime {
+
+        private long usedThreads;
+        private long usedStorageBytes;
+        private final List<ComputationTaskInfo> taskEntries = new ArrayList<ComputationTaskInfo>();
+
+        private void addThreads(long value) {
+            this.usedThreads = saturatingAdd(this.usedThreads, value);
+        }
+
+        private void addStorageBytes(long value) {
+            this.usedStorageBytes = saturatingAdd(this.usedStorageBytes, value);
+        }
+    }
+
     private static final class FormationChange {
 
         private final boolean stateChanged;
@@ -885,6 +1027,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             this.stateChanged = stateChanged;
             this.mirroredChanged = mirroredChanged;
         }
+    }
+
+    private static long saturatingAdd(long left, long right) {
+        if (right <= 0L) {
+            return left;
+        }
+        return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
     }
 
     @Override

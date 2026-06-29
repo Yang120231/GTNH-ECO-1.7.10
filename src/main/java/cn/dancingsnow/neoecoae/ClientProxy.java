@@ -1,7 +1,7 @@
 package cn.dancingsnow.neoecoae;
 
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.MinecraftForgeClient;
+import net.minecraftforge.common.MinecraftForge;
 
 import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
@@ -11,8 +11,8 @@ import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.ClientEventHandler;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOComputationController;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOCraftingController;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOStoragePriority;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageController;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOStoragePriority;
 import cn.dancingsnow.neoecoae.client.render.ComputationCellItemModels;
 import cn.dancingsnow.neoecoae.client.render.ComputationCellItemRenderer;
 import cn.dancingsnow.neoecoae.client.render.DriveModels;

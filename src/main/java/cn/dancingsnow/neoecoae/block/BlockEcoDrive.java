@@ -8,8 +8,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.world.World;
 import net.minecraft.world.Explosion;
+import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
@@ -69,7 +69,8 @@ public class BlockEcoDrive extends BlockModelDrive {
 
         TileECODrive drive = (TileECODrive) tile;
         ItemStack held = player.getHeldItem();
-        if (drive.getCellStack() == null && held != null && held.getItem() instanceof cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem) {
+        if (drive.getCellStack() == null && held != null
+            && held.getItem() instanceof cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem) {
             if (!world.isRemote) {
                 if (!drive.isItemValidForSlot(0, held)) {
                     return true;

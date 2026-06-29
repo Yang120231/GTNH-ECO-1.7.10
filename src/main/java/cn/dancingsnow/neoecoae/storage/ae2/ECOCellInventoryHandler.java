@@ -11,8 +11,6 @@ import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.StorageChannel;
-import appeng.api.storage.data.IAEFluidStack;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
@@ -49,7 +47,8 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
             return input;
         }
         ECOAmount requested = ECOAmount.of(input.getStackSize());
-        ECOAmount inserted = this.backend.insert(ECOAE2KeyConverter.toKey(input), requested, type == Actionable.SIMULATE);
+        ECOAmount inserted = this.backend
+            .insert(ECOAE2KeyConverter.toKey(input), requested, type == Actionable.SIMULATE);
         if (inserted.isZero()) {
             return input;
         }
@@ -57,8 +56,9 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
             this.saveChanges();
         }
         long remaining = input.getStackSize() - inserted.toLongSaturated();
-        return remaining <= 0L ? null : (StackType) input.copy()
-            .setStackSize(remaining);
+        return remaining <= 0L ? null
+            : (StackType) input.copy()
+                .setStackSize(remaining);
     }
 
     @Override

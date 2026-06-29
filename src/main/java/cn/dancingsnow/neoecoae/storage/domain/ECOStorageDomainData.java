@@ -1,7 +1,7 @@
 package cn.dancingsnow.neoecoae.storage.domain;
 
-import java.util.LinkedHashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -13,8 +13,8 @@ import net.minecraft.world.WorldSavedData;
 import net.minecraftforge.common.util.Constants;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.storage.core.ECOCapacityPolicy;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
+import cn.dancingsnow.neoecoae.storage.core.ECOCapacityPolicy;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageSnapshot;
@@ -36,7 +36,8 @@ public class ECOStorageDomainData extends WorldSavedData {
     }
 
     public static ECOStorageDomainData get(World world) {
-        ECOStorageDomainData data = (ECOStorageDomainData) world.perWorldStorage.loadData(ECOStorageDomainData.class, DATA_NAME);
+        ECOStorageDomainData data = (ECOStorageDomainData) world.perWorldStorage
+            .loadData(ECOStorageDomainData.class, DATA_NAME);
         if (data == null) {
             data = new ECOStorageDomainData();
             world.perWorldStorage.setData(DATA_NAME, data);
@@ -85,7 +86,8 @@ public class ECOStorageDomainData extends WorldSavedData {
             return;
         }
         ECOStorageBackend domain = this.getOrCreateDomain(domainId);
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : source.getEntriesView().entrySet()) {
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : source.getEntriesView()
+            .entrySet()) {
             domain.insert(entry.getKey(), entry.getValue(), false);
         }
         committed.add(diskId);
@@ -114,7 +116,9 @@ public class ECOStorageDomainData extends WorldSavedData {
             NBTTagList committedTag = domainTag.getTagList("committedSources", Constants.NBT.TAG_COMPOUND);
             Set<UUID> committed = new HashSet<UUID>();
             for (int j = 0; j < committedTag.tagCount(); j++) {
-                UUID diskId = readUuid(committedTag.getCompoundTagAt(j).getString("diskId"));
+                UUID diskId = readUuid(
+                    committedTag.getCompoundTagAt(j)
+                        .getString("diskId"));
                 if (diskId != null) {
                     committed.add(diskId);
                 }
@@ -130,13 +134,18 @@ public class ECOStorageDomainData extends WorldSavedData {
         tag.setInteger("dataVersion", DATA_VERSION);
         NBTTagList list = new NBTTagList();
         for (Map.Entry<UUID, ECOStorageBackend> entry : this.domains.entrySet()) {
-            if (entry.getValue().isEmpty()) {
+            if (entry.getValue()
+                .isEmpty()) {
                 continue;
             }
             NBTTagCompound domainTag = new NBTTagCompound();
-            domainTag.setString("id", entry.getKey().toString());
+            domainTag.setString(
+                "id",
+                entry.getKey()
+                    .toString());
             NBTTagCompound storageTag = new NBTTagCompound();
-            entry.getValue().writeToNBT(storageTag);
+            entry.getValue()
+                .writeToNBT(storageTag);
             domainTag.setTag("storage", storageTag);
             NBTTagList committedTag = new NBTTagList();
             Set<UUID> committed = this.committedSources.get(entry.getKey());

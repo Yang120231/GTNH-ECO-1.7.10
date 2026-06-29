@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import io.netty.buffer.ByteBuf;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -20,6 +19,7 @@ import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMode;
 import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
+import io.netty.buffer.ByteBuf;
 
 public final class StorageHostSnapshot {
 
@@ -58,8 +58,8 @@ public final class StorageHostSnapshot {
     public final List<MatrixCell> matrixCells;
 
     private StorageHostSnapshot(boolean formed, String tier, String hostMode, int infiniteComponentCount,
-        int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes, long totalBytes,
-        long usedTypes, long totalTypes, List<TypeStat> typeStats, List<MatrixCell> matrixCells) {
+        int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes,
+        long totalBytes, long usedTypes, long totalTypes, List<TypeStat> typeStats, List<MatrixCell> matrixCells) {
         this.formed = formed;
         this.tier = tier;
         this.hostMode = hostMode;
@@ -91,9 +91,11 @@ public final class StorageHostSnapshot {
 
         boolean hostDomainStorage = controller.canUseHostDomainStorage();
         if (hostDomainStorage && controller.getWorldObj() != null) {
-            ECOStorageBackend domain = ECOStorageDomainData.get(controller.getWorldObj()).getDomain(controller.getHostDomainId());
+            ECOStorageBackend domain = ECOStorageDomainData.get(controller.getWorldObj())
+                .getDomain(controller.getHostDomainId());
             if (domain != null) {
-                usedBytes = domain.getUsed().toLongSaturated();
+                usedBytes = domain.getUsed()
+                    .toLongSaturated();
                 usedTypes = domain.getTypeCount();
                 addBackendStats(domain, itemStats, fluidStats);
             }
@@ -102,7 +104,9 @@ public final class StorageHostSnapshot {
         MatrixGridLayout layout = MatrixGridLayout.from(controller, positions);
         for (int i = 0; i < positions.size() && cells.size() < MAX_MATRIX_CELLS; i++) {
             ECOFormationBlockPos pos = positions.get(i);
-            TileEntity tile = controller.getWorldObj() == null ? null : controller.getWorldObj().getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            TileEntity tile = controller.getWorldObj() == null ? null
+                : controller.getWorldObj()
+                    .getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             int row = layout.rowFor(pos);
             int column = layout.columnFor(pos);
             MatrixCell cell = MatrixCell.empty(row, column);
@@ -127,8 +131,10 @@ public final class StorageHostSnapshot {
         addStat(stats, fluidStats);
         return new StorageHostSnapshot(
             controller.isFormed(),
-            controller.getTier().name(),
-            controller.getHostMode().getId(),
+            controller.getTier()
+                .name(),
+            controller.getHostMode()
+                .getId(),
             controller.getInfiniteStorageComponentCount(),
             positions.size(),
             controller.getRequiredInfiniteDriveCount(),
@@ -158,12 +164,14 @@ public final class StorageHostSnapshot {
         int typeCount = Math.min(this.typeStats.size(), MAX_TYPE_STATS);
         buf.writeInt(typeCount);
         for (int i = 0; i < typeCount; i++) {
-            this.typeStats.get(i).write(buf);
+            this.typeStats.get(i)
+                .write(buf);
         }
         int cellCount = Math.min(this.matrixCells.size(), MAX_MATRIX_CELLS);
         buf.writeInt(cellCount);
         for (int i = 0; i < cellCount; i++) {
-            this.matrixCells.get(i).write(buf);
+            this.matrixCells.get(i)
+                .write(buf);
         }
     }
 
@@ -227,9 +235,18 @@ public final class StorageHostSnapshot {
 
     private static void addBackendStats(ECOStorageBackend backend, TypeAccumulator itemStats,
         TypeAccumulator fluidStats) {
-        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend.getEntriesView().entrySet()) {
-            TypeAccumulator stats = accumulatorFor(entry.getKey().getChannel(), itemStats, fluidStats);
-            stats.usedBytes = saturatedAdd(stats.usedBytes, entry.getValue().toLongSaturated());
+        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend
+            .getEntriesView()
+            .entrySet()) {
+            TypeAccumulator stats = accumulatorFor(
+                entry.getKey()
+                    .getChannel(),
+                itemStats,
+                fluidStats);
+            stats.usedBytes = saturatedAdd(
+                stats.usedBytes,
+                entry.getValue()
+                    .toLongSaturated());
             stats.usedTypes = saturatedAdd(stats.usedTypes, 1L);
         }
     }
@@ -240,15 +257,17 @@ public final class StorageHostSnapshot {
     }
 
     private static void addStat(List<TypeStat> stats, TypeAccumulator accumulator) {
-        if (accumulator.usedBytes > 0L || accumulator.totalBytes > 0L || accumulator.usedTypes > 0L
+        if (accumulator.usedBytes > 0L || accumulator.totalBytes > 0L
+            || accumulator.usedTypes > 0L
             || accumulator.totalTypes > 0L) {
-            stats.add(new TypeStat(
-                accumulator.typeId,
-                accumulator.displayName,
-                accumulator.usedTypes,
-                accumulator.totalTypes,
-                accumulator.usedBytes,
-                accumulator.totalBytes));
+            stats.add(
+                new TypeStat(
+                    accumulator.typeId,
+                    accumulator.displayName,
+                    accumulator.usedTypes,
+                    accumulator.totalTypes,
+                    accumulator.usedBytes,
+                    accumulator.totalBytes));
         }
     }
 
@@ -302,11 +321,13 @@ public final class StorageHostSnapshot {
                 return empty();
             }
             IECOStorageMatrixItem matrix = (IECOStorageMatrixItem) stack.getItem();
-            String fallbackTier = stack.getItem() instanceof cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem
-                ? ((cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
-                : "";
+            String fallbackTier = stack
+                .getItem() instanceof cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem
+                    ? ((cn.dancingsnow.neoecoae.all.NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
+                    : "";
             String tier = ECOStorageCellAccess.readTier(stack, fallbackTier);
-            String mode = ECOStorageCellMetadata.getMode(stack).getId();
+            String mode = ECOStorageCellMetadata.getMode(stack)
+                .getId();
             long totalBytes = matrix.getDisplayBytes(stack);
             long totalTypes = 0L;
             boolean nonPortable = ECOStorageCellMetadata.hasNonPortableState(stack);
@@ -328,7 +349,8 @@ public final class StorageHostSnapshot {
                 tier,
                 mode,
                 false,
-                backend.getUsed().toLongSaturated(),
+                backend.getUsed()
+                    .toLongSaturated(),
                 totalBytes,
                 backend.getTypeCount(),
                 totalTypes,
@@ -433,7 +455,8 @@ public final class StorageHostSnapshot {
         public final long usedBytes;
         public final long totalBytes;
 
-        public TypeStat(String typeId, String displayName, long usedTypes, long totalTypes, long usedBytes, long totalBytes) {
+        public TypeStat(String typeId, String displayName, long usedTypes, long totalTypes, long usedBytes,
+            long totalBytes) {
             this.typeId = typeId;
             this.displayName = displayName;
             this.usedTypes = usedTypes;
@@ -452,8 +475,13 @@ public final class StorageHostSnapshot {
         }
 
         private static TypeStat read(ByteBuf buf) {
-            return new TypeStat(readString(buf), readString(buf), safeLong(buf.readLong()), safeLong(buf.readLong()),
-                safeLong(buf.readLong()), safeLong(buf.readLong()));
+            return new TypeStat(
+                readString(buf),
+                readString(buf),
+                safeLong(buf.readLong()),
+                safeLong(buf.readLong()),
+                safeLong(buf.readLong()),
+                safeLong(buf.readLong()));
         }
     }
 

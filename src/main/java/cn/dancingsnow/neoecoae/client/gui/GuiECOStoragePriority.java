@@ -25,8 +25,8 @@ public class GuiECOStoragePriority extends GuiPriority {
     @Override
     public void initGui() {
         super.initGui();
-        this.storageButton = StoragePriorityTabs.storageButton(this.controller, this.guiLeft, this.guiTop, this.xSize,
-            this.itemRender);
+        this.storageButton = StoragePriorityTabs
+            .storageButton(this.controller, this.guiLeft, this.guiTop, this.xSize, this.itemRender);
         this.buttonList.add(this.storageButton);
     }
 

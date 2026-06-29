@@ -1,7 +1,6 @@
 package cn.dancingsnow.neoecoae.block;
 
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.World;
 
@@ -38,8 +37,7 @@ final class ECOStorageStructureRemovalGuard {
                 continue;
             }
             TileECOController controller = (TileECOController) tile;
-            if (controller.getSubsystem() == ECOControllerSubsystem.STORAGE
-                && controller.protectsWorldPosition(x, y, z)
+            if (controller.getSubsystem() == ECOControllerSubsystem.STORAGE && controller.protectsWorldPosition(x, y, z)
                 && !isSafelyRemovableController(controller, x, y, z)) {
                 return controller;
             }
@@ -48,7 +46,8 @@ final class ECOStorageStructureRemovalGuard {
     }
 
     private static boolean isSafelyRemovableController(TileECOController controller, int x, int y, int z) {
-        return controller.xCoord == x && controller.yCoord == y && controller.zCoord == z
+        return controller.xCoord == x && controller.yCoord == y
+            && controller.zCoord == z
             && controller.canRemoveFromWorld();
     }
 }

@@ -33,8 +33,8 @@ public final class ComputationCellItemModels {
         model = new BakedEcoModel(
             ModernModelLoader.loadModel(new ResourceLocation(NeoECOAE.MODID, "models/item/" + modelName + ".json"), 0));
         MODELS.put(modelName, model);
-        NeoECOAE.LOG.debug("Loaded ECO computation cell item model {} with {} quads", modelName,
-            model.getMaxQuadCount());
+        NeoECOAE.LOG
+            .debug("Loaded ECO computation cell item model {} with {} quads", modelName, model.getMaxQuadCount());
         return model;
     }
 

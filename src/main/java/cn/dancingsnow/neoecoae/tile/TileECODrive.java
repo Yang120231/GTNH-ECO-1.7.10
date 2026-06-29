@@ -11,9 +11,9 @@ import net.minecraft.tileentity.TileEntity;
 
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
-import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata;
+import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 
 public class TileECODrive extends TileEntity implements IInventory {
 
@@ -170,13 +170,13 @@ public class TileECODrive extends TileEntity implements IInventory {
             return false;
         }
         TileECOController controller = this.findController();
-        return controller == null ? !ECOStorageCellMetadata.hasNonPortableState(stack) : controller.canAcceptDriveCell(stack);
+        return controller == null ? !ECOStorageCellMetadata.hasNonPortableState(stack)
+            : controller.canAcceptDriveCell(stack);
     }
 
     public boolean canExtractCellStack() {
         TileECOController controller = this.findController();
-        return controller == null
-            ? !ECOStorageCellMetadata.hasNonPortableState(this.cellStack)
+        return controller == null ? !ECOStorageCellMetadata.hasNonPortableState(this.cellStack)
             : controller.canExtractDriveCell(this);
     }
 
@@ -286,7 +286,8 @@ public class TileECODrive extends TileEntity implements IInventory {
             return LED_LOW;
         }
         ECOStorageBackend backend = ECOStorageCellAccess.load(this.cellStack);
-        long used = backend.getUsed().toLongSaturated();
+        long used = backend.getUsed()
+            .toLongSaturated();
         if (used >= total) {
             return LED_FULL;
         }

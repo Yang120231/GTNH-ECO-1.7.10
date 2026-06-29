@@ -16,9 +16,16 @@ public final class NENetwork {
         if (registered) {
             return;
         }
+        ServerMainThreadScheduler.register();
         int id = 0;
         CHANNEL.registerMessage(HostUiStatePacket.Handler.class, HostUiStatePacket.class, id++, Side.CLIENT);
-        CHANNEL.registerMessage(PacketStorageHostAction.Handler.class, PacketStorageHostAction.class, id++, Side.SERVER);
+        CHANNEL
+            .registerMessage(PacketStorageHostAction.Handler.class, PacketStorageHostAction.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(
+            PacketComputationHostAction.Handler.class,
+            PacketComputationHostAction.class,
+            id++,
+            Side.SERVER);
         registered = true;
     }
 }

@@ -50,8 +50,8 @@ public final class ComputationDriveRenderModels {
             ModernModelLoader.loadBlockModel(modelName),
             (vertex, facing) -> transformCableVertex(vertex, facing, connected, lowerDrive));
         CABLE_MODELS.put(cacheKey, model);
-        NeoECOAE.LOG.debug("Loaded ECO computation drive cable model {} with {} quads", cacheKey,
-            model.getMaxQuadCount());
+        NeoECOAE.LOG
+            .debug("Loaded ECO computation drive cable model {} with {} quads", cacheKey, model.getMaxQuadCount());
         return model;
     }
 
@@ -70,9 +70,7 @@ public final class ComputationDriveRenderModels {
 
     private static double[] transformDriveInteriorVertex(double[] vertex, ModelFacing facing) {
         double[] rotated = rotateAroundOriginY(vertex, facing);
-        return new double[] {
-            rotated[0] + 0.5D + 0.25D * facing.getDirection().offsetX,
-            rotated[1] + 0.5D,
+        return new double[] { rotated[0] + 0.5D + 0.25D * facing.getDirection().offsetX, rotated[1] + 0.5D,
             rotated[2] + 0.5D + 0.25D * facing.getDirection().offsetZ };
     }
 

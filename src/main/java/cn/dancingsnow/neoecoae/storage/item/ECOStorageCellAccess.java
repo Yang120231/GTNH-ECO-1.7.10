@@ -20,8 +20,9 @@ public final class ECOStorageCellAccess {
         if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
             return backend;
         }
-        if (stack != null && stack.hasTagCompound() && stack.getTagCompound()
-            .hasKey(TAG_STORAGE)) {
+        if (stack != null && stack.hasTagCompound()
+            && stack.getTagCompound()
+                .hasKey(TAG_STORAGE)) {
             backend.readFromNBT(
                 stack.getTagCompound()
                     .getCompoundTag(TAG_STORAGE));
@@ -34,7 +35,11 @@ public final class ECOStorageCellAccess {
             return;
         }
         if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
-            ECOStorageCellMetadata.writeSummary(stack, backend.getUsed().toLongSaturated(), backend.getTypeCount());
+            ECOStorageCellMetadata.writeSummary(
+                stack,
+                backend.getUsed()
+                    .toLongSaturated(),
+                backend.getTypeCount());
             return;
         }
         NBTTagCompound root = stack.getTagCompound();
@@ -51,7 +56,8 @@ public final class ECOStorageCellAccess {
         if (stack == null || stack.getTagCompound() == null) {
             return;
         }
-        stack.getTagCompound().removeTag(TAG_STORAGE);
+        stack.getTagCompound()
+            .removeTag(TAG_STORAGE);
     }
 
     public static ECOCapacityPolicy capacityFor(ItemStack stack) {
@@ -75,8 +81,9 @@ public final class ECOStorageCellAccess {
     }
 
     public static String readTier(ItemStack stack, String fallback) {
-        if (stack != null && stack.hasTagCompound() && stack.getTagCompound()
-            .hasKey(TAG_TIER)) {
+        if (stack != null && stack.hasTagCompound()
+            && stack.getTagCompound()
+                .hasKey(TAG_TIER)) {
             return stack.getTagCompound()
                 .getString(TAG_TIER);
         }
@@ -84,8 +91,9 @@ public final class ECOStorageCellAccess {
     }
 
     public static String readChannel(ItemStack stack, String fallback) {
-        if (stack != null && stack.hasTagCompound() && stack.getTagCompound()
-            .hasKey(TAG_CHANNEL)) {
+        if (stack != null && stack.hasTagCompound()
+            && stack.getTagCompound()
+                .hasKey(TAG_CHANNEL)) {
             return stack.getTagCompound()
                 .getString(TAG_CHANNEL);
         }

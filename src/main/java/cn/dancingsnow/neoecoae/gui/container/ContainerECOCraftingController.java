@@ -36,7 +36,8 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
     @Override
     protected void writeHostUiState(ByteBuf buffer) {
         buffer.writeByte(STATE_VERSION);
-        SimpleHostUiState.create(this.controller).write(buffer);
+        SimpleHostUiState.create(this.controller)
+            .write(buffer);
     }
 
     @Override
@@ -64,7 +65,8 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
             }
         }
         for (int column = 0; column < 9; column++) {
-            this.addSlotToContainer(new Slot(playerInventory, column, layout.inventoryX() + 1 + column * 18, layout.hotbarY() + 1));
+            this.addSlotToContainer(
+                new Slot(playerInventory, column, layout.inventoryX() + 1 + column * 18, layout.hotbarY() + 1));
         }
     }
 }

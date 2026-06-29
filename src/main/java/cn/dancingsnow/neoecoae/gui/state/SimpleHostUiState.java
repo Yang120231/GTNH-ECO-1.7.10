@@ -31,9 +31,12 @@ public final class SimpleHostUiState {
         return new SimpleHostUiState(
             controller.isFormed(),
             controller.isMirrored(),
-            controller.getTier().name(),
-            controller.getSubsystem().getId(),
-            controller.getFormedMemberBlocks().size(),
+            controller.getTier()
+                .name(),
+            controller.getSubsystem()
+                .getId(),
+            controller.getFormedMemberBlocks()
+                .size(),
             controller.getLastFormationMessage());
     }
 

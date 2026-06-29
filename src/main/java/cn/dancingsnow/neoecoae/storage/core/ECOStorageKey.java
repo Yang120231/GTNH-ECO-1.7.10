@@ -41,7 +41,10 @@ public final class ECOStorageKey {
         if (tag == null) {
             throw new IllegalArgumentException("Storage key tag must not be null");
         }
-        return new ECOStorageKey(tag.getString("channel"), tag.getString("identity"), tag.getInteger("metadata"),
+        return new ECOStorageKey(
+            tag.getString("channel"),
+            tag.getString("identity"),
+            tag.getInteger("metadata"),
             tag.getString("variant"));
     }
 
@@ -96,7 +99,8 @@ public final class ECOStorageKey {
             return false;
         }
         ECOStorageKey other = (ECOStorageKey) obj;
-        return this.metadata == other.metadata && this.channel.equals(other.channel) && this.identity.equals(other.identity)
+        return this.metadata == other.metadata && this.channel.equals(other.channel)
+            && this.identity.equals(other.identity)
             && this.variant.equals(other.variant);
     }
 

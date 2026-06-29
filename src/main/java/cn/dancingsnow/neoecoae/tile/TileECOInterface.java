@@ -1,14 +1,19 @@
 package cn.dancingsnow.neoecoae.tile;
 
 import java.util.EnumSet;
+import java.util.List;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.Packet;
+import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.events.MENetworkCellArrayUpdate;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.storage.IStorageGrid;
@@ -21,6 +26,9 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NEBlocks;
+import cn.dancingsnow.neoecoae.block.BlockECOInterface;
+import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.computation.ae2.ECOComputationCpuPool;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
 public class TileECOInterface extends TileEntity implements IGridProxyable, IActionHost, IPriorityHost {
@@ -33,6 +41,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     private TileECOController cachedController;
     private int registeredControllerRevision = -1;
     private boolean networkReady;
+    private final ECOComputationCpuPool computationCpuPool = new ECOComputationCpuPool(this);
 
     public TileECOInterface() {
         this(ECOControllerSubsystem.STORAGE);
@@ -74,6 +83,23 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
             || node != null && node.isActive();
     }
 
+    public boolean isComputationCpuOnline() {
+        return this.subsystem == ECOControllerSubsystem.COMPUTATION && this.isNetworkOnline()
+            && this.findController() != null;
+    }
+
+    long getComputationActiveThreads() {
+        return this.computationCpuPool.activeThreadCount();
+    }
+
+    long getComputationUsedStorageBytes() {
+        return this.computationCpuPool.usedStorageBytes();
+    }
+
+    List<ComputationTaskInfo> getComputationTaskEntries() {
+        return this.computationCpuPool.taskEntries();
+    }
+
     @Override
     public AENetworkProxy getProxy() {
         return this.proxy;
@@ -104,7 +130,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
 
     @Override
     public void gridChanged() {
-        this.refreshBackendRegistration();
+        this.refreshSubsystemRegistration();
     }
 
     @Override
@@ -116,6 +142,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     @Override
     public void invalidate() {
         this.unregisterStorageProvider();
+        this.shutdownComputationCpus();
         this.proxy.invalidate();
         super.invalidate();
     }
@@ -123,6 +150,7 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
     @Override
     public void onChunkUnload() {
         this.unregisterStorageProvider();
+        this.shutdownComputationCpus();
         this.proxy.onChunkUnload();
         super.onChunkUnload();
     }
@@ -132,20 +160,23 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
         if (this.worldObj == null || this.worldObj.isRemote) {
             return;
         }
+        this.refreshSubsystemFromBlock();
         if (!this.networkReady) {
             this.proxy.onReady();
             this.networkReady = true;
         }
         if (this.worldObj.getTotalWorldTime() % 20L == 0L) {
-            this.refreshBackendRegistration();
+            this.refreshSubsystemRegistration();
         }
     }
 
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
-        this.subsystem = ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM));
+        this.shutdownComputationCpus();
+        this.setSubsystem(ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM)));
         this.proxy.readFromNBT(tag);
+        this.proxy.setVisualRepresentation(this.interfaceStack());
     }
 
     @Override
@@ -153,6 +184,69 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
         super.writeToNBT(tag);
         tag.setString(TAG_SUBSYSTEM, this.subsystem.getId());
         this.proxy.writeToNBT(tag);
+    }
+
+    @Override
+    public Packet getDescriptionPacket() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString(
+            TAG_SUBSYSTEM,
+            this.currentBlockSubsystem()
+                .getId());
+        return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
+    }
+
+    @Override
+    public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {
+        NBTTagCompound tag = packet.func_148857_g();
+        this.setSubsystem(ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM)));
+        if (this.worldObj != null) {
+            this.worldObj.markBlockRangeForRenderUpdate(
+                this.xCoord,
+                this.yCoord,
+                this.zCoord,
+                this.xCoord,
+                this.yCoord,
+                this.zCoord);
+        }
+    }
+
+    private void refreshSubsystemFromBlock() {
+        this.setSubsystem(this.currentBlockSubsystem());
+    }
+
+    private void refreshSubsystemRegistration() {
+        if (this.subsystem == ECOControllerSubsystem.STORAGE) {
+            this.refreshBackendRegistration();
+        }
+        if (this.subsystem == ECOControllerSubsystem.COMPUTATION) {
+            this.refreshComputationCpuRegistration();
+        }
+    }
+
+    private ECOControllerSubsystem currentBlockSubsystem() {
+        if (this.worldObj != null
+            && this.worldObj.getBlock(this.xCoord, this.yCoord, this.zCoord) instanceof BlockECOInterface) {
+            return ((BlockECOInterface) this.worldObj.getBlock(this.xCoord, this.yCoord, this.zCoord)).getSubsystem();
+        }
+        return this.subsystem;
+    }
+
+    private void setSubsystem(ECOControllerSubsystem subsystem) {
+        ECOControllerSubsystem normalized = subsystem == null ? ECOControllerSubsystem.STORAGE : subsystem;
+        if (this.subsystem == normalized) {
+            this.proxy.setVisualRepresentation(this.interfaceStack());
+            return;
+        }
+        this.unregisterStorageProvider();
+        this.subsystem = normalized;
+        this.proxy.setVisualRepresentation(this.interfaceStack());
+        this.cachedController = null;
+        this.shutdownComputationCpus();
+        if (this.worldObj != null && !this.worldObj.isRemote) {
+            this.markDirty();
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        }
     }
 
     private void refreshBackendRegistration() {
@@ -202,6 +296,37 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
             controller.zCoord);
     }
 
+    private void refreshComputationCpuRegistration() {
+        if (this.subsystem != ECOControllerSubsystem.COMPUTATION) {
+            this.unregisterComputationCpus();
+            return;
+        }
+        TileECOController controller = this.findController();
+        if (controller == null || !controller.isFormed()) {
+            this.unregisterComputationCpus();
+            return;
+        }
+        ICraftingGrid craftingGrid = this.currentCraftingGrid();
+        if (craftingGrid == null) {
+            this.unregisterComputationCpus();
+            return;
+        }
+        IGridNode node = this.proxy.getNode();
+        this.computationCpuPool.refresh(
+            node == null ? null : node.getGrid(),
+            craftingGrid,
+            controller.getComputationHostStats(),
+            node != null && node.isActive());
+    }
+
+    private void unregisterComputationCpus() {
+        this.computationCpuPool.detach();
+    }
+
+    private void shutdownComputationCpus() {
+        this.computationCpuPool.shutdown();
+    }
+
     private void unregisterStorageProvider() {
         if (this.registeredStorageGrid != null && this.registeredCellProvider != null) {
             this.registeredStorageGrid.unregisterCellProvider(this.registeredCellProvider);
@@ -222,12 +347,19 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
         }
     }
 
+    private ICraftingGrid currentCraftingGrid() {
+        try {
+            return this.proxy.getCrafting();
+        } catch (GridAccessException ignored) {
+            return null;
+        }
+    }
+
     private TileECOController findController() {
         if (this.worldObj == null) {
             return null;
         }
-        if (this.cachedController != null
-            && this.cachedController.getWorldObj() == this.worldObj
+        if (this.cachedController != null && this.cachedController.getWorldObj() == this.worldObj
             && this.cachedController.getSubsystem() == this.subsystem
             && this.cachedController.isFormed()) {
             return this.cachedController;
@@ -252,9 +384,9 @@ public class TileECOInterface extends TileEntity implements IGridProxyable, IAct
 
     private void postCellArrayUpdate() {
         try {
-            this.proxy.getGrid().postEvent(new MENetworkCellArrayUpdate());
-        } catch (GridAccessException ignored) {
-        }
+            this.proxy.getGrid()
+                .postEvent(new MENetworkCellArrayUpdate());
+        } catch (GridAccessException ignored) {}
     }
 
     private void refreshDriveOnlineStates(TileECOController controller) {

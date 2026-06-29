@@ -12,8 +12,8 @@ import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.StorageChannel;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.storage.domain.ECOHostDomainInventoryHandler;
-import cn.dancingsnow.neoecoae.tile.TileECODrive;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
+import cn.dancingsnow.neoecoae.tile.TileECODrive;
 
 public class ECOStorageDriveProvider implements ICellProvider {
 
@@ -21,7 +21,8 @@ public class ECOStorageDriveProvider implements ICellProvider {
     private final List<ECOFormationBlockPos> drivePositions;
     private final TileECOController controller;
 
-    public ECOStorageDriveProvider(World world, List<ECOFormationBlockPos> drivePositions, TileECOController controller) {
+    public ECOStorageDriveProvider(World world, List<ECOFormationBlockPos> drivePositions,
+        TileECOController controller) {
         this.world = world;
         this.drivePositions = drivePositions == null ? Collections.<ECOFormationBlockPos>emptyList()
             : new ArrayList<ECOFormationBlockPos>(drivePositions);
@@ -46,11 +47,8 @@ public class ECOStorageDriveProvider implements ICellProvider {
             }
             TileECODrive drive = (TileECODrive) tile;
             ItemStack stack = drive.getCellStack();
-            IMEInventoryHandler handler = ECOCellHandler.INSTANCE.getCellInventory(
-                stack,
-                null,
-                channel,
-                this.getPriority());
+            IMEInventoryHandler handler = ECOCellHandler.INSTANCE
+                .getCellInventory(stack, null, channel, this.getPriority());
             if (handler != null) {
                 handlers.add(handler);
             }

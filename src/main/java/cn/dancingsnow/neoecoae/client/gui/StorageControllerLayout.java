@@ -45,8 +45,7 @@ final class StorageControllerLayout {
     static final int MATRIX_GRID_LABEL_Y = MATRIX_Y + MATRIX_H - 17;
     static final int MATRIX_LEGEND_ROW_H = 8;
     static final int MATRIX_LEGEND_ROW_STEP = 11;
-    static final int MATRIX_LEGEND_TOP = MATRIX_Y
-        + (MATRIX_H - (MATRIX_LEGEND_ROW_STEP * 5 + MATRIX_LEGEND_ROW_H)) / 2;
+    static final int MATRIX_LEGEND_TOP = MATRIX_Y + (MATRIX_H - (MATRIX_LEGEND_ROW_STEP * 5 + MATRIX_LEGEND_ROW_H)) / 2;
     static final int MATRIX_LEGEND_W = MATRIX_X + MATRIX_W - MATRIX_LEGEND_X - 8;
     static final int MATRIX_EMPTY_BORDER = 0xFF1D1A24;
 

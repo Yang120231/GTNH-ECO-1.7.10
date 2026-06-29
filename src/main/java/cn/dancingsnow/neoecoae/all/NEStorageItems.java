@@ -166,7 +166,8 @@ public final class NEStorageItems {
         public void addInformation(ItemStack stack, EntityPlayer player, java.util.List tooltip, boolean advanced) {
             ECOStorageBackend backend = ECOStorageCellAccess.load(stack);
             ECOStorageSnapshot snapshot = backend.snapshot();
-            long used = snapshot.getUsed().toLongSaturated();
+            long used = snapshot.getUsed()
+                .toLongSaturated();
             tooltip.add(
                 colorForUsage(used, this.getDisplayBytes(stack)) + formatAmount(snapshot.getUsed())
                     + EnumChatFormatting.GRAY
@@ -177,7 +178,9 @@ public final class NEStorageItems {
                     + " "
                     + translate("tooltip.neoecoae.storage.bytes_used"));
             tooltip.add(
-                EnumChatFormatting.GREEN + formatLong(snapshot.getTypeCount()) + EnumChatFormatting.GRAY + " "
+                EnumChatFormatting.GREEN + formatLong(snapshot.getTypeCount())
+                    + EnumChatFormatting.GRAY
+                    + " "
                     + translate("tooltip.neoecoae.storage.types"));
             if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
                 tooltip.add(EnumChatFormatting.LIGHT_PURPLE + translate("tooltip.neoecoae.storage.infinite_locked"));
@@ -210,7 +213,8 @@ public final class NEStorageItems {
             long total = this.getDisplayBytes(stack);
             long used;
             try {
-                used = ECOStorageCellAccess.getUsed(stack).toLongSaturated();
+                used = ECOStorageCellAccess.getUsed(stack)
+                    .toLongSaturated();
             } catch (RuntimeException ignored) {
                 return COLOR_LOW;
             }
@@ -263,16 +267,11 @@ public final class NEStorageItems {
         private static final EnumChatFormatting TIER_L6 = EnumChatFormatting.AQUA;
         private static final EnumChatFormatting TIER_L9 = EnumChatFormatting.LIGHT_PURPLE;
         private static final EnumChatFormatting VALUE = EnumChatFormatting.BLUE;
-        private static final String[] MODEL_TEXTURES = {
-            NeoECOAE.MODID + ":block/compute/drive/cell_inside_back",
-            NeoECOAE.MODID + ":block/compute/drive/cell_north_a",
-            NeoECOAE.MODID + ":block/compute/drive/cell_north_b",
-            NeoECOAE.MODID + ":block/compute/drive/cell_north_c",
-            NeoECOAE.MODID + ":block/compute/drive/cell_side_a",
-            NeoECOAE.MODID + ":block/compute/drive/cell_side_b",
-            NeoECOAE.MODID + ":block/compute/drive/cell_side_c",
-            NeoECOAE.MODID + ":block/compute/drive/cell_south",
-            NeoECOAE.MODID + ":block/compute/drive/cell_top" };
+        private static final String[] MODEL_TEXTURES = { NeoECOAE.MODID + ":block/compute/drive/cell_inside_back",
+            NeoECOAE.MODID + ":block/compute/drive/cell_north_a", NeoECOAE.MODID + ":block/compute/drive/cell_north_b",
+            NeoECOAE.MODID + ":block/compute/drive/cell_north_c", NeoECOAE.MODID + ":block/compute/drive/cell_side_a",
+            NeoECOAE.MODID + ":block/compute/drive/cell_side_b", NeoECOAE.MODID + ":block/compute/drive/cell_side_c",
+            NeoECOAE.MODID + ":block/compute/drive/cell_south", NeoECOAE.MODID + ":block/compute/drive/cell_top" };
 
         private final String tier;
         private final long bytes;
@@ -326,8 +325,11 @@ public final class NEStorageItems {
                     + EnumChatFormatting.GRAY
                     + " "
                     + translate("tooltip.neoecoae.computation_cell.bytes"));
-            tooltip.add(tierColor() + this.tier + EnumChatFormatting.GRAY + " "
-                + translate("tooltip.neoecoae.computation_cell.tier"));
+            tooltip.add(
+                tierColor() + this.tier
+                    + EnumChatFormatting.GRAY
+                    + " "
+                    + translate("tooltip.neoecoae.computation_cell.tier"));
             NETooltips.addBlockTooltips(stack, tooltip);
         }
 

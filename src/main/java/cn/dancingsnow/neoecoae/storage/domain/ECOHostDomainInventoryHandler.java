@@ -32,7 +32,8 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
 
     @Override
     public StackType injectItems(StackType input, Actionable type, BaseActionSource src) {
-        if (input == null || input.getStackSize() <= 0L || input.getChannel() != this.channel
+        if (input == null || input.getStackSize() <= 0L
+            || input.getChannel() != this.channel
             || !this.controller.canUseHostDomainStorage()) {
             return input;
         }
@@ -40,8 +41,8 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         if (backend == null) {
             return input;
         }
-        ECOAmount inserted = backend.insert(ECOAE2KeyConverter.toKey(input), ECOAmount.of(input.getStackSize()),
-            type == Actionable.SIMULATE);
+        ECOAmount inserted = backend
+            .insert(ECOAE2KeyConverter.toKey(input), ECOAmount.of(input.getStackSize()), type == Actionable.SIMULATE);
         if (inserted.isZero()) {
             return input;
         }
@@ -49,12 +50,15 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             this.markChanged();
         }
         long remaining = input.getStackSize() - inserted.toLongSaturated();
-        return remaining <= 0L ? null : (StackType) input.copy().setStackSize(remaining);
+        return remaining <= 0L ? null
+            : (StackType) input.copy()
+                .setStackSize(remaining);
     }
 
     @Override
     public StackType extractItems(StackType request, Actionable mode, BaseActionSource src) {
-        if (request == null || request.getStackSize() <= 0L || request.getChannel() != this.channel
+        if (request == null || request.getStackSize() <= 0L
+            || request.getChannel() != this.channel
             || !this.controller.canUseHostDomainStorage()) {
             return null;
         }
@@ -62,7 +66,9 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         if (backend == null) {
             return null;
         }
-        ECOAmount extracted = backend.extract(ECOAE2KeyConverter.toKey(request), ECOAmount.of(request.getStackSize()),
+        ECOAmount extracted = backend.extract(
+            ECOAE2KeyConverter.toKey(request),
+            ECOAmount.of(request.getStackSize()),
             mode == Actionable.SIMULATE);
         if (extracted.isZero()) {
             return null;
@@ -70,7 +76,8 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         if (mode == Actionable.MODULATE) {
             this.markChanged();
         }
-        return (StackType) request.copy().setStackSize(extracted.toLongSaturated());
+        return (StackType) request.copy()
+            .setStackSize(extracted.toLongSaturated());
     }
 
     @Override
@@ -95,8 +102,10 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
     @Override
     public boolean isPrioritized(StackType input) {
         ECOStorageBackend backend = this.getBackend();
-        return backend != null && input != null && input.getChannel() == this.channel
-            && backend.getAmount(ECOAE2KeyConverter.toKey(input)).compareTo(ECOAmount.ZERO) > 0;
+        return backend != null && input != null
+            && input.getChannel() == this.channel
+            && backend.getAmount(ECOAE2KeyConverter.toKey(input))
+                .compareTo(ECOAmount.ZERO) > 0;
     }
 
     @Override
@@ -129,7 +138,8 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         if (world == null || this.controller.getHostDomainId() == null) {
             return null;
         }
-        return ECOStorageDomainData.get(world).getOrCreateDomain(this.controller.getHostDomainId());
+        return ECOStorageDomainData.get(world)
+            .getOrCreateDomain(this.controller.getHostDomainId());
     }
 
     private IItemList<StackType> getCachedAvailableItems() {
@@ -142,8 +152,12 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             return this.cachedAvailableItems;
         }
         IItemList<StackType> out = this.channel.createList();
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesView().entrySet()) {
-            StackType stack = this.toAEStack(entry.getKey(), entry.getValue().toLongSaturated());
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesView()
+            .entrySet()) {
+            StackType stack = this.toAEStack(
+                entry.getKey(),
+                entry.getValue()
+                    .toLongSaturated());
             if (stack != null) {
                 out.addStorage(stack);
             }
@@ -163,7 +177,8 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
     private void markChanged() {
         World world = this.controller.getWorldObj();
         if (world != null) {
-            ECOStorageDomainData.get(world).markDirty();
+            ECOStorageDomainData.get(world)
+                .markDirty();
         }
         this.cachedRevision = Long.MIN_VALUE;
         this.cachedAvailableItems = null;

@@ -24,17 +24,16 @@ public class BakedEcoModel {
     private BakedEcoModel(ModernModel source, double offsetX, double offsetY, double offsetZ,
         boolean modelBoundsAreWorldBoundary) {
         for (ModelFacing facing : ModelFacing.values()) {
-            this.quads
-                .put(
+            this.quads.put(
+                facing,
+                bakeFacing(
+                    source,
                     facing,
-                    bakeFacing(
-                        source,
-                        facing,
-                        offsetX,
-                        offsetY,
-                        offsetZ,
-                        modelBoundsAreWorldBoundary,
-                        IdentityTransform.INSTANCE));
+                    offsetX,
+                    offsetY,
+                    offsetZ,
+                    modelBoundsAreWorldBoundary,
+                    IdentityTransform.INSTANCE));
         }
     }
 
@@ -64,8 +63,8 @@ public class BakedEcoModel {
         return max;
     }
 
-    private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing, double offsetX,
-        double offsetY, double offsetZ, boolean modelBoundsAreWorldBoundary, VertexTransform transform) {
+    private static List<BakedQuad> bakeFacing(ModernModel model, ModelFacing facing, double offsetX, double offsetY,
+        double offsetZ, boolean modelBoundsAreWorldBoundary, VertexTransform transform) {
         List<BakedQuad> bakedQuads = new ArrayList<>();
         ModelBounds bounds = calculateBounds(model, facing, offsetX, offsetY, offsetZ, transform);
         for (ModelElement element : model.getElements()) {
@@ -106,7 +105,8 @@ public class BakedEcoModel {
         double[][] vertices = faceVertices(element, face.getSide());
         double[][] rotatedVertices = new double[4][3];
         for (int i = 0; i < vertices.length; i++) {
-            rotatedVertices[i] = transform.apply(rotateY(offset(vertices[i], offsetX, offsetY, offsetZ), facing), facing);
+            rotatedVertices[i] = transform
+                .apply(rotateY(offset(vertices[i], offsetX, offsetY, offsetZ), facing), facing);
         }
 
         String cullFace = face.getCullFace();
@@ -184,14 +184,30 @@ public class BakedEcoModel {
             double x2 = element.getTo()[0] / 16.0D;
             double y2 = element.getTo()[1] / 16.0D;
             double z2 = element.getTo()[2] / 16.0D;
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y1, z1 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y1, z2 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y1, z1 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y1, z2 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y2, z1 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x1, y2, z2 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y2, z1 }, offsetX, offsetY, offsetZ), facing), facing));
-            bounds.accept(transform.apply(rotateY(offset(new double[] { x2, y2, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x1, y1, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x1, y1, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x2, y1, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x2, y1, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x1, y2, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x1, y2, z2 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x2, y2, z1 }, offsetX, offsetY, offsetZ), facing), facing));
+            bounds.accept(
+                transform
+                    .apply(rotateY(offset(new double[] { x2, y2, z2 }, offsetX, offsetY, offsetZ), facing), facing));
         }
         return bounds;
     }

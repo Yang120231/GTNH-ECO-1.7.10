@@ -1,8 +1,8 @@
 package cn.dancingsnow.neoecoae.storage.core;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Collections;
 
 import net.minecraft.nbt.NBTTagCompound;
 
@@ -120,7 +120,8 @@ public final class ECOStorageBackend {
         ECOStorageCodec.write(tag, this);
     }
 
-    void loadFromCodec(ECOCapacityPolicy capacityPolicy, Map<ECOStorageKey, ECOAmount> entries, ECOAmount used, long revision) {
+    void loadFromCodec(ECOCapacityPolicy capacityPolicy, Map<ECOStorageKey, ECOAmount> entries, ECOAmount used,
+        long revision) {
         ECOCapacityPolicy nextPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
         ECOAmount nextUsed = used == null ? ECOAmount.ZERO : used;
         if (!nextPolicy.canHold(nextUsed)) {

@@ -43,25 +43,68 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         this.drawDarkInsetRect(10, 24, 132, 146);
         this.drawDarkInsetRect(150, 24, 144, 72);
         this.drawDarkInsetRect(150, 104, 144, 66);
-        this.drawPlayerInventorySlots(HostUiLayouts.CRAFTING.inventoryX(), HostUiLayouts.CRAFTING.inventoryY(), HostUiLayouts.CRAFTING.hotbarY());
+        this.drawPlayerInventorySlots(
+            HostUiLayouts.CRAFTING.inventoryX(),
+            HostUiLayouts.CRAFTING.inventoryY(),
+            HostUiLayouts.CRAFTING.hotbarY());
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         SimpleHostUiState state = this.container.state();
         int color = HostUiStyle.tierColor(state.tier);
-        this.drawLocalText(tr("gui.neoecoae.crafting_ui.title", "ECO Crafting Host") + " " + state.tier, 12, 8, HostUiStyle.TEXT_PRIMARY);
-        this.drawLocalRight(state.formed ? yesNo(true) : yesNo(false), this.xSize - 12, 8, state.formed ? HostUiStyle.TEXT_GOOD : HostUiStyle.TEXT_BAD);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.title", "ECO Crafting Host") + " " + state.tier,
+            12,
+            8,
+            HostUiStyle.TEXT_PRIMARY);
+        this.drawLocalRight(
+            state.formed ? yesNo(true) : yesNo(false),
+            this.xSize - 12,
+            8,
+            state.formed ? HostUiStyle.TEXT_GOOD : HostUiStyle.TEXT_BAD);
         this.drawLocalText(tr("gui.neoecoae.host_ui.status", "Status"), 20, 34, HostUiStyle.TEXT_PRIMARY);
-        this.drawLocalText(tr("gui.neoecoae.host_ui.members", "Members") + ": " + state.memberCount, 20, 54, HostUiStyle.TEXT_VALUE);
-        this.drawLocalText(tr("gui.neoecoae.host_ui.mirrored", "Mirrored") + ": " + yesNo(state.mirrored), 20, 68, HostUiStyle.TEXT_MUTED);
-        this.drawUsageBar(20, 92, 102, 10, state.formed ? Math.max(1, state.memberCount) : 0, Math.max(1, state.memberCount), color);
+        this.drawLocalText(
+            tr("gui.neoecoae.host_ui.members", "Members") + ": " + state.memberCount,
+            20,
+            54,
+            HostUiStyle.TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.host_ui.mirrored", "Mirrored") + ": " + yesNo(state.mirrored),
+            20,
+            68,
+            HostUiStyle.TEXT_MUTED);
+        this.drawUsageBar(
+            20,
+            92,
+            102,
+            10,
+            state.formed ? Math.max(1, state.memberCount) : 0,
+            Math.max(1, state.memberCount),
+            color);
         this.drawLocalText(tr("gui.neoecoae.crafting_ui.modules", "Modules"), 158, 34, HostUiStyle.TEXT_PRIMARY);
-        this.drawLocalText(tr("gui.neoecoae.crafting_ui.parallel", "Parallel") + ": 0", 158, 52, HostUiStyle.TEXT_MUTED);
-        this.drawLocalText(tr("gui.neoecoae.crafting_ui.cooling", "Cooling") + ": " + yesNo(false), 158, 66, HostUiStyle.TEXT_MUTED);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.parallel", "Parallel") + ": 0",
+            158,
+            52,
+            HostUiStyle.TEXT_MUTED);
+        this.drawLocalText(
+            tr("gui.neoecoae.crafting_ui.cooling", "Cooling") + ": " + yesNo(false),
+            158,
+            66,
+            HostUiStyle.TEXT_MUTED);
         this.drawLocalText(tr("gui.neoecoae.crafting_ui.tasks", "Crafting Tasks"), 158, 114, HostUiStyle.TEXT_PRIMARY);
-        this.drawLocalCentered(tr("gui.neoecoae.host_ui.no_runtime_data", "Runtime backend not connected yet"), 150, 136, 144, HostUiStyle.TEXT_MUTED);
-        this.drawLocalText(tr("container.inventory", "Inventory"), HostUiLayouts.CRAFTING.inventoryX(), 176, HostUiStyle.TEXT_MUTED);
+        this.drawLocalCentered(
+            tr("gui.neoecoae.host_ui.no_runtime_data", "Runtime backend not connected yet"),
+            150,
+            136,
+            144,
+            HostUiStyle.TEXT_MUTED);
+        this.drawLocalText(
+            tr("container.inventory", "Inventory"),
+            HostUiLayouts.CRAFTING.inventoryX(),
+            176,
+            HostUiStyle.TEXT_MUTED);
         if (this.isMouseIn(10, 24, 132, 146, mouseX, mouseY)) {
             this.hoveredLines = tooltip(state);
         }

@@ -10,8 +10,8 @@ import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.StorageChannel;
-import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata;
+import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 
 public class ECOCellHandler implements ICellHandler {
 
@@ -21,7 +21,8 @@ public class ECOCellHandler implements ICellHandler {
 
     @Override
     public boolean isCell(ItemStack is) {
-        return is != null && is.getItem() instanceof IECOStorageMatrixItem && !ECOStorageCellMetadata.hasNonPortableState(is);
+        return is != null && is.getItem() instanceof IECOStorageMatrixItem
+            && !ECOStorageCellMetadata.hasNonPortableState(is);
     }
 
     @Override
@@ -72,7 +73,9 @@ public class ECOCellHandler implements ICellHandler {
             .isInfinite() ? Long.MAX_VALUE
                 : ecoHandler.getBackend()
                     .getCapacityPolicy()
-                    .getRemaining(ecoHandler.getBackend().getUsed())
+                    .getRemaining(
+                        ecoHandler.getBackend()
+                            .getUsed())
                     .toLongSaturated();
         return remaining > 0L ? 2 : 4;
     }

@@ -20,18 +20,32 @@ public final class ECOStorageCodec {
             throw new IllegalArgumentException("Backend must not be null");
         }
         tag.setInteger("version", CURRENT_VERSION);
-        tag.setTag("capacityPolicy", backend.getCapacityPolicy().writeToNBT());
-        tag.setTag("used", backend.getUsed().writeToNBT());
+        tag.setTag(
+            "capacityPolicy",
+            backend.getCapacityPolicy()
+                .writeToNBT());
+        tag.setTag(
+            "used",
+            backend.getUsed()
+                .writeToNBT());
         tag.setLong("revision", backend.getRevision());
 
         NBTTagList entries = new NBTTagList();
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesForCodec().entrySet()) {
-            if (entry.getValue() == null || entry.getValue().isZero()) {
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesForCodec()
+            .entrySet()) {
+            if (entry.getValue() == null || entry.getValue()
+                .isZero()) {
                 continue;
             }
             NBTTagCompound entryTag = new NBTTagCompound();
-            entryTag.setTag("key", entry.getKey().writeToNBT());
-            entryTag.setTag("amount", entry.getValue().writeToNBT());
+            entryTag.setTag(
+                "key",
+                entry.getKey()
+                    .writeToNBT());
+            entryTag.setTag(
+                "amount",
+                entry.getValue()
+                    .writeToNBT());
             entries.appendTag(entryTag);
         }
         tag.setTag("entries", entries);
@@ -42,8 +56,11 @@ public final class ECOStorageCodec {
             throw new IllegalArgumentException("Backend must not be null");
         }
         if (tag == null || tag.hasNoTags()) {
-            backend.loadFromCodec(ECOCapacityPolicy.infinite(), new LinkedHashMap<ECOStorageKey, ECOAmount>(),
-                ECOAmount.ZERO, 0L);
+            backend.loadFromCodec(
+                ECOCapacityPolicy.infinite(),
+                new LinkedHashMap<ECOStorageKey, ECOAmount>(),
+                ECOAmount.ZERO,
+                0L);
             return;
         }
         int version = tag.getInteger("version");

@@ -26,7 +26,8 @@ public class TileComputationDrive extends TileEntity implements IInventory {
     }
 
     public boolean hasCellForRendering() {
-        return this.hasCell() && this.getCellTierForRender().length() > 0;
+        return this.hasCell() && this.getCellTierForRender()
+            .length() > 0;
     }
 
     public ItemStack getCellStack() {

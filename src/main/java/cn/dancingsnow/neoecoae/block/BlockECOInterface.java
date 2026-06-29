@@ -15,6 +15,10 @@ public class BlockECOInterface extends BlockDirectionalModernModel {
         this.subsystem = subsystem;
     }
 
+    public ECOControllerSubsystem getSubsystem() {
+        return this.subsystem;
+    }
+
     @Override
     public boolean hasTileEntity(int metadata) {
         return true;

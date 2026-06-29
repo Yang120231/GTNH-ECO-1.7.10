@@ -6,9 +6,11 @@ import java.util.Locale;
 
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.inventory.Container;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 
@@ -42,7 +44,18 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     @Override
     protected final void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
-        this.drawNineSlice(HostUiStyle.BACKGROUND, this.guiLeft, this.guiTop, this.xSize, this.ySize, 16, 16, 2, 2, 2, 4);
+        this.drawNineSlice(
+            HostUiStyle.BACKGROUND,
+            this.guiLeft,
+            this.guiTop,
+            this.xSize,
+            this.ySize,
+            16,
+            16,
+            2,
+            2,
+            2,
+            4);
         this.drawHostBackgroundLayer(partialTicks, mouseX, mouseY);
     }
 
@@ -51,7 +64,9 @@ abstract class GuiHostMachineBase extends GuiContainer {
     protected final void drawPlayerInventorySlots(int inventoryX, int inventoryY, int hotbarY) {
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                this.drawSlotTexture(this.guiLeft + inventoryX + column * SLOT_SIZE, this.guiTop + inventoryY + row * SLOT_SIZE);
+                this.drawSlotTexture(
+                    this.guiLeft + inventoryX + column * SLOT_SIZE,
+                    this.guiTop + inventoryY + row * SLOT_SIZE);
             }
         }
         for (int column = 0; column < 9; column++) {
@@ -60,7 +75,18 @@ abstract class GuiHostMachineBase extends GuiContainer {
     }
 
     protected final void drawSlotTexture(int x, int y) {
-        this.drawTexture(HostUiStyle.SLOT, x, y, SLOT_SIZE, SLOT_SIZE, 0, 0, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE, SLOT_SIZE);
+        this.drawTexture(
+            HostUiStyle.SLOT,
+            x,
+            y,
+            SLOT_SIZE,
+            SLOT_SIZE,
+            0,
+            0,
+            SLOT_SIZE,
+            SLOT_SIZE,
+            SLOT_SIZE,
+            SLOT_SIZE);
     }
 
     protected final void drawDarkInsetRect(int x, int y, int width, int height) {
@@ -82,11 +108,30 @@ abstract class GuiHostMachineBase extends GuiContainer {
         drawRect(left + 2, top + 2, left + width - 2, top + height - 2, innerColor);
     }
 
+    protected final void drawTinyInsetLocal(int x, int y, int width, int height, int innerColor) {
+        drawRect(x, y, x + width, y + height, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
+        drawRect(x + 1, y + 1, x + width - 1, y + height - 1, HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(x + 2, y + 2, x + width - 2, y + height - 2, innerColor);
+    }
+
     protected final void drawUsageBar(int x, int y, int width, int height, long value, long max, int color) {
         this.drawTinyInsetRect(x, y, width, height, 0xFF201E27);
         int filled = this.ratioSize(value, max, width - 4);
         if (filled > 0) {
-            drawRect(this.guiLeft + x + 2, this.guiTop + y + 2, this.guiLeft + x + 2 + filled, this.guiTop + y + height - 2, color);
+            drawRect(
+                this.guiLeft + x + 2,
+                this.guiTop + y + 2,
+                this.guiLeft + x + 2 + filled,
+                this.guiTop + y + height - 2,
+                color);
+        }
+    }
+
+    protected final void drawUsageBarLocal(int x, int y, int width, int height, long value, long max, int color) {
+        this.drawTinyInsetLocal(x, y, width, height, 0xFF201E27);
+        int filled = this.ratioSize(value, max, width - 4);
+        if (filled > 0) {
+            drawRect(x + 2, y + 2, x + 2 + filled, y + height - 2, color);
         }
     }
 
@@ -120,23 +165,48 @@ abstract class GuiHostMachineBase extends GuiContainer {
         float blue = (float) (color & 0xFF) / 255.0F;
 
         GL11.glColor4f(red, green, blue, alpha);
-        this.drawTintedTexture(HostUiStyle.STORAGE_CONTROLLER_ELEMENTS, left,
-            top + STORAGE_GAUGE_HEIGHT - barHeight - STORAGE_GAUGE_CAP_HEIGHT, STORAGE_GAUGE_WIDTH,
-            STORAGE_GAUGE_CAP_HEIGHT, STORAGE_GAUGE_TOP_U, STORAGE_GAUGE_TOP_V, STORAGE_GAUGE_WIDTH,
-            STORAGE_GAUGE_CAP_HEIGHT, STORAGE_GAUGE_TEXTURE_SIZE, STORAGE_GAUGE_TEXTURE_SIZE);
+        this.drawTintedTexture(
+            HostUiStyle.STORAGE_CONTROLLER_ELEMENTS,
+            left,
+            top + STORAGE_GAUGE_HEIGHT - barHeight - STORAGE_GAUGE_CAP_HEIGHT,
+            STORAGE_GAUGE_WIDTH,
+            STORAGE_GAUGE_CAP_HEIGHT,
+            STORAGE_GAUGE_TOP_U,
+            STORAGE_GAUGE_TOP_V,
+            STORAGE_GAUGE_WIDTH,
+            STORAGE_GAUGE_CAP_HEIGHT,
+            STORAGE_GAUGE_TEXTURE_SIZE,
+            STORAGE_GAUGE_TEXTURE_SIZE);
 
         int midStart = top + STORAGE_GAUGE_HEIGHT - barHeight - STORAGE_GAUGE_CAP_HEIGHT / 2 + 1;
         int midEnd = top + STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT + STORAGE_GAUGE_CAP_HEIGHT / 2 + 1;
         for (int drawY = midStart; drawY < midEnd; drawY++) {
-            this.drawTintedTexture(HostUiStyle.STORAGE_CONTROLLER_ELEMENTS, left, drawY, STORAGE_GAUGE_WIDTH,
-                STORAGE_GAUGE_MID_HEIGHT, STORAGE_GAUGE_MID_U, STORAGE_GAUGE_MID_V, STORAGE_GAUGE_WIDTH,
-                STORAGE_GAUGE_MID_HEIGHT, STORAGE_GAUGE_TEXTURE_SIZE, STORAGE_GAUGE_TEXTURE_SIZE);
+            this.drawTintedTexture(
+                HostUiStyle.STORAGE_CONTROLLER_ELEMENTS,
+                left,
+                drawY,
+                STORAGE_GAUGE_WIDTH,
+                STORAGE_GAUGE_MID_HEIGHT,
+                STORAGE_GAUGE_MID_U,
+                STORAGE_GAUGE_MID_V,
+                STORAGE_GAUGE_WIDTH,
+                STORAGE_GAUGE_MID_HEIGHT,
+                STORAGE_GAUGE_TEXTURE_SIZE,
+                STORAGE_GAUGE_TEXTURE_SIZE);
         }
 
-        this.drawTintedTexture(HostUiStyle.STORAGE_CONTROLLER_ELEMENTS, left,
-            top + STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT, STORAGE_GAUGE_WIDTH, STORAGE_GAUGE_CAP_HEIGHT,
-            STORAGE_GAUGE_BOTTOM_U, STORAGE_GAUGE_BOTTOM_V, STORAGE_GAUGE_WIDTH, STORAGE_GAUGE_CAP_HEIGHT,
-            STORAGE_GAUGE_TEXTURE_SIZE, STORAGE_GAUGE_TEXTURE_SIZE);
+        this.drawTintedTexture(
+            HostUiStyle.STORAGE_CONTROLLER_ELEMENTS,
+            left,
+            top + STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT,
+            STORAGE_GAUGE_WIDTH,
+            STORAGE_GAUGE_CAP_HEIGHT,
+            STORAGE_GAUGE_BOTTOM_U,
+            STORAGE_GAUGE_BOTTOM_V,
+            STORAGE_GAUGE_WIDTH,
+            STORAGE_GAUGE_CAP_HEIGHT,
+            STORAGE_GAUGE_TEXTURE_SIZE,
+            STORAGE_GAUGE_TEXTURE_SIZE);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
@@ -169,7 +239,10 @@ abstract class GuiHostMachineBase extends GuiContainer {
         int textWidth = Math.max(1, this.fontRendererObj.getStringWidth(text));
         float scale = Math.min(maxScale, Math.max(0.55F, (float) (width - 4) / textWidth));
         GL11.glPushMatrix();
-        GL11.glTranslatef(x + (width - textWidth * scale) / 2.0F, y + (height - this.fontRendererObj.FONT_HEIGHT * scale) / 2.0F, 200.0F);
+        GL11.glTranslatef(
+            x + (width - textWidth * scale) / 2.0F,
+            y + (height - this.fontRendererObj.FONT_HEIGHT * scale) / 2.0F,
+            200.0F);
         GL11.glScalef(scale, scale, 1.0F);
         this.fontRendererObj.drawString(text, 0, 0, color);
         GL11.glPopMatrix();
@@ -177,6 +250,23 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     protected final void drawTooltip(List<String> lines, int mouseX, int mouseY) {
         this.drawHoveringText(lines, mouseX, mouseY, this.fontRendererObj);
+    }
+
+    protected final void drawLocalItemIcon(ItemStack stack, int x, int y) {
+        if (stack == null) {
+            return;
+        }
+        float previousZLevel = this.itemRender.zLevel;
+        GL11.glPushMatrix();
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        RenderHelper.enableGUIStandardItemLighting();
+        this.itemRender.zLevel = 200.0F;
+        this.itemRender.renderItemAndEffectIntoGUI(this.fontRendererObj, this.mc.getTextureManager(), stack, x, y);
+        this.itemRender.zLevel = previousZLevel;
+        RenderHelper.disableStandardItemLighting();
+        GL11.glPopMatrix();
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     protected final boolean isMouseIn(int x, int y, int width, int height, int mouseX, int mouseY) {
@@ -244,18 +334,107 @@ abstract class GuiHostMachineBase extends GuiContainer {
         int textureCenterWidth = textureWidth - left - right;
         int textureCenterHeight = textureHeight - top - bottom;
         this.drawTexture(texture, x, y, left, top, 0, 0, left, top, textureWidth, textureHeight);
-        this.drawTexture(texture, x + left, y, centerWidth, top, left, 0, textureCenterWidth, top, textureWidth, textureHeight);
-        this.drawTexture(texture, x + width - right, y, right, top, textureWidth - right, 0, right, top, textureWidth, textureHeight);
-        this.drawTexture(texture, x, y + top, left, centerHeight, 0, top, left, textureCenterHeight, textureWidth, textureHeight);
-        this.drawTexture(texture, x + left, y + top, centerWidth, centerHeight, left, top, textureCenterWidth, textureCenterHeight, textureWidth, textureHeight);
-        this.drawTexture(texture, x + width - right, y + top, right, centerHeight, textureWidth - right, top, right, textureCenterHeight, textureWidth, textureHeight);
-        this.drawTexture(texture, x, y + height - bottom, left, bottom, 0, textureHeight - bottom, left, bottom, textureWidth, textureHeight);
-        this.drawTexture(texture, x + left, y + height - bottom, centerWidth, bottom, left, textureHeight - bottom, textureCenterWidth, bottom, textureWidth, textureHeight);
-        this.drawTexture(texture, x + width - right, y + height - bottom, right, bottom, textureWidth - right, textureHeight - bottom, right, bottom, textureWidth, textureHeight);
+        this.drawTexture(
+            texture,
+            x + left,
+            y,
+            centerWidth,
+            top,
+            left,
+            0,
+            textureCenterWidth,
+            top,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x + width - right,
+            y,
+            right,
+            top,
+            textureWidth - right,
+            0,
+            right,
+            top,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x,
+            y + top,
+            left,
+            centerHeight,
+            0,
+            top,
+            left,
+            textureCenterHeight,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x + left,
+            y + top,
+            centerWidth,
+            centerHeight,
+            left,
+            top,
+            textureCenterWidth,
+            textureCenterHeight,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x + width - right,
+            y + top,
+            right,
+            centerHeight,
+            textureWidth - right,
+            top,
+            right,
+            textureCenterHeight,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x,
+            y + height - bottom,
+            left,
+            bottom,
+            0,
+            textureHeight - bottom,
+            left,
+            bottom,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x + left,
+            y + height - bottom,
+            centerWidth,
+            bottom,
+            left,
+            textureHeight - bottom,
+            textureCenterWidth,
+            bottom,
+            textureWidth,
+            textureHeight);
+        this.drawTexture(
+            texture,
+            x + width - right,
+            y + height - bottom,
+            right,
+            bottom,
+            textureWidth - right,
+            textureHeight - bottom,
+            right,
+            bottom,
+            textureWidth,
+            textureHeight);
     }
 
     protected final void drawTexture(ResourceLocation texture, int x, int y, int width, int height, int u, int v,
         int uWidth, int vHeight, int textureWidth, int textureHeight) {
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         this.drawTintedTexture(texture, x, y, width, height, u, v, uWidth, vHeight, textureWidth, textureHeight);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }

@@ -74,7 +74,9 @@ public final class ECOAmount implements Comparable<ECOAmount> {
                 return of(this.longValue + other.longValue);
             }
         }
-        return of(this.toBigInteger().add(other.toBigInteger()));
+        return of(
+            this.toBigInteger()
+                .add(other.toBigInteger()));
     }
 
     public ECOAmount subtract(ECOAmount other) {
@@ -87,7 +89,9 @@ public final class ECOAmount implements Comparable<ECOAmount> {
         if (!this.isBig() && !other.isBig()) {
             return of(this.longValue - other.longValue);
         }
-        return of(this.toBigInteger().subtract(other.toBigInteger()));
+        return of(
+            this.toBigInteger()
+                .subtract(other.toBigInteger()));
     }
 
     public ECOAmount min(ECOAmount other) {
@@ -137,7 +141,8 @@ public final class ECOAmount implements Comparable<ECOAmount> {
             }
             return 0;
         }
-        return this.toBigInteger().compareTo(other.toBigInteger());
+        return this.toBigInteger()
+            .compareTo(other.toBigInteger());
     }
 
     @Override
@@ -154,7 +159,8 @@ public final class ECOAmount implements Comparable<ECOAmount> {
 
     @Override
     public int hashCode() {
-        return this.toBigInteger().hashCode();
+        return this.toBigInteger()
+            .hashCode();
     }
 
     @Override

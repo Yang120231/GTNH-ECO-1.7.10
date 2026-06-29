@@ -9,8 +9,8 @@ import net.minecraft.util.IIcon;
 import net.minecraft.world.IBlockAccess;
 
 import cn.dancingsnow.neoecoae.all.NEBlocks;
-import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.block.BlockComputationDrive;
+import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
 import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
@@ -69,22 +69,32 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
             && (computationDrive ? computationDriveTile != null && computationDriveTile.hasCell()
                 : ecoDriveTile != null && ecoDriveTile.hasCell());
         boolean lit = ecoDriveTile != null && ecoDriveTile.isOnlineForRender();
-        EcoModelRenderer.renderWorld(
-            DriveModels
-                .get(
+        EcoModelRenderer
+            .renderWorld(
+                DriveModels.get(
                     drive,
                     formed && drive.useFullModelWhenFormed() || occupied ? DriveVisualState.FULL
                         : DriveVisualState.EMPTY),
-            facing,
-            lit ? drive.getFormedModelIcons() : drive.getModelIcons(),
-            world,
-            x,
-            y,
-            z,
-            block,
-            renderer);
+                facing,
+                lit ? drive.getFormedModelIcons() : drive.getModelIcons(),
+                world,
+                x,
+                y,
+                z,
+                block,
+                renderer);
         if (computationDrive) {
-            renderInsertedComputationCell(world, x, y, z, block, renderer, drive, occupied, formed, facing,
+            renderInsertedComputationCell(
+                world,
+                x,
+                y,
+                z,
+                block,
+                renderer,
+                drive,
+                occupied,
+                formed,
+                facing,
                 computationDriveTile);
         } else {
             renderInsertedEcoCell(world, x, y, z, block, renderer, drive, occupied, facing, ecoDriveTile);
@@ -179,10 +189,8 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
         tessellator.setBrightness(FULL_BRIGHTNESS);
         tessellator.setColorOpaque_F(red, green, blue);
 
-        double[][] vertices = new double[][] {
-            rotate(LED_MIN_X, LED_MAX_Y, LED_Z, facing),
-            rotate(LED_MAX_X, LED_MAX_Y, LED_Z, facing),
-            rotate(LED_MAX_X, LED_MIN_Y, LED_Z, facing),
+        double[][] vertices = new double[][] { rotate(LED_MIN_X, LED_MAX_Y, LED_Z, facing),
+            rotate(LED_MAX_X, LED_MAX_Y, LED_Z, facing), rotate(LED_MAX_X, LED_MIN_Y, LED_Z, facing),
             rotate(LED_MIN_X, LED_MIN_Y, LED_Z, facing) };
         double minU = icon.getInterpolatedU(LED_TEXTURE_U_MIN);
         double maxU = icon.getInterpolatedU(LED_TEXTURE_U_MAX);

@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.storage.domain;
 
 public enum ECOStorageHostMode {
+
     UNFORMED("unformed"),
     FORMED_NORMAL("formed_normal"),
     MIGRATING_TO_INFINITE("migrating_to_infinite"),

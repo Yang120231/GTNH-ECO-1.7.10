@@ -65,8 +65,10 @@ public final class NECreativeTabs {
             || name.startsWith("energized_")) {
             return 0;
         }
-        if (name.startsWith("storage_") || "eco_drive".equals(name) || name.startsWith("eco_item_")
-            || name.startsWith("eco_cell_component_") || "eco_infinite_cell_component".equals(name)) {
+        if (name.startsWith("storage_") || "eco_drive".equals(name)
+            || name.startsWith("eco_item_")
+            || name.startsWith("eco_cell_component_")
+            || "eco_infinite_cell_component".equals(name)) {
             return 1;
         }
         if (name.startsWith("crafting_") || "input_hatch".equals(name) || "output_hatch".equals(name)) {

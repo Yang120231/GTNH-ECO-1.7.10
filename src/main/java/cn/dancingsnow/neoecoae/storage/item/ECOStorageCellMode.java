@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.storage.item;
 
 public enum ECOStorageCellMode {
+
     PORTABLE("portable"),
     MIGRATING("migrating"),
     DOMAIN_MEMBER("domain_member");

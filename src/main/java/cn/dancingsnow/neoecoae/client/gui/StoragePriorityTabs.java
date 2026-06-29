@@ -41,7 +41,8 @@ final class StoragePriorityTabs {
 
     private static String hostTitle(TileECOController controller) {
         return controller == null || controller.getBlockType() == null ? "ECO Storage Host"
-            : controller.getBlockType().getLocalizedName();
+            : controller.getBlockType()
+                .getLocalizedName();
     }
 
     private static ItemStack hostIcon(TileECOController controller) {
