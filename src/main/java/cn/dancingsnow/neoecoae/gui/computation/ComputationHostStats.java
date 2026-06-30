@@ -9,6 +9,7 @@ import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 import cn.dancingsnow.neoecoae.tile.TileComputationDrive;
@@ -66,12 +67,12 @@ public final class ComputationHostStats {
             return 0;
         }
         if (tier == ECOControllerTier.L9) {
-            return 64;
+            return ECOEnergyProfile.computationThreads(ECOControllerTier.L9);
         }
         if (tier == ECOControllerTier.L6) {
-            return 16;
+            return ECOEnergyProfile.computationThreads(ECOControllerTier.L6);
         }
-        return 4;
+        return ECOEnergyProfile.computationThreads(ECOControllerTier.L4);
     }
 
     private static int acceleratorContribution(ECOControllerTier tier) {
@@ -79,12 +80,12 @@ public final class ComputationHostStats {
             return 0;
         }
         if (tier == ECOControllerTier.L9) {
-            return 576;
+            return ECOEnergyProfile.computationAccelerators(ECOControllerTier.L9);
         }
         if (tier == ECOControllerTier.L6) {
-            return 192;
+            return ECOEnergyProfile.computationAccelerators(ECOControllerTier.L6);
         }
-        return 64;
+        return ECOEnergyProfile.computationAccelerators(ECOControllerTier.L4);
     }
 
     private static boolean isThreadingCore(Block block) {

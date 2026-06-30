@@ -15,6 +15,7 @@ import net.minecraftforge.common.util.Constants;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 
 public class TileCraftingWorker extends TileCraftingMember {
 
@@ -43,7 +44,11 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (output == null) {
             return false;
         }
-        this.queue.add(new WorkEntry(this.queue.size(), 0, 4, output.copy()));
+        TileECOController controller = this.findCraftingController();
+        if (controller != null && !controller.consumeCraftingCoolantForWork(1)) {
+            return false;
+        }
+        this.queue.add(new WorkEntry(this.queue.size(), 0, ECOEnergyProfile.CRAFTING_WORK_MAX_PROGRESS, output.copy()));
         this.normalizeSlots();
         this.onStateChanged();
         return true;
@@ -253,12 +258,32 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (current == null) {
             return;
         }
+        TileECOController controller = this.findCraftingController();
         if (current.progress < current.totalProgress) {
-            current.progress++;
+            if (controller == null) {
+                return;
+            }
+            int bonusValue = controller.getCraftingWorkBonusValue();
+            int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
+            double request = ECOEnergyProfile.craftingWorkPowerRequest(1, bonusValue, 1, powerMultiplier);
+            double simulated = controller.extractCraftingEnergy(request, true);
+            if (simulated <= 0D) {
+                return;
+            }
+            double consumable = Math.min(request, simulated);
+            int progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(consumable, 1, powerMultiplier);
+            if (progress <= 0) {
+                return;
+            }
+            double extracted = controller.extractCraftingEnergy(consumable, false);
+            progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(extracted, 1, powerMultiplier);
+            if (progress <= 0) {
+                return;
+            }
+            current.progress = Math.min(current.totalProgress, current.progress + progress);
             this.markDirty();
             return;
         }
-        TileECOController controller = this.findCraftingController();
         boolean accepted = controller == null || current.output == null
             || controller.acceptCraftingOutput(current.output);
         if (accepted) {

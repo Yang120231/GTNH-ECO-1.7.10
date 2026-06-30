@@ -9,6 +9,7 @@ import net.minecraftforge.common.util.EnumHelper;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.item.ItemDebugStick;
+import cn.dancingsnow.neoecoae.item.ItemFluidContainer;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 public final class NEItems {
@@ -32,6 +33,23 @@ public final class NEItems {
     public static final Item aluminumAlloyDust = simpleItem("aluminum_alloy_dust");
     public static final Item blackTungstenAlloyIngot = simpleItem("black_tungsten_alloy_ingot");
     public static final Item blackTungstenAlloyDust = simpleItem("black_tungsten_alloy_dust");
+    public static final Item energizedCrystal = simpleItem("energized_crystal");
+    public static final Item energizedCrystalDust = simpleItem("energized_crystal_dust");
+    public static final Item energizedFluixCrystal = simpleItem("energized_fluix_crystal");
+    public static final Item energizedFluixCrystalDust = simpleItem("energized_fluix_crystal_dust");
+    public static final Item crystalIngot = simpleItem("crystal_ingot");
+    public static final Item crystalMatrix = simpleItem("crystal_matrix");
+    public static final Item energizedSuperconductiveIngot = simpleItem("energized_superconductive_ingot");
+    public static final Item superconductingProcessorPress = simpleItem("superconducting_processor_press");
+    public static final Item superconductingProcessorPrint = simpleItem("superconducting_processor_print");
+    public static final Item superconductingProcessor = simpleItem("superconducting_processor");
+    public static final Item cryotheum = simpleItem("cryotheum");
+    public static final Item cryotheumCrystal = simpleItem("cryotheum_crystal");
+    public static final Item cryotheumSolutionBucket = new ItemFluidContainer(
+        "cryotheum_solution_bucket",
+        NEFluids.CRYOTHEUM_SOLUTION,
+        net.minecraftforge.fluids.FluidContainerRegistry.BUCKET_VOLUME,
+        NECreativeTabs.NEO_ECO_AE).setTextureName(NeoECOAE.MODID + ":cryotheum_solution_bucket");
     public static final Item debug = new ItemDebugStick();
 
     public static final Item aluminumAxe = axe("aluminum_axe", aluminumToolMaterial);
@@ -76,6 +94,19 @@ public final class NEItems {
         register(aluminumAlloyDust, "aluminum_alloy_dust");
         register(blackTungstenAlloyIngot, "black_tungsten_alloy_ingot");
         register(blackTungstenAlloyDust, "black_tungsten_alloy_dust");
+        register(energizedCrystal, "energized_crystal");
+        register(energizedCrystalDust, "energized_crystal_dust");
+        register(energizedFluixCrystal, "energized_fluix_crystal");
+        register(energizedFluixCrystalDust, "energized_fluix_crystal_dust");
+        register(crystalIngot, "crystal_ingot");
+        register(crystalMatrix, "crystal_matrix");
+        register(energizedSuperconductiveIngot, "energized_superconductive_ingot");
+        register(superconductingProcessorPress, "superconducting_processor_press");
+        register(superconductingProcessorPrint, "superconducting_processor_print");
+        register(superconductingProcessor, "superconducting_processor");
+        register(cryotheum, "cryotheum");
+        register(cryotheumCrystal, "cryotheum_crystal");
+        register(cryotheumSolutionBucket, "cryotheum_solution_bucket");
         register(debug, "debug");
         NEStorageItems.register();
 

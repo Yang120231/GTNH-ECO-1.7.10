@@ -7,6 +7,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.all.NEBlocks;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
 public final class CraftingHostStats {
@@ -93,7 +94,9 @@ public final class CraftingHostStats {
                     }
                 } else if (isParallelCore(block)) {
                     parallelCoreCount++;
-                    parallelCount = saturatedAdd(parallelCount, parallelContribution(pos.getTier()));
+                    parallelCount = saturatedAdd(
+                        parallelCount,
+                        parallelContribution(pos.getTier(), controller.isCraftingOverclocked()));
                 }
             }
         }
@@ -134,17 +137,12 @@ public final class CraftingHostStats {
             || block == NEBlocks.craftingParallelCoreL9;
     }
 
-    private static int parallelContribution(ECOControllerTier tier) {
+    private static int parallelContribution(ECOControllerTier tier, boolean overclocked) {
         if (tier == null) {
             return 0;
         }
-        if (tier == ECOControllerTier.L9) {
-            return 576;
-        }
-        if (tier == ECOControllerTier.L6) {
-            return 192;
-        }
-        return 64;
+        int parallel = ECOEnergyProfile.craftingParallel(tier);
+        return overclocked ? saturatedAdd(parallel, ECOEnergyProfile.overclockedCraftingParallel(tier)) : parallel;
     }
 
     private static int saturatedAdd(int left, int right) {

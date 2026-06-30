@@ -13,6 +13,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.ICraftingGrid;
@@ -38,6 +39,7 @@ import cn.dancingsnow.neoecoae.block.BlockECOInterface;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
 import cn.dancingsnow.neoecoae.computation.ae2.ECOComputationCpuPool;
 import cn.dancingsnow.neoecoae.crafting.ae2.ECOCraftingAe2Registration;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
 public class TileECOInterface extends TileEntity
@@ -67,7 +69,7 @@ public class TileECOInterface extends TileEntity
         this.subsystem = subsystem == null ? ECOControllerSubsystem.STORAGE : subsystem;
         this.proxy = new AENetworkProxy(this, "proxy", this.interfaceStack(), true);
         this.proxy.setFlags(GridFlags.REQUIRE_CHANNEL);
-        this.proxy.setIdlePowerUsage(1.0D);
+        this.proxy.setIdlePowerUsage(ECOEnergyProfile.INTERFACE_IDLE_POWER);
         this.proxy.setValidSides(EnumSet.complementOf(EnumSet.of(ForgeDirection.UNKNOWN)));
     }
 
@@ -147,6 +149,18 @@ public class TileECOInterface extends TileEntity
         IAEItemStack leftover = storageGrid.getItemInventory()
             .injectItems(aeStack, Actionable.MODULATE, new MachineSource(this));
         return leftover == null ? null : leftover.getItemStack();
+    }
+
+    public double extractAEPower(double amount, boolean simulate) {
+        if (amount <= 0D) {
+            return 0D;
+        }
+        try {
+            return this.proxy.getEnergy()
+                .extractAEPower(amount, simulate ? Actionable.SIMULATE : Actionable.MODULATE, PowerMultiplier.CONFIG);
+        } catch (GridAccessException ignored) {
+            return 0D;
+        }
     }
 
     @Override

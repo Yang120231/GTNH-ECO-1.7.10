@@ -16,6 +16,8 @@ import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.util.ScheduledReason;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
 
 public class TileCraftingPatternBus extends TileCraftingMember implements IInventory, ICraftingProvider {
 
@@ -59,6 +61,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             this.scheduledReason = ScheduledReason.SOMETHING_STUCK;
             return false;
         }
+        ECOFastPathPlan fastPathPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
+        controller.recordCraftingFastPathDecision(fastPathPlan.accepted());
         boolean accepted = worker.acceptPattern(patternDetails, table);
         this.scheduledReason = accepted ? ScheduledReason.UNDEFINED : ScheduledReason.SOMETHING_STUCK;
         return accepted;

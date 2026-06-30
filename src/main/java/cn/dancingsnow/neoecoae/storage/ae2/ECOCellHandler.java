@@ -10,6 +10,7 @@ import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.StorageChannel;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata;
 import cn.dancingsnow.neoecoae.storage.item.IECOStorageMatrixItem;
 
@@ -83,7 +84,7 @@ public class ECOCellHandler implements ICellHandler {
     @Override
     public double cellIdleDrain(ItemStack is, IMEInventory handler) {
         if (is != null && is.getItem() instanceof IECOStorageMatrixItem) {
-            return Math.max(0.5D, ((IECOStorageMatrixItem) is.getItem()).getDisplayBytes(is) / 1048576.0D);
+            return ECOEnergyProfile.storageCellIdlePower(((IECOStorageMatrixItem) is.getItem()).getDisplayBytes(is));
         }
         return 0.5D;
     }

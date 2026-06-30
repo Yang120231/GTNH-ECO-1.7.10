@@ -1,10 +1,12 @@
 package cn.dancingsnow.neoecoae;
 
 import cn.dancingsnow.neoecoae.all.NEBlocks;
+import cn.dancingsnow.neoecoae.all.NEFluids;
 import cn.dancingsnow.neoecoae.all.NEItems;
 import cn.dancingsnow.neoecoae.all.NEOreDictionary;
 import cn.dancingsnow.neoecoae.all.NERecipes;
 import cn.dancingsnow.neoecoae.all.NETileEntities;
+import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipes;
 import cn.dancingsnow.neoecoae.gui.NEGuiHandler;
 import cn.dancingsnow.neoecoae.network.HostUiStatePacket;
 import cn.dancingsnow.neoecoae.network.NENetwork;
@@ -27,9 +29,11 @@ public class CommonProxy {
     public void preInit(FMLPreInitializationEvent event) {
         Config.synchronizeConfiguration(event.getSuggestedConfigurationFile());
         NENetwork.register();
+        NEFluids.register();
         NEBlocks.register();
         NETileEntities.register();
         NEItems.register();
+        NEFluids.registerContainers();
         NEOreDictionary.register();
         GameRegistry.registerWorldGenerator(NEOreWorldGenerator.INSTANCE, 0);
 
@@ -41,11 +45,14 @@ public class CommonProxy {
     public void init(FMLInitializationEvent event) {
         NetworkRegistry.INSTANCE.registerGuiHandler(NeoECOAE.instance, NEGuiHandler.INSTANCE);
         NEAE2Storage.register();
+        ECOCoolingRecipes.registerDefaults();
         NERecipes.register();
     }
 
     // postInit "Handle interaction with other mods, complete your setup based on this." (Remove if not needed)
-    public void postInit(FMLPostInitializationEvent event) {}
+    public void postInit(FMLPostInitializationEvent event) {
+        NERecipes.registerPostInit();
+    }
 
     // register server commands in this event handler (Remove if not needed)
     public void serverStarting(FMLServerStartingEvent event) {}

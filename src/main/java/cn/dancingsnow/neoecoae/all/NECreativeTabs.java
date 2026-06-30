@@ -77,7 +77,14 @@ public final class NECreativeTabs {
         if (name.startsWith("computation_") || name.startsWith("eco_computation_cell_")) {
             return 3;
         }
-        if (name.endsWith("_ingot") || name.endsWith("_dust")) {
+        if (name.endsWith("_ingot") || name.endsWith("_dust")
+            || "cryotheum".equals(name)
+            || "cryotheum_crystal".equals(name)
+            || "cryotheum_solution_bucket".equals(name)
+            || "energized_crystal".equals(name)
+            || "energized_fluix_crystal".equals(name)
+            || "crystal_matrix".equals(name)
+            || name.startsWith("superconducting_processor")) {
             return 4;
         }
         if (isTool(name)) {
@@ -183,6 +190,45 @@ public final class NECreativeTabs {
         if (name.endsWith("_dust")) {
             return 420;
         }
+        if ("energized_crystal".equals(name)) {
+            return 430;
+        }
+        if ("energized_crystal_dust".equals(name)) {
+            return 440;
+        }
+        if ("energized_fluix_crystal".equals(name)) {
+            return 450;
+        }
+        if ("energized_fluix_crystal_dust".equals(name)) {
+            return 460;
+        }
+        if ("crystal_ingot".equals(name)) {
+            return 470;
+        }
+        if ("crystal_matrix".equals(name)) {
+            return 480;
+        }
+        if ("energized_superconductive_ingot".equals(name)) {
+            return 490;
+        }
+        if ("superconducting_processor_press".equals(name)) {
+            return 500;
+        }
+        if ("superconducting_processor_print".equals(name)) {
+            return 510;
+        }
+        if ("superconducting_processor".equals(name)) {
+            return 520;
+        }
+        if ("cryotheum".equals(name)) {
+            return 530;
+        }
+        if ("cryotheum_crystal".equals(name)) {
+            return 540;
+        }
+        if ("cryotheum_solution_bucket".equals(name)) {
+            return 550;
+        }
         return isTool(name) ? getToolOrder(name) : 900;
     }
 
@@ -195,20 +241,20 @@ public final class NECreativeTabs {
 
     private static int getToolOrder(String name) {
         if (name.endsWith("_sword")) {
-            return 500;
+            return 600;
         }
         if (name.endsWith("_pickaxe")) {
-            return 510;
+            return 610;
         }
         if (name.endsWith("_axe")) {
-            return 520;
+            return 620;
         }
         if (name.endsWith("_shovel")) {
-            return 530;
+            return 630;
         }
         if (name.endsWith("_hoe")) {
-            return 540;
+            return 640;
         }
-        return 590;
+        return 690;
     }
 }

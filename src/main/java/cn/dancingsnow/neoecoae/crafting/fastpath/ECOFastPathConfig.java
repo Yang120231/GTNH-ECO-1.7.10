@@ -1,8 +1,9 @@
 package cn.dancingsnow.neoecoae.crafting.fastpath;
 
+import cn.dancingsnow.neoecoae.Config;
+
 public final class ECOFastPathConfig {
 
-    public static final boolean PLANNER_HOOK_ENABLED = false;
     public static final int PATTERN_CACHE_SIZE = 512;
     public static final int NEGATIVE_CACHE_SIZE = 256;
     public static final int MAX_PATTERN_INPUTS = 9;
@@ -11,7 +12,7 @@ public final class ECOFastPathConfig {
     private ECOFastPathConfig() {}
 
     public static boolean isPlannerHookEnabled() {
-        return PLANNER_HOOK_ENABLED;
+        return Config.enableEcoCraftingFastPath;
     }
 
     public static int patternCacheSize() {

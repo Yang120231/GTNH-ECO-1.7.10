@@ -74,6 +74,32 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
         return this.tank.getFluidAmount();
     }
 
+    public FluidStack drainInputFluid(FluidStack resource, boolean doDrain) {
+        if (!this.input || resource == null || resource.amount <= 0) {
+            return null;
+        }
+        FluidStack current = this.tank.getFluid();
+        if (current == null || !current.isFluidEqual(resource)) {
+            return null;
+        }
+        FluidStack drained = this.tank.drain(resource.amount, doDrain);
+        if (doDrain && drained != null && drained.amount > 0) {
+            this.onFluidChanged();
+        }
+        return drained;
+    }
+
+    public int fillOutputFluid(FluidStack resource, boolean doFill) {
+        if (this.input || resource == null || resource.amount <= 0) {
+            return 0;
+        }
+        int filled = this.tank.fill(resource, doFill);
+        if (doFill && filled > 0) {
+            this.onFluidChanged();
+        }
+        return filled;
+    }
+
     public int getTankCapacity() {
         return this.tank.getCapacity();
     }

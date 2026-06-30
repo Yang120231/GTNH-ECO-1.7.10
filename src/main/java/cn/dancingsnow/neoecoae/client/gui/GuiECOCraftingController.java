@@ -219,9 +219,12 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawToolbarButton(int x, int mouseX, int mouseY, boolean enabled, boolean selected) {
-        AEA2ToolbarIconButton.Sprite icon = x == TOOLBAR_OVERCLOCK_X ? AEA2ToolbarIconButton.POWER_UNIT_AE
+        CraftingHostSnapshot state = this.container.state();
+        AEA2ToolbarIconButton.Sprite icon = x == TOOLBAR_OVERCLOCK_X
+            ? state.overclocked ? AEA2ToolbarIconButton.LEVEL_ENERGY : AEA2ToolbarIconButton.POWER_UNIT_AE
             : x == TOOLBAR_COOLING_X ? AEA2ToolbarIconButton.TYPE_FILTER_FLUIDS
-                : AEA2ToolbarIconButton.CONDENSER_OUTPUT_TRASH;
+                : state.coolant > 0 ? AEA2ToolbarIconButton.CONDENSER_OUTPUT_TRASH
+                    : AEA2ToolbarIconButton.BACKGROUND_TRASH;
         AEA2ToolbarIconButton.draw(this, x, TOOLBAR_Y, mouseX, mouseY, TOOLBAR_SIZE, icon, enabled, selected);
     }
 

@@ -17,6 +17,7 @@ import net.minecraft.util.StatCollector;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.client.render.model.ModernIconRegistrar;
 import cn.dancingsnow.neoecoae.client.tooltip.NETooltips;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageSnapshot;
@@ -37,9 +38,18 @@ public final class NEStorageItems {
     public static final Item ecoItemStorageCell16M = storageCell("eco_item_storage_cell_16m", "16M");
     public static final Item ecoItemStorageCell64M = storageCell("eco_item_storage_cell_64m", "64M");
     public static final Item ecoItemStorageCell256M = storageCell("eco_item_storage_cell_256m", "256M");
-    public static final Item ecoComputationCellL4 = computationCell("eco_computation_cell_l4", "CE4", 1L << 26);
-    public static final Item ecoComputationCellL6 = computationCell("eco_computation_cell_l6", "CE6", 1L << 28);
-    public static final Item ecoComputationCellL9 = computationCell("eco_computation_cell_l9", "CE9", 1L << 30);
+    public static final Item ecoComputationCellL4 = computationCell(
+        "eco_computation_cell_l4",
+        "CE4",
+        ECOEnergyProfile.computationBytes(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L4));
+    public static final Item ecoComputationCellL6 = computationCell(
+        "eco_computation_cell_l6",
+        "CE6",
+        ECOEnergyProfile.computationBytes(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L6));
+    public static final Item ecoComputationCellL9 = computationCell(
+        "eco_computation_cell_l9",
+        "CE9",
+        ECOEnergyProfile.computationBytes(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L9));
 
     private NEStorageItems() {}
 
@@ -190,12 +200,12 @@ public final class NEStorageItems {
 
         private static long bytesForTier(String tier) {
             if ("64M".equals(tier)) {
-                return 64L * 1024L * 1024L;
+                return ECOEnergyProfile.storageBytes(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L6);
             }
             if ("256M".equals(tier)) {
-                return 256L * 1024L * 1024L;
+                return ECOEnergyProfile.storageBytes(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L9);
             }
-            return 16L * 1024L * 1024L;
+            return ECOEnergyProfile.storageBytes(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L4);
         }
 
         private String formatAmount(ECOAmount amount) {
