@@ -1,8 +1,11 @@
 package cn.dancingsnow.neoecoae.block;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.gui.NEGuiIds;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 
 public class BlockCraftingPatternBus extends BlockFormedDirectionalModernModel {
@@ -19,6 +22,18 @@ public class BlockCraftingPatternBus extends BlockFormedDirectionalModernModel {
     @Override
     public TileEntity createTileEntity(World world, int metadata) {
         return new TileCraftingPatternBus();
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
+        float hitY, float hitZ) {
+        if (player == null || player.isSneaking()) {
+            return false;
+        }
+        if (!world.isRemote && world.getTileEntity(x, y, z) instanceof TileCraftingPatternBus) {
+            player.openGui(NeoECOAE.instance, NEGuiIds.CRAFTING_PATTERN_BUS, world, x, y, z);
+        }
+        return true;
     }
 
     @Override

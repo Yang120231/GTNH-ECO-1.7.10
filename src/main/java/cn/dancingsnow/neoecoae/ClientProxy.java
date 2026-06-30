@@ -9,6 +9,9 @@ import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.ClientEventHandler;
+import cn.dancingsnow.neoecoae.client.gui.ClientHostUiStateHandler;
+import cn.dancingsnow.neoecoae.client.gui.GuiCraftingHatch;
+import cn.dancingsnow.neoecoae.client.gui.GuiCraftingPatternBus;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOComputationController;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOCraftingController;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageController;
@@ -20,6 +23,9 @@ import cn.dancingsnow.neoecoae.client.render.DriveRenderHandler;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockModels;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockRenderHandler;
 import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.network.HostUiStatePacket;
+import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
+import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.client.registry.RenderingRegistry;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -55,6 +61,23 @@ public class ClientProxy extends CommonProxy {
     public Object createStoragePriorityGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
         TileECOController controller) {
         return new GuiECOStoragePriority(playerInventory, controller);
+    }
+
+    @Override
+    public Object createCraftingPatternBusGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileCraftingPatternBus bus) {
+        return new GuiCraftingPatternBus(playerInventory, bus);
+    }
+
+    @Override
+    public Object createCraftingHatchGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileCraftingHatch hatch) {
+        return new GuiCraftingHatch(playerInventory, hatch);
+    }
+
+    @Override
+    public void handleHostUiStatePacket(HostUiStatePacket packet) {
+        ClientHostUiStateHandler.handle(packet);
     }
 
     private void registerRenderers() {

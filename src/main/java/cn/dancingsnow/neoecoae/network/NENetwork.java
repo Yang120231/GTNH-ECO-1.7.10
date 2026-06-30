@@ -26,6 +26,8 @@ public final class NENetwork {
             PacketComputationHostAction.class,
             id++,
             Side.SERVER);
+        CHANNEL
+            .registerMessage(PacketCraftingHostAction.Handler.class, PacketCraftingHostAction.class, id++, Side.SERVER);
         registered = true;
     }
 }

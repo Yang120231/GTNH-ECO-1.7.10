@@ -23,7 +23,9 @@ final class CraftingBlockDrops {
             }
         }
         if (tile instanceof TileCraftingWorker) {
-            dropStack(world, x, y, z, ((TileCraftingWorker) tile).takePendingOutput());
+            for (ItemStack stack : ((TileCraftingWorker) tile).takeQueuedOutputs()) {
+                dropStack(world, x, y, z, stack);
+            }
         }
     }
 

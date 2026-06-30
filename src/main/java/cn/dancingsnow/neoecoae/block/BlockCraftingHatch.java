@@ -1,8 +1,11 @@
 package cn.dancingsnow.neoecoae.block;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.gui.NEGuiIds;
 import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
 
 public class BlockCraftingHatch extends BlockFormedTexturedMachine {
@@ -22,6 +25,18 @@ public class BlockCraftingHatch extends BlockFormedTexturedMachine {
     @Override
     public TileEntity createTileEntity(World world, int metadata) {
         return new TileCraftingHatch(this.input);
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
+        float hitY, float hitZ) {
+        if (player == null || player.isSneaking()) {
+            return false;
+        }
+        if (!world.isRemote && world.getTileEntity(x, y, z) instanceof TileCraftingHatch) {
+            player.openGui(NeoECOAE.instance, NEGuiIds.CRAFTING_HATCH, world, x, y, z);
+        }
+        return true;
     }
 
     @Override

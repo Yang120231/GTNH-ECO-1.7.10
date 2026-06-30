@@ -64,10 +64,15 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private static final String TAG_CRAFTING_INPUT_CACHED_ITEMS = "CraftingInputCachedItems";
     private static final String TAG_CRAFTING_OUTPUT_CACHED_ITEMS = "CraftingOutputCachedItems";
     private static final String TAG_CRAFTING_OCCUPIED_CACHE_SLOTS = "CraftingOccupiedCacheSlots";
+    private static final String TAG_CRAFTING_OVERCLOCKED = "CraftingOverclocked";
+    private static final String TAG_CRAFTING_ACTIVE_COOLING = "CraftingActiveCooling";
+    private static final String TAG_CRAFTING_COOLANT = "CraftingCoolant";
     private static final String TAG_DISK_ID = "DiskId";
     private static final String TAG_STEP = "Step";
     private static final int REQUIRED_INFINITE_COMPONENTS = 64;
     private static final int REQUIRED_INFINITE_DRIVES = 16;
+    public static final int MAX_CRAFTING_COOLANT = 1000000;
+    public static final int CRAFTING_ENERGY_GAUGE_REFERENCE = 1000000;
     private static final int MIGRATION_NOT_STARTED = 0;
     private static final int MIGRATION_COPYING = 1;
     private static final int MIGRATION_SOURCE_CLEARED = 2;
@@ -91,6 +96,9 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private boolean computationHostStatsDirty = true;
     private CraftingHostStats craftingHostStats = CraftingHostStats.EMPTY;
     private boolean craftingHostStatsDirty = true;
+    private boolean craftingOverclocked;
+    private boolean craftingActiveCooling;
+    private int craftingCoolant;
     private boolean computationInterfaceOnline;
     private final List<UUID> memberDiskIds = new ArrayList<UUID>();
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<UUID, Integer>();
@@ -287,20 +295,26 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (this.subsystem != ECOControllerSubsystem.CRAFTING || this.worldObj == null || !this.formed) {
             return null;
         }
-        TileCraftingWorker firstWorker = null;
+        TileCraftingWorker bestWorker = null;
+        int bestQueueSize = Integer.MAX_VALUE;
         for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
             TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (tile instanceof TileCraftingWorker) {
                 TileCraftingWorker worker = (TileCraftingWorker) tile;
-                if (firstWorker == null) {
-                    firstWorker = worker;
+                if (!worker.hasQueueSpace()) {
+                    continue;
                 }
-                if (!worker.isRunning()) {
-                    return worker;
+                int queueSize = worker.queueSize();
+                if (queueSize < bestQueueSize) {
+                    bestWorker = worker;
+                    bestQueueSize = queueSize;
+                    if (queueSize == 0) {
+                        return bestWorker;
+                    }
                 }
             }
         }
-        return firstWorker;
+        return bestWorker;
     }
 
     public boolean acceptCraftingOutput(ItemStack stack) {
@@ -324,16 +338,6 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                 }
             }
         }
-        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
-            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
-            if (tile instanceof TileCraftingHatch) {
-                TileCraftingHatch hatch = (TileCraftingHatch) tile;
-                if (!hatch.isInput() && hatch.insertOutput(remaining)) {
-                    this.onCraftingHostStateChanged();
-                    return true;
-                }
-            }
-        }
         return false;
     }
 
@@ -350,15 +354,86 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingRunningTaskCount() {
-        return this.getCraftingHostStats().runningWorkerCount;
+        return this.getCraftingHostStats().queuedWorkCount;
     }
 
     public int getCraftingFastPathQueueDepth() {
-        return this.getCraftingHostStats().runningWorkerCount;
+        return this.getCraftingHostStats().queuedWorkCount;
     }
 
     public int getCraftingFastPathCapacity() {
+        return saturatingInt((long) this.getCraftingHostStats().workerCount * TileCraftingWorker.BASE_QUEUE_CAPACITY);
+    }
+
+    public int getCraftingRunningWorkerCount() {
+        return this.getCraftingHostStats().runningWorkerCount;
+    }
+
+    public int getCraftingThreadCount() {
         return this.getCraftingHostStats().workerCount;
+    }
+
+    public int getCraftingAvailableThreadCount() {
+        return Math.max(0, this.getCraftingThreadCount() - this.getCraftingRunningWorkerCount());
+    }
+
+    public boolean isCraftingOverclocked() {
+        return this.craftingOverclocked;
+    }
+
+    public void setCraftingOverclocked(boolean overclocked) {
+        if (this.worldObj != null && this.worldObj.isRemote || this.subsystem != ECOControllerSubsystem.CRAFTING
+            || this.craftingOverclocked == overclocked) {
+            return;
+        }
+        this.craftingOverclocked = overclocked;
+        this.onCraftingHostStateChanged();
+    }
+
+    public void toggleCraftingOverclocked() {
+        this.setCraftingOverclocked(!this.craftingOverclocked);
+    }
+
+    public boolean isCraftingActiveCooling() {
+        return this.craftingActiveCooling;
+    }
+
+    public void setCraftingActiveCooling(boolean activeCooling) {
+        if (this.worldObj != null && this.worldObj.isRemote || this.subsystem != ECOControllerSubsystem.CRAFTING
+            || this.craftingActiveCooling == activeCooling) {
+            return;
+        }
+        this.craftingActiveCooling = activeCooling;
+        this.onCraftingHostStateChanged();
+    }
+
+    public void toggleCraftingActiveCooling() {
+        this.setCraftingActiveCooling(!this.craftingActiveCooling);
+    }
+
+    public int getCraftingCoolant() {
+        return Math.max(0, Math.min(MAX_CRAFTING_COOLANT, this.craftingCoolant));
+    }
+
+    public int getCraftingMaxCoolant() {
+        return MAX_CRAFTING_COOLANT;
+    }
+
+    public void clearCraftingCoolant() {
+        if (this.worldObj != null && this.worldObj.isRemote || this.subsystem != ECOControllerSubsystem.CRAFTING
+            || this.craftingCoolant == 0) {
+            return;
+        }
+        this.craftingCoolant = 0;
+        this.onCraftingHostStateChanged();
+    }
+
+    public int getCraftingMaxEnergyUsage() {
+        long base = Math.max(0L, (long) this.getCraftingParallelCount() * 64L);
+        if (this.craftingOverclocked) {
+            base *= this.craftingActiveCooling ? 2L : 4L;
+        }
+        return saturatingInt(base);
     }
 
     public void onCraftingHostChanged() {
@@ -478,16 +553,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public boolean canTakeInfiniteStorageComponent() {
-        if (this.worldObj != null && this.worldObj.isRemote) {
-            return true;
-        }
         return !this.hasInfiniteModeState() || this.canExitInfiniteMode();
     }
 
     public boolean canRemoveFromWorld() {
-        if (this.worldObj != null && this.worldObj.isRemote) {
-            return true;
-        }
         return !this.hasInfiniteModeState() || this.canExitInfiniteMode();
     }
 
@@ -1127,6 +1196,9 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         tag.setString(TAG_HOST_MODE, this.hostMode.getId());
         tag.setInteger(TAG_PRIORITY, this.priority);
         tag.setInteger(TAG_COMPUTATION_CPU_MODE, this.computationCpuSelectionMode.ordinal());
+        tag.setBoolean(TAG_CRAFTING_OVERCLOCKED, this.craftingOverclocked);
+        tag.setBoolean(TAG_CRAFTING_ACTIVE_COOLING, this.craftingActiveCooling);
+        tag.setInteger(TAG_CRAFTING_COOLANT, this.getCraftingCoolant());
         CraftingHostStats craftingStats = this.getCraftingHostStats();
         tag.setInteger(TAG_CRAFTING_PATTERN_COUNT, craftingStats.patternCount);
         tag.setInteger(TAG_CRAFTING_PATTERN_BUS_COUNT, craftingStats.patternBusCount);
@@ -1190,6 +1262,9 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.priority = tag.getInteger(TAG_PRIORITY);
         this.computationCpuSelectionMode = ComputationCpuSelectionMode
             .fromOrdinal(tag.getInteger(TAG_COMPUTATION_CPU_MODE));
+        this.craftingOverclocked = tag.getBoolean(TAG_CRAFTING_OVERCLOCKED);
+        this.craftingActiveCooling = tag.getBoolean(TAG_CRAFTING_ACTIVE_COOLING);
+        this.craftingCoolant = Math.max(0, Math.min(MAX_CRAFTING_COOLANT, tag.getInteger(TAG_CRAFTING_COOLANT)));
         this.craftingHostStats = CraftingHostStats.fromSaved(
             tag.getInteger(TAG_CRAFTING_PATTERN_COUNT),
             tag.getInteger(TAG_CRAFTING_PATTERN_BUS_COUNT),
@@ -1281,6 +1356,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             return left;
         }
         return Long.MAX_VALUE - left < right ? Long.MAX_VALUE : left + right;
+    }
+
+    private static int saturatingInt(long value) {
+        if (value <= 0L) {
+            return 0;
+        }
+        return value > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
     }
 
     @Override

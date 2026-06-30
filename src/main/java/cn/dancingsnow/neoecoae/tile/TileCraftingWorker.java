@@ -1,30 +1,36 @@
 package cn.dancingsnow.neoecoae.tile;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
+import net.minecraftforge.common.util.Constants;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
 
 public class TileCraftingWorker extends TileCraftingMember {
 
+    public static final int BASE_QUEUE_CAPACITY = 32;
+
     private static final String TAG_RUNNING = "Running";
     private static final String TAG_SLOT_ID = "SlotId";
     private static final String TAG_PROGRESS = "Progress";
     private static final String TAG_TOTAL_PROGRESS = "TotalProgress";
+    private static final String TAG_QUEUE = "Queue";
+    private static final String TAG_OUTPUT = "Output";
 
-    private boolean running;
-    private int slotId = -1;
-    private int progress;
-    private int totalProgress;
-    private ItemStack pendingOutput;
+    private final List<WorkEntry> queue = new ArrayList<WorkEntry>();
 
     public boolean acceptPattern(ICraftingPatternDetails details, InventoryCrafting table) {
-        if (details == null || table == null || this.running) {
+        if (details == null || table == null || !this.hasQueueSpace()) {
             return false;
         }
         ItemStack output = details.getOutput(table, this.worldObj);
@@ -37,61 +43,111 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (output == null) {
             return false;
         }
-        this.pendingOutput = output.copy();
-        this.setRunningSlot(0, 0, 4, true);
+        this.queue.add(new WorkEntry(this.queue.size(), 0, 4, output.copy()));
+        this.normalizeSlots();
+        this.onStateChanged();
         return true;
     }
 
     public boolean isRunning() {
-        return this.running;
+        return !this.queue.isEmpty();
     }
 
     public boolean isWorking() {
-        return this.running;
+        return this.isRunning();
     }
 
     public int queueSize() {
-        return this.running ? 1 : 0;
+        return this.queue.size();
+    }
+
+    public int queueCapacity() {
+        return BASE_QUEUE_CAPACITY;
+    }
+
+    public boolean hasQueueSpace() {
+        return this.queueSize() < this.queueCapacity();
     }
 
     public int getSlotId() {
-        return this.slotId;
+        WorkEntry entry = this.peekEntry();
+        return entry == null ? -1 : entry.slotId;
     }
 
     public int getProgress() {
-        return this.progress;
+        WorkEntry entry = this.peekEntry();
+        return entry == null ? 0 : entry.progress;
     }
 
     public int getTotalProgress() {
-        return this.totalProgress;
+        WorkEntry entry = this.peekEntry();
+        return entry == null ? 0 : entry.totalProgress;
+    }
+
+    public ItemStack getCurrentOutput() {
+        WorkEntry entry = this.peekEntry();
+        return entry == null || entry.output == null ? null : entry.output.copy();
     }
 
     public ItemStack takePendingOutput() {
-        ItemStack output = this.pendingOutput;
-        this.pendingOutput = null;
-        if (output != null) {
-            this.clearRunningSlot();
+        WorkEntry entry = this.queue.isEmpty() ? null : this.queue.remove(0);
+        if (entry == null) {
+            return null;
         }
-        return output;
+        this.normalizeSlots();
+        this.onStateChanged();
+        return entry.output == null ? null : entry.output.copy();
+    }
+
+    public List<ItemStack> takeQueuedOutputs() {
+        if (this.queue.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<ItemStack> outputs = new ArrayList<ItemStack>();
+        for (WorkEntry entry : this.queue) {
+            if (entry.output != null) {
+                outputs.add(entry.output.copy());
+            }
+        }
+        this.queue.clear();
+        this.onStateChanged();
+        return outputs;
     }
 
     public void clearRunningSlot() {
-        this.setRunningSlot(-1, 0, 0, false);
+        if (!this.queue.isEmpty()) {
+            this.queue.remove(0);
+            this.normalizeSlots();
+            this.onStateChanged();
+        }
     }
 
     public void setRunningSlot(int slotId, int progress, int totalProgress, boolean running) {
         int normalizedTotal = Math.max(0, totalProgress);
         int normalizedProgress = Math.max(0, Math.min(progress, normalizedTotal));
         int normalizedSlot = running ? Math.max(0, slotId) : -1;
-        if (this.slotId == normalizedSlot && this.progress == normalizedProgress
-            && this.totalProgress == normalizedTotal
-            && this.running == running) {
+        WorkEntry current = this.peekEntry();
+        if (!running) {
+            if (this.queue.isEmpty()) {
+                return;
+            }
+            this.queue.clear();
+            this.onStateChanged();
             return;
         }
-        this.slotId = normalizedSlot;
-        this.progress = normalizedProgress;
-        this.totalProgress = normalizedTotal;
-        this.running = running;
+        if (current != null && current.slotId == normalizedSlot
+            && current.progress == normalizedProgress
+            && current.totalProgress == normalizedTotal) {
+            return;
+        }
+        if (current == null) {
+            this.queue.add(new WorkEntry(normalizedSlot, normalizedProgress, normalizedTotal, null));
+        } else {
+            current.slotId = normalizedSlot;
+            current.progress = normalizedProgress;
+            current.totalProgress = normalizedTotal;
+        }
+        this.normalizeSlots();
         this.onStateChanged();
     }
 
@@ -106,46 +162,81 @@ public class TileCraftingWorker extends TileCraftingMember {
     @Override
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
-        tag.setBoolean(TAG_RUNNING, this.running);
-        tag.setInteger(TAG_SLOT_ID, this.slotId);
-        tag.setInteger(TAG_PROGRESS, this.progress);
-        tag.setInteger(TAG_TOTAL_PROGRESS, this.totalProgress);
-        if (this.pendingOutput != null) {
-            NBTTagCompound outputTag = new NBTTagCompound();
-            this.pendingOutput.writeToNBT(outputTag);
-            tag.setTag("PendingOutput", outputTag);
+        WorkEntry current = this.peekEntry();
+        tag.setBoolean(TAG_RUNNING, current != null);
+        tag.setInteger(TAG_SLOT_ID, current == null ? -1 : current.slotId);
+        tag.setInteger(TAG_PROGRESS, current == null ? 0 : current.progress);
+        tag.setInteger(TAG_TOTAL_PROGRESS, current == null ? 0 : current.totalProgress);
+        if (current != null && current.output != null) {
+            NBTTagCompound legacyOutput = new NBTTagCompound();
+            current.output.writeToNBT(legacyOutput);
+            tag.setTag("PendingOutput", legacyOutput);
         }
+        NBTTagList list = new NBTTagList();
+        for (WorkEntry entry : this.queue) {
+            NBTTagCompound entryTag = new NBTTagCompound();
+            entryTag.setInteger(TAG_SLOT_ID, entry.slotId);
+            entryTag.setInteger(TAG_PROGRESS, entry.progress);
+            entryTag.setInteger(TAG_TOTAL_PROGRESS, entry.totalProgress);
+            if (entry.output != null) {
+                NBTTagCompound outputTag = new NBTTagCompound();
+                entry.output.writeToNBT(outputTag);
+                entryTag.setTag(TAG_OUTPUT, outputTag);
+            }
+            list.appendTag(entryTag);
+        }
+        tag.setTag(TAG_QUEUE, list);
     }
 
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
-        this.running = tag.getBoolean(TAG_RUNNING);
-        this.slotId = this.running ? Math.max(0, tag.getInteger(TAG_SLOT_ID)) : -1;
-        this.totalProgress = Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS));
-        this.progress = Math.max(0, Math.min(tag.getInteger(TAG_PROGRESS), this.totalProgress));
-        this.pendingOutput = tag.hasKey("PendingOutput")
-            ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag("PendingOutput"))
-            : null;
+        this.queue.clear();
+        NBTTagList list = tag.getTagList(TAG_QUEUE, Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < list.tagCount() && this.queue.size() < this.queueCapacity(); i++) {
+            WorkEntry entry = readEntry(list.getCompoundTagAt(i));
+            if (entry != null) {
+                this.queue.add(entry);
+            }
+        }
+        if (this.queue.isEmpty() && tag.getBoolean(TAG_RUNNING)) {
+            ItemStack output = tag.hasKey("PendingOutput")
+                ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag("PendingOutput"))
+                : null;
+            this.queue.add(
+                new WorkEntry(
+                    Math.max(0, tag.getInteger(TAG_SLOT_ID)),
+                    Math.max(0, tag.getInteger(TAG_PROGRESS)),
+                    Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS)),
+                    output));
+        }
+        this.normalizeSlots();
     }
 
     @Override
     public Packet getDescriptionPacket() {
         NBTTagCompound tag = new NBTTagCompound();
-        tag.setBoolean(TAG_RUNNING, this.running);
-        tag.setInteger(TAG_SLOT_ID, this.slotId);
-        tag.setInteger(TAG_PROGRESS, this.progress);
-        tag.setInteger(TAG_TOTAL_PROGRESS, this.totalProgress);
+        WorkEntry current = this.peekEntry();
+        tag.setBoolean(TAG_RUNNING, current != null);
+        tag.setInteger(TAG_SLOT_ID, current == null ? -1 : current.slotId);
+        tag.setInteger(TAG_PROGRESS, current == null ? 0 : current.progress);
+        tag.setInteger(TAG_TOTAL_PROGRESS, current == null ? 0 : current.totalProgress);
         return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
     }
 
     @Override
     public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {
         NBTTagCompound tag = packet.func_148857_g();
-        this.running = tag.getBoolean(TAG_RUNNING);
-        this.slotId = this.running ? Math.max(0, tag.getInteger(TAG_SLOT_ID)) : -1;
-        this.totalProgress = Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS));
-        this.progress = Math.max(0, Math.min(tag.getInteger(TAG_PROGRESS), this.totalProgress));
+        this.queue.clear();
+        if (tag.getBoolean(TAG_RUNNING)) {
+            this.queue.add(
+                new WorkEntry(
+                    Math.max(0, tag.getInteger(TAG_SLOT_ID)),
+                    Math.max(0, tag.getInteger(TAG_PROGRESS)),
+                    Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS)),
+                    null));
+        }
+        this.normalizeSlots();
     }
 
     private void onStateChanged() {
@@ -155,20 +246,96 @@ public class TileCraftingWorker extends TileCraftingMember {
 
     @Override
     public void updateEntity() {
-        if (this.worldObj == null || this.worldObj.isRemote || !this.running) {
+        if (this.worldObj == null || this.worldObj.isRemote || this.queue.isEmpty()) {
             return;
         }
-        if (this.progress < this.totalProgress) {
-            this.progress++;
+        WorkEntry current = this.peekEntry();
+        if (current == null) {
+            return;
+        }
+        if (current.progress < current.totalProgress) {
+            current.progress++;
             this.markDirty();
             return;
         }
         TileECOController controller = this.findCraftingController();
-        boolean accepted = controller == null || this.pendingOutput == null
-            || controller.acceptCraftingOutput(this.pendingOutput);
+        boolean accepted = controller == null || current.output == null
+            || controller.acceptCraftingOutput(current.output);
         if (accepted) {
-            this.pendingOutput = null;
-            this.clearRunningSlot();
+            this.queue.remove(0);
+            this.normalizeSlots();
+            this.onStateChanged();
+        }
+    }
+
+    private WorkEntry peekEntry() {
+        return this.queue.isEmpty() ? null : this.queue.get(0);
+    }
+
+    private void normalizeSlots() {
+        for (int i = 0; i < this.queue.size(); i++) {
+            WorkEntry entry = this.queue.get(i);
+            entry.slotId = i;
+            entry.totalProgress = Math.max(0, entry.totalProgress);
+            entry.progress = Math.max(0, Math.min(entry.progress, entry.totalProgress));
+        }
+    }
+
+    private static WorkEntry readEntry(NBTTagCompound tag) {
+        if (tag == null || !tag.hasKey(TAG_OUTPUT)) {
+            return null;
+        }
+        ItemStack output = ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_OUTPUT));
+        if (output == null) {
+            return null;
+        }
+        int totalProgress = Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS));
+        return new WorkEntry(
+            Math.max(0, tag.getInteger(TAG_SLOT_ID)),
+            Math.max(0, Math.min(tag.getInteger(TAG_PROGRESS), totalProgress)),
+            totalProgress,
+            output);
+    }
+
+    public static final class WorkSnapshot {
+
+        public final ItemStack output;
+        public final int queueSize;
+        public final int queueCapacity;
+        public final int progress;
+        public final int totalProgress;
+
+        private WorkSnapshot(ItemStack output, int queueSize, int queueCapacity, int progress, int totalProgress) {
+            this.output = output == null ? null : output.copy();
+            this.queueSize = Math.max(0, queueSize);
+            this.queueCapacity = Math.max(0, queueCapacity);
+            this.progress = Math.max(0, progress);
+            this.totalProgress = Math.max(0, totalProgress);
+        }
+    }
+
+    public WorkSnapshot snapshot() {
+        WorkEntry current = this.peekEntry();
+        return new WorkSnapshot(
+            current == null ? null : current.output,
+            this.queueSize(),
+            this.queueCapacity(),
+            current == null ? 0 : current.progress,
+            current == null ? 0 : current.totalProgress);
+    }
+
+    private static final class WorkEntry {
+
+        private int slotId;
+        private int progress;
+        private int totalProgress;
+        private ItemStack output;
+
+        private WorkEntry(int slotId, int progress, int totalProgress, ItemStack output) {
+            this.slotId = Math.max(0, slotId);
+            this.totalProgress = Math.max(0, totalProgress);
+            this.progress = Math.max(0, Math.min(progress, this.totalProgress));
+            this.output = output == null ? null : output.copy();
         }
     }
 }

@@ -6,10 +6,14 @@ import net.minecraft.world.World;
 
 import appeng.container.implementations.ContainerPriority;
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.gui.container.ContainerCraftingHatch;
+import cn.dancingsnow.neoecoae.gui.container.ContainerCraftingPatternBus;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOComputationController;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOStorageController;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
+import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
+import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.common.network.IGuiHandler;
 import cpw.mods.fml.relauncher.Side;
@@ -23,6 +27,15 @@ public final class NEGuiHandler implements IGuiHandler {
 
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        TileCraftingPatternBus patternBus = getPatternBus(id, world, x, y, z);
+        if (patternBus != null) {
+            return new ContainerCraftingPatternBus(player.inventory, patternBus);
+        }
+        TileCraftingHatch hatch = getCraftingHatch(id, world, x, y, z);
+        if (hatch != null) {
+            return new ContainerCraftingHatch(player.inventory, hatch);
+        }
+
         TileECOController controller = getController(id, world, x, y, z);
         if (controller == null) {
             return null;
@@ -45,6 +58,15 @@ public final class NEGuiHandler implements IGuiHandler {
     @Override
     @SideOnly(Side.CLIENT)
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        TileCraftingPatternBus patternBus = getPatternBus(id, world, x, y, z);
+        if (patternBus != null) {
+            return NeoECOAE.proxy.createCraftingPatternBusGui(player.inventory, patternBus);
+        }
+        TileCraftingHatch hatch = getCraftingHatch(id, world, x, y, z);
+        if (hatch != null) {
+            return NeoECOAE.proxy.createCraftingHatchGui(player.inventory, hatch);
+        }
+
         TileECOController controller = getController(id, world, x, y, z);
         if (controller != null && id == NEGuiIds.ECO_STORAGE_PRIORITY) {
             return NeoECOAE.proxy.createStoragePriorityGui(player.inventory, controller);
@@ -71,5 +93,21 @@ public final class NEGuiHandler implements IGuiHandler {
             return controller.getSubsystem() == ECOControllerSubsystem.CRAFTING ? controller : null;
         }
         return null;
+    }
+
+    private static TileCraftingPatternBus getPatternBus(int id, World world, int x, int y, int z) {
+        if (id != NEGuiIds.CRAFTING_PATTERN_BUS || world == null) {
+            return null;
+        }
+        TileEntity tile = world.getTileEntity(x, y, z);
+        return tile instanceof TileCraftingPatternBus ? (TileCraftingPatternBus) tile : null;
+    }
+
+    private static TileCraftingHatch getCraftingHatch(int id, World world, int x, int y, int z) {
+        if (id != NEGuiIds.CRAFTING_HATCH || world == null) {
+            return null;
+        }
+        TileEntity tile = world.getTileEntity(x, y, z);
+        return tile instanceof TileCraftingHatch ? (TileCraftingHatch) tile : null;
     }
 }

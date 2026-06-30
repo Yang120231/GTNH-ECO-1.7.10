@@ -120,9 +120,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
     }
 
     @Override
-    protected void drawGuiContainerForegroundLayer(int localMouseX, int localMouseY) {
-        int mouseX = this.guiLeft + localMouseX;
-        int mouseY = this.guiTop + localMouseY;
+    protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         ComputationHostSnapshot state = this.container.state();
         this.drawHeader(state);
         this.drawCpuModeButtonText(state, mouseX, mouseY);
@@ -294,19 +292,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
                     state.usedComputationBytes,
                     state.totalBytes,
                     true);
-            } else if (this.isMouseIn(
-                ComputationControllerLayout.MAIN_X,
-                ComputationControllerLayout.MAIN_Y,
-                ComputationControllerLayout.MAIN_W,
-                ComputationControllerLayout.MAIN_H,
-                mouseX,
-                mouseY)) {
-                    List<String> lines = new ArrayList<String>();
-                    lines
-                        .add(EnumChatFormatting.AQUA + tr("gui.neoecoae.computation_ui.title", "ECO Computation Host"));
-                    lines.add(tr("gui.neoecoae.host_ui.formation", "Formation") + ": " + state.formationMessage);
-                    this.hoveredLines = lines;
-                }
+            }
     }
 
     private void drawTaskPanel(ComputationHostSnapshot state, int mouseX, int mouseY) {
@@ -376,7 +362,15 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             HostUiStyle.DARK_TEXT_VALUE);
         if (hovered) {
             List<String> lines = new ArrayList<String>();
-            lines.add(EnumChatFormatting.AQUA + task.outputName);
+            if (task.outputStack != null) {
+                @SuppressWarnings("unchecked")
+                List<String> itemLines = task.outputStack
+                    .getTooltip(this.mc.thePlayer, this.mc.gameSettings.advancedItemTooltips);
+                lines.addAll(itemLines);
+            } else {
+                lines.add(EnumChatFormatting.AQUA + task.outputName);
+            }
+            lines.add(EnumChatFormatting.GRAY + tr("gui.neoecoae.crafting.task.status.running", "Running"));
             lines.add(
                 EnumChatFormatting.GRAY + tr("gui.neoecoae.computation.elapsed", "Elapsed")
                     + ": "

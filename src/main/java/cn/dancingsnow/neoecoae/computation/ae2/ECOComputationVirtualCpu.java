@@ -38,6 +38,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     private boolean active;
     private IGrid grid;
     private boolean released;
+    private boolean reservedForJob;
     private CraftingAllow craftingAllowMode = CraftingAllow.ALLOW_ALL;
 
     ECOComputationVirtualCpu(ECOComputationCpuPool pool, TileECOInterface host, int serial) {
@@ -55,6 +56,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         ComputationCpuSelectionMode cpuSelectionMode) {
         this.reservedStorage = Math.max(0L, storage);
         this.availableStorage = this.reservedStorage;
+        this.reservedForJob = false;
         this.updateResources(coProcessors, grid, active, cpuSelectionMode);
         this.myName = this.pool.nameFor(this.serial, false);
     }
@@ -76,7 +78,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     }
 
     boolean shouldPersist() {
-        return !this.released && (this.isBusy() || this.getLastCraftingLink() != null
+        return !this.released && (this.hasAllocatedJobState() || super.isBusy()
+            || this.getLastCraftingLink() != null
             || this.getUsedStorage() > 0L
             || !this.inventory.isEmpty());
     }
@@ -110,6 +113,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
             return false;
         }
         this.readBatchRuntime(data);
+        this.reservedForJob = this.hasRestoredJobState();
         this.myName = this.pool.nameFor(this.serial, true);
         return this.shouldPersist();
     }
@@ -134,6 +138,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         if (link == null) {
             this.releaseFromPool();
         } else {
+            this.reservedForJob = true;
             this.onBatchJobAccepted(job);
             this.myName = this.pool.nameFor(this.serial, true);
             this.pool.onCpuJobAccepted(this);
@@ -233,6 +238,11 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
     }
 
     @Override
+    public boolean isBusy() {
+        return super.isBusy() || this.hasAllocatedJobState();
+    }
+
+    @Override
     public long getAvailableStorage() {
         return this.reservedStorage;
     }
@@ -291,9 +301,21 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
         if (this.released) {
             return;
         }
+        this.reservedForJob = false;
         this.released = true;
         this.active = false;
         this.pool.onCpuJobFinished(this);
+    }
+
+    private boolean hasAllocatedJobState() {
+        return !this.released && this.reservedForJob && !this.isComplete;
+    }
+
+    private boolean hasRestoredJobState() {
+        return !this.isComplete || super.isBusy()
+            || this.getLastCraftingLink() != null
+            || this.getUsedStorage() > 0L
+            || !this.inventory.isEmpty();
     }
 
     private void readBatchRuntime(NBTTagCompound data) {

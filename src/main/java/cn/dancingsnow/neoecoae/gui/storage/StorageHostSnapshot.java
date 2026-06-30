@@ -39,6 +39,7 @@ public final class StorageHostSnapshot {
         0L,
         0L,
         0L,
+        false,
         Collections.<TypeStat>emptyList(),
         Collections.<MatrixCell>emptyList());
 
@@ -54,12 +55,14 @@ public final class StorageHostSnapshot {
     public final long totalBytes;
     public final long usedTypes;
     public final long totalTypes;
+    public final boolean canTakeInfiniteComponent;
     public final List<TypeStat> typeStats;
     public final List<MatrixCell> matrixCells;
 
     private StorageHostSnapshot(boolean formed, String tier, String hostMode, int infiniteComponentCount,
         int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes,
-        long totalBytes, long usedTypes, long totalTypes, List<TypeStat> typeStats, List<MatrixCell> matrixCells) {
+        long totalBytes, long usedTypes, long totalTypes, boolean canTakeInfiniteComponent, List<TypeStat> typeStats,
+        List<MatrixCell> matrixCells) {
         this.formed = formed;
         this.tier = tier;
         this.hostMode = hostMode;
@@ -72,6 +75,7 @@ public final class StorageHostSnapshot {
         this.totalBytes = totalBytes;
         this.usedTypes = usedTypes;
         this.totalTypes = totalTypes;
+        this.canTakeInfiniteComponent = canTakeInfiniteComponent;
         this.typeStats = Collections.unmodifiableList(typeStats);
         this.matrixCells = Collections.unmodifiableList(matrixCells);
     }
@@ -144,6 +148,7 @@ public final class StorageHostSnapshot {
             totalBytes,
             usedTypes,
             totalTypes,
+            controller.canTakeInfiniteStorageComponent(),
             stats,
             cells);
     }
@@ -161,6 +166,7 @@ public final class StorageHostSnapshot {
         buf.writeLong(this.totalBytes);
         buf.writeLong(this.usedTypes);
         buf.writeLong(this.totalTypes);
+        buf.writeBoolean(this.canTakeInfiniteComponent);
         int typeCount = Math.min(this.typeStats.size(), MAX_TYPE_STATS);
         buf.writeInt(typeCount);
         for (int i = 0; i < typeCount; i++) {
@@ -188,6 +194,7 @@ public final class StorageHostSnapshot {
         long totalBytes = safeLong(buf.readLong());
         long usedTypes = safeLong(buf.readLong());
         long totalTypes = safeLong(buf.readLong());
+        boolean canTakeInfiniteComponent = buf.readBoolean();
         int typeCount = Math.min(Math.max(0, buf.readInt()), MAX_TYPE_STATS);
         List<TypeStat> typeStats = new ArrayList<TypeStat>(typeCount);
         for (int i = 0; i < typeCount; i++) {
@@ -211,6 +218,7 @@ public final class StorageHostSnapshot {
             totalBytes,
             usedTypes,
             totalTypes,
+            canTakeInfiniteComponent,
             typeStats,
             matrixCells);
     }

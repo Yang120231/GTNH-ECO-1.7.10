@@ -324,10 +324,19 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     private void drawComponent(StorageHostSnapshot state, int mouseX, int mouseY) {
+        if (state.infiniteComponentCount > 0 && !state.canTakeInfiniteComponent) {
+            drawRect(COMPONENT_SLOT_X, COMPONENT_SLOT_Y, COMPONENT_SLOT_X + 18, COMPONENT_SLOT_Y + 18, 0x99505050);
+        }
         if (this.isMouseIn(COMPONENT_SLOT_X, COMPONENT_SLOT_Y, 18, 18, mouseX, mouseY)) {
             List<String> lines = new ArrayList<String>();
             lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.storage_ui.infinite_component", "Infinite Component"));
             lines.add(state.infiniteComponentCount + " / 64");
+            if (state.infiniteComponentCount > 0 && !state.canTakeInfiniteComponent) {
+                lines.add(
+                    EnumChatFormatting.GRAY + tr(
+                        "gui.neoecoae.storage_ui.infinite_component_locked",
+                        "Cannot remove while infinite storage contains contents"));
+            }
             lines.add(
                 tr(
                     "gui.neoecoae.storage_ui.infinite_hint",

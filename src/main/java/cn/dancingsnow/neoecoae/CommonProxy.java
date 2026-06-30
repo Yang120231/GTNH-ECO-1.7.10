@@ -6,8 +6,11 @@ import cn.dancingsnow.neoecoae.all.NEOreDictionary;
 import cn.dancingsnow.neoecoae.all.NERecipes;
 import cn.dancingsnow.neoecoae.all.NETileEntities;
 import cn.dancingsnow.neoecoae.gui.NEGuiHandler;
+import cn.dancingsnow.neoecoae.network.HostUiStatePacket;
 import cn.dancingsnow.neoecoae.network.NENetwork;
 import cn.dancingsnow.neoecoae.storage.ae2.NEAE2Storage;
+import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
+import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.world.NEOreWorldGenerator;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
@@ -56,4 +59,16 @@ public class CommonProxy {
         TileECOController controller) {
         return null;
     }
+
+    public Object createCraftingPatternBusGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileCraftingPatternBus bus) {
+        return null;
+    }
+
+    public Object createCraftingHatchGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
+        TileCraftingHatch hatch) {
+        return null;
+    }
+
+    public void handleHostUiStatePacket(HostUiStatePacket packet) {}
 }

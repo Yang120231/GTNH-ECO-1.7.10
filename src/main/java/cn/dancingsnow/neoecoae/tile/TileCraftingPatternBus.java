@@ -19,7 +19,11 @@ import appeng.util.ScheduledReason;
 
 public class TileCraftingPatternBus extends TileCraftingMember implements IInventory, ICraftingProvider {
 
-    public static final int PATTERN_SLOTS = 9;
+    public static final int COLUMNS = 9;
+    public static final int ROWS = 7;
+    public static final int SLOTS_PER_PAGE = COLUMNS * ROWS;
+    public static final int PAGE_COUNT = 2;
+    public static final int PATTERN_SLOTS = SLOTS_PER_PAGE * PAGE_COUNT;
 
     private static final String TAG_PATTERNS = "Patterns";
     private static final String TAG_SLOT = "Slot";
@@ -85,6 +89,10 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
 
     public int patternCount() {
         return this.getPatternCount();
+    }
+
+    public int getPageCount() {
+        return PAGE_COUNT;
     }
 
     @Override

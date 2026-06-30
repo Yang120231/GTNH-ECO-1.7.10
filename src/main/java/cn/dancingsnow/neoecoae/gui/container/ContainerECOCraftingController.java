@@ -13,7 +13,7 @@ import io.netty.buffer.ByteBuf;
 
 public class ContainerECOCraftingController extends HostUiStateContainer {
 
-    private static final int STATE_VERSION = 2;
+    private static final int STATE_VERSION = 3;
 
     private final TileECOController controller;
     private CraftingHostSnapshot state = CraftingHostSnapshot.EMPTY;
@@ -51,6 +51,15 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
 
     public CraftingHostSnapshot state() {
         return this.state;
+    }
+
+    public TileECOController getController() {
+        return this.controller;
+    }
+
+    @Override
+    protected int hostUiSyncIntervalTicks() {
+        return 5;
     }
 
     private void addPlayerInventory(InventoryPlayer playerInventory, HostUiLayouts.Layout layout) {

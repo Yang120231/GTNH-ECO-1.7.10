@@ -114,6 +114,10 @@ abstract class GuiHostMachineBase extends GuiContainer {
         drawRect(x + 2, y + 2, x + width - 2, y + height - 2, innerColor);
     }
 
+    final void drawLocalRect(int x, int y, int width, int height, int color) {
+        drawRect(this.guiLeft + x, this.guiTop + y, this.guiLeft + x + width, this.guiTop + y + height, color);
+    }
+
     protected final void drawUsageBar(int x, int y, int width, int height, long value, long max, int color) {
         this.drawTinyInsetRect(x, y, width, height, 0xFF201E27);
         int filled = this.ratioSize(value, max, width - 4);
@@ -437,6 +441,22 @@ abstract class GuiHostMachineBase extends GuiContainer {
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         this.drawTintedTexture(texture, x, y, width, height, u, v, uWidth, vHeight, textureWidth, textureHeight);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    final void drawLocalTexture(ResourceLocation texture, int x, int y, int width, int height, int u, int v, int uWidth,
+        int vHeight, int textureWidth, int textureHeight) {
+        this.drawTexture(
+            texture,
+            this.guiLeft + x,
+            this.guiTop + y,
+            width,
+            height,
+            u,
+            v,
+            uWidth,
+            vHeight,
+            textureWidth,
+            textureHeight);
     }
 
     private void drawTintedTexture(ResourceLocation texture, int x, int y, int width, int height, int u, int v,

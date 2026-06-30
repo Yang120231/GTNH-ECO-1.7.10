@@ -11,12 +11,13 @@ import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
 public final class CraftingHostStats {
 
-    public static final CraftingHostStats EMPTY = new CraftingHostStats(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    public static final CraftingHostStats EMPTY = new CraftingHostStats(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     public final int patternCount;
     public final int patternBusCount;
     public final int workerCount;
     public final int runningWorkerCount;
+    public final int queuedWorkCount;
     public final int parallelCount;
     public final int parallelCoreCount;
     public final int inputCachedItems;
@@ -24,11 +25,13 @@ public final class CraftingHostStats {
     public final int occupiedCacheSlots;
 
     private CraftingHostStats(int patternCount, int patternBusCount, int workerCount, int runningWorkerCount,
-        int parallelCount, int parallelCoreCount, int inputCachedItems, int outputCachedItems, int occupiedCacheSlots) {
+        int queuedWorkCount, int parallelCount, int parallelCoreCount, int inputCachedItems, int outputCachedItems,
+        int occupiedCacheSlots) {
         this.patternCount = Math.max(0, patternCount);
         this.patternBusCount = Math.max(0, patternBusCount);
         this.workerCount = Math.max(0, workerCount);
         this.runningWorkerCount = Math.max(0, runningWorkerCount);
+        this.queuedWorkCount = Math.max(0, queuedWorkCount);
         this.parallelCount = Math.max(0, parallelCount);
         this.parallelCoreCount = Math.max(0, parallelCoreCount);
         this.inputCachedItems = Math.max(0, inputCachedItems);
@@ -43,6 +46,7 @@ public final class CraftingHostStats {
             patternCount,
             patternBusCount,
             workerCount,
+            runningWorkerCount,
             runningWorkerCount,
             parallelCount,
             parallelCoreCount,
@@ -65,6 +69,7 @@ public final class CraftingHostStats {
         int patternBusCount = 0;
         int workerCount = 0;
         int runningWorkerCount = 0;
+        int queuedWorkCount = 0;
         int parallelCount = 0;
         int parallelCoreCount = 0;
         if (formedMembers != null) {
@@ -79,8 +84,12 @@ public final class CraftingHostStats {
                 } else if (block == NEBlocks.craftingWorker) {
                     workerCount++;
                     TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
-                    if (tile instanceof TileCraftingWorker && ((TileCraftingWorker) tile).isRunning()) {
-                        runningWorkerCount++;
+                    if (tile instanceof TileCraftingWorker) {
+                        TileCraftingWorker worker = (TileCraftingWorker) tile;
+                        if (worker.isRunning()) {
+                            runningWorkerCount++;
+                        }
+                        queuedWorkCount = saturatedAdd(queuedWorkCount, worker.queueSize());
                     }
                 } else if (isParallelCore(block)) {
                     parallelCoreCount++;
@@ -112,6 +121,7 @@ public final class CraftingHostStats {
             patternBusCount,
             workerCount,
             runningWorkerCount,
+            queuedWorkCount,
             parallelCount,
             parallelCoreCount,
             inputCachedItems,

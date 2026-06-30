@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.network;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -64,7 +65,7 @@ public final class HostUiStatePacket implements IMessage {
 
         @Override
         public IMessage onMessage(HostUiStatePacket message, MessageContext ctx) {
-            ClientHostUiPacketBridge.handle(message);
+            NeoECOAE.proxy.handleHostUiStatePacket(message);
             return null;
         }
     }

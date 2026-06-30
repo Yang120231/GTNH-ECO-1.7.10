@@ -24,6 +24,12 @@ public class SlotInfiniteComponent extends Slot {
 
     @Override
     public boolean canTakeStack(net.minecraft.entity.player.EntityPlayer player) {
+        if (player != null && player.openContainer instanceof ContainerECOStorageController
+            && this.inventory instanceof TileECOController
+            && ((TileECOController) this.inventory).getWorldObj() != null
+            && ((TileECOController) this.inventory).getWorldObj().isRemote) {
+            return ((ContainerECOStorageController) player.openContainer).canTakeInfiniteComponent();
+        }
         return !(this.inventory instanceof TileECOController)
             || ((TileECOController) this.inventory).canTakeInfiniteStorageComponent();
     }
