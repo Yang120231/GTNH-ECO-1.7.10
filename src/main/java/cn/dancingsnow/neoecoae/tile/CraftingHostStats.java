@@ -78,6 +78,9 @@ public final class CraftingHostStats {
                 Block block = world.getBlock(pos.getX(), pos.getY(), pos.getZ());
                 if (block == NEBlocks.craftingPatternBus) {
                     patternBusCount++;
+                    if (patternCount > 100000) {
+                        break;
+                    }
                     TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
                     if (tile instanceof TileCraftingPatternBus) {
                         patternCount = saturatedAdd(patternCount, ((TileCraftingPatternBus) tile).getPatternCount());

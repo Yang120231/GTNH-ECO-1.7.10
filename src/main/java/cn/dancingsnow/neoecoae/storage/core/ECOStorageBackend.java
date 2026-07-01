@@ -88,9 +88,11 @@ public final class ECOStorageBackend {
         if (out == null || revision < this.dirtyKeyHistoryBaseRevision || revision > this.revision) {
             return false;
         }
-        for (DirtyKeyChange change : this.dirtyKeyHistory) {
-            if (change.revision > revision) {
-                out.add(change.key);
+        synchronized (this.dirtyKeyHistory) {
+            for (DirtyKeyChange change : this.dirtyKeyHistory) {
+                if (change.revision > revision) {
+                    out.add(change.key);
+                }
             }
         }
         return true;
@@ -167,7 +169,9 @@ public final class ECOStorageBackend {
 
     private void markDirty() {
         if (this.revision == Long.MAX_VALUE) {
-            this.revision = 1L;
+            this.revision = 0L;
+            this.dirtyKeyHistory.clear();
+            this.dirtyKeyHistoryBaseRevision = 0L;
         } else {
             this.revision++;
         }
@@ -176,16 +180,20 @@ public final class ECOStorageBackend {
     }
 
     private void markDirty(ECOStorageKey key) {
-        if (this.revision == Long.MAX_VALUE) {
-            this.revision = 1L;
-        } else {
-            this.revision++;
-        }
-        this.dirtyKeyHistory.add(new DirtyKeyChange(this.revision, key));
-        if (this.dirtyKeyHistory.size() > MAX_DIRTY_KEY_HISTORY) {
-            this.dirtyKeyHistory.remove(0);
-            if (!this.dirtyKeyHistory.isEmpty()) {
-                this.dirtyKeyHistoryBaseRevision = this.dirtyKeyHistory.get(0).revision - 1L;
+        synchronized (this.dirtyKeyHistory) {
+            if (this.revision == Long.MAX_VALUE) {
+                this.revision = 0L;
+                this.dirtyKeyHistory.clear();
+                this.dirtyKeyHistoryBaseRevision = 0L;
+            } else {
+                this.revision++;
+            }
+            this.dirtyKeyHistory.add(new DirtyKeyChange(this.revision, key));
+            if (this.dirtyKeyHistory.size() > MAX_DIRTY_KEY_HISTORY) {
+                this.dirtyKeyHistory.remove(0);
+                if (!this.dirtyKeyHistory.isEmpty()) {
+                    this.dirtyKeyHistoryBaseRevision = this.dirtyKeyHistory.get(0).revision - 1L;
+                }
             }
         }
     }

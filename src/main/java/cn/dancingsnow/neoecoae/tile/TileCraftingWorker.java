@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -38,7 +39,7 @@ public class TileCraftingWorker extends TileCraftingMember {
         ItemStack output = details.getOutput(table, this.worldObj);
         if (output == null) {
             IAEItemStack[] outputs = details.getCondensedOutputs();
-            if (outputs.length > 0 && outputs[0] != null) {
+            if (outputs != null && outputs.length > 0 && outputs[0] != null) {
                 output = outputs[0].getItemStack();
             }
         }
@@ -199,7 +200,12 @@ public class TileCraftingWorker extends TileCraftingMember {
         super.readFromNBT(tag);
         this.queue.clear();
         NBTTagList list = tag.getTagList(TAG_QUEUE, Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < list.tagCount() && this.queue.size() < this.queueCapacity(); i++) {
+        int capacity = this.queueCapacity();
+        if (list.tagCount() > capacity) {
+            NeoECOAE.LOG.warn("Dropping {} crafting tasks at {} due to capacity limit (capacity={})",
+                list.tagCount() - capacity, this.xCoord + "," + this.yCoord + "," + this.zCoord, capacity);
+        }
+        for (int i = 0; i < list.tagCount() && this.queue.size() < capacity; i++) {
             WorkEntry entry = readEntry(list.getCompoundTagAt(i));
             if (entry != null) {
                 this.queue.add(entry);
@@ -322,7 +328,7 @@ public class TileCraftingWorker extends TileCraftingMember {
             return PROGRESS_SYNC_BUCKETS;
         }
         long longTotal = (long) totalProgress;
-        if (longTotal <= 0L) {
+        if (longTotal <= 0L || progress < 0) {
             return 0;
         }
         return (int) Math.min(
