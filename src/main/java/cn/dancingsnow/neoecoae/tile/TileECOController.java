@@ -320,7 +320,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
             if (worker.getWorldObj() != this.worldObj || worker.isInvalid()) {
                 this.invalidateCraftingMemberCache();
-                return this.findAvailableCraftingWorkerFallback();
+                continue;
             }
 
             if (worker.hasQueueSpace()) {

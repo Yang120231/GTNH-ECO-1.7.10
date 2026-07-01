@@ -184,7 +184,9 @@ public final class ECOStorageBackend {
         this.dirtyKeyHistory.add(new DirtyKeyChange(this.revision, key));
         if (this.dirtyKeyHistory.size() > MAX_DIRTY_KEY_HISTORY) {
             this.dirtyKeyHistory.remove(0);
-            this.dirtyKeyHistoryBaseRevision = this.dirtyKeyHistory.get(0).revision - 1L;
+            if (!this.dirtyKeyHistory.isEmpty()) {
+                this.dirtyKeyHistoryBaseRevision = this.dirtyKeyHistory.get(0).revision - 1L;
+            }
         }
     }
 

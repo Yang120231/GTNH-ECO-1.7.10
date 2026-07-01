@@ -321,9 +321,13 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (progress >= totalProgress) {
             return PROGRESS_SYNC_BUCKETS;
         }
+        long longTotal = (long) totalProgress;
+        if (longTotal <= 0L) {
+            return 0;
+        }
         return (int) Math.min(
             PROGRESS_SYNC_BUCKETS - 1L,
-            (long) progress * (long) PROGRESS_SYNC_BUCKETS / (long) totalProgress);
+            (long) progress * (long) PROGRESS_SYNC_BUCKETS / longTotal);
     }
 
     private void normalizeSlots() {
