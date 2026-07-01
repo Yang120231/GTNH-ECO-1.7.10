@@ -261,63 +261,86 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (this.worldObj == null || this.worldObj.isRemote || this.queue.isEmpty()) {
             return;
         }
-        WorkEntry current = this.peekEntry();
-        if (current == null) {
-            return;
-        }
         TileECOController controller = this.findCraftingController();
-        if (current.progress < current.totalProgress) {
-            if (controller == null) {
-                return;
-            }
-            int bonusValue = controller.getCraftingWorkBonusValue();
-            int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
-            double request = ECOEnergyProfile.craftingWorkPowerRequest(1, bonusValue, 1, powerMultiplier);
-            double simulated = controller.extractCraftingEnergy(request, true);
-            if (simulated <= 0D) {
-                return;
-            }
-            double consumable = Math.min(request, simulated);
-            int progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(consumable, 1, powerMultiplier);
-            if (progress <= 0) {
-                return;
-            }
-            double extracted = controller.extractCraftingEnergy(consumable, false);
-            progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(extracted, 1, powerMultiplier);
-            if (progress <= 0) {
-                return;
-            }
-            int previousProgress = current.progress;
-            current.progress = Math.min(current.totalProgress, current.progress + progress);
-            this.onProgressChanged(previousProgress, current);
+        if (controller == null) {
             return;
         }
-        ItemStack remaining = controller == null || current.output == null ? null
-            : controller.acceptCraftingOutput(current.output);
-        if (remaining == null) {
-            this.queue.remove(0);
+        int burstLimit = Math.max(1, controller.getCraftingBurstCraftsPerTick());
+        int bonusValue = controller.getCraftingWorkBonusValue();
+        int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
+
+        boolean queueChanged = false;
+        boolean progressDirty = false;
+        int completed = 0;
+
+        while (completed < burstLimit) {
+            WorkEntry current = this.peekEntry();
+            if (current == null) {
+                break;
+            }
+            if (current.progress < current.totalProgress) {
+                int gained = this.advanceProgress(controller, current, bonusValue, powerMultiplier);
+                if (gained <= 0) {
+                    break;
+                }
+                int previousProgress = current.progress;
+                current.progress = Math.min(current.totalProgress, current.progress + gained);
+                if (this.progressBucketChanged(previousProgress, current)) {
+                    progressDirty = true;
+                }
+                if (current.progress < current.totalProgress) {
+                    break;
+                }
+            }
+            ItemStack remaining = current.output == null ? null : controller.acceptCraftingOutput(current.output);
+            if (remaining == null) {
+                this.queue.remove(0);
+                queueChanged = true;
+                completed++;
+                continue;
+            }
+            if (current.output == null || remaining.stackSize < current.output.stackSize) {
+                current.output = remaining.copy();
+                queueChanged = true;
+            }
+            break;
+        }
+
+        if (queueChanged) {
             this.normalizeSlots();
             this.onStateChanged();
-        } else if (current.output == null || remaining.stackSize < current.output.stackSize) {
-            current.output = remaining.copy();
-            this.onStateChanged();
+        } else if (progressDirty) {
+            this.markDirty();
         }
+    }
+
+    private int advanceProgress(TileECOController controller, WorkEntry current, int bonusValue, int powerMultiplier) {
+        double request = ECOEnergyProfile.craftingWorkPowerRequest(1, bonusValue, 1, powerMultiplier);
+        double simulated = controller.extractCraftingEnergy(request, true);
+        if (simulated <= 0D) {
+            return 0;
+        }
+        double consumable = Math.min(request, simulated);
+        int progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(consumable, 1, powerMultiplier);
+        if (progress <= 0) {
+            return 0;
+        }
+        double extracted = controller.extractCraftingEnergy(consumable, false);
+        return ECOEnergyProfile.craftingWorkPowerFromExtracted(extracted, 1, powerMultiplier);
     }
 
     private WorkEntry peekEntry() {
         return this.queue.isEmpty() ? null : this.queue.get(0);
     }
 
-    private void onProgressChanged(int previousProgress, WorkEntry current) {
+    private boolean progressBucketChanged(int previousProgress, WorkEntry current) {
         if (current == null || current.progress <= previousProgress) {
-            return;
+            return false;
         }
-        if (current.progress >= current.totalProgress
+        return current.progress >= current.totalProgress
             || progressSyncBucket(previousProgress, current.totalProgress) != progressSyncBucket(
                 current.progress,
-                current.totalProgress)) {
-            this.markDirty();
-        }
+                current.totalProgress);
     }
 
     private static int progressSyncBucket(int progress, int totalProgress) {

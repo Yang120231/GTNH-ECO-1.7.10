@@ -627,6 +627,12 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             : 1;
     }
 
+    public int getCraftingBurstCraftsPerTick() {
+        return ECOEnergyProfile.craftingBurstCraftsPerTick(
+            this.craftingOverclocked,
+            this.getCraftingEffectiveOverclockTimes());
+    }
+
     public boolean consumeCraftingCoolantForWork(int craftCount) {
         if (!this.craftingActiveCooling) {
             return true;
