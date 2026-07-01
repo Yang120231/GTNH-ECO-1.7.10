@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.storage.domain;
 
-import java.util.Map;
-
 import net.minecraft.world.World;
 
 import appeng.api.config.AccessRestriction;
@@ -12,18 +10,17 @@ import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
+import cn.dancingsnow.neoecoae.storage.ae2.ECOAvailableItemsCache;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOAE2KeyConverter;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
 public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implements IMEInventoryHandler<StackType> {
 
     private final TileECOController controller;
     private final StorageChannel channel;
-    private long cachedRevision = Long.MIN_VALUE;
-    private IItemList<StackType> cachedAvailableItems;
+    private final ECOAvailableItemsCache<StackType> availableItemsCache = new ECOAvailableItemsCache<StackType>();
 
     public ECOHostDomainInventoryHandler(TileECOController controller, StorageChannel channel) {
         this.controller = controller;
@@ -144,34 +141,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
 
     private IItemList<StackType> getCachedAvailableItems() {
         ECOStorageBackend backend = this.getBackend();
-        if (backend == null) {
-            return this.channel.createList();
-        }
-        long revision = backend.getRevision();
-        if (this.cachedAvailableItems != null && this.cachedRevision == revision) {
-            return this.cachedAvailableItems;
-        }
-        IItemList<StackType> out = this.channel.createList();
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesView()
-            .entrySet()) {
-            StackType stack = this.toAEStack(
-                entry.getKey(),
-                entry.getValue()
-                    .toLongSaturated());
-            if (stack != null) {
-                out.addStorage(stack);
-            }
-        }
-        this.cachedRevision = revision;
-        this.cachedAvailableItems = out;
-        return out;
-    }
-
-    private StackType toAEStack(ECOStorageKey key, long amount) {
-        if (this.channel == StorageChannel.ITEMS) {
-            return (StackType) ECOAE2KeyConverter.toItemStack(key, amount);
-        }
-        return (StackType) ECOAE2KeyConverter.toFluidStack(key, amount);
+        return this.availableItemsCache.get(this.channel, backend);
     }
 
     private void markChanged() {
@@ -180,8 +150,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             ECOStorageDomainData.get(world)
                 .markDirty();
         }
-        this.cachedRevision = Long.MIN_VALUE;
-        this.cachedAvailableItems = null;
+        this.availableItemsCache.invalidate();
         this.controller.onHostDomainContentChanged();
     }
 }
