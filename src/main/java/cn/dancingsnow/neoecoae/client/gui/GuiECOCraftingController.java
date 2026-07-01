@@ -57,6 +57,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private static final int GAUGE_BAR_H = 45;
     private static final int GAUGE_BAR_W = 24;
     private static final int GAUGE_GAP = 7;
+    private static final int GAUGE_HOVER_BOTTOM_PADDING = 11;
     private static final int TOOLBAR_SIZE = 16;
     private static final int TOOLBAR_GAP = 3;
     private static final int TOOLBAR_Y = EDGE;
@@ -351,6 +352,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         this.drawModuleGrid(state);
         this.drawModuleStats(state);
         if (this.isMouseInLocal(MODULE_AREA_X + 7, MODULE_AREA_Y + 7, MODULE_AREA_W - 14, 11, mouseX, mouseY)
+            || this.isMouseInLocal(MODULE_GRID_X, MODULE_GRID_Y, MODULE_GRID_W, MODULE_GRID_H, mouseX, mouseY)
             || this.isMouseInLocal(MODULE_AREA_X + 7, MODULE_STATS_Y - 1, MODULE_AREA_W - 14, 22, mouseX, mouseY)) {
             this.hoveredLines = this.moduleTooltip(state);
         }
@@ -499,9 +501,27 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             GAUGE_BAR_W + 14,
             TEXT_SCALE,
             HostUiStyle.DARK_TEXT_MUTED);
-        if (this.isMouseInLocal(energyX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
+        int hoverTop = GAUGE_BAR_Y;
+        int hoverBottom = GAUGE_BAR_Y + GAUGE_BAR_H + GAUGE_HOVER_BOTTOM_PADDING;
+        int energyHoverLeft = energyX - 7;
+        int energyHoverRight = energyX + GAUGE_BAR_W + 7;
+        int coolantHoverLeft = coolantX - 7;
+        int coolantHoverRight = coolantX + GAUGE_BAR_W + 7;
+        if (this.isMouseInLocal(
+            energyHoverLeft,
+            hoverTop,
+            energyHoverRight - energyHoverLeft,
+            hoverBottom - hoverTop,
+            mouseX,
+            mouseY)) {
             this.hoveredLines = this.energyTooltip(state);
-        } else if (this.isMouseInLocal(coolantX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
+        } else if (this.isMouseInLocal(
+            coolantHoverLeft,
+            hoverTop,
+            coolantHoverRight - coolantHoverLeft,
+            hoverBottom - hoverTop,
+            mouseX,
+            mouseY)) {
             this.hoveredLines = this.coolantTooltip(state);
         }
     }
@@ -656,7 +676,12 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private List<String> energyTooltip(CraftingHostSnapshot state) {
         List<String> lines = new ArrayList<String>();
         lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.crafting.energy_usage", "Energy Usage"));
-        lines.add(this.formatNumber(state.maxEnergyUsage) + " AE/t");
+        lines.add(
+            this.formatNumber(state.maxEnergyUsage)
+                + " / "
+                + this.formatNumber(Math.max(1L, state.energyGaugeReference))
+                + " AE/t");
+        lines.add(this.percentText(state.maxEnergyUsage, Math.max(1L, state.energyGaugeReference)));
         return lines;
     }
 
