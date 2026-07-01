@@ -132,6 +132,72 @@ public final class CraftingHostStats {
             occupiedCacheSlots);
     }
 
+    public static CraftingHostStats fromCache(TileECOController controller, CraftingMemberCache cache) {
+        if (controller == null || cache == null) {
+            return EMPTY;
+        }
+
+        int patternCount = 0;
+        int patternBusCount = 0;
+        for (TileCraftingPatternBus bus : cache.patternBuses()) {
+            patternBusCount++;
+            patternCount = saturatedAdd(patternCount, bus.getPatternCount());
+        }
+
+        int workerCount = 0;
+        int runningWorkerCount = 0;
+        int queuedWorkCount = 0;
+        for (TileCraftingWorker worker : cache.workers()) {
+            workerCount++;
+            if (worker.isRunning()) {
+                runningWorkerCount++;
+            }
+            queuedWorkCount = saturatedAdd(queuedWorkCount, worker.queueSize());
+        }
+
+        int parallelCount = 0;
+        int parallelCoreCount = 0;
+        World world = controller.getWorldObj();
+        List<ECOFormationBlockPos> formedMembers = controller.getFormedMemberBlocks();
+        if (world != null && formedMembers != null) {
+            for (ECOFormationBlockPos pos : formedMembers) {
+                Block block = world.getBlock(pos.getX(), pos.getY(), pos.getZ());
+                if (isParallelCore(block)) {
+                    parallelCoreCount++;
+                    parallelCount = saturatedAdd(
+                        parallelCount,
+                        parallelContribution(pos.getTier(), controller.isCraftingOverclocked())
+                    );
+                }
+            }
+        }
+
+        int inputCachedItems = 0;
+        int outputCachedItems = 0;
+        int occupiedCacheSlots = 0;
+        for (TileCraftingHatch hatch : cache.inputHatches()) {
+            inputCachedItems = saturatedAdd(inputCachedItems, hatch.getCachedItemCount());
+            occupiedCacheSlots = saturatedAdd(occupiedCacheSlots, hatch.getOccupiedSlotCount());
+        }
+        for (TileCraftingHatch hatch : cache.outputHatches()) {
+            outputCachedItems = saturatedAdd(outputCachedItems, hatch.getCachedItemCount());
+            occupiedCacheSlots = saturatedAdd(occupiedCacheSlots, hatch.getOccupiedSlotCount());
+        }
+
+        return new CraftingHostStats(
+            patternCount,
+            patternBusCount,
+            workerCount,
+            runningWorkerCount,
+            queuedWorkCount,
+            parallelCount,
+            parallelCoreCount,
+            inputCachedItems,
+            outputCachedItems,
+            occupiedCacheSlots
+        );
+    }
+
     private static boolean isParallelCore(Block block) {
         return block == NEBlocks.craftingParallelCoreL4 || block == NEBlocks.craftingParallelCoreL6
             || block == NEBlocks.craftingParallelCoreL9;
