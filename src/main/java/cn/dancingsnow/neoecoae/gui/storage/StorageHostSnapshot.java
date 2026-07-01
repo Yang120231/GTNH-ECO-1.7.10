@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.gui.storage;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,6 +37,7 @@ public final class StorageHostSnapshot {
         0,
         false,
         0L,
+        BigInteger.ZERO,
         0L,
         0L,
         0L,
@@ -52,6 +54,7 @@ public final class StorageHostSnapshot {
     public final int priority;
     public final boolean allDrivesL9;
     public final long usedBytes;
+    public final BigInteger preciseUsedBytes;
     public final long totalBytes;
     public final long usedTypes;
     public final long totalTypes;
@@ -61,8 +64,8 @@ public final class StorageHostSnapshot {
 
     private StorageHostSnapshot(boolean formed, String tier, String hostMode, int infiniteComponentCount,
         int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes,
-        long totalBytes, long usedTypes, long totalTypes, boolean canTakeInfiniteComponent, List<TypeStat> typeStats,
-        List<MatrixCell> matrixCells) {
+        BigInteger preciseUsedBytes, long totalBytes, long usedTypes, long totalTypes, boolean canTakeInfiniteComponent,
+        List<TypeStat> typeStats, List<MatrixCell> matrixCells) {
         this.formed = formed;
         this.tier = tier;
         this.hostMode = hostMode;
@@ -72,6 +75,7 @@ public final class StorageHostSnapshot {
         this.priority = priority;
         this.allDrivesL9 = allDrivesL9;
         this.usedBytes = usedBytes;
+        this.preciseUsedBytes = preciseUsedBytes == null ? BigInteger.ZERO : preciseUsedBytes.max(BigInteger.ZERO);
         this.totalBytes = totalBytes;
         this.usedTypes = usedTypes;
         this.totalTypes = totalTypes;
@@ -89,6 +93,7 @@ public final class StorageHostSnapshot {
         TypeAccumulator itemStats = new TypeAccumulator("item", "Items");
         TypeAccumulator fluidStats = new TypeAccumulator("fluid", "Fluids");
         long usedBytes = 0L;
+        BigInteger preciseUsedBytes = BigInteger.ZERO;
         long totalBytes = 0L;
         long totalTypes = 0L;
         long usedTypes = 0L;
@@ -98,8 +103,9 @@ public final class StorageHostSnapshot {
             ECOStorageBackend domain = ECOStorageDomainData.get(controller.getWorldObj())
                 .getDomain(controller.getHostDomainId());
             if (domain != null) {
-                usedBytes = domain.getUsed()
-                    .toLongSaturated();
+                preciseUsedBytes = domain.getUsed()
+                    .toBigInteger();
+                usedBytes = saturatedLong(preciseUsedBytes);
                 usedTypes = domain.getTypeCount();
                 addBackendStats(domain, itemStats, fluidStats);
             }
@@ -123,6 +129,7 @@ public final class StorageHostSnapshot {
                     addDriveStats(matrix, itemStats, fluidStats);
                     if (!hostDomainStorage) {
                         usedBytes = saturatedAdd(usedBytes, cell.usedBytes);
+                        preciseUsedBytes = preciseUsedBytes.add(BigInteger.valueOf(cell.usedBytes));
                         usedTypes = saturatedAdd(usedTypes, cell.usedTypes);
                     }
                 }
@@ -145,6 +152,7 @@ public final class StorageHostSnapshot {
             controller.getPriority(),
             controller.areAllFormedDrivesL9MatricesForDisplay(),
             usedBytes,
+            preciseUsedBytes,
             totalBytes,
             usedTypes,
             totalTypes,
@@ -163,6 +171,7 @@ public final class StorageHostSnapshot {
         buf.writeInt(this.priority);
         buf.writeBoolean(this.allDrivesL9);
         buf.writeLong(this.usedBytes);
+        writeBigInteger(buf, this.preciseUsedBytes);
         buf.writeLong(this.totalBytes);
         buf.writeLong(this.usedTypes);
         buf.writeLong(this.totalTypes);
@@ -191,6 +200,7 @@ public final class StorageHostSnapshot {
         int priority = buf.readInt();
         boolean allDrivesL9 = buf.readBoolean();
         long usedBytes = safeLong(buf.readLong());
+        BigInteger preciseUsedBytes = readBigInteger(buf);
         long totalBytes = safeLong(buf.readLong());
         long usedTypes = safeLong(buf.readLong());
         long totalTypes = safeLong(buf.readLong());
@@ -215,6 +225,7 @@ public final class StorageHostSnapshot {
             priority,
             allDrivesL9,
             usedBytes,
+            preciseUsedBytes,
             totalBytes,
             usedTypes,
             totalTypes,
@@ -232,6 +243,14 @@ public final class StorageHostSnapshot {
 
     private static long safeLong(long value) {
         return Math.max(0L, value);
+    }
+
+    private static long saturatedLong(BigInteger value) {
+        if (value == null || value.signum() <= 0) {
+            return 0L;
+        }
+        BigInteger max = BigInteger.valueOf(Long.MAX_VALUE);
+        return value.compareTo(max) >= 0 ? Long.MAX_VALUE : value.longValue();
     }
 
     private static void addDriveStats(MatrixRead matrix, TypeAccumulator itemStats, TypeAccumulator fluidStats) {
@@ -452,6 +471,29 @@ public final class StorageHostSnapshot {
         byte[] bytes = new byte[length];
         buf.readBytes(bytes);
         return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private static void writeBigInteger(ByteBuf buf, BigInteger value) {
+        byte[] bytes = (value == null ? "0" : value.max(BigInteger.ZERO).toString())
+            .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        int length = Math.min(bytes.length, 2048);
+        buf.writeShort(length);
+        buf.writeBytes(bytes, 0, length);
+    }
+
+    private static BigInteger readBigInteger(ByteBuf buf) {
+        int length = Math.min(Math.max(0, buf.readUnsignedShort()), 2048);
+        byte[] bytes = new byte[length];
+        buf.readBytes(bytes);
+        if (length <= 0) {
+            return BigInteger.ZERO;
+        }
+        try {
+            BigInteger value = new BigInteger(new String(bytes, java.nio.charset.StandardCharsets.US_ASCII));
+            return value.signum() < 0 ? BigInteger.ZERO : value;
+        } catch (NumberFormatException ignored) {
+            return BigInteger.ZERO;
+        }
     }
 
     public static final class TypeStat {

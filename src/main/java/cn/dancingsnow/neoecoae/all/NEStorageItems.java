@@ -111,9 +111,7 @@ public final class NEStorageItems {
         private final String tier;
         private final long bytes;
         private final NumberFormat numberFormat;
-        @SideOnly(Side.CLIENT)
         private IIcon baseIcon;
-        @SideOnly(Side.CLIENT)
         private IIcon lightMaskIcon;
 
         ECOStorageCellItem(String id, String tier) {
@@ -286,7 +284,6 @@ public final class NEStorageItems {
         private final String tier;
         private final long bytes;
         private final NumberFormat numberFormat;
-        @SideOnly(Side.CLIENT)
         private final Map<String, IIcon> modelIcons = new HashMap<String, IIcon>();
 
         ECOComputationCellItem(String id, String tier, long bytes) {

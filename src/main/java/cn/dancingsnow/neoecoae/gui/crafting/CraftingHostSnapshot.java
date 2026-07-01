@@ -1,19 +1,16 @@
 package cn.dancingsnow.neoecoae.gui.crafting;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
+import cn.dancingsnow.neoecoae.tile.CraftingHostStats;
 import cn.dancingsnow.neoecoae.tile.TileCraftingWorker;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.common.network.ByteBufUtils;
@@ -68,20 +65,20 @@ public final class CraftingHostSnapshot {
     public final int parallelCount;
     public final int inputCacheCount;
     public final int outputCacheCount;
-    public final int runningTaskCount;
-    public final int fastPathHitCount;
-    public final int fastPathFallbackCount;
-    public final int fastPathQueueDepth;
-    public final int fastPathUtilizationPercent;
-    public final int fastPathCapacity;
+    public final int queuedWorkCount;
+    public final int plannerAcceptedCount;
+    public final int plannerRejectedCount;
+    public final int workQueueDepth;
+    public final int workQueueUtilizationPercent;
+    public final int workQueueCapacity;
     public final List<WorkerEntry> workerEntries;
 
     private CraftingHostSnapshot(boolean formed, boolean mirrored, String tier, String formationMessage,
         boolean overclocked, boolean activeCooling, int coolant, int maxCoolant, int maxEnergyUsage,
         int energyGaugeReference, int memberCount, int patternCount, int workerCount, int runningWorkerCount,
-        int parallelCoreCount, int parallelCount, int inputCacheCount, int outputCacheCount, int runningTaskCount,
-        int fastPathHitCount, int fastPathFallbackCount, int fastPathQueueDepth, int fastPathUtilizationPercent,
-        int fastPathCapacity, List<WorkerEntry> workerEntries) {
+        int parallelCoreCount, int parallelCount, int inputCacheCount, int outputCacheCount, int queuedWorkCount,
+        int plannerAcceptedCount, int plannerRejectedCount, int workQueueDepth, int workQueueUtilizationPercent,
+        int workQueueCapacity, List<WorkerEntry> workerEntries) {
         this.formed = formed;
         this.mirrored = mirrored;
         this.tier = tier == null ? "" : tier;
@@ -100,12 +97,12 @@ public final class CraftingHostSnapshot {
         this.parallelCount = safeInt(parallelCount);
         this.inputCacheCount = safeInt(inputCacheCount);
         this.outputCacheCount = safeInt(outputCacheCount);
-        this.runningTaskCount = safeInt(runningTaskCount);
-        this.fastPathHitCount = safeInt(fastPathHitCount);
-        this.fastPathFallbackCount = safeInt(fastPathFallbackCount);
-        this.fastPathQueueDepth = safeInt(fastPathQueueDepth);
-        this.fastPathUtilizationPercent = Math.max(0, Math.min(100, fastPathUtilizationPercent));
-        this.fastPathCapacity = safeInt(fastPathCapacity);
+        this.queuedWorkCount = safeInt(queuedWorkCount);
+        this.plannerAcceptedCount = safeInt(plannerAcceptedCount);
+        this.plannerRejectedCount = safeInt(plannerRejectedCount);
+        this.workQueueDepth = safeInt(workQueueDepth);
+        this.workQueueUtilizationPercent = Math.max(0, Math.min(100, workQueueUtilizationPercent));
+        this.workQueueCapacity = safeInt(workQueueCapacity);
         this.workerEntries = copyWorkers(workerEntries);
     }
 
@@ -113,43 +110,11 @@ public final class CraftingHostSnapshot {
         if (controller == null || controller.getSubsystem() != ECOControllerSubsystem.CRAFTING) {
             return EMPTY;
         }
-        Counts counts = Counts.from(controller);
-        Object backend = craftingBackend(controller);
-        int workerCount = firstAvailableInt(
-            controller,
-            backend,
-            counts.workerCount,
-            "getCraftingWorkerCount",
-            "getWorkerCount",
-            "workerCount");
-        int runningWorkerCount = firstAvailableInt(
-            controller,
-            backend,
-            0,
-            "getCraftingRunningWorkerCount",
-            "getRunningWorkerCount",
-            "runningWorkerCount");
-        int fastPathQueueDepth = firstAvailableInt(
-            controller,
-            backend,
-            0,
-            "getCraftingFastPathQueueDepth",
-            "getFastPathQueueDepth",
-            "fastPathQueueDepth");
-        int fastPathCapacity = firstAvailableInt(
-            controller,
-            backend,
-            workerCount,
-            "getCraftingFastPathCapacity",
-            "getFastPathCapacity",
-            "fastPathCapacity");
-        int utilization = firstAvailableInt(
-            controller,
-            backend,
-            ratioPercent(fastPathQueueDepth, fastPathCapacity),
-            "getCraftingFastPathUtilizationPercent",
-            "getFastPathUtilizationPercent",
-            "fastPathUtilizationPercent");
+        CraftingHostStats stats = controller.getCraftingHostStats();
+        List<ECOFormationBlockPos> formedMembers = controller.getFormedMemberBlocks();
+        int workQueueDepth = stats.queuedWorkCount;
+        int workQueueCapacity = safeInt((long) stats.workerCount * TileCraftingWorker.BASE_QUEUE_CAPACITY);
+        int utilization = ratioPercent(workQueueDepth, workQueueCapacity);
         return new CraftingHostSnapshot(
             controller.isFormed(),
             controller.isMirrored(),
@@ -162,60 +127,21 @@ public final class CraftingHostSnapshot {
             controller.getCraftingMaxCoolant(),
             controller.getCraftingMaxEnergyUsage(),
             TileECOController.CRAFTING_ENERGY_GAUGE_REFERENCE,
-            counts.memberCount,
-            firstAvailableInt(controller, backend, 0, "getCraftingPatternCount", "getPatternCount", "patternCount"),
-            workerCount,
-            runningWorkerCount,
-            firstAvailableInt(
-                controller,
-                backend,
-                counts.parallelCoreCount,
-                "getCraftingParallelCoreCount",
-                "getParallelCoreCount",
-                "parallelCoreCount"),
-            firstAvailableInt(controller, backend, 0, "getCraftingParallelCount", "getParallelCount", "parallelCount"),
-            firstAvailableInt(
-                controller,
-                backend,
-                0,
-                "getCraftingInputCacheCount",
-                "getInputCacheCount",
-                "inputCachedItems",
-                "inputCacheCount"),
-            firstAvailableInt(
-                controller,
-                backend,
-                0,
-                "getCraftingOutputCacheCount",
-                "getOutputCacheCount",
-                "outputCachedItems",
-                "outputCacheCount"),
-            firstAvailableInt(
-                controller,
-                backend,
-                fastPathQueueDepth,
-                "getCraftingRunningTaskCount",
-                "getRunningTaskCount",
-                "queuedWorkCount",
-                "runningTaskCount"),
-            firstAvailableInt(
-                controller,
-                backend,
-                0,
-                "getCraftingFastPathHitCount",
-                "getFastPathHitCount",
-                "fastPathHitCount"),
-            firstAvailableInt(
-                controller,
-                backend,
-                0,
-                "getCraftingFastPathFallbackCount",
-                "getFastPathFallbackCount",
-                "fastPathFallbackCount"),
-            fastPathQueueDepth,
+            formedMembers.size(),
+            stats.patternCount,
+            stats.workerCount,
+            stats.runningWorkerCount,
+            stats.parallelCoreCount,
+            stats.parallelCount,
+            stats.inputCachedItems,
+            stats.outputCachedItems,
+            stats.queuedWorkCount,
+            controller.getCraftingPlannerAcceptedCount(),
+            controller.getCraftingPlannerRejectedCount(),
+            workQueueDepth,
             utilization,
-            fastPathCapacity,
-            workerEntries(controller));
+            workQueueCapacity,
+            workerEntries(controller, formedMembers));
     }
 
     public void write(ByteBuf buffer) {
@@ -237,12 +163,12 @@ public final class CraftingHostSnapshot {
         buffer.writeInt(this.parallelCount);
         buffer.writeInt(this.inputCacheCount);
         buffer.writeInt(this.outputCacheCount);
-        buffer.writeInt(this.runningTaskCount);
-        buffer.writeInt(this.fastPathHitCount);
-        buffer.writeInt(this.fastPathFallbackCount);
-        buffer.writeInt(this.fastPathQueueDepth);
-        buffer.writeInt(this.fastPathUtilizationPercent);
-        buffer.writeInt(this.fastPathCapacity);
+        buffer.writeInt(this.queuedWorkCount);
+        buffer.writeInt(this.plannerAcceptedCount);
+        buffer.writeInt(this.plannerRejectedCount);
+        buffer.writeInt(this.workQueueDepth);
+        buffer.writeInt(this.workQueueUtilizationPercent);
+        buffer.writeInt(this.workQueueCapacity);
         int workerCount = Math.min(MAX_WORKER_ENTRIES, this.workerEntries.size());
         buffer.writeByte(workerCount);
         for (int i = 0; i < workerCount; i++) {
@@ -270,12 +196,12 @@ public final class CraftingHostSnapshot {
         int parallelCount = buffer.readInt();
         int inputCacheCount = buffer.readInt();
         int outputCacheCount = buffer.readInt();
-        int runningTaskCount = buffer.readInt();
-        int fastPathHitCount = buffer.readInt();
-        int fastPathFallbackCount = buffer.readInt();
-        int fastPathQueueDepth = buffer.readInt();
-        int fastPathUtilizationPercent = buffer.readInt();
-        int fastPathCapacity = buffer.readInt();
+        int queuedWorkCount = buffer.readInt();
+        int plannerAcceptedCount = buffer.readInt();
+        int plannerRejectedCount = buffer.readInt();
+        int workQueueDepth = buffer.readInt();
+        int workQueueUtilizationPercent = buffer.readInt();
+        int workQueueCapacity = buffer.readInt();
         int syncedWorkers = buffer.readUnsignedByte();
         List<WorkerEntry> workers = new ArrayList<WorkerEntry>();
         for (int i = 0; i < syncedWorkers; i++) {
@@ -300,96 +226,13 @@ public final class CraftingHostSnapshot {
             parallelCount,
             inputCacheCount,
             outputCacheCount,
-            runningTaskCount,
-            fastPathHitCount,
-            fastPathFallbackCount,
-            fastPathQueueDepth,
-            fastPathUtilizationPercent,
-            fastPathCapacity,
+            queuedWorkCount,
+            plannerAcceptedCount,
+            plannerRejectedCount,
+            workQueueDepth,
+            workQueueUtilizationPercent,
+            workQueueCapacity,
             workers);
-    }
-
-    private static Object craftingBackend(Object controller) {
-        String[] names = { "getCraftingHostStats", "getCraftingStats", "getCraftingBackendStats", "getCraftingBackend",
-            "getCraftingRuntime" };
-        for (String name : names) {
-            Object value = invokeObject(controller, name);
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
-    }
-
-    private static int firstAvailableInt(Object primary, Object secondary, int fallback, String... names) {
-        for (String name : names) {
-            Integer value = invokeInt(primary, name);
-            if (value != null) {
-                return value.intValue();
-            }
-            value = readIntField(primary, name);
-            if (value != null) {
-                return value.intValue();
-            }
-            value = invokeInt(secondary, name);
-            if (value != null) {
-                return value.intValue();
-            }
-            value = readIntField(secondary, name);
-            if (value != null) {
-                return value.intValue();
-            }
-        }
-        return fallback;
-    }
-
-    private static Object invokeObject(Object target, String name) {
-        if (target == null) {
-            return null;
-        }
-        try {
-            Method method = target.getClass()
-                .getMethod(name);
-            return method.invoke(target);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static Integer invokeInt(Object target, String name) {
-        if (target == null) {
-            return null;
-        }
-        try {
-            Method method = target.getClass()
-                .getMethod(name);
-            Object value = method.invoke(target);
-            return numberValue(value);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static Integer readIntField(Object target, String name) {
-        if (target == null) {
-            return null;
-        }
-        try {
-            Field field = target.getClass()
-                .getDeclaredField(name);
-            field.setAccessible(true);
-            Object value = field.get(target);
-            return numberValue(value);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static Integer numberValue(Object value) {
-        if (value instanceof Number) {
-            return Integer.valueOf(safeInt(((Number) value).longValue()));
-        }
-        return null;
     }
 
     private static int safeInt(long value) {
@@ -420,13 +263,12 @@ public final class CraftingHostSnapshot {
         return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    private static List<WorkerEntry> workerEntries(TileECOController controller) {
+    private static List<WorkerEntry> workerEntries(TileECOController controller, List<ECOFormationBlockPos> members) {
         List<WorkerEntry> entries = new ArrayList<WorkerEntry>();
         World world = controller.getWorldObj();
         if (world == null || !controller.isFormed()) {
             return entries;
         }
-        List<ECOFormationBlockPos> members = controller.getFormedMemberBlocks();
         for (int i = 0; i < members.size() && entries.size() < MAX_WORKER_ENTRIES; i++) {
             ECOFormationBlockPos pos = members.get(i);
             TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
@@ -448,37 +290,6 @@ public final class CraftingHostSnapshot {
             }
         }
         return Collections.unmodifiableList(copy);
-    }
-
-    private static final class Counts {
-
-        private int memberCount;
-        private int workerCount;
-        private int parallelCoreCount;
-
-        private static Counts from(TileECOController controller) {
-            Counts counts = new Counts();
-            World world = controller.getWorldObj();
-            List<ECOFormationBlockPos> members = controller.getFormedMemberBlocks();
-            counts.memberCount = members.size();
-            if (world == null || !controller.isFormed()) {
-                return counts;
-            }
-            for (ECOFormationBlockPos pos : members) {
-                Block block = world.getBlock(pos.getX(), pos.getY(), pos.getZ());
-                if (block == NEBlocks.craftingWorker) {
-                    counts.workerCount++;
-                } else if (isParallelCore(block)) {
-                    counts.parallelCoreCount++;
-                }
-            }
-            return counts;
-        }
-
-        private static boolean isParallelCore(Block block) {
-            return block == NEBlocks.craftingParallelCoreL4 || block == NEBlocks.craftingParallelCoreL6
-                || block == NEBlocks.craftingParallelCoreL9;
-        }
     }
 
     public static final class WorkerEntry {

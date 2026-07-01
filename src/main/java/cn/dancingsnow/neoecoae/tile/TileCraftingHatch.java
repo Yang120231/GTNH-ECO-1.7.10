@@ -139,31 +139,59 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     }
 
     public boolean insertOutput(ItemStack stack) {
-        if (stack == null) {
-            return true;
+        if (!this.canInsertOutput(stack)) {
+            return false;
+        }
+        return this.insertOutputRemainder(stack) == null;
+    }
+
+    public boolean canInsertOutput(ItemStack stack) {
+        return this.insertOutputRemainder(stack, true) == null;
+    }
+
+    public ItemStack insertOutputRemainder(ItemStack stack) {
+        return this.insertOutputRemainder(stack, false);
+    }
+
+    private ItemStack insertOutputRemainder(ItemStack stack, boolean simulate) {
+        if (stack == null || stack.stackSize <= 0) {
+            return null;
+        }
+        if (this.input) {
+            return stack.copy();
         }
         ItemStack remaining = stack.copy();
+        boolean changed = false;
         for (int i = 0; i < this.items.length; i++) {
             if (this.items[i] == null) {
-                this.items[i] = remaining;
-                this.onInventoryChanged();
-                return true;
+                if (!simulate) {
+                    this.items[i] = remaining;
+                    this.onInventoryChanged();
+                }
+                return null;
             }
             if (this.canMerge(this.items[i], remaining)) {
                 int limit = Math.min(this.getInventoryStackLimit(), this.items[i].getMaxStackSize());
                 int moved = Math.min(limit - this.items[i].stackSize, remaining.stackSize);
                 if (moved > 0) {
-                    this.items[i].stackSize += moved;
+                    if (!simulate) {
+                        this.items[i].stackSize += moved;
+                        changed = true;
+                    }
                     remaining.stackSize -= moved;
                     if (remaining.stackSize <= 0) {
-                        this.onInventoryChanged();
-                        return true;
+                        if (!simulate) {
+                            this.onInventoryChanged();
+                        }
+                        return null;
                     }
                 }
             }
         }
-        this.onInventoryChanged();
-        return false;
+        if (changed) {
+            this.onInventoryChanged();
+        }
+        return remaining;
     }
 
     public int usedSlots() {

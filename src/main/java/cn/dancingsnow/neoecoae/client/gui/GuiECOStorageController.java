@@ -43,6 +43,10 @@ import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_D
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_DETAIL_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.USAGE_DETAIL_Y;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,7 +78,9 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     private static final float USAGE_PERCENT_SCALE = 0.9F;
     private static final int MATRIX_SCROLL_THRESHOLD_COLUMNS = 10;
     private static final int MATRIX_SCROLL_STEP = 1;
+    private static final int INFINITE_STORAGE_DIGITS = 6;
     private static final Map<String, Integer> MATRIX_SCROLL_OFFSETS = new HashMap<String, Integer>();
+    private static final String[] EXTENDED_BYTE_UNITS = { "B", "K", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q" };
 
     private final ContainerECOStorageController container;
     private final TileECOController controller;
@@ -233,14 +239,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             y,
             HostUiStyle.DARK_TEXT_USED);
         y += TEXT_STEP;
-        this.drawUsedTotal(
-            "",
-            state.usedBytes,
-            state.totalBytes,
-            " " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"),
-            TEXT_X,
-            y,
-            true);
+        this.drawStorageBytesLine(state, TEXT_X, y);
         y += TEXT_STEP + 4;
         this.drawLocalText(
             tr("gui.neoecoae.storage_ui.host_mode", "Mode") + ": " + modeName(state.hostMode),
@@ -436,6 +435,26 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawLocalText(suffix, x + cursor, y, HostUiStyle.DARK_TEXT_MUTED);
     }
 
+    private void drawStorageBytesLine(StorageHostSnapshot state, int x, int y) {
+        if (!isInfiniteMode(state)) {
+            this.drawUsedTotal(
+                "",
+                state.usedBytes,
+                state.totalBytes,
+                " " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"),
+                x,
+                y,
+                true);
+            return;
+        }
+        int cursor = this.drawLocalSegment(
+            formatInfiniteStorageBytes(state.preciseUsedBytes),
+            x,
+            y,
+            HostUiStyle.usedValueColor(state.usedBytes, state.totalBytes));
+        this.drawLocalText(" " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"), x + cursor, y, HostUiStyle.DARK_TEXT_MUTED);
+    }
+
     private void drawMatrixCell(int x, int y, StorageHostSnapshot.MatrixCell cell, boolean hovered) {
         int color = cell != null && cell.hasCell ? this.matrixCellColor(cell) : HostUiStyle.MATRIX_USAGE_EMPTY;
         int border = hovered ? 0xFFE5E0F0 : cell != null && cell.hasCell ? 0xFF292331 : MATRIX_EMPTY_BORDER;
@@ -614,6 +633,27 @@ public class GuiECOStorageController extends GuiHostMachineBase {
 
     private static boolean isInfiniteMatrix(StorageHostSnapshot.MatrixCell cell) {
         return cell != null && ("domain_member".equals(cell.mode) || "migrating".equals(cell.mode));
+    }
+
+    private static String formatInfiniteStorageBytes(BigInteger value) {
+        if (value == null || value.signum() <= 0) {
+            return "0 B";
+        }
+        BigDecimal scaled = new BigDecimal(value);
+        int unit = 0;
+        BigDecimal base = BigDecimal.valueOf(1024L);
+        while (scaled.compareTo(base) >= 0 && unit < EXTENDED_BYTE_UNITS.length - 1) {
+            scaled = scaled.divide(base, MathContext.DECIMAL128);
+            unit++;
+        }
+        scaled = scaled.round(new MathContext(INFINITE_STORAGE_DIGITS, RoundingMode.HALF_UP));
+        if (scaled.compareTo(base) >= 0 && unit < EXTENDED_BYTE_UNITS.length - 1) {
+            scaled = scaled.divide(base, MathContext.DECIMAL128)
+                .round(new MathContext(INFINITE_STORAGE_DIGITS, RoundingMode.HALF_UP));
+            unit++;
+        }
+        return scaled.stripTrailingZeros()
+            .toPlainString() + " " + EXTENDED_BYTE_UNITS[unit];
     }
 
     private double animatedUsageRatio(double target) {

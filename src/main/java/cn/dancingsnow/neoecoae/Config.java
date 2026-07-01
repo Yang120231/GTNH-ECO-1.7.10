@@ -17,7 +17,7 @@ public class Config {
             "enableEcoCraftingFastPath",
             Configuration.CATEGORY_GENERAL,
             enableEcoCraftingFastPath,
-            "Enable ECO crafting fast path for safe ECO pattern execution.");
+            "Enable ECO crafting planner inspection and caching before accepted work is queued.");
 
         if (configuration.hasChanged()) {
             configuration.save();

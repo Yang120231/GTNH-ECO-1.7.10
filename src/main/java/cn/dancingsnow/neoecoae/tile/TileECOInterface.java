@@ -11,7 +11,9 @@ import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.FluidStack;
 
+import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.GridFlags;
@@ -25,6 +27,8 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.MachineSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.DimensionalCoord;
@@ -135,20 +139,70 @@ public class TileECOInterface extends TileEntity
     }
 
     public ItemStack injectCraftingOutput(ItemStack stack) {
-        if (stack == null || this.subsystem != ECOControllerSubsystem.CRAFTING) {
-            return stack;
+        return this.injectCraftingOutput(stack, false);
+    }
+
+    public ItemStack injectCraftingOutput(ItemStack stack, boolean simulate) {
+        if (stack == null || stack.stackSize <= 0) {
+            return null;
+        }
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return stack.copy();
         }
         IStorageGrid storageGrid = this.currentStorageGrid();
         if (storageGrid == null) {
-            return stack;
+            return stack.copy();
         }
         IAEItemStack aeStack = AEItemStack.create(stack);
         if (aeStack == null) {
-            return stack;
+            return stack.copy();
         }
         IAEItemStack leftover = storageGrid.getItemInventory()
-            .injectItems(aeStack, Actionable.MODULATE, new MachineSource(this));
-        return leftover == null ? null : leftover.getItemStack();
+            .injectItems(aeStack, simulate ? Actionable.SIMULATE : Actionable.MODULATE, new MachineSource(this));
+        return copyCraftingRemainder(stack, leftover);
+    }
+
+    public FluidStack extractCraftingFluid(FluidStack stack, boolean simulate) {
+        if (stack == null || stack.amount <= 0) {
+            return null;
+        }
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return null;
+        }
+        IStorageGrid storageGrid = this.currentStorageGrid();
+        if (storageGrid == null) {
+            return null;
+        }
+        IAEFluidStack aeStack = AEApi.instance()
+            .storage()
+            .createFluidStack(stack.copy());
+        if (aeStack == null) {
+            return null;
+        }
+        IMEMonitor<IAEFluidStack> fluids = storageGrid.getFluidInventory();
+        if (fluids == null) {
+            return null;
+        }
+        IAEFluidStack extracted = fluids
+            .extractItems(aeStack, simulate ? Actionable.SIMULATE : Actionable.MODULATE, new MachineSource(this));
+        if (extracted == null || extracted.getStackSize() <= 0L) {
+            return null;
+        }
+        FluidStack extractedStack = extracted.getFluidStack();
+        return extractedStack == null ? null : extractedStack.copy();
+    }
+
+    private static ItemStack copyCraftingRemainder(ItemStack original, IAEItemStack leftover) {
+        if (original == null || original.stackSize <= 0 || leftover == null || leftover.getStackSize() <= 0L) {
+            return null;
+        }
+        long boundedRemaining = Math.min((long) original.stackSize, leftover.getStackSize());
+        if (boundedRemaining <= 0L) {
+            return null;
+        }
+        ItemStack remaining = original.copy();
+        remaining.stackSize = (int) boundedRemaining;
+        return remaining;
     }
 
     public double extractAEPower(double amount, boolean simulate) {

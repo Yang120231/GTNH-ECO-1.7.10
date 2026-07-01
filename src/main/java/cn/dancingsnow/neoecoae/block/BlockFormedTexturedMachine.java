@@ -14,7 +14,6 @@ public class BlockFormedTexturedMachine extends NEBlock {
     private final String normalTextureName;
     private final String formedTextureName;
 
-    @SideOnly(Side.CLIENT)
     private IIcon formedIcon;
 
     public BlockFormedTexturedMachine(String normalTextureName, String formedTextureName) {

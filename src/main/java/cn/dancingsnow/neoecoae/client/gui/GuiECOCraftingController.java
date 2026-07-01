@@ -229,7 +229,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawToolbarTextAndTooltips(CraftingHostSnapshot state, int mouseX, int mouseY) {
-        if (this.isMouseIn(TOOLBAR_OVERCLOCK_X, TOOLBAR_Y, TOOLBAR_SIZE, TOOLBAR_SIZE, mouseX, mouseY)) {
+        if (this.isMouseInLocal(TOOLBAR_OVERCLOCK_X, TOOLBAR_Y, TOOLBAR_SIZE, TOOLBAR_SIZE, mouseX, mouseY)) {
             this.hoveredLines = new ArrayList<String>();
             this.hoveredLines.add(
                 EnumChatFormatting.AQUA + tr(
@@ -239,7 +239,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                 this.hoveredLines,
                 "gui.neoecoae.crafting.overclocked.tooltip",
                 "Boost performance.");
-        } else if (this.isMouseIn(TOOLBAR_COOLING_X, TOOLBAR_Y, TOOLBAR_SIZE, TOOLBAR_SIZE, mouseX, mouseY)) {
+        } else if (this.isMouseInLocal(TOOLBAR_COOLING_X, TOOLBAR_Y, TOOLBAR_SIZE, TOOLBAR_SIZE, mouseX, mouseY)) {
             this.hoveredLines = new ArrayList<String>();
             this.hoveredLines.add(
                 EnumChatFormatting.AQUA + tr(
@@ -247,7 +247,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                         : "gui.neoecoae.crafting.active_cooling.off",
                     state.activeCooling ? "Active Cooling: On" : "Active Cooling: Off"));
             this.addTranslatedLines(this.hoveredLines, "gui.neoecoae.crafting.active_cooling.tooltip", "Use coolant.");
-        } else if (this.isMouseIn(TOOLBAR_CLEAR_X, TOOLBAR_Y, TOOLBAR_SIZE, TOOLBAR_SIZE, mouseX, mouseY)) {
+        } else if (this.isMouseInLocal(TOOLBAR_CLEAR_X, TOOLBAR_Y, TOOLBAR_SIZE, TOOLBAR_SIZE, mouseX, mouseY)) {
             this.hoveredLines = new ArrayList<String>();
             this.hoveredLines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.crafting.clear_coolant", "Clear"));
             this.addTranslatedLines(
@@ -306,7 +306,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void statusTooltip(CraftingHostSnapshot state, int mouseX, int mouseY) {
-        if (this.isMouseIn(STATUS_AREA_X + 7, TOP_AREA_Y + 23, STATUS_AREA_W - 14, 15, mouseX, mouseY)) {
+        if (this.isMouseInLocal(STATUS_AREA_X + 7, TOP_AREA_Y + 23, STATUS_AREA_W - 14, 15, mouseX, mouseY)) {
             this.hoveredLines = new ArrayList<String>();
             this.hoveredLines.add(
                 EnumChatFormatting.AQUA + tr(
@@ -316,7 +316,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                 this.hoveredLines,
                 "gui.neoecoae.crafting.overclocked.tooltip",
                 "Boost performance.");
-        } else if (this.isMouseIn(STATUS_AREA_X + 7, TOP_AREA_Y + 44, STATUS_AREA_W - 14, 15, mouseX, mouseY)) {
+        } else if (this.isMouseInLocal(STATUS_AREA_X + 7, TOP_AREA_Y + 44, STATUS_AREA_W - 14, 15, mouseX, mouseY)) {
             this.hoveredLines = new ArrayList<String>();
             this.hoveredLines.add(
                 EnumChatFormatting.AQUA + tr(
@@ -324,7 +324,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                         : "gui.neoecoae.crafting.active_cooling.off",
                     state.activeCooling ? "Active Cooling: On" : "Active Cooling: Off"));
             this.addTranslatedLines(this.hoveredLines, "gui.neoecoae.crafting.active_cooling.tooltip", "Use coolant.");
-        } else if (this.isMouseIn(STATUS_AREA_X + 7, TOP_AREA_Y + 65, STATUS_AREA_W - 14, 15, mouseX, mouseY)) {
+        } else if (this.isMouseInLocal(STATUS_AREA_X + 7, TOP_AREA_Y + 65, STATUS_AREA_W - 14, 15, mouseX, mouseY)) {
             this.hoveredLines = this.coolantTooltip(state);
         }
     }
@@ -350,8 +350,8 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             HostUiStyle.DARK_TEXT_VALUE);
         this.drawModuleGrid(state);
         this.drawModuleStats(state);
-        if (this.isMouseIn(MODULE_AREA_X + 7, MODULE_AREA_Y + 7, MODULE_AREA_W - 14, 11, mouseX, mouseY)
-            || this.isMouseIn(MODULE_AREA_X + 7, MODULE_STATS_Y - 1, MODULE_AREA_W - 14, 22, mouseX, mouseY)) {
+        if (this.isMouseInLocal(MODULE_AREA_X + 7, MODULE_AREA_Y + 7, MODULE_AREA_W - 14, 11, mouseX, mouseY)
+            || this.isMouseInLocal(MODULE_AREA_X + 7, MODULE_STATS_Y - 1, MODULE_AREA_W - 14, 22, mouseX, mouseY)) {
             this.hoveredLines = this.moduleTooltip(state);
         }
     }
@@ -499,9 +499,9 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             GAUGE_BAR_W + 14,
             TEXT_SCALE,
             HostUiStyle.DARK_TEXT_MUTED);
-        if (this.isMouseIn(energyX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
+        if (this.isMouseInLocal(energyX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
             this.hoveredLines = this.energyTooltip(state);
-        } else if (this.isMouseIn(coolantX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
+        } else if (this.isMouseInLocal(coolantX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
             this.hoveredLines = this.coolantTooltip(state);
         }
     }
@@ -523,7 +523,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             TASK_PANEL_Y + 6,
             HostUiStyle.DARK_TEXT_PRIMARY);
         this.drawLocalRight(
-            this.formatNumber(state.runningTaskCount),
+            this.formatNumber(state.queuedWorkCount),
             TASK_PANEL_X + TASK_PANEL_W - 8,
             TASK_PANEL_Y + 6,
             HostUiStyle.DARK_TEXT_VALUE);
@@ -569,8 +569,8 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawWorkerCard(CraftingHostSnapshot.WorkerEntry worker, int x, int y, int mouseX, int mouseY) {
-        boolean hovered = this.isMouseIn(x, y, TASK_CARD_W, TASK_CARD_H, mouseX, mouseY)
-            && this.isMouseIn(TASK_LIST_X, TASK_LIST_Y, TASK_LIST_W, TASK_LIST_H, mouseX, mouseY);
+        boolean hovered = this.isMouseInLocal(x, y, TASK_CARD_W, TASK_CARD_H, mouseX, mouseY)
+            && this.isMouseInLocal(TASK_LIST_X, TASK_LIST_Y, TASK_LIST_W, TASK_LIST_H, mouseX, mouseY);
         this.drawTinyInsetLocal(x, y, TASK_CARD_W, TASK_CARD_H, hovered ? 0xFF2A2535 : 0xFF201E27);
         this.drawScaledItemIcon(worker.outputStack, x + 3, y + 1, CARD_ICON_SCALE);
         int textX = x + 17;
@@ -646,10 +646,10 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                 + " / "
                 + this.formatNumber(state.workerCount));
         lines.add(
-            tr("gui.neoecoae.crafting_ui.running_tasks", "Running") + ": "
-                + this.formatNumber(state.runningTaskCount)
+            tr("gui.neoecoae.crafting_ui.queued_work", "Queued Work") + ": "
+                + this.formatNumber(state.queuedWorkCount)
                 + " / "
-                + this.formatNumber(state.fastPathCapacity));
+                + this.formatNumber(state.workQueueCapacity));
         return lines;
     }
 

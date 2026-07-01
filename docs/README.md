@@ -12,6 +12,7 @@ Use these files as the quick project map when migrating code from the 1.21.1 ups
 - [rendering-model-pipeline.md](rendering-model-pipeline.md): Lightweight modern JSON model rendering pipeline for Forge 1.7.10 blocks and items.
 - [tooltips.md](tooltips.md): Shared tooltip key convention, color rules, and block item registration notes.
 - [controller-framework.md](controller-framework.md): Base TileEntity identity for ECO subsystem controller blocks.
+- [infinite-storage-engine.md](infinite-storage-engine.md): Target sharded LSM-style backend for scalable infinite storage domains.
 
 ## Upstream Reference
 

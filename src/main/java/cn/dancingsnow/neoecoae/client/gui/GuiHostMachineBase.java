@@ -273,10 +273,24 @@ abstract class GuiHostMachineBase extends GuiContainer {
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
+    /**
+     * Screen-space hit test for mouse values from drawScreen, mouseClicked, and handleMouseInput.
+     */
     protected final boolean isMouseIn(int x, int y, int width, int height, int mouseX, int mouseY) {
         int left = this.guiLeft + x;
         int top = this.guiTop + y;
-        return mouseX >= left && mouseX < left + width && mouseY >= top && mouseY < top + height;
+        return isPointInRect(left, top, width, height, mouseX, mouseY);
+    }
+
+    /**
+     * GUI-local hit test for mouse values passed to drawGuiContainerForegroundLayer.
+     */
+    protected final boolean isMouseInLocal(int x, int y, int width, int height, int mouseX, int mouseY) {
+        return isPointInRect(x, y, width, height, mouseX, mouseY);
+    }
+
+    private static boolean isPointInRect(int x, int y, int width, int height, int mouseX, int mouseY) {
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
     }
 
     protected final void beginScissor(int x, int y, int width, int height) {

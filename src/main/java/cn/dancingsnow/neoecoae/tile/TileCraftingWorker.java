@@ -27,6 +27,7 @@ public class TileCraftingWorker extends TileCraftingMember {
     private static final String TAG_TOTAL_PROGRESS = "TotalProgress";
     private static final String TAG_QUEUE = "Queue";
     private static final String TAG_OUTPUT = "Output";
+    private static final int PROGRESS_SYNC_BUCKETS = 10;
 
     private final List<WorkEntry> queue = new ArrayList<WorkEntry>();
 
@@ -280,21 +281,49 @@ public class TileCraftingWorker extends TileCraftingMember {
             if (progress <= 0) {
                 return;
             }
+            int previousProgress = current.progress;
             current.progress = Math.min(current.totalProgress, current.progress + progress);
-            this.markDirty();
+            this.onProgressChanged(previousProgress, current);
             return;
         }
-        boolean accepted = controller == null || current.output == null
-            || controller.acceptCraftingOutput(current.output);
-        if (accepted) {
+        ItemStack remaining = controller == null || current.output == null ? null
+            : controller.acceptCraftingOutput(current.output);
+        if (remaining == null) {
             this.queue.remove(0);
             this.normalizeSlots();
+            this.onStateChanged();
+        } else if (current.output == null || remaining.stackSize < current.output.stackSize) {
+            current.output = remaining.copy();
             this.onStateChanged();
         }
     }
 
     private WorkEntry peekEntry() {
         return this.queue.isEmpty() ? null : this.queue.get(0);
+    }
+
+    private void onProgressChanged(int previousProgress, WorkEntry current) {
+        if (current == null || current.progress <= previousProgress) {
+            return;
+        }
+        if (current.progress >= current.totalProgress
+            || progressSyncBucket(previousProgress, current.totalProgress) != progressSyncBucket(
+                current.progress,
+                current.totalProgress)) {
+            this.markDirty();
+        }
+    }
+
+    private static int progressSyncBucket(int progress, int totalProgress) {
+        if (progress <= 0 || totalProgress <= 0) {
+            return 0;
+        }
+        if (progress >= totalProgress) {
+            return PROGRESS_SYNC_BUCKETS;
+        }
+        return (int) Math.min(
+            PROGRESS_SYNC_BUCKETS - 1L,
+            (long) progress * (long) PROGRESS_SYNC_BUCKETS / (long) totalProgress);
     }
 
     private void normalizeSlots() {

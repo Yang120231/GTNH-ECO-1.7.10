@@ -35,12 +35,40 @@ public final class NEGregTechRecipes {
     private NEGregTechRecipes() {}
 
     public static void register() {
+        registerAlloyMaterialRecipes();
         registerCryotheumMixerRecipes();
         registerHighVersionMaterialRecipes();
         registerStorageComponentRecipes();
         registerComputationCellRecipes();
         registerSystemBlockRecipes();
         registerInfiniteComponentRecipe();
+    }
+
+    private static void registerAlloyMaterialRecipes() {
+        ItemStack certusDust = NEAE2RecipeItems.certusQuartzDust();
+        ItemStack fluixDust = NEAE2RecipeItems.fluixDust();
+
+        mixer(
+            new ItemStack[] { ore("dustIron", 1), stack(NEItems.aluminumDust), copy(certusDust, 2) },
+            null,
+            new ItemStack[] { stack(NEItems.aluminumAlloyDust, 4) },
+            null,
+            10 * SECONDS,
+            TierEU.RECIPE_LV);
+        mixer(
+            new ItemStack[] { stack(NEItems.tungstenDust), stack(NEItems.aluminumAlloyDust), copy(fluixDust, 2) },
+            null,
+            new ItemStack[] { stack(NEItems.blackTungstenAlloyDust, 4) },
+            null,
+            15 * SECONDS,
+            TierEU.RECIPE_MV);
+
+        macerator(stack(NEItems.aluminumAlloyIngot), stack(NEItems.aluminumAlloyDust), 10 * SECONDS, TierEU.RECIPE_LV);
+        macerator(
+            stack(NEItems.blackTungstenAlloyIngot),
+            stack(NEItems.blackTungstenAlloyDust),
+            10 * SECONDS,
+            TierEU.RECIPE_MV);
     }
 
     private static void registerCryotheumMixerRecipes() {
@@ -87,11 +115,16 @@ public final class NEGregTechRecipes {
         ItemStack silicon = NEAE2RecipeItems.silicon();
 
         mixer(
-            new ItemStack[] { copy(chargedCertus, 4), stack(NEItems.energizedCrystalDust, 4) },
+            new ItemStack[] { copy(chargedCertus, 8) },
             water(250),
             new ItemStack[] { stack(NEItems.energizedCrystal, 8) },
             null,
             25 * SECONDS,
+            TierEU.RECIPE_HV);
+        macerator(
+            stack(NEItems.energizedCrystal),
+            stack(NEItems.energizedCrystalDust),
+            10 * SECONDS,
             TierEU.RECIPE_HV);
         mixer(
             new ItemStack[] { stack(NEItems.energizedCrystalDust, 8), copy(fluixCrystal, 8) },
@@ -99,6 +132,11 @@ public final class NEGregTechRecipes {
             new ItemStack[] { stack(NEItems.energizedFluixCrystal, 8) },
             null,
             25 * SECONDS,
+            TierEU.RECIPE_HV);
+        macerator(
+            stack(NEItems.energizedFluixCrystal),
+            stack(NEItems.energizedFluixCrystalDust),
+            10 * SECONDS,
             TierEU.RECIPE_HV);
         mixer(
             new ItemStack[] { copy(certusDust, 4), copy(fluixDust, 4), stack(NEItems.energizedCrystalDust, 4),
@@ -121,26 +159,26 @@ public final class NEGregTechRecipes {
     private static void registerStorageComponentRecipes() {
         ItemStack component256k = NEAE2RecipeItems.cellComponent256k();
         assembler(
-            new ItemStack[] { copy(component256k, 12), stack(NEItems.energizedSuperconductiveIngot, 32),
-                stack(NEItems.superconductingProcessor, 4), stack(NEItems.crystalIngot) },
-            Materials.SolderingAlloy.getMolten(4 * INGOTS),
+            new ItemStack[] { copy(component256k), stack(NEItems.energizedSuperconductiveIngot, 8),
+                stack(NEItems.superconductingProcessor), stack(NEItems.crystalIngot) },
+            Materials.SolderingAlloy.getMolten(1 * INGOTS),
             stack(NEStorageItems.ecoCellComponent16M),
             20 * SECONDS,
             TierEU.RECIPE_IV,
             16);
         assembler(
             new ItemStack[] { stack(NEStorageItems.ecoCellComponent16M, 4),
-                stack(NEItems.energizedSuperconductiveIngot, 48), stack(NEItems.superconductingProcessor, 8),
-                stack(NEItems.crystalIngot, 4) },
-            Materials.SolderingAlloy.getMolten(6 * INGOTS),
+                stack(NEItems.energizedSuperconductiveIngot, 24), stack(NEItems.superconductingProcessor, 4),
+                stack(NEItems.crystalMatrix, 2) },
+            Materials.SolderingAlloy.getMolten(4 * INGOTS),
             stack(NEStorageItems.ecoCellComponent64M),
             30 * SECONDS,
             TierEU.RECIPE_LuV,
             17);
         assembler(
             new ItemStack[] { stack(NEStorageItems.ecoCellComponent64M, 4),
-                stack(NEItems.energizedSuperconductiveIngot, 64), stack(NEItems.superconductingProcessor, 16),
-                stack(NEItems.crystalIngot, 8) },
+                stack(NEItems.energizedSuperconductiveIngot, 32), stack(NEItems.superconductingProcessor, 8),
+                stack(NEItems.crystalMatrix, 4) },
             Materials.SolderingAlloy.getMolten(8 * INGOTS),
             stack(NEStorageItems.ecoCellComponent256M),
             45 * SECONDS,
@@ -277,21 +315,22 @@ public final class NEGregTechRecipes {
             .metadata(RESEARCH_ITEM, research)
             .metadata(SCANNING, new Scanning(2 * MINUTES, TierEU.RECIPE_ZPM))
             .itemInputs(
-                stack(NEStorageItems.ecoCellComponent256M, 32),
-                stack(NEStorageItems.ecoComputationCellL9, 8),
-                stack(NEBlocks.storageSystemL9, 4),
-                stack(NEBlocks.computationSystemL9, 4),
-                stack(NEItems.crystalMatrix, 16),
+                stack(NEStorageItems.ecoCellComponent256M, 24),
+                stack(NEStorageItems.ecoComputationCellL9, 6),
+                stack(NEBlocks.storageSystemL9, 3),
+                stack(NEBlocks.computationSystemL9, 3),
+                stack(NEItems.crystalMatrix, 12),
+                copy(NEAE2RecipeItems.singularity(), 16),
                 stack(NEBlocks.energizedFluixCrystalBlock, 16),
                 stack(NEItems.energizedSuperconductiveIngot, 64),
-                ItemList.Field_Generator_UV.get(4),
-                ItemList.Emitter_UV.get(4),
-                ItemList.Sensor_UV.get(4),
-                new Object[] { OrePrefixes.circuit.get(Materials.UV), 4 })
+                ItemList.Field_Generator_UV.get(3),
+                ItemList.Emitter_UV.get(3),
+                ItemList.Sensor_UV.get(3),
+                new Object[] { OrePrefixes.circuit.get(Materials.UV), 3 })
             .fluidInputs(
-                Materials.SolderingAlloy.getMolten(32 * INGOTS),
-                Materials.Naquadria.getMolten(16 * INGOTS),
-                Materials.Lubricant.getFluid(8 * BUCKETS))
+                Materials.SolderingAlloy.getMolten(24 * INGOTS),
+                Materials.Naquadria.getMolten(12 * INGOTS),
+                Materials.Lubricant.getFluid(6 * BUCKETS))
             .itemOutputs(output)
             .duration(4 * MINUTES)
             .eut((int) TierEU.RECIPE_UV)
@@ -319,6 +358,18 @@ public final class NEGregTechRecipes {
             builder.fluidOutputs(fluidOutputs);
         }
         builder.addTo(RecipeMaps.mixerRecipes);
+    }
+
+    private static void macerator(ItemStack input, ItemStack output, int duration, long eut) {
+        if (input == null || output == null) {
+            return;
+        }
+        GTRecipeBuilder.builder()
+            .itemInputs(input)
+            .itemOutputs(output)
+            .duration(duration)
+            .eut((int) eut)
+            .addTo(RecipeMaps.maceratorRecipes);
     }
 
     private static void assembler(ItemStack[] itemInputs, FluidStack fluidInput, ItemStack output, int duration,

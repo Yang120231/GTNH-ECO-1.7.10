@@ -61,9 +61,11 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             this.scheduledReason = ScheduledReason.SOMETHING_STUCK;
             return false;
         }
-        ECOFastPathPlan fastPathPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
-        controller.recordCraftingFastPathDecision(fastPathPlan.accepted());
+        ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
         boolean accepted = worker.acceptPattern(patternDetails, table);
+        if (accepted) {
+            controller.recordCraftingPlannerDecision(plannerPlan.accepted());
+        }
         this.scheduledReason = accepted ? ScheduledReason.UNDEFINED : ScheduledReason.SOMETHING_STUCK;
         return accepted;
     }

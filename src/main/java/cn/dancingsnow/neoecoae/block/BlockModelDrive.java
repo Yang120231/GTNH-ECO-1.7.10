@@ -26,13 +26,10 @@ public class BlockModelDrive extends Block implements IModelIconProvider {
     private final String[] textureNames;
     private final String particleTextureName;
 
-    @SideOnly(Side.CLIENT)
     private final Map<String, IIcon> modelIcons = new HashMap<>();
 
-    @SideOnly(Side.CLIENT)
     private final Map<String, IIcon> formedModelIcons = new HashMap<>();
 
-    @SideOnly(Side.CLIENT)
     private IIcon particleIcon;
 
     public BlockModelDrive(String id, String emptyModelName, String fullModelName, String[] textureNames,

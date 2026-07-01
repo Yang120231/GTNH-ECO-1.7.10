@@ -16,18 +16,6 @@ import cpw.mods.fml.common.registry.GameRegistry;
 
 public final class NERecipes {
 
-    private static final int IWS_ENERGIZED_CRYSTAL_ENERGY = 62500;
-    private static final int IWS_ECO_COMPONENT_16M_ENERGY = 16000;
-    private static final int IWS_ECO_COMPONENT_64M_ENERGY = 48000;
-    private static final int IWS_ECO_COMPONENT_256M_ENERGY = 144000;
-    private static final int IWS_ECO_COMPUTATION_CELL_L4_ENERGY = 64000;
-    private static final int IWS_ECO_COMPUTATION_CELL_L6_ENERGY = 256000;
-    private static final int IWS_ECO_COMPUTATION_CELL_L9_ENERGY = 1024000;
-    private static final int IWS_SYSTEM_L4_ENERGY = 16000;
-    private static final int IWS_SYSTEM_L6_ENERGY = 160000;
-    private static final int IWS_SYSTEM_L9_ENERGY = 640000;
-    private static final int IWS_ADVANCED_INGOT_ENERGY = 200000;
-
     private NERecipes() {}
 
     public static void register() {
@@ -102,8 +90,10 @@ public final class NERecipes {
         registerComputationItemRecipes();
         registerCoolingItemRecipes();
 
-        shapeless(NEItems.aluminumAlloyDust, "dustIron", "dustAluminum", "dustCertusQuartz", "dustCertusQuartz");
-        shapeless(NEItems.blackTungstenAlloyDust, "dustTungsten", "dustAluminumAlloy", "dustFluix", "dustFluix");
+        if (!useGregTechRecipes()) {
+            shapeless(NEItems.aluminumAlloyDust, "dustIron", "dustAluminum", "dustCertusQuartz", "dustCertusQuartz");
+            shapeless(NEItems.blackTungstenAlloyDust, "dustTungsten", "dustAluminumAlloy", "dustFluix", "dustFluix");
+        }
 
         smelt(NEBlocks.aluminumOre, NEItems.rawAluminumOre, 0.7F);
         smelt(NEBlocks.tungstenOre, NEItems.rawTungstenOre, 1.0F);
@@ -123,7 +113,11 @@ public final class NERecipes {
     }
 
     private static void registerMaterialItemRecipes() {
-        // IWS parity: energized crystal / fluix recipes use 62,500 AE in 1.21.1.
+        if (useGregTechRecipes()) {
+            shaped(NEItems.crystalMatrix, "A A", " A ", "A A", 'A', NEItems.crystalIngot);
+            registerProcessorRecipes();
+            return;
+        }
         shapedIfComplete(
             new ItemStack(NEItems.energizedCrystal, 8),
             "ABA",
@@ -132,16 +126,10 @@ public final class NERecipes {
             'A',
             NEAE2RecipeItems.certusQuartzCrystalCharged(),
             'B',
-            "dustEnergizedCrystal",
+            NEAE2RecipeItems.certusQuartzCrystalCharged(),
             'C',
             Items.water_bucket);
         shapelessIfComplete(NEItems.energizedCrystalDust, NEItems.energizedCrystal);
-        registerInscriber(
-            NEItems.energizedCrystalDust,
-            InscriberProcessType.Inscribe,
-            NEItems.energizedCrystal,
-            null,
-            null);
 
         shapedIfComplete(
             new ItemStack(NEItems.energizedFluixCrystal, 8),
@@ -156,14 +144,7 @@ public final class NERecipes {
             Items.water_bucket);
         shapeless(new ItemStack(NEItems.energizedFluixCrystal, 4), NEBlocks.energizedFluixCrystalBlock);
         shapelessIfComplete(NEItems.energizedFluixCrystalDust, NEItems.energizedFluixCrystal);
-        registerInscriber(
-            NEItems.energizedFluixCrystalDust,
-            InscriberProcessType.Inscribe,
-            NEItems.energizedFluixCrystal,
-            null,
-            null);
 
-        // IWS parity: crystal / superconductive ingots cost 200,000 AE per four outputs in 1.21.1.
         shapedIfComplete(
             new ItemStack(NEItems.crystalIngot, 4),
             "ABC",
@@ -191,6 +172,56 @@ public final class NERecipes {
             NEAE2RecipeItems.silicon(),
             'D',
             "ingotBlackTungstenAlloy");
+        shapedIfComplete(
+            NEItems.superconductingProcessorPress,
+            "AAA",
+            "BCD",
+            "AAA",
+            'A',
+            NEItems.energizedSuperconductiveIngot,
+            'B',
+            NEAE2RecipeItems.engineeringProcessorPress(),
+            'C',
+            NEAE2RecipeItems.calculationProcessorPress(),
+            'D',
+            NEAE2RecipeItems.logicProcessorPress());
+        shaped(
+            NEItems.superconductingProcessorPrint,
+            " A ",
+            "ABA",
+            " A ",
+            'A',
+            NEItems.energizedSuperconductiveIngot,
+            'B',
+            NEItems.superconductingProcessorPress);
+        shapedIfComplete(
+            NEItems.superconductingProcessor,
+            " A ",
+            "BCD",
+            " A ",
+            'A',
+            "dustRedstone",
+            'B',
+            NEItems.superconductingProcessorPrint,
+            'C',
+            NEItems.crystalMatrix,
+            'D',
+            NEAE2RecipeItems.siliconPrint());
+        registerInscriber(
+            NEItems.superconductingProcessorPrint,
+            InscriberProcessType.Inscribe,
+            NEItems.energizedSuperconductiveIngot,
+            NEItems.superconductingProcessorPress,
+            null);
+        registerInscriber(
+            NEItems.superconductingProcessor,
+            InscriberProcessType.Press,
+            NEItems.crystalMatrix,
+            NEItems.superconductingProcessorPrint,
+            NEAE2RecipeItems.siliconPrint());
+    }
+
+    private static void registerProcessorRecipes() {
         shapedIfComplete(
             NEItems.superconductingProcessorPress,
             "AAA",
@@ -400,7 +431,6 @@ public final class NERecipes {
         if (useGregTechRecipes()) {
             return;
         }
-        // IWS parity: L4/L6/L9 systems cost 16,000 / 160,000 / 640,000 AE in 1.21.1.
         shapedIfComplete(
             NEBlocks.storageSystemL4,
             "ABA",
@@ -446,7 +476,6 @@ public final class NERecipes {
         if (useGregTechRecipes()) {
             return;
         }
-        // IWS parity: L4/L6/L9 systems cost 16,000 / 160,000 / 640,000 AE in 1.21.1.
         shaped(
             NEBlocks.craftingSystemL4,
             "ABA",
@@ -492,7 +521,6 @@ public final class NERecipes {
         if (useGregTechRecipes()) {
             return;
         }
-        // IWS parity: L4/L6/L9 systems cost 16,000 / 160,000 / 640,000 AE in 1.21.1.
         shaped(
             NEBlocks.computationSystemL4,
             "ABA",
@@ -590,14 +618,13 @@ public final class NERecipes {
             registerStorageCellAssemblyRecipes();
             return;
         }
-        // IWS parity: 16M / 64M / 256M components cost 16,000 / 48,000 / 144,000 AE in 1.21.1.
         shapedIfComplete(
             NEStorageItems.ecoCellComponent16M,
             "ABA",
             "CDC",
             "AEA",
             'A',
-            NEBlocks.energizedSuperconductiveBlock,
+            NEItems.energizedSuperconductiveIngot,
             'B',
             NEAE2RecipeItems.cellComponent256k(),
             'C',
@@ -618,7 +645,7 @@ public final class NERecipes {
             'C',
             NEItems.superconductingProcessor,
             'D',
-            NEItems.crystalIngot);
+            NEItems.crystalMatrix);
         shapedIfComplete(
             NEStorageItems.ecoCellComponent256M,
             "ABA",
@@ -631,7 +658,7 @@ public final class NERecipes {
             'C',
             NEItems.superconductingProcessor,
             'D',
-            NEItems.crystalIngot);
+            NEItems.crystalMatrix);
         shapeless(
             NEStorageItems.ecoItemStorageCell16M,
             NEStorageItems.ecoItemCellHousing,
@@ -644,7 +671,7 @@ public final class NERecipes {
             NEStorageItems.ecoItemStorageCell256M,
             NEStorageItems.ecoItemCellHousing,
             NEStorageItems.ecoCellComponent256M);
-        shaped(
+        shapedIfComplete(
             NEStorageItems.ecoInfiniteCellComponent,
             "ABA",
             "BCB",
@@ -652,9 +679,9 @@ public final class NERecipes {
             'A',
             NEStorageItems.ecoCellComponent256M,
             'B',
-            NEItems.energizedSuperconductiveIngot,
+            NEAE2RecipeItems.singularity(),
             'C',
-            NEBlocks.energizedFluixCrystalBlock);
+            NEStorageItems.ecoComputationCellL9);
     }
 
     private static void registerStorageCellAssemblyRecipes() {
@@ -676,7 +703,6 @@ public final class NERecipes {
         if (useGregTechRecipes()) {
             return;
         }
-        // IWS parity: CE4 / CE6 / CE9 cost 64,000 / 256,000 / 1,024,000 AE in 1.21.1.
         shaped(
             NEStorageItems.ecoComputationCellL4,
             "ABA",

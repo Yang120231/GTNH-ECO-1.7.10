@@ -76,12 +76,12 @@ public final class ECOEnergyProfile {
 
     public static long storageBytes(ECOControllerTier tier) {
         if (tier == ECOControllerTier.L9) {
-            return 1L << 28;
+            return 1L << 36;
         }
         if (tier == ECOControllerTier.L6) {
-            return 1L << 26;
+            return 1L << 34;
         }
-        return 1L << 24;
+        return 1L << 30;
     }
 
     public static long powerStorageSize(ECOControllerTier tier) {

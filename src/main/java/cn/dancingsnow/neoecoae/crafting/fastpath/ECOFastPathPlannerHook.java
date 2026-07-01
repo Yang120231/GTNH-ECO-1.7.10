@@ -16,7 +16,7 @@ public final class ECOFastPathPlannerHook {
     public static ECOFastPathPlan tryPlan(TileECOController controller, ICraftingPatternDetails patternDetails,
         InventoryCrafting table) {
         if (!ECOFastPathConfig.isPlannerHookEnabled()) {
-            return ECOFastPathPlan.rejected(ECOFastPathDecision.DISABLED, "fast path disabled");
+            return ECOFastPathPlan.rejected(ECOFastPathDecision.DISABLED, "planner disabled");
         }
         if (!isEcoCraftingHost(controller)) {
             return ECOFastPathPlan.rejected(ECOFastPathDecision.NOT_ECO_CRAFTING_HOST, "not an ECO crafting host");

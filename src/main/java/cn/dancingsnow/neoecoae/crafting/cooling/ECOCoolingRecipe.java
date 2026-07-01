@@ -30,6 +30,10 @@ public final class ECOCoolingRecipe {
         return this.inputAmount;
     }
 
+    public Fluid getInputFluid() {
+        return this.input;
+    }
+
     public FluidStack getOutput() {
         return this.output == null ? null : this.output.copy();
     }

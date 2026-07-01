@@ -26,10 +26,8 @@ public class BlockModernModel extends Block implements IModelIconProvider {
     private final String[] textureNames;
     private final ModelFacing inventoryModelFacing;
 
-    @SideOnly(Side.CLIENT)
     private final Map<String, IIcon> modelIcons = new HashMap<>();
 
-    @SideOnly(Side.CLIENT)
     private IIcon particleIcon;
 
     public BlockModernModel(String id, String modelName, String[] textureNames) {
