@@ -6,6 +6,8 @@ import java.util.Map;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
+
 public final class ECOStorageCodec {
 
     public static final int CURRENT_VERSION = 1;
@@ -67,8 +69,11 @@ public final class ECOStorageCodec {
         if (version <= 0) {
             version = 1;
         }
-        if (version != CURRENT_VERSION) {
-            throw new IllegalArgumentException("Unsupported ECO storage NBT version: " + version);
+        if (version > CURRENT_VERSION) {
+            NeoECOAE.LOG.warn(
+                "ECO storage NBT version {} is newer than supported version {}; attempting best-effort read",
+                version,
+                CURRENT_VERSION);
         }
 
         ECOCapacityPolicy policy = ECOCapacityPolicy.readFromNBT(tag.getCompoundTag("capacityPolicy"));

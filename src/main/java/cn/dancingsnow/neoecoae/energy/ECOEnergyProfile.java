@@ -143,4 +143,21 @@ public final class ECOEnergyProfile {
         double requested = safeTicks * (double) safeBonus * slots * multiplier;
         return Math.min(requested, CRAFTING_MAX_WORK_POWER_PER_TICK);
     }
+
+    /**
+     * Maximum number of queued crafts a single worker may finish in one tick.
+     * <p>
+     * Without overclock this is 1 (legacy behaviour). Each effective overclock step raises the
+     * per-worker burst ceiling so a fully overclocked host can drain hundreds of queued crafts per
+     * tick across its workers, while each individual completion is still gated by the crafting
+     * energy budget. Spreading the burst across workers avoids the single massive per-tick batch
+     * that the upstream fast-path performs.
+     */
+    public static int craftingBurstCraftsPerTick(boolean overclocked, int effectiveOverclockTimes) {
+        if (!overclocked || effectiveOverclockTimes <= 0) {
+            return 1;
+        }
+        int clampedOverclock = Math.max(0, Math.min(9, effectiveOverclockTimes));
+        return 1 + clampedOverclock * 4;
+    }
 }

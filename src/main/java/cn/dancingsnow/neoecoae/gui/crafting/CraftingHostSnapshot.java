@@ -9,8 +9,8 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
-import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.CraftingHostStats;
+import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileCraftingWorker;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.common.network.ByteBufUtils;

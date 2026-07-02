@@ -452,7 +452,11 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             x,
             y,
             HostUiStyle.usedValueColor(state.usedBytes, state.totalBytes));
-        this.drawLocalText(" " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"), x + cursor, y, HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalText(
+            " " + tr("gui.neoecoae.storage_ui.bytes", "Bytes"),
+            x + cursor,
+            y,
+            HostUiStyle.DARK_TEXT_MUTED);
     }
 
     private void drawMatrixCell(int x, int y, StorageHostSnapshot.MatrixCell cell, boolean hovered) {
@@ -653,7 +657,8 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             unit++;
         }
         return scaled.stripTrailingZeros()
-            .toPlainString() + " " + EXTENDED_BYTE_UNITS[unit];
+            .toPlainString() + " "
+            + EXTENDED_BYTE_UNITS[unit];
     }
 
     private double animatedUsageRatio(double target) {

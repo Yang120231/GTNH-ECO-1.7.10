@@ -142,6 +142,21 @@ public class TileECOInterface extends TileEntity
         return this.injectCraftingOutput(stack, false);
     }
 
+    public IAEItemStack extractCraftingInput(IAEItemStack stack, boolean simulate) {
+        if (stack == null || stack.getStackSize() <= 0L) {
+            return null;
+        }
+        if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
+            return null;
+        }
+        IStorageGrid storageGrid = this.currentStorageGrid();
+        if (storageGrid == null) {
+            return null;
+        }
+        return storageGrid.getItemInventory()
+            .extractItems(stack.copy(), simulate ? Actionable.SIMULATE : Actionable.MODULATE, new MachineSource(this));
+    }
+
     public ItemStack injectCraftingOutput(ItemStack stack, boolean simulate) {
         if (stack == null || stack.stackSize <= 0) {
             return null;

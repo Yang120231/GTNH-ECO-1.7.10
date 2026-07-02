@@ -21,6 +21,8 @@ import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidContainerItem;
 import net.minecraftforge.fluids.IFluidHandler;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
+
 public class TileCraftingHatch extends TileCraftingMember implements IInventory, IFluidHandler {
 
     private static final String TAG_INPUT = "Input";
@@ -30,10 +32,12 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     private static final String TAG_TANK = "Tank";
     private static final int SLOTS = 27;
     private static final int TANK_CAPACITY = 16000;
+    private static final long FLUID_SYNC_INTERVAL = 5L;
 
     private boolean input;
     private final FluidTank tank = new FluidTank(TANK_CAPACITY);
     private final ItemStack[] items = new ItemStack[SLOTS];
+    private long lastFluidSync = 0L;
 
     public TileCraftingHatch() {
         this(true);
@@ -321,7 +325,10 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
             NBTTagCompound entry = list.getCompoundTagAt(i);
             int slot = entry.getByte(TAG_SLOT) & 255;
             if (slot >= 0 && slot < this.items.length) {
-                this.items[slot] = ItemStack.loadItemStackFromNBT(entry.getCompoundTag(TAG_STACK));
+                ItemStack loaded = ItemStack.loadItemStackFromNBT(entry.getCompoundTag(TAG_STACK));
+                if (loaded != null && loaded.stackSize > 0) {
+                    this.items[slot] = loaded;
+                }
             }
         }
     }
@@ -408,7 +415,11 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     private void onFluidChanged() {
         this.markDirty();
         if (this.worldObj != null && !this.worldObj.isRemote) {
-            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+            long now = this.worldObj.getTotalWorldTime();
+            if (now - this.lastFluidSync >= FLUID_SYNC_INTERVAL) {
+                this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+                this.lastFluidSync = now;
+            }
         }
         this.notifyCraftingControllerChanged();
     }
@@ -423,6 +434,9 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     }
 
     private void pullFluidFromNeighbors() {
+        if (this.worldObj == null) {
+            return;
+        }
         int remaining = this.tank.getCapacity() - this.tank.getFluidAmount();
         if (remaining <= 0) {
             return;
@@ -450,6 +464,9 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     }
 
     private void pushFluidToNeighbors() {
+        if (this.worldObj == null) {
+            return;
+        }
         FluidStack stored = this.tank.getFluid();
         if (stored == null || stored.amount <= 0) {
             return;
@@ -539,7 +556,7 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     private ItemStack safeDrainFluidContainer(ItemStack held) {
         try {
             return FluidContainerRegistry.drainFluidContainer(held);
-        } catch (RuntimeException ignored) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
             return null;
         }
     }
@@ -552,6 +569,13 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
     }
 
     private static int saturatedAdd(int left, int right) {
+        if (left < 0) {
+            NeoECOAE.LOG.warn("Detected negative item count in saturatedAdd: left={}, right={}", left, right);
+            return Math.max(0, right);
+        }
+        if (right <= 0) {
+            return left;
+        }
         return Integer.MAX_VALUE - left < right ? Integer.MAX_VALUE : left + right;
     }
 }

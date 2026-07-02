@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.storage.ae2;
 
-import java.util.Map;
-
 import net.minecraft.item.ItemStack;
 
 import appeng.api.config.AccessRestriction;
@@ -15,8 +13,8 @@ import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
+import cn.dancingsnow.neoecoae.tile.TileECODrive;
 
 public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEInventoryHandler<StackType> {
 
@@ -24,9 +22,9 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
     private final ISaveProvider saveProvider;
     private final StorageChannel channel;
     private final int priority;
+    private final TileECODrive drive;
     private ECOStorageBackend backend;
-    private long cachedRevision = Long.MIN_VALUE;
-    private IItemList<StackType> cachedAvailableItems;
+    private final ECOAvailableItemsCache<StackType> availableItemsCache = new ECOAvailableItemsCache<StackType>();
 
     public ECOCellInventoryHandler(ItemStack cellStack, ISaveProvider saveProvider, StorageChannel channel) {
         this(cellStack, saveProvider, channel, 0);
@@ -38,7 +36,20 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
         this.saveProvider = saveProvider;
         this.channel = channel;
         this.priority = priority;
+        this.drive = null;
         this.backend = ECOStorageCellAccess.load(cellStack);
+    }
+
+    public ECOCellInventoryHandler(TileECODrive drive, StorageChannel channel, int priority) {
+        this.cellStack = drive == null ? null : drive.getCellStack();
+        this.saveProvider = null;
+        this.channel = channel;
+        this.priority = priority;
+        this.drive = drive;
+        this.backend = drive == null ? null : drive.getOrLoadCellBackend();
+        if (this.backend == null) {
+            this.backend = ECOStorageCellAccess.load(this.cellStack);
+        }
     }
 
     @Override
@@ -135,38 +146,18 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
     }
 
     private void saveChanges() {
-        ECOStorageCellAccess.save(this.cellStack, this.backend);
-        this.cachedRevision = Long.MIN_VALUE;
-        this.cachedAvailableItems = null;
+        if (this.drive != null) {
+            this.drive.markCellStorageDirty();
+        } else {
+            ECOStorageCellAccess.save(this.cellStack, this.backend);
+        }
+        this.availableItemsCache.invalidate();
         if (this.saveProvider != null) {
             this.saveProvider.saveChanges(this);
         }
     }
 
     private IItemList<StackType> getCachedAvailableItems() {
-        long revision = this.backend.getRevision();
-        if (this.cachedAvailableItems != null && this.cachedRevision == revision) {
-            return this.cachedAvailableItems;
-        }
-        IItemList<StackType> out = this.channel.createList();
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : this.backend.getEntriesView()
-            .entrySet()) {
-            long amount = entry.getValue()
-                .toLongSaturated();
-            StackType stack = this.toAEStack(entry.getKey(), amount);
-            if (stack != null) {
-                out.addStorage(stack);
-            }
-        }
-        this.cachedAvailableItems = out;
-        this.cachedRevision = revision;
-        return out;
-    }
-
-    private StackType toAEStack(ECOStorageKey key, long amount) {
-        if (this.channel == StorageChannel.ITEMS) {
-            return (StackType) ECOAE2KeyConverter.toItemStack(key, amount);
-        }
-        return (StackType) ECOAE2KeyConverter.toFluidStack(key, amount);
+        return this.availableItemsCache.get(this.channel, this.backend);
     }
 }

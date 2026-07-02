@@ -38,6 +38,8 @@ public class TileECODrive extends TileEntity implements IInventory {
     private int cellLedColor;
     private int clientCellLedColor;
     private TileECOController cachedController;
+    private ECOStorageBackend cellBackend;
+    private boolean cellBackendDirty;
 
     public boolean hasCell() {
         return this.cellStack != null || this.clientHasCell;
@@ -45,6 +47,41 @@ public class TileECODrive extends TileEntity implements IInventory {
 
     public ItemStack getCellStack() {
         return this.cellStack;
+    }
+
+    public ECOStorageBackend getOrLoadCellBackend() {
+        if (this.cellStack == null) {
+            this.cellBackend = null;
+            this.cellBackendDirty = false;
+            return null;
+        }
+        if (this.cellBackend == null) {
+            this.cellBackend = ECOStorageCellAccess.load(this.cellStack);
+            this.cellBackendDirty = false;
+        }
+        return this.cellBackend;
+    }
+
+    public void markCellStorageDirty() {
+        if (this.cellStack == null || this.cellBackend == null) {
+            return;
+        }
+        this.cellBackendDirty = true;
+        super.markDirty();
+    }
+
+    public void flushCellStorage() {
+        if (!this.cellBackendDirty || this.cellStack == null || this.cellBackend == null) {
+            return;
+        }
+        ECOStorageCellAccess.save(this.cellStack, this.cellBackend);
+        this.cellBackendDirty = false;
+        super.markDirty();
+    }
+
+    public void discardCellBackend() {
+        this.cellBackend = null;
+        this.cellBackendDirty = false;
     }
 
     public String getCellTierForRender() {
@@ -77,6 +114,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (!this.canExtractCellStack()) {
             return null;
         }
+        this.flushCellStorage();
         ItemStack removed;
         if (this.cellStack.stackSize <= amount) {
             removed = this.cellStack.copy();
@@ -99,6 +137,7 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (!this.canExtractCellStack()) {
             return null;
         }
+        this.flushCellStorage();
         ItemStack stack = this.cellStack == null ? null : this.cellStack.copy();
         this.cellStack = null;
         if (stack != null) {
@@ -115,7 +154,9 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (stack != null && !this.isItemValidForSlot(slot, stack)) {
             return;
         }
+        this.flushCellStorage();
         this.cellStack = stack;
+        this.discardCellBackend();
         if (this.cellStack != null && this.cellStack.stackSize > this.getInventoryStackLimit()) {
             this.cellStack.stackSize = this.getInventoryStackLimit();
         }
@@ -189,12 +230,17 @@ public class TileECODrive extends TileEntity implements IInventory {
     }
 
     public boolean prepareForWorldRemoval() {
-        return this.canRemoveFromWorld();
+        boolean removable = this.canRemoveFromWorld();
+        if (removable) {
+            this.flushCellStorage();
+        }
+        return removable;
     }
 
     @Override
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
+        this.flushCellStorage();
         if (this.cellStack != null) {
             NBTTagCompound cellTag = new NBTTagCompound();
             this.cellStack.writeToNBT(cellTag);
@@ -206,6 +252,7 @@ public class TileECODrive extends TileEntity implements IInventory {
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         this.cellStack = tag.hasKey(TAG_CELL) ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_CELL)) : null;
+        this.discardCellBackend();
         this.clientHasCell = this.cellStack != null;
         this.clientCellTier = this.cellStack != null ? getCellTier(this.cellStack) : "";
         this.cellLedColor = this.computeCellLedColor(this.online);
@@ -253,7 +300,20 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (this.worldObj == null || this.worldObj.isRemote || this.worldObj.getTotalWorldTime() % 20L != 0L) {
             return;
         }
+        this.flushCellStorage();
         this.updateVisualState(this.findController());
+    }
+
+    @Override
+    public void invalidate() {
+        this.flushCellStorage();
+        super.invalidate();
+    }
+
+    @Override
+    public void onChunkUnload() {
+        this.flushCellStorage();
+        super.onChunkUnload();
     }
 
     public void refreshOnlineState(TileECOController controller) {
@@ -285,7 +345,10 @@ public class TileECODrive extends TileEntity implements IInventory {
         if (total <= 0L) {
             return LED_LOW;
         }
-        ECOStorageBackend backend = ECOStorageCellAccess.load(this.cellStack);
+        ECOStorageBackend backend = this.getOrLoadCellBackend();
+        if (backend == null) {
+            return LED_LOW;
+        }
         long used = backend.getUsed()
             .toLongSaturated();
         if (used >= total) {

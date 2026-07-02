@@ -61,9 +61,12 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             this.scheduledReason = ScheduledReason.SOMETHING_STUCK;
             return false;
         }
-        ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
+        // AE2 authorises exactly one craft per pushPattern and has already consumed that craft's
+        // inputs into the table. We must enqueue exactly one craft here - pulling additional inputs
+        // from the network to inflate the batch would overproduce and double-spend ingredients.
         boolean accepted = worker.acceptPattern(patternDetails, table);
         if (accepted) {
+            ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
             controller.recordCraftingPlannerDecision(plannerPlan.accepted());
         }
         this.scheduledReason = accepted ? ScheduledReason.UNDEFINED : ScheduledReason.SOMETHING_STUCK;

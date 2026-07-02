@@ -121,11 +121,7 @@ public final class NEGregTechRecipes {
             null,
             25 * SECONDS,
             TierEU.RECIPE_HV);
-        macerator(
-            stack(NEItems.energizedCrystal),
-            stack(NEItems.energizedCrystalDust),
-            10 * SECONDS,
-            TierEU.RECIPE_HV);
+        macerator(stack(NEItems.energizedCrystal), stack(NEItems.energizedCrystalDust), 10 * SECONDS, TierEU.RECIPE_HV);
         mixer(
             new ItemStack[] { stack(NEItems.energizedCrystalDust, 8), copy(fluixCrystal, 8) },
             water(250),
