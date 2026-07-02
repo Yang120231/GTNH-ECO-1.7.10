@@ -1,6 +1,5 @@
 name: Feature Request / 功能建议
 description: Suggest an improvement or new behavior. / 提出改进或新功能建议。
-title: "[Feature]: "
 labels: ["enhancement"]
 body:
   - type: markdown
@@ -16,11 +15,8 @@ body:
       label: Target Version / 目标版本
       description: Please select the version this request is for. / 请选择这个建议面向的版本。
       options:
-        - "MC 1.21.1 / Minecraft 1.21.1"
-        - "MC 1.20.1 / Minecraft 1.20.1"
-        - "26.1 / 26.1"
-        - "All supported versions / 所有支持版本"
-        - "Not sure / 不确定"
+        - "1.21.1"
+        - "1.20.1"
     validations:
       required: true
 
