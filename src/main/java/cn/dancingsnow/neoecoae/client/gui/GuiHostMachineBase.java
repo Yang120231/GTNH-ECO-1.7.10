@@ -275,18 +275,14 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     /**
      * Screen-space hit test for mouse values from drawScreen, mouseClicked, and handleMouseInput.
+     * Note: drawGuiContainerForegroundLayer also receives screen-space mouse coordinates (the GL
+     * matrix is translated by guiLeft/guiTop for drawing, but the mouse args are NOT), so use this
+     * method there too.
      */
     protected final boolean isMouseIn(int x, int y, int width, int height, int mouseX, int mouseY) {
         int left = this.guiLeft + x;
         int top = this.guiTop + y;
         return isPointInRect(left, top, width, height, mouseX, mouseY);
-    }
-
-    /**
-     * GUI-local hit test for mouse values passed to drawGuiContainerForegroundLayer.
-     */
-    protected final boolean isMouseInLocal(int x, int y, int width, int height, int mouseX, int mouseY) {
-        return isPointInRect(x, y, width, height, mouseX, mouseY);
     }
 
     private static boolean isPointInRect(int x, int y, int width, int height, int mouseX, int mouseY) {

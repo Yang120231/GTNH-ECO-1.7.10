@@ -6,6 +6,14 @@ import java.util.Map;
 
 import net.minecraft.nbt.NBTTagCompound;
 
+/**
+ * Mutable storage backend for ECO cells and host domains.
+ *
+ * <p>
+ * This class is intentionally not thread-safe. AE2 1.7.10 storage access is expected to run on
+ * the server thread; asynchronous users must work on {@link #snapshot()} instead of the live
+ * backend.
+ */
 public final class ECOStorageBackend {
 
     private ECOCapacityPolicy capacityPolicy;
@@ -140,7 +148,7 @@ public final class ECOStorageBackend {
 
     private void markDirty() {
         if (this.revision == Long.MAX_VALUE) {
-            this.revision = 1L;
+            this.revision = 0L;
         } else {
             this.revision++;
         }

@@ -73,6 +73,20 @@ public class ECOStorageDomainData extends WorldSavedData {
         }
     }
 
+    public void forgetCommittedSource(UUID domainId, UUID diskId) {
+        if (domainId == null || diskId == null) {
+            return;
+        }
+        Set<UUID> committed = this.committedSources.get(domainId);
+        if (committed == null || !committed.remove(diskId)) {
+            return;
+        }
+        if (committed.isEmpty()) {
+            this.committedSources.remove(domainId);
+        }
+        this.markDirty();
+    }
+
     public void commitDiskToDomain(UUID domainId, UUID diskId, ECOStorageBackend source) {
         if (domainId == null || diskId == null || source == null) {
             return;
@@ -111,7 +125,12 @@ public class ECOStorageDomainData extends WorldSavedData {
                 continue;
             }
             ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.infinite());
-            backend.readFromNBT(domainTag.getCompoundTag("storage"));
+            try {
+                backend.readFromNBT(domainTag.getCompoundTag("storage"));
+            } catch (RuntimeException e) {
+                NeoECOAE.LOG.error("Skipping unreadable ECO storage domain {}: {}", domainId, e.getMessage());
+                continue;
+            }
             this.domains.put(domainId, backend);
             NBTTagList committedTag = domainTag.getTagList("committedSources", Constants.NBT.TAG_COMPOUND);
             Set<UUID> committed = new HashSet<UUID>();

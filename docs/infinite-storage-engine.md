@@ -305,6 +305,32 @@ Late game:
 8. Add compaction and recovery tests.
 9. Keep portable cells on NBT unless they also need large-scale behavior.
 
+## Phase 1 Enhanced Backend
+
+The first implementation step keeps the existing full-map backend and improves the change-tracking boundary around it.
+
+Implemented scope:
+
+- `ECOStorageBackend` records a bounded dirty-key history tied to backend revisions.
+- Consumers can ask whether dirty history is complete since a cached revision.
+- Portable cell and host-domain AE2 handlers share one `ECOAvailableItemsCache` helper.
+- The cache helper centralizes the current full-list rebuild path.
+- The same helper is the replacement point for a future custom incremental visible index.
+
+This is intentionally conservative. AE2's `IItemList` exposes add and lookup operations, but not a safe remove/update primitive for an existing stored stack. Because of that, phase 1 does not mutate AE2's list in place when an item reaches zero or changes amount. It records the information needed for incremental work, then still falls back to rebuilding the visible list.
+
+The next phase can replace the internal cache representation with a mod-owned index:
+
+```text
+ECOVisibleItemIndex
+|- key -> StackType
+|- revision
+|- dirty key patching
+`- AE2 list materialization
+```
+
+At that point dirty-key history can update the mod-owned index safely, and `IItemList` only needs to be materialized when AE2 asks for a list snapshot.
+
 ## Recommended First Interface
 
 ```java

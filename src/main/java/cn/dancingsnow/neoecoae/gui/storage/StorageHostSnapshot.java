@@ -474,8 +474,9 @@ public final class StorageHostSnapshot {
     }
 
     private static void writeBigInteger(ByteBuf buf, BigInteger value) {
-        byte[] bytes = (value == null ? "0" : value.max(BigInteger.ZERO).toString())
-            .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] bytes = (value == null ? "0"
+            : value.max(BigInteger.ZERO)
+                .toString()).getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         int length = Math.min(bytes.length, 2048);
         buf.writeShort(length);
         buf.writeBytes(bytes, 0, length);

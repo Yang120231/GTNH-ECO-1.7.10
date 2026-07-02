@@ -15,6 +15,7 @@ import net.minecraftforge.common.util.Constants;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 
 public class TileCraftingWorker extends TileCraftingMember {
@@ -32,13 +33,21 @@ public class TileCraftingWorker extends TileCraftingMember {
     private final List<WorkEntry> queue = new ArrayList<WorkEntry>();
 
     public boolean acceptPattern(ICraftingPatternDetails details, InventoryCrafting table) {
+        return this.acceptPatternBatch(details, table, 1);
+    }
+
+    public boolean acceptPatternBatch(ICraftingPatternDetails details, InventoryCrafting table, int craftCount) {
         if (details == null || table == null || !this.hasQueueSpace()) {
+            return false;
+        }
+        int acceptedCrafts = Math.min(Math.max(1, craftCount), this.availableQueueSpace());
+        if (acceptedCrafts <= 0) {
             return false;
         }
         ItemStack output = details.getOutput(table, this.worldObj);
         if (output == null) {
             IAEItemStack[] outputs = details.getCondensedOutputs();
-            if (outputs.length > 0 && outputs[0] != null) {
+            if (outputs != null && outputs.length > 0 && outputs[0] != null) {
                 output = outputs[0].getItemStack();
             }
         }
@@ -46,10 +55,13 @@ public class TileCraftingWorker extends TileCraftingMember {
             return false;
         }
         TileECOController controller = this.findCraftingController();
-        if (controller != null && !controller.consumeCraftingCoolantForWork(1)) {
+        if (controller != null && !controller.consumeCraftingCoolantForWork(acceptedCrafts)) {
             return false;
         }
-        this.queue.add(new WorkEntry(this.queue.size(), 0, ECOEnergyProfile.CRAFTING_WORK_MAX_PROGRESS, output.copy()));
+        for (int i = 0; i < acceptedCrafts; i++) {
+            this.queue
+                .add(new WorkEntry(this.queue.size(), 0, ECOEnergyProfile.CRAFTING_WORK_MAX_PROGRESS, output.copy()));
+        }
         this.normalizeSlots();
         this.onStateChanged();
         return true;
@@ -73,6 +85,10 @@ public class TileCraftingWorker extends TileCraftingMember {
 
     public boolean hasQueueSpace() {
         return this.queueSize() < this.queueCapacity();
+    }
+
+    public int availableQueueSpace() {
+        return Math.max(0, this.queueCapacity() - this.queueSize());
     }
 
     public int getSlotId() {
@@ -199,7 +215,15 @@ public class TileCraftingWorker extends TileCraftingMember {
         super.readFromNBT(tag);
         this.queue.clear();
         NBTTagList list = tag.getTagList(TAG_QUEUE, Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < list.tagCount() && this.queue.size() < this.queueCapacity(); i++) {
+        int capacity = this.queueCapacity();
+        if (list.tagCount() > capacity) {
+            NeoECOAE.LOG.warn(
+                "Dropping {} crafting tasks at {} due to capacity limit (capacity={})",
+                list.tagCount() - capacity,
+                this.xCoord + "," + this.yCoord + "," + this.zCoord,
+                capacity);
+        }
+        for (int i = 0; i < list.tagCount() && this.queue.size() < capacity; i++) {
             WorkEntry entry = readEntry(list.getCompoundTagAt(i));
             if (entry != null) {
                 this.queue.add(entry);
@@ -255,63 +279,87 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (this.worldObj == null || this.worldObj.isRemote || this.queue.isEmpty()) {
             return;
         }
-        WorkEntry current = this.peekEntry();
-        if (current == null) {
-            return;
-        }
         TileECOController controller = this.findCraftingController();
-        if (current.progress < current.totalProgress) {
-            if (controller == null) {
-                return;
-            }
-            int bonusValue = controller.getCraftingWorkBonusValue();
-            int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
-            double request = ECOEnergyProfile.craftingWorkPowerRequest(1, bonusValue, 1, powerMultiplier);
-            double simulated = controller.extractCraftingEnergy(request, true);
-            if (simulated <= 0D) {
-                return;
-            }
-            double consumable = Math.min(request, simulated);
-            int progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(consumable, 1, powerMultiplier);
-            if (progress <= 0) {
-                return;
-            }
-            double extracted = controller.extractCraftingEnergy(consumable, false);
-            progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(extracted, 1, powerMultiplier);
-            if (progress <= 0) {
-                return;
-            }
-            int previousProgress = current.progress;
-            current.progress = Math.min(current.totalProgress, current.progress + progress);
-            this.onProgressChanged(previousProgress, current);
+        if (controller == null) {
             return;
         }
-        ItemStack remaining = controller == null || current.output == null ? null
-            : controller.acceptCraftingOutput(current.output);
-        if (remaining == null) {
-            this.queue.remove(0);
+        int burstLimit = Math.max(1, controller.getCraftingBurstCraftsPerTick());
+        int bonusValue = controller.getCraftingWorkBonusValue();
+        int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
+
+        boolean queueChanged = false;
+        boolean progressDirty = false;
+        int completed = 0;
+
+        // Each queued entry is exactly one AE2-authorised craft (inputs already consumed by AE2 at
+        // push time). Draining several finished entries per tick is safe - it only speeds up output
+        // of work that was already authorised, it never fabricates extra crafts or inputs.
+        while (completed < burstLimit) {
+            WorkEntry current = this.peekEntry();
+            if (current == null) {
+                break;
+            }
+            if (current.progress < current.totalProgress) {
+                int gained = this.advanceProgress(controller, current, bonusValue, powerMultiplier);
+                if (gained <= 0) {
+                    break;
+                }
+                int previousProgress = current.progress;
+                current.progress = Math.min(current.totalProgress, current.progress + gained);
+                if (this.progressBucketChanged(previousProgress, current)) {
+                    progressDirty = true;
+                }
+                if (current.progress < current.totalProgress) {
+                    break;
+                }
+            }
+            ItemStack remaining = current.output == null ? null : controller.acceptCraftingOutput(current.output);
+            if (remaining == null) {
+                this.queue.remove(0);
+                queueChanged = true;
+                completed++;
+                continue;
+            }
+            if (current.output == null || remaining.stackSize < current.output.stackSize) {
+                current.output = remaining.copy();
+                queueChanged = true;
+            }
+            break;
+        }
+
+        if (queueChanged) {
             this.normalizeSlots();
             this.onStateChanged();
-        } else if (current.output == null || remaining.stackSize < current.output.stackSize) {
-            current.output = remaining.copy();
-            this.onStateChanged();
+        } else if (progressDirty) {
+            this.markDirty();
         }
+    }
+
+    private int advanceProgress(TileECOController controller, WorkEntry current, int bonusValue, int powerMultiplier) {
+        double request = ECOEnergyProfile.craftingWorkPowerRequest(1, bonusValue, 1, powerMultiplier);
+        double simulated = controller.extractCraftingEnergy(request, true);
+        if (simulated <= 0D) {
+            return 0;
+        }
+        double consumable = Math.min(request, simulated);
+        int progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(consumable, 1, powerMultiplier);
+        if (progress <= 0) {
+            return 0;
+        }
+        double extracted = controller.extractCraftingEnergy(consumable, false);
+        return ECOEnergyProfile.craftingWorkPowerFromExtracted(extracted, 1, powerMultiplier);
     }
 
     private WorkEntry peekEntry() {
         return this.queue.isEmpty() ? null : this.queue.get(0);
     }
 
-    private void onProgressChanged(int previousProgress, WorkEntry current) {
+    private boolean progressBucketChanged(int previousProgress, WorkEntry current) {
         if (current == null || current.progress <= previousProgress) {
-            return;
+            return false;
         }
-        if (current.progress >= current.totalProgress
-            || progressSyncBucket(previousProgress, current.totalProgress) != progressSyncBucket(
-                current.progress,
-                current.totalProgress)) {
-            this.markDirty();
-        }
+        return current.progress >= current.totalProgress || progressSyncBucket(previousProgress, current.totalProgress)
+            != progressSyncBucket(current.progress, current.totalProgress);
     }
 
     private static int progressSyncBucket(int progress, int totalProgress) {
@@ -321,9 +369,11 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (progress >= totalProgress) {
             return PROGRESS_SYNC_BUCKETS;
         }
-        return (int) Math.min(
-            PROGRESS_SYNC_BUCKETS - 1L,
-            (long) progress * (long) PROGRESS_SYNC_BUCKETS / (long) totalProgress);
+        long longTotal = (long) totalProgress;
+        if (longTotal <= 0L || progress < 0) {
+            return 0;
+        }
+        return (int) Math.min(PROGRESS_SYNC_BUCKETS - 1L, (long) progress * (long) PROGRESS_SYNC_BUCKETS / longTotal);
     }
 
     private void normalizeSlots() {

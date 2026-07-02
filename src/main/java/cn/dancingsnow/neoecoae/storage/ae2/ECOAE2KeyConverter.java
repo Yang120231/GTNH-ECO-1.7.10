@@ -3,6 +3,8 @@ package cn.dancingsnow.neoecoae.storage.ae2;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -20,6 +22,25 @@ import cpw.mods.fml.common.registry.GameRegistry;
 import cpw.mods.fml.common.registry.GameRegistry.UniqueIdentifier;
 
 public final class ECOAE2KeyConverter {
+
+    private static final int KEY_CACHE_LIMIT = 8192;
+    private static final Map<String, ECOStorageKey> KEY_CACHE = new LinkedHashMap<String, ECOStorageKey>(
+        KEY_CACHE_LIMIT,
+        0.75F,
+        true) {
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, ECOStorageKey> eldest) {
+            return this.size() > KEY_CACHE_LIMIT;
+        }
+    };
+    private static final Map<Item, String> ITEM_NAME_CACHE = new LinkedHashMap<Item, String>(512, 0.75F, true) {
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Item, String> eldest) {
+            return this.size() > 512;
+        }
+    };
 
     private ECOAE2KeyConverter() {}
 
@@ -72,15 +93,57 @@ public final class ECOAE2KeyConverter {
 
     private static ECOStorageKey itemKey(IAEItemStack stack) {
         ItemStack itemStack = stack.getItemStack();
-        UniqueIdentifier id = GameRegistry.findUniqueIdentifierFor(itemStack.getItem());
-        String name = id == null ? Item.itemRegistry.getNameForObject(itemStack.getItem()) : id.modId + ":" + id.name;
-        return ECOStorageKey.item(name, itemStack.getItemDamage(), encodeTag(itemStack.getTagCompound()));
+        String name = itemName(itemStack.getItem());
+        int metadata = itemStack.getItemDamage();
+        NBTTagCompound tag = itemStack.getTagCompound();
+        String cacheKey = "i|" + name + "|" + metadata + "|" + tagSignature(tag);
+        ECOStorageKey cached = cachedKey(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        return cacheKey(cacheKey, ECOStorageKey.item(name, metadata, encodeTag(tag)));
     }
 
     private static ECOStorageKey fluidKey(IAEFluidStack stack) {
         FluidStack fluidStack = stack.getFluidStack();
         String name = FluidRegistry.getFluidName(fluidStack);
-        return ECOStorageKey.fluid(name, encodeTag(fluidStack.tag));
+        NBTTagCompound tag = fluidStack.tag;
+        String cacheKey = "f|" + name + "|" + tagSignature(tag);
+        ECOStorageKey cached = cachedKey(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+        return cacheKey(cacheKey, ECOStorageKey.fluid(name, encodeTag(tag)));
+    }
+
+    private static String itemName(Item item) {
+        synchronized (ITEM_NAME_CACHE) {
+            String cached = ITEM_NAME_CACHE.get(item);
+            if (cached != null) {
+                return cached;
+            }
+            UniqueIdentifier id = GameRegistry.findUniqueIdentifierFor(item);
+            String name = id == null ? Item.itemRegistry.getNameForObject(item) : id.modId + ":" + id.name;
+            ITEM_NAME_CACHE.put(item, name);
+            return name;
+        }
+    }
+
+    private static ECOStorageKey cachedKey(String cacheKey) {
+        synchronized (KEY_CACHE) {
+            return KEY_CACHE.get(cacheKey);
+        }
+    }
+
+    private static ECOStorageKey cacheKey(String cacheKey, ECOStorageKey key) {
+        synchronized (KEY_CACHE) {
+            KEY_CACHE.put(cacheKey, key);
+        }
+        return key;
+    }
+
+    private static String tagSignature(NBTTagCompound tag) {
+        return tag == null || tag.hasNoTags() ? "" : tag.toString();
     }
 
     private static String encodeTag(NBTTagCompound tag) {

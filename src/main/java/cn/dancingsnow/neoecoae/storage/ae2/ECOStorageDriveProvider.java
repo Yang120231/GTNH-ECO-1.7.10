@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
 import appeng.api.storage.ICellProvider;
@@ -46,11 +45,8 @@ public class ECOStorageDriveProvider implements ICellProvider {
                 continue;
             }
             TileECODrive drive = (TileECODrive) tile;
-            ItemStack stack = drive.getCellStack();
-            IMEInventoryHandler handler = ECOCellHandler.INSTANCE
-                .getCellInventory(stack, null, channel, this.getPriority());
-            if (handler != null) {
-                handlers.add(handler);
+            if (ECOCellHandler.INSTANCE.isCell(drive.getCellStack())) {
+                handlers.add(new ECOCellInventoryHandler(drive, channel, this.getPriority()));
             }
         }
         return handlers;
