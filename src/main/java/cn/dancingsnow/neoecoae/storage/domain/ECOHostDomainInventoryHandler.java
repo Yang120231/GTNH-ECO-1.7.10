@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoae.storage.domain;
 
+import java.util.UUID;
+
 import net.minecraft.world.World;
 
 import appeng.api.config.AccessRestriction;
@@ -10,8 +12,8 @@ import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
-import cn.dancingsnow.neoecoae.storage.ae2.ECOAvailableItemsCache;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOAE2KeyConverter;
+import cn.dancingsnow.neoecoae.storage.ae2.ECOAvailableItemsCache;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -21,6 +23,8 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
     private final TileECOController controller;
     private final StorageChannel channel;
     private final ECOAvailableItemsCache<StackType> availableItemsCache = new ECOAvailableItemsCache<StackType>();
+    private UUID cachedDomainId;
+    private ECOStorageBackend cachedBackend;
 
     public ECOHostDomainInventoryHandler(TileECOController controller, StorageChannel channel) {
         this.controller = controller;
@@ -132,11 +136,17 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
 
     private ECOStorageBackend getBackend() {
         World world = this.controller.getWorldObj();
-        if (world == null || this.controller.getHostDomainId() == null) {
+        UUID domainId = this.controller.getHostDomainId();
+        if (world == null || domainId == null) {
             return null;
         }
-        return ECOStorageDomainData.get(world)
-            .getOrCreateDomain(this.controller.getHostDomainId());
+        if (domainId.equals(this.cachedDomainId) && this.cachedBackend != null) {
+            return this.cachedBackend;
+        }
+        this.cachedDomainId = domainId;
+        this.cachedBackend = ECOStorageDomainData.get(world)
+            .getOrCreateDomain(domainId);
+        return this.cachedBackend;
     }
 
     private IItemList<StackType> getCachedAvailableItems() {

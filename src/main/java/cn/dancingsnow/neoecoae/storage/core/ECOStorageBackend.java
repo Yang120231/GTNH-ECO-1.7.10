@@ -1,24 +1,25 @@
 package cn.dancingsnow.neoecoae.storage.core;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import net.minecraft.nbt.NBTTagCompound;
 
+/**
+ * Mutable storage backend for ECO cells and host domains.
+ *
+ * <p>
+ * This class is intentionally not thread-safe. AE2 1.7.10 storage access is expected to run on
+ * the server thread; asynchronous users must work on {@link #snapshot()} instead of the live
+ * backend.
+ */
 public final class ECOStorageBackend {
-
-    private static final int MAX_DIRTY_KEY_HISTORY = 4096;
 
     private ECOCapacityPolicy capacityPolicy;
     private final Map<ECOStorageKey, ECOAmount> entries;
-    private final List<DirtyKeyChange> dirtyKeyHistory;
     private ECOAmount used;
     private long revision;
-    private long dirtyKeyHistoryBaseRevision;
 
     public ECOStorageBackend() {
         this(ECOCapacityPolicy.infinite());
@@ -27,10 +28,8 @@ public final class ECOStorageBackend {
     public ECOStorageBackend(ECOCapacityPolicy capacityPolicy) {
         this.capacityPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
         this.entries = new LinkedHashMap<ECOStorageKey, ECOAmount>();
-        this.dirtyKeyHistory = new ArrayList<DirtyKeyChange>();
         this.used = ECOAmount.ZERO;
         this.revision = 0L;
-        this.dirtyKeyHistoryBaseRevision = 0L;
     }
 
     public ECOAmount insert(ECOStorageKey key, ECOAmount amount, boolean simulate) {
@@ -45,7 +44,7 @@ public final class ECOStorageBackend {
         ECOAmount current = this.getAmount(key);
         this.entries.put(key, current.add(accepted));
         this.used = this.used.add(accepted);
-        this.markDirty(key);
+        this.markDirty();
         return accepted;
     }
 
@@ -66,7 +65,7 @@ public final class ECOStorageBackend {
             this.entries.put(key, remaining);
         }
         this.used = this.used.subtract(extracted);
-        this.markDirty(key);
+        this.markDirty();
         return extracted;
     }
 
@@ -82,24 +81,6 @@ public final class ECOStorageBackend {
 
     public Map<ECOStorageKey, ECOAmount> getEntriesView() {
         return Collections.unmodifiableMap(this.entries);
-    }
-
-    public boolean collectDirtyKeysSince(long revision, Set<ECOStorageKey> out) {
-        if (out == null || revision < this.dirtyKeyHistoryBaseRevision || revision > this.revision) {
-            return false;
-        }
-        synchronized (this.dirtyKeyHistory) {
-            for (DirtyKeyChange change : this.dirtyKeyHistory) {
-                if (change.revision > revision) {
-                    out.add(change.key);
-                }
-            }
-        }
-        return true;
-    }
-
-    public boolean hasCompleteDirtyKeyHistorySince(long revision) {
-        return revision >= this.dirtyKeyHistoryBaseRevision && revision <= this.revision;
     }
 
     public int getTypeCount() {
@@ -157,10 +138,8 @@ public final class ECOStorageBackend {
         this.capacityPolicy = nextPolicy;
         this.entries.clear();
         this.entries.putAll(entries);
-        this.dirtyKeyHistory.clear();
         this.used = nextUsed;
         this.revision = revision;
-        this.dirtyKeyHistoryBaseRevision = revision;
     }
 
     Map<ECOStorageKey, ECOAmount> getEntriesForCodec() {
@@ -170,48 +149,14 @@ public final class ECOStorageBackend {
     private void markDirty() {
         if (this.revision == Long.MAX_VALUE) {
             this.revision = 0L;
-            this.dirtyKeyHistory.clear();
-            this.dirtyKeyHistoryBaseRevision = 0L;
         } else {
             this.revision++;
-        }
-        this.dirtyKeyHistory.clear();
-        this.dirtyKeyHistoryBaseRevision = this.revision;
-    }
-
-    private void markDirty(ECOStorageKey key) {
-        synchronized (this.dirtyKeyHistory) {
-            if (this.revision == Long.MAX_VALUE) {
-                this.revision = 0L;
-                this.dirtyKeyHistory.clear();
-                this.dirtyKeyHistoryBaseRevision = 0L;
-            } else {
-                this.revision++;
-            }
-            this.dirtyKeyHistory.add(new DirtyKeyChange(this.revision, key));
-            if (this.dirtyKeyHistory.size() > MAX_DIRTY_KEY_HISTORY) {
-                this.dirtyKeyHistory.remove(0);
-                if (!this.dirtyKeyHistory.isEmpty()) {
-                    this.dirtyKeyHistoryBaseRevision = this.dirtyKeyHistory.get(0).revision - 1L;
-                }
-            }
         }
     }
 
     private static void requireKey(ECOStorageKey key) {
         if (key == null) {
             throw new IllegalArgumentException("Storage key must not be null");
-        }
-    }
-
-    private static final class DirtyKeyChange {
-
-        private final long revision;
-        private final ECOStorageKey key;
-
-        private DirtyKeyChange(long revision, ECOStorageKey key) {
-            this.revision = revision;
-            this.key = key;
         }
     }
 }

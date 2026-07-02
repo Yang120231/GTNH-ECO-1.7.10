@@ -1,6 +1,5 @@
 package cn.dancingsnow.neoecoae.tile;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IInventory;
@@ -21,6 +20,8 @@ import net.minecraftforge.fluids.FluidTank;
 import net.minecraftforge.fluids.FluidTankInfo;
 import net.minecraftforge.fluids.IFluidContainerItem;
 import net.minecraftforge.fluids.IFluidHandler;
+
+import cn.dancingsnow.neoecoae.NeoECOAE;
 
 public class TileCraftingHatch extends TileCraftingMember implements IInventory, IFluidHandler {
 

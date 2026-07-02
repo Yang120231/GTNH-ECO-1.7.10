@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -16,6 +15,7 @@ import net.minecraftforge.common.util.Constants;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 
 public class TileCraftingWorker extends TileCraftingMember {
@@ -33,7 +33,15 @@ public class TileCraftingWorker extends TileCraftingMember {
     private final List<WorkEntry> queue = new ArrayList<WorkEntry>();
 
     public boolean acceptPattern(ICraftingPatternDetails details, InventoryCrafting table) {
+        return this.acceptPatternBatch(details, table, 1);
+    }
+
+    public boolean acceptPatternBatch(ICraftingPatternDetails details, InventoryCrafting table, int craftCount) {
         if (details == null || table == null || !this.hasQueueSpace()) {
+            return false;
+        }
+        int acceptedCrafts = Math.min(Math.max(1, craftCount), this.availableQueueSpace());
+        if (acceptedCrafts <= 0) {
             return false;
         }
         ItemStack output = details.getOutput(table, this.worldObj);
@@ -47,10 +55,13 @@ public class TileCraftingWorker extends TileCraftingMember {
             return false;
         }
         TileECOController controller = this.findCraftingController();
-        if (controller != null && !controller.consumeCraftingCoolantForWork(1)) {
+        if (controller != null && !controller.consumeCraftingCoolantForWork(acceptedCrafts)) {
             return false;
         }
-        this.queue.add(new WorkEntry(this.queue.size(), 0, ECOEnergyProfile.CRAFTING_WORK_MAX_PROGRESS, output.copy()));
+        for (int i = 0; i < acceptedCrafts; i++) {
+            this.queue
+                .add(new WorkEntry(this.queue.size(), 0, ECOEnergyProfile.CRAFTING_WORK_MAX_PROGRESS, output.copy()));
+        }
         this.normalizeSlots();
         this.onStateChanged();
         return true;
@@ -74,6 +85,10 @@ public class TileCraftingWorker extends TileCraftingMember {
 
     public boolean hasQueueSpace() {
         return this.queueSize() < this.queueCapacity();
+    }
+
+    public int availableQueueSpace() {
+        return Math.max(0, this.queueCapacity() - this.queueSize());
     }
 
     public int getSlotId() {
@@ -202,8 +217,11 @@ public class TileCraftingWorker extends TileCraftingMember {
         NBTTagList list = tag.getTagList(TAG_QUEUE, Constants.NBT.TAG_COMPOUND);
         int capacity = this.queueCapacity();
         if (list.tagCount() > capacity) {
-            NeoECOAE.LOG.warn("Dropping {} crafting tasks at {} due to capacity limit (capacity={})",
-                list.tagCount() - capacity, this.xCoord + "," + this.yCoord + "," + this.zCoord, capacity);
+            NeoECOAE.LOG.warn(
+                "Dropping {} crafting tasks at {} due to capacity limit (capacity={})",
+                list.tagCount() - capacity,
+                this.xCoord + "," + this.yCoord + "," + this.zCoord,
+                capacity);
         }
         for (int i = 0; i < list.tagCount() && this.queue.size() < capacity; i++) {
             WorkEntry entry = readEntry(list.getCompoundTagAt(i));
@@ -337,10 +355,8 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (current == null || current.progress <= previousProgress) {
             return false;
         }
-        return current.progress >= current.totalProgress
-            || progressSyncBucket(previousProgress, current.totalProgress) != progressSyncBucket(
-                current.progress,
-                current.totalProgress);
+        return current.progress >= current.totalProgress || progressSyncBucket(previousProgress, current.totalProgress)
+            != progressSyncBucket(current.progress, current.totalProgress);
     }
 
     private static int progressSyncBucket(int progress, int totalProgress) {
@@ -354,9 +370,7 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (longTotal <= 0L || progress < 0) {
             return 0;
         }
-        return (int) Math.min(
-            PROGRESS_SYNC_BUCKETS - 1L,
-            (long) progress * (long) PROGRESS_SYNC_BUCKETS / longTotal);
+        return (int) Math.min(PROGRESS_SYNC_BUCKETS - 1L, (long) progress * (long) PROGRESS_SYNC_BUCKETS / longTotal);
     }
 
     private void normalizeSlots() {

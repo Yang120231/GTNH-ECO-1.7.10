@@ -7,7 +7,6 @@ import java.util.List;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.all.NEBlocks;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
 /**
@@ -26,8 +25,7 @@ final class CraftingMemberCache {
         Collections.<TileCraftingHatch>emptyList(),
         Collections.<TileCraftingHatch>emptyList(),
         0,
-        false
-    );
+        false);
 
     private final List<TileCraftingWorker> workers;
     private final List<TileCraftingPatternBus> patternBuses;
@@ -37,15 +35,9 @@ final class CraftingMemberCache {
     private final int controllerRevision;
     private final boolean valid;
 
-    private CraftingMemberCache(
-        List<TileCraftingWorker> workers,
-        List<TileCraftingPatternBus> patternBuses,
-        List<TileECOInterface> craftingInterfaces,
-        List<TileCraftingHatch> inputHatches,
-        List<TileCraftingHatch> outputHatches,
-        int controllerRevision,
-        boolean valid
-    ) {
+    private CraftingMemberCache(List<TileCraftingWorker> workers, List<TileCraftingPatternBus> patternBuses,
+        List<TileECOInterface> craftingInterfaces, List<TileCraftingHatch> inputHatches,
+        List<TileCraftingHatch> outputHatches, int controllerRevision, boolean valid) {
         this.workers = new ArrayList<>(workers);
         this.patternBuses = new ArrayList<>(patternBuses);
         this.craftingInterfaces = new ArrayList<>(craftingInterfaces);
@@ -59,23 +51,20 @@ final class CraftingMemberCache {
      * Build cache from controller's formed members.
      * This method scans the member lists once and categorizes all TileEntities.
      *
-     * @param controller the crafting controller
+     * @param controller    the crafting controller
      * @param formedMembers list of formed member positions
      * @param hiddenMembers list of hidden member positions (interfaces, hatches)
      * @return populated cache, or EMPTY if build fails
      */
-    static CraftingMemberCache build(
-        TileECOController controller,
-        List<ECOFormationBlockPos> formedMembers,
-        List<ECOFormationBlockPos> hiddenMembers
-    ) {
+    static CraftingMemberCache build(TileECOController controller, List<ECOFormationBlockPos> formedMembers,
+        List<ECOFormationBlockPos> hiddenMembers) {
         if (controller == null || controller.getWorldObj() == null) {
             return EMPTY;
         }
 
         World world = controller.getWorldObj();
         if (world.isRemote) {
-            return EMPTY;  // Client-side does not build cache
+            return EMPTY; // Client-side does not build cache
         }
 
         List<TileCraftingWorker> workers = new ArrayList<>();
@@ -128,8 +117,7 @@ final class CraftingMemberCache {
             inputHatches,
             outputHatches,
             controller.getCraftingMemberCacheRevision(),
-            true
-        );
+            true);
     }
 
     /**

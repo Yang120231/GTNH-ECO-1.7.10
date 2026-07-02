@@ -22,6 +22,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fluids.FluidStack;
 
+import appeng.api.storage.data.IAEItemStack;
 import appeng.helpers.IPriorityHost;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NEStorageItems;
@@ -121,6 +122,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private boolean craftingMemberCacheDirty = true;
     private int craftingMemberCacheRevision = 0;
     private int workerRoundRobinIndex = 0;
+    private boolean hostDomainClientUpdatePending;
 
     public TileECOController() {}
 
@@ -321,7 +323,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             TileCraftingWorker worker = workers.get(index);
 
             if (worker == null || worker.getWorldObj() == null
-                || worker.getWorldObj() != this.worldObj || worker.isInvalid()) {
+                || worker.getWorldObj() != this.worldObj
+                || worker.isInvalid()) {
                 this.invalidateCraftingMemberCache();
                 continue;
             }
@@ -428,7 +431,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private void drainCraftingOutputHatchesToNetwork() {
-        if (this.worldObj == null || this.worldObj.isRemote || this.subsystem != ECOControllerSubsystem.CRAFTING
+        if (this.worldObj == null || this.worldObj.isRemote
+            || this.subsystem != ECOControllerSubsystem.CRAFTING
             || !this.formed) {
             return;
         }
@@ -628,9 +632,19 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingBurstCraftsPerTick() {
-        return ECOEnergyProfile.craftingBurstCraftsPerTick(
-            this.craftingOverclocked,
-            this.getCraftingEffectiveOverclockTimes());
+        return ECOEnergyProfile
+            .craftingBurstCraftsPerTick(this.craftingOverclocked, this.getCraftingEffectiveOverclockTimes());
+    }
+
+    public int getCraftingFastPathBatchLimit() {
+        if (!this.craftingOverclocked) {
+            return 1;
+        }
+        long workerSlots = this.getCraftingWorkQueueCapacity() - this.getCraftingWorkQueueDepth();
+        long burstSlots = (long) Math.max(1, this.getCraftingWorkerCount())
+            * (long) Math.max(1, this.getCraftingBurstCraftsPerTick());
+        long limit = Math.min(workerSlots, burstSlots);
+        return limit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) Math.max(1L, limit);
     }
 
     public boolean consumeCraftingCoolantForWork(int craftCount) {
@@ -659,6 +673,61 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
         }
         return true;
+    }
+
+    public int getCraftingCoolantCraftLimit(int requestedCrafts) {
+        int normalized = Math.max(0, requestedCrafts);
+        if (!this.craftingActiveCooling || normalized <= 0) {
+            return normalized;
+        }
+        this.refillCraftingCoolant(true);
+        int requiredOverclock = this.getCraftingEffectiveOverclockTimes();
+        if (requiredOverclock > 0 && this.getCraftingCoolantMaxOverclock() < requiredOverclock) {
+            return 0;
+        }
+        if (ECOEnergyProfile.CRAFTING_COOLANT_PER_CRAFT <= 0) {
+            return normalized;
+        }
+        return Math.min(normalized, this.craftingCoolant / ECOEnergyProfile.CRAFTING_COOLANT_PER_CRAFT);
+    }
+
+    public IAEItemStack extractCraftingInput(IAEItemStack stack, boolean simulate) {
+        if (stack == null || stack.getStackSize() <= 0L
+            || this.subsystem != ECOControllerSubsystem.CRAFTING
+            || this.worldObj == null
+            || !this.formed) {
+            return null;
+        }
+
+        CraftingMemberCache cache = this.getCraftingMemberCache();
+        long remaining = stack.getStackSize();
+        long extractedAmount = 0L;
+        IAEItemStack extractedStack = null;
+
+        for (TileECOInterface ecoInterface : cache.craftingInterfaces()) {
+            if (!ecoInterface.isNetworkOnline()) {
+                continue;
+            }
+            IAEItemStack request = stack.copy()
+                .setStackSize(remaining);
+            IAEItemStack extracted = ecoInterface.extractCraftingInput(request, simulate);
+            if (extracted == null || extracted.getStackSize() <= 0L) {
+                continue;
+            }
+            if (extractedStack == null) {
+                extractedStack = extracted.copy();
+                extractedAmount = extracted.getStackSize();
+            } else {
+                extractedAmount += extracted.getStackSize();
+                extractedStack.setStackSize(extractedAmount);
+            }
+            remaining -= extracted.getStackSize();
+            if (remaining <= 0L) {
+                return extractedStack.setStackSize(stack.getStackSize());
+            }
+        }
+
+        return extractedStack;
     }
 
     public boolean tryConsumeCraftingEnergy(double amount) {
@@ -972,9 +1041,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
     public void onHostDomainContentChanged() {
         this.markDirty();
-        if (this.worldObj != null) {
-            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
-        }
+        this.hostDomainClientUpdatePending = true;
     }
 
     public boolean canExtractDriveCell(TileECODrive drive) {
@@ -1317,7 +1384,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             }
             if (step == MIGRATION_COPYING) {
                 try {
-                    ECOStorageBackend source = ECOStorageCellAccess.load(stack);
+                    ECOStorageBackend source = drive.getOrLoadCellBackend();
+                    if (source == null) {
+                        source = ECOStorageCellAccess.load(stack);
+                    }
                     data.commitDiskToDomain(this.hostDomainId, diskId, source);
                     this.setMigrationStep(diskId, MIGRATION_SOURCE_CLEARED);
                     this.markDirty();
@@ -1330,6 +1400,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             }
             if (step == MIGRATION_SOURCE_CLEARED) {
                 ECOStorageCellAccess.clearStorage(stack);
+                drive.discardCellBackend();
                 ECOStorageCellMetadata.markDomainMember(stack, this.hostDomainId, i);
                 ECOStorageCellMetadata.writeSummary(stack, 0L, 0);
                 drive.markDirty();
@@ -1439,15 +1510,17 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (!this.canExitInfiniteMode()) {
             return;
         }
+        ECOStorageDomainData data = ECOStorageDomainData.get(this.worldObj);
+        UUID exitingDomainId = this.hostDomainId;
         for (UUID diskId : new ArrayList<UUID>(this.memberDiskIds)) {
             TileECODrive drive = this.findDriveByDiskId(diskId);
             if (drive != null && drive.getCellStack() != null) {
+                data.forgetCommittedSource(exitingDomainId, diskId);
                 ECOStorageCellMetadata.clearDomainBinding(drive.getCellStack());
                 drive.markDirty();
             }
         }
-        ECOStorageDomainData.get(this.worldObj)
-            .removeDomain(this.hostDomainId);
+        data.removeDomain(exitingDomainId);
         this.hostDomainId = null;
         this.memberDiskIds.clear();
         this.migrationSteps.clear();
@@ -1474,11 +1547,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             return this.craftingMemberCache;
         }
 
-        this.craftingMemberCache = CraftingMemberCache.build(
-            this,
-            this.formedMemberBlocks,
-            this.hiddenBlocks
-        );
+        this.craftingMemberCache = CraftingMemberCache.build(this, this.formedMemberBlocks, this.hiddenBlocks);
         this.craftingMemberCacheDirty = false;
         return this.craftingMemberCache;
     }
@@ -1632,6 +1701,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     public void updateEntity() {
         if (this.worldObj == null || this.worldObj.isRemote) {
             return;
+        }
+        if (this.hostDomainClientUpdatePending) {
+            this.hostDomainClientUpdatePending = false;
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
         }
         if (this.worldObj.getTotalWorldTime() % 20L == 0L) {
             this.scanFormation();

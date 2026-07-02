@@ -1,8 +1,6 @@
 package cn.dancingsnow.neoecoae.storage.ae2;
 
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
 import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEStack;
@@ -12,8 +10,6 @@ import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 
 public final class ECOAvailableItemsCache<StackType extends IAEStack> {
-
-    private static final int MAX_INCREMENTAL_DIRTY_KEYS = 128;
 
     private long cachedRevision = Long.MIN_VALUE;
     private IItemList<StackType> cachedAvailableItems;
@@ -25,13 +21,6 @@ public final class ECOAvailableItemsCache<StackType extends IAEStack> {
         long revision = backend.getRevision();
         if (this.cachedAvailableItems != null && this.cachedRevision == revision) {
             return this.cachedAvailableItems;
-        }
-        Set<ECOStorageKey> dirtyKeys = new LinkedHashSet<ECOStorageKey>();
-        if (this.cachedAvailableItems != null
-            && backend.collectDirtyKeysSince(this.cachedRevision, dirtyKeys)
-            && dirtyKeys.size() <= MAX_INCREMENTAL_DIRTY_KEYS) {
-            // AE2's IItemList has no removal/update primitive, so the first phase still rebuilds
-            // the list. Keeping this branch centralizes the future incremental index swap.
         }
         IItemList<StackType> out = channel.createList();
         for (Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesView()

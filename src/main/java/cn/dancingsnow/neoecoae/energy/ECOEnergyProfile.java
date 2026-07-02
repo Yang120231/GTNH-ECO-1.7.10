@@ -127,7 +127,8 @@ public final class ECOEnergyProfile {
     }
 
     public static int craftingWorkPowerFromExtracted(double extractedPower, int occupiedThreadSlots,
-        int powerMultiplier) {        int slots = Math.max(1, occupiedThreadSlots);
+        int powerMultiplier) {
+        int slots = Math.max(1, occupiedThreadSlots);
         int multiplier = Math.max(1, powerMultiplier);
         double divisor = slots * (double) multiplier;
         return (int) Math.max(0D, extractedPower / divisor);

@@ -15,7 +15,9 @@ import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ScheduledReason;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPatternProfile;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
 
@@ -62,7 +64,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             return false;
         }
         ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
-        boolean accepted = worker.acceptPattern(patternDetails, table);
+        int craftCount = this.fastPathCraftCount(controller, worker, plannerPlan);
+        boolean accepted = worker.acceptPatternBatch(patternDetails, table, craftCount);
         if (accepted) {
             controller.recordCraftingPlannerDecision(plannerPlan.accepted());
         }
@@ -267,5 +270,58 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             return null;
         }
         return ((ICraftingPatternItem) stack.getItem()).getPatternForItem(stack, this.worldObj);
+    }
+
+    private int fastPathCraftCount(TileECOController controller, TileCraftingWorker worker, ECOFastPathPlan plan) {
+        if (controller == null || worker == null || plan == null || !plan.accepted()) {
+            return 1;
+        }
+        ECOFastPathPatternProfile profile = plan.getPatternProfile();
+        if (profile == null) {
+            return 1;
+        }
+        int requested = Math.min(controller.getCraftingFastPathBatchLimit(), worker.availableQueueSpace());
+        requested = controller.getCraftingCoolantCraftLimit(requested);
+        if (requested <= 1) {
+            return 1;
+        }
+        int extraCrafts = this.extractAdditionalFastPathInputs(controller, profile, requested - 1);
+        return Math.max(1, 1 + extraCrafts);
+    }
+
+    private int extractAdditionalFastPathInputs(TileECOController controller, ECOFastPathPatternProfile profile,
+        int requestedExtraCrafts) {
+        int completed = 0;
+        IAEItemStack[] inputs = profile.getInputs();
+        for (int craft = 0; craft < requestedExtraCrafts; craft++) {
+            if (!this.canExtractOneFastPathCraft(controller, inputs)) {
+                break;
+            }
+            if (!this.extractOneFastPathCraft(controller, inputs)) {
+                break;
+            }
+            completed++;
+        }
+        return completed;
+    }
+
+    private boolean canExtractOneFastPathCraft(TileECOController controller, IAEItemStack[] inputs) {
+        for (IAEItemStack input : inputs) {
+            IAEItemStack extracted = controller.extractCraftingInput(input, true);
+            if (extracted == null || extracted.getStackSize() < input.getStackSize()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean extractOneFastPathCraft(TileECOController controller, IAEItemStack[] inputs) {
+        for (IAEItemStack input : inputs) {
+            IAEItemStack extracted = controller.extractCraftingInput(input, false);
+            if (extracted == null || extracted.getStackSize() < input.getStackSize()) {
+                return false;
+            }
+        }
+        return true;
     }
 }

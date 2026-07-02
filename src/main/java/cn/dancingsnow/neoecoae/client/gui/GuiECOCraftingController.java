@@ -522,8 +522,8 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             hoverBottom - hoverTop,
             mouseX,
             mouseY)) {
-            this.hoveredLines = this.coolantTooltip(state);
-        }
+                this.hoveredLines = this.coolantTooltip(state);
+            }
     }
 
     private int energyColor(CraftingHostSnapshot state) {
@@ -677,8 +677,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         List<String> lines = new ArrayList<String>();
         lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.crafting.energy_usage", "Energy Usage"));
         lines.add(
-            this.formatNumber(state.maxEnergyUsage)
-                + " / "
+            this.formatNumber(state.maxEnergyUsage) + " / "
                 + this.formatNumber(Math.max(1L, state.energyGaugeReference))
                 + " AE/t");
         lines.add(this.percentText(state.maxEnergyUsage, Math.max(1L, state.energyGaugeReference)));

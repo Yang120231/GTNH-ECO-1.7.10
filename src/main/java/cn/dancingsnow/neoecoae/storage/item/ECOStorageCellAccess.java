@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.storage.item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOCapacityPolicy;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
@@ -23,9 +24,13 @@ public final class ECOStorageCellAccess {
         if (stack != null && stack.hasTagCompound()
             && stack.getTagCompound()
                 .hasKey(TAG_STORAGE)) {
-            backend.readFromNBT(
-                stack.getTagCompound()
-                    .getCompoundTag(TAG_STORAGE));
+            try {
+                backend.readFromNBT(
+                    stack.getTagCompound()
+                        .getCompoundTag(TAG_STORAGE));
+            } catch (RuntimeException e) {
+                NeoECOAE.LOG.error("Ignoring unreadable ECO storage cell contents: {}", e.getMessage());
+            }
         }
         return backend;
     }

@@ -169,8 +169,7 @@ public final class CraftingHostStats {
                     parallelCoreCount++;
                     parallelCount = saturatedAdd(
                         parallelCount,
-                        parallelContribution(pos.getTier(), controller.isCraftingOverclocked())
-                    );
+                        parallelContribution(pos.getTier(), controller.isCraftingOverclocked()));
                 }
             }
         }
@@ -197,8 +196,7 @@ public final class CraftingHostStats {
             parallelCoreCount,
             inputCachedItems,
             outputCachedItems,
-            occupiedCacheSlots
-        );
+            occupiedCacheSlots);
     }
 
     private static boolean isParallelCore(Block block) {
