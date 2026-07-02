@@ -15,9 +15,7 @@ import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ScheduledReason;
-import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPatternProfile;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
 
@@ -63,10 +61,12 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             this.scheduledReason = ScheduledReason.SOMETHING_STUCK;
             return false;
         }
-        ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
-        int craftCount = this.fastPathCraftCount(controller, worker, plannerPlan);
-        boolean accepted = worker.acceptPatternBatch(patternDetails, table, craftCount);
+        // AE2 authorises exactly one craft per pushPattern and has already consumed that craft's
+        // inputs into the table. We must enqueue exactly one craft here - pulling additional inputs
+        // from the network to inflate the batch would overproduce and double-spend ingredients.
+        boolean accepted = worker.acceptPattern(patternDetails, table);
         if (accepted) {
+            ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
             controller.recordCraftingPlannerDecision(plannerPlan.accepted());
         }
         this.scheduledReason = accepted ? ScheduledReason.UNDEFINED : ScheduledReason.SOMETHING_STUCK;
@@ -270,58 +270,5 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             return null;
         }
         return ((ICraftingPatternItem) stack.getItem()).getPatternForItem(stack, this.worldObj);
-    }
-
-    private int fastPathCraftCount(TileECOController controller, TileCraftingWorker worker, ECOFastPathPlan plan) {
-        if (controller == null || worker == null || plan == null || !plan.accepted()) {
-            return 1;
-        }
-        ECOFastPathPatternProfile profile = plan.getPatternProfile();
-        if (profile == null) {
-            return 1;
-        }
-        int requested = Math.min(controller.getCraftingFastPathBatchLimit(), worker.availableQueueSpace());
-        requested = controller.getCraftingCoolantCraftLimit(requested);
-        if (requested <= 1) {
-            return 1;
-        }
-        int extraCrafts = this.extractAdditionalFastPathInputs(controller, profile, requested - 1);
-        return Math.max(1, 1 + extraCrafts);
-    }
-
-    private int extractAdditionalFastPathInputs(TileECOController controller, ECOFastPathPatternProfile profile,
-        int requestedExtraCrafts) {
-        int completed = 0;
-        IAEItemStack[] inputs = profile.getInputs();
-        for (int craft = 0; craft < requestedExtraCrafts; craft++) {
-            if (!this.canExtractOneFastPathCraft(controller, inputs)) {
-                break;
-            }
-            if (!this.extractOneFastPathCraft(controller, inputs)) {
-                break;
-            }
-            completed++;
-        }
-        return completed;
-    }
-
-    private boolean canExtractOneFastPathCraft(TileECOController controller, IAEItemStack[] inputs) {
-        for (IAEItemStack input : inputs) {
-            IAEItemStack extracted = controller.extractCraftingInput(input, true);
-            if (extracted == null || extracted.getStackSize() < input.getStackSize()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private boolean extractOneFastPathCraft(TileECOController controller, IAEItemStack[] inputs) {
-        for (IAEItemStack input : inputs) {
-            IAEItemStack extracted = controller.extractCraftingInput(input, false);
-            if (extracted == null || extracted.getStackSize() < input.getStackSize()) {
-                return false;
-            }
-        }
-        return true;
     }
 }

@@ -637,14 +637,9 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingFastPathBatchLimit() {
-        if (!this.craftingOverclocked) {
-            return 1;
-        }
-        long workerSlots = this.getCraftingWorkQueueCapacity() - this.getCraftingWorkQueueDepth();
-        long burstSlots = (long) Math.max(1, this.getCraftingWorkerCount())
-            * (long) Math.max(1, this.getCraftingBurstCraftsPerTick());
-        long limit = Math.min(workerSlots, burstSlots);
-        return limit > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) Math.max(1L, limit);
+        // Registered as a plain AE2 crafting provider: each pushPattern is exactly one authorised
+        // craft, so we never inflate a batch. Kept returning 1 for API/GUI compatibility.
+        return 1;
     }
 
     public boolean consumeCraftingCoolantForWork(int craftCount) {

@@ -291,6 +291,9 @@ public class TileCraftingWorker extends TileCraftingMember {
         boolean progressDirty = false;
         int completed = 0;
 
+        // Each queued entry is exactly one AE2-authorised craft (inputs already consumed by AE2 at
+        // push time). Draining several finished entries per tick is safe - it only speeds up output
+        // of work that was already authorised, it never fabricates extra crafts or inputs.
         while (completed < burstLimit) {
             WorkEntry current = this.peekEntry();
             if (current == null) {
