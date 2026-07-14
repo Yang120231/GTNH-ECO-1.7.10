@@ -58,8 +58,10 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
             return input;
         }
         ECOAmount requested = ECOAmount.of(input.getStackSize());
-        ECOAmount inserted = this.backend
-            .insert(ECOAE2KeyConverter.toKey(input), requested, type == Actionable.SIMULATE);
+        ECOAmount inserted = this.backend.insert(
+            ECOAE2KeyConverter.toExistingKey(input, this.backend.getEntriesView().keySet()),
+            requested,
+            type == Actionable.SIMULATE);
         if (inserted.isZero()) {
             return input;
         }
@@ -78,7 +80,7 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
             return null;
         }
         ECOAmount extracted = this.backend.extract(
-            ECOAE2KeyConverter.toKey(request),
+            ECOAE2KeyConverter.toExistingKey(request, this.backend.getEntriesView().keySet()),
             ECOAmount.of(request.getStackSize()),
             mode == Actionable.SIMULATE);
         if (extracted.isZero()) {
@@ -112,7 +114,8 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
 
     @Override
     public boolean isPrioritized(StackType input) {
-        return this.canAccept(input) && this.backend.getAmount(ECOAE2KeyConverter.toKey(input))
+        return this.canAccept(input) && this.backend.getAmount(
+            ECOAE2KeyConverter.toExistingKey(input, this.backend.getEntriesView().keySet()))
             .compareTo(ECOAmount.ZERO) > 0;
     }
 

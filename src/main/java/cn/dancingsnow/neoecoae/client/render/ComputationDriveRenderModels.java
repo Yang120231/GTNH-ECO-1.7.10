@@ -92,10 +92,6 @@ public final class ComputationDriveRenderModels {
         if (lowerDrive) {
             x = -x;
             y = -y;
-            if (connected) {
-                x = -x;
-                y = -y;
-            }
         }
 
         return transformDriveInteriorVertex(new double[] { x, y, z }, facing);
@@ -106,11 +102,11 @@ public final class ComputationDriveRenderModels {
         double z = vertex[2];
         switch (facing) {
             case EAST:
-                return new double[] { z, vertex[1], -x };
+                return new double[] { -z, vertex[1], x };
             case SOUTH:
                 return new double[] { -x, vertex[1], -z };
             case WEST:
-                return new double[] { -z, vertex[1], x };
+                return new double[] { z, vertex[1], -x };
             case NORTH:
             default:
                 return new double[] { x, vertex[1], z };

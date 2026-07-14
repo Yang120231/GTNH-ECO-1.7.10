@@ -42,8 +42,10 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         if (backend == null) {
             return input;
         }
-        ECOAmount inserted = backend
-            .insert(ECOAE2KeyConverter.toKey(input), ECOAmount.of(input.getStackSize()), type == Actionable.SIMULATE);
+        ECOAmount inserted = backend.insert(
+            ECOAE2KeyConverter.toExistingKey(input, backend.getEntriesView().keySet()),
+            ECOAmount.of(input.getStackSize()),
+            type == Actionable.SIMULATE);
         if (inserted.isZero()) {
             return input;
         }
@@ -68,7 +70,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             return null;
         }
         ECOAmount extracted = backend.extract(
-            ECOAE2KeyConverter.toKey(request),
+            ECOAE2KeyConverter.toExistingKey(request, backend.getEntriesView().keySet()),
             ECOAmount.of(request.getStackSize()),
             mode == Actionable.SIMULATE);
         if (extracted.isZero()) {
@@ -105,7 +107,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         ECOStorageBackend backend = this.getBackend();
         return backend != null && input != null
             && input.getChannel() == this.channel
-            && backend.getAmount(ECOAE2KeyConverter.toKey(input))
+            && backend.getAmount(ECOAE2KeyConverter.toExistingKey(input, backend.getEntriesView().keySet()))
                 .compareTo(ECOAmount.ZERO) > 0;
     }
 

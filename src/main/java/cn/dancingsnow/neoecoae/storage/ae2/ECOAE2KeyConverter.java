@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.storage.ae2;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -52,6 +53,44 @@ public final class ECOAE2KeyConverter {
             return fluidKey((IAEFluidStack) stack);
         }
         throw new IllegalArgumentException("Unsupported AE stack type: " + stack);
+    }
+
+    /**
+     * Resolves an AE stack to an existing storage key. NBT compounds are semantically unordered, but their
+     * compressed representation is not guaranteed to remain byte-identical after an AE network round trip.
+     */
+    public static ECOStorageKey toExistingKey(IAEStack stack, Iterable<ECOStorageKey> existingKeys) {
+        ECOStorageKey requested = toKey(stack);
+        if (existingKeys == null) {
+            return requested;
+        }
+        if (existingKeys instanceof Collection && ((Collection<?>) existingKeys).contains(requested)) {
+            return requested;
+        }
+        if (!(existingKeys instanceof Collection)) {
+            for (ECOStorageKey existing : existingKeys) {
+                if (requested.equals(existing)) {
+                    return existing;
+                }
+            }
+        }
+        for (ECOStorageKey existing : existingKeys) {
+            if (sameSemanticKey(requested, existing)) {
+                return existing;
+            }
+        }
+        return requested;
+    }
+
+    private static boolean sameSemanticKey(ECOStorageKey left, ECOStorageKey right) {
+        if (left == null || right == null || left.getMetadata() != right.getMetadata()
+            || !left.getChannel().equals(right.getChannel())
+            || !left.getIdentity().equals(right.getIdentity())) {
+            return false;
+        }
+        NBTTagCompound leftTag = decodeTag(left.getVariant());
+        NBTTagCompound rightTag = decodeTag(right.getVariant());
+        return leftTag == null ? rightTag == null : leftTag.equals(rightTag);
     }
 
     public static IAEItemStack toItemStack(ECOStorageKey key, long amount) {
