@@ -45,6 +45,13 @@ public final class CraftingHostSnapshot {
         0,
         0,
         0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0L,
         Collections.<WorkerEntry>emptyList());
 
     public final boolean formed;
@@ -71,6 +78,13 @@ public final class CraftingHostSnapshot {
     public final int workQueueDepth;
     public final int workQueueUtilizationPercent;
     public final int workQueueCapacity;
+    public final int occupiedRecipeSlots;
+    public final int maxRecipeSlots;
+    public final int batchParallel;
+    public final int overflowThreads;
+    public final int effectiveOverclockTimes;
+    public final int coolantMaxOverclock;
+    public final long performanceAverageNanos;
     public final List<WorkerEntry> workerEntries;
 
     private CraftingHostSnapshot(boolean formed, boolean mirrored, String tier, String formationMessage,
@@ -78,7 +92,9 @@ public final class CraftingHostSnapshot {
         int energyGaugeReference, int memberCount, int patternCount, int workerCount, int runningWorkerCount,
         int parallelCoreCount, int parallelCount, int inputCacheCount, int outputCacheCount, int queuedWorkCount,
         int plannerAcceptedCount, int plannerRejectedCount, int workQueueDepth, int workQueueUtilizationPercent,
-        int workQueueCapacity, List<WorkerEntry> workerEntries) {
+        int workQueueCapacity, int occupiedRecipeSlots, int maxRecipeSlots, int batchParallel, int overflowThreads,
+        int effectiveOverclockTimes, int coolantMaxOverclock, long performanceAverageNanos,
+        List<WorkerEntry> workerEntries) {
         this.formed = formed;
         this.mirrored = mirrored;
         this.tier = tier == null ? "" : tier;
@@ -103,6 +119,13 @@ public final class CraftingHostSnapshot {
         this.workQueueDepth = safeInt(workQueueDepth);
         this.workQueueUtilizationPercent = Math.max(0, Math.min(100, workQueueUtilizationPercent));
         this.workQueueCapacity = safeInt(workQueueCapacity);
+        this.occupiedRecipeSlots = safeInt(occupiedRecipeSlots);
+        this.maxRecipeSlots = safeInt(maxRecipeSlots);
+        this.batchParallel = safeInt(batchParallel);
+        this.overflowThreads = safeInt(overflowThreads);
+        this.effectiveOverclockTimes = Math.max(0, Math.min(9, effectiveOverclockTimes));
+        this.coolantMaxOverclock = safeInt(coolantMaxOverclock);
+        this.performanceAverageNanos = Math.max(0L, performanceAverageNanos);
         this.workerEntries = copyWorkers(workerEntries);
     }
 
@@ -115,6 +138,9 @@ public final class CraftingHostSnapshot {
         int workQueueDepth = stats.queuedWorkCount;
         int workQueueCapacity = safeInt((long) stats.workerCount * TileCraftingWorker.BASE_QUEUE_CAPACITY);
         int utilization = ratioPercent(workQueueDepth, workQueueCapacity);
+        int maxRecipeSlots = cn.dancingsnow.neoecoae.energy.ECOEnergyProfile.craftingThreadCapacity(
+            stats.workerCount, controller.getTier(), controller.isCraftingOverclocked());
+        int batchParallel = Math.min(stats.parallelCount, maxRecipeSlots);
         return new CraftingHostSnapshot(
             controller.isFormed(),
             controller.isMirrored(),
@@ -141,6 +167,13 @@ public final class CraftingHostSnapshot {
             workQueueDepth,
             utilization,
             workQueueCapacity,
+            Math.min(stats.queuedWorkCount, maxRecipeSlots),
+            maxRecipeSlots,
+            batchParallel,
+            Math.max(0, stats.parallelCount - maxRecipeSlots),
+            controller.getCraftingEffectiveOverclockTimes(),
+            controller.getCraftingCoolantMaxOverclock(),
+            controller.getCraftingPerformanceAverageNanos(),
             workerEntries(controller, formedMembers));
     }
 
@@ -169,6 +202,13 @@ public final class CraftingHostSnapshot {
         buffer.writeInt(this.workQueueDepth);
         buffer.writeInt(this.workQueueUtilizationPercent);
         buffer.writeInt(this.workQueueCapacity);
+        buffer.writeInt(this.occupiedRecipeSlots);
+        buffer.writeInt(this.maxRecipeSlots);
+        buffer.writeInt(this.batchParallel);
+        buffer.writeInt(this.overflowThreads);
+        buffer.writeInt(this.effectiveOverclockTimes);
+        buffer.writeInt(this.coolantMaxOverclock);
+        buffer.writeLong(this.performanceAverageNanos);
         int workerCount = Math.min(MAX_WORKER_ENTRIES, this.workerEntries.size());
         buffer.writeByte(workerCount);
         for (int i = 0; i < workerCount; i++) {
@@ -202,6 +242,13 @@ public final class CraftingHostSnapshot {
         int workQueueDepth = buffer.readInt();
         int workQueueUtilizationPercent = buffer.readInt();
         int workQueueCapacity = buffer.readInt();
+        int occupiedRecipeSlots = buffer.readInt();
+        int maxRecipeSlots = buffer.readInt();
+        int batchParallel = buffer.readInt();
+        int overflowThreads = buffer.readInt();
+        int effectiveOverclockTimes = buffer.readInt();
+        int coolantMaxOverclock = buffer.readInt();
+        long performanceAverageNanos = buffer.readLong();
         int syncedWorkers = buffer.readUnsignedByte();
         List<WorkerEntry> workers = new ArrayList<WorkerEntry>();
         for (int i = 0; i < syncedWorkers; i++) {
@@ -232,6 +279,13 @@ public final class CraftingHostSnapshot {
             workQueueDepth,
             workQueueUtilizationPercent,
             workQueueCapacity,
+            occupiedRecipeSlots,
+            maxRecipeSlots,
+            batchParallel,
+            overflowThreads,
+            effectiveOverclockTimes,
+            coolantMaxOverclock,
+            performanceAverageNanos,
             workers);
     }
 

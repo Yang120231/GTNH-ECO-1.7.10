@@ -13,7 +13,7 @@ import io.netty.buffer.ByteBuf;
 
 public class ContainerECOComputationController extends HostUiStateContainer {
 
-    private static final int STATE_VERSION = 1;
+    private static final int STATE_VERSION = 2;
 
     private final TileECOController controller;
     private ComputationHostSnapshot state = ComputationHostSnapshot.EMPTY;

@@ -24,7 +24,6 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     private static final int SLOT_SIZE = 18;
     private static final int STORAGE_GAUGE_WIDTH = 32;
-    private static final int STORAGE_GAUGE_HEIGHT = 92;
     private static final int STORAGE_GAUGE_CAP_HEIGHT = 8;
     private static final int STORAGE_GAUGE_TOP_U = 1;
     private static final int STORAGE_GAUGE_TOP_V = 246;
@@ -90,14 +89,18 @@ abstract class GuiHostMachineBase extends GuiContainer {
     }
 
     protected final void drawDarkInsetRect(int x, int y, int width, int height) {
-        int left = this.guiLeft + x;
-        int top = this.guiTop + y;
-        drawRect(left, top, left + width, top + height, 0xFFCBCCD4);
-        drawRect(left + 1, top + 1, left + width - 1, top + height - 1, 0xFF0D0D11);
-        drawRect(left + 2, top + 2, left + width - 2, top + height - 2, 0xFF85818D);
-        drawRect(left + 3, top + 3, left + width - 3, top + height - 3, 0xFF0D0D11);
-        drawRect(left + 4, top + 4, left + width - 4, top + height - 4, 0xFF47434F);
-        drawRect(left + 5, top + 5, left + width - 5, top + height - 5, 0xFF605A66);
+        this.drawNineSlice(
+            HostPanelBorderTexture.location(),
+            this.guiLeft + x,
+            this.guiTop + y,
+            width,
+            height,
+            16,
+            16,
+            6,
+            6,
+            6,
+            6);
     }
 
     protected final void drawTinyInsetRect(int x, int y, int width, int height, int innerColor) {
@@ -112,6 +115,42 @@ abstract class GuiHostMachineBase extends GuiContainer {
         drawRect(x, y, x + width, y + height, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
         drawRect(x + 1, y + 1, x + width - 1, y + height - 1, HostUiStyle.DARK_PANEL_OUTER);
         drawRect(x + 2, y + 2, x + width - 2, y + height - 2, innerColor);
+    }
+
+    /** Pixel-equivalent of the LDLib2 host inset button used by all three controllers. */
+    protected final void drawInsetButtonLocal(int x, int y, int width, int height, boolean hovered,
+        boolean pressed, boolean selected) {
+        int edge = hovered ? 0xFFDAD5E8 : HostUiStyle.DARK_PANEL_LIGHT_EDGE;
+        int middle = selected ? 0xFF3B3445 : 0xFF47434F;
+        int inner = selected ? 0xFF282232 : 0xFF5A5460;
+        if (pressed) {
+            middle = 0xFF302A38;
+            inner = 0xFF211C29;
+        }
+        drawRect(x, y, x + width, y + height, edge);
+        drawRect(x + 1, y + 1, x + width - 1, y + height - 1, 0xFF0D0D11);
+        drawRect(x + 2, y + 2, x + width - 2, y + height - 2, middle);
+        drawRect(x + 3, y + 3, x + width - 3, y + height - 3, inner);
+        if (pressed) {
+            drawRect(x + 3, y + 3, x + width - 3, y + 4, 0x99000000);
+        } else {
+            drawRect(x + 3, y + 3, x + width - 3, y + 4, 0x55FFFFFF);
+            drawRect(x + 3, y + height - 4, x + width - 3, y + height - 3, 0x99000000);
+        }
+        if (selected) {
+            drawRect(x + 3, y + height - 4, x + width - 3, y + height - 3,
+                HostUiStyle.DARK_TEXT_SUCCESS);
+        }
+    }
+
+    protected final void drawDarkSlotLocal(int x, int y, int size) {
+        drawRect(x, y, x + size, y + size, HostUiStyle.DARK_PANEL_MIDDLE);
+        drawRect(x, y, x + size, y + 1, 0xFF0D0D11);
+        drawRect(x, y, x + 1, y + size, 0xFF0D0D11);
+        drawRect(x, y + size - 1, x + size, y + size, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
+        drawRect(x + size - 1, y, x + size, y + size, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
+        drawRect(x + 1, y + 1, x + size - 1, y + size - 1, 0xFF4B4653);
+        drawRect(x + 2, y + 2, x + size - 2, y + size - 2, 0xFF5A5460);
     }
 
     final void drawLocalRect(int x, int y, int width, int height, int color) {
@@ -150,10 +189,15 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     protected final void drawStorageGauge(int x, int y, double percentage, boolean reverseColor) {
         double clamped = Math.max(0.0D, Math.min(1.0D, percentage));
-        this.drawStorageGauge(x, y, clamped, HostUiStyle.storageGaugeColor(clamped, reverseColor));
+        this.drawStorageGauge(x, y, STORAGE_GAUGE_WIDTH, 143, clamped,
+            HostUiStyle.storageGaugeColor(clamped, reverseColor));
     }
 
     protected final void drawStorageGauge(int x, int y, double percentage, int color) {
+        this.drawStorageGauge(x, y, STORAGE_GAUGE_WIDTH, 143, percentage, color);
+    }
+
+    protected final void drawStorageGauge(int x, int y, int width, int height, double percentage, int color) {
         double clamped = Math.max(0.0D, Math.min(1.0D, percentage));
         if (clamped <= 0.0D) {
             return;
@@ -161,7 +205,7 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
         int left = x;
         int top = y;
-        int bodyHeight = STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT;
+        int bodyHeight = height - STORAGE_GAUGE_CAP_HEIGHT;
         int barHeight = (int) Math.round(bodyHeight * clamped);
         float alpha = (float) (color >>> 24 & 0xFF) / 255.0F;
         float red = (float) (color >>> 16 & 0xFF) / 255.0F;
@@ -172,8 +216,8 @@ abstract class GuiHostMachineBase extends GuiContainer {
         this.drawTintedTexture(
             HostUiStyle.STORAGE_CONTROLLER_ELEMENTS,
             left,
-            top + STORAGE_GAUGE_HEIGHT - barHeight - STORAGE_GAUGE_CAP_HEIGHT,
-            STORAGE_GAUGE_WIDTH,
+            top + height - barHeight - STORAGE_GAUGE_CAP_HEIGHT,
+            width,
             STORAGE_GAUGE_CAP_HEIGHT,
             STORAGE_GAUGE_TOP_U,
             STORAGE_GAUGE_TOP_V,
@@ -182,14 +226,14 @@ abstract class GuiHostMachineBase extends GuiContainer {
             STORAGE_GAUGE_TEXTURE_SIZE,
             STORAGE_GAUGE_TEXTURE_SIZE);
 
-        int midStart = top + STORAGE_GAUGE_HEIGHT - barHeight - STORAGE_GAUGE_CAP_HEIGHT / 2 + 1;
-        int midEnd = top + STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT + STORAGE_GAUGE_CAP_HEIGHT / 2 + 1;
+        int midStart = top + height - barHeight - STORAGE_GAUGE_CAP_HEIGHT / 2 + 1;
+        int midEnd = top + height - STORAGE_GAUGE_CAP_HEIGHT + STORAGE_GAUGE_CAP_HEIGHT / 2 + 1;
         for (int drawY = midStart; drawY < midEnd; drawY++) {
             this.drawTintedTexture(
                 HostUiStyle.STORAGE_CONTROLLER_ELEMENTS,
                 left,
                 drawY,
-                STORAGE_GAUGE_WIDTH,
+                width,
                 STORAGE_GAUGE_MID_HEIGHT,
                 STORAGE_GAUGE_MID_U,
                 STORAGE_GAUGE_MID_V,
@@ -202,8 +246,8 @@ abstract class GuiHostMachineBase extends GuiContainer {
         this.drawTintedTexture(
             HostUiStyle.STORAGE_CONTROLLER_ELEMENTS,
             left,
-            top + STORAGE_GAUGE_HEIGHT - STORAGE_GAUGE_CAP_HEIGHT,
-            STORAGE_GAUGE_WIDTH,
+            top + height - STORAGE_GAUGE_CAP_HEIGHT,
+            width,
             STORAGE_GAUGE_CAP_HEIGHT,
             STORAGE_GAUGE_BOTTOM_U,
             STORAGE_GAUGE_BOTTOM_V,

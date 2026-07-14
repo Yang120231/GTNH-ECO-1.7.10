@@ -283,6 +283,7 @@ public class TileCraftingWorker extends TileCraftingMember {
         if (controller == null) {
             return;
         }
+        long performanceStartNanos = System.nanoTime();
         int burstLimit = Math.max(1, controller.getCraftingBurstCraftsPerTick());
         int bonusValue = controller.getCraftingWorkBonusValue();
         int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
@@ -333,6 +334,7 @@ public class TileCraftingWorker extends TileCraftingMember {
         } else if (progressDirty) {
             this.markDirty();
         }
+        controller.recordCraftingPerformanceSample(System.nanoTime() - performanceStartNanos);
     }
 
     private int advanceProgress(TileECOController controller, WorkEntry current, int bonusValue, int powerMultiplier) {

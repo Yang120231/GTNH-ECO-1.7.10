@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.computation.ae2;
 import java.util.Collections;
 import java.util.Iterator;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
 import appeng.api.config.CraftingAllow;
@@ -89,7 +90,17 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
             return null;
         }
         IAEItemStack output = Platform.stackConvertPacket(this.getFinalMultiOutput());
-        return new ComputationTaskInfo(output == null ? null : output.getItemStack(), this.getElapsedTime());
+        ItemStack outputStack = output == null ? null : output.getItemStack();
+        return new ComputationTaskInfo(
+            outputStack,
+            output == null ? 0L : output.getStackSize(),
+            this.getElapsedTime(),
+            this.getName(),
+            this.serial,
+            this.reservedStorage,
+            this.coProcessors,
+            cpuSelectionMode(this.craftingAllowMode),
+            this.waiting ? ComputationTaskInfo.Status.WAITING : ComputationTaskInfo.Status.RUNNING);
     }
 
     void updateResources(int coProcessors, IGrid grid, boolean active, ComputationCpuSelectionMode cpuSelectionMode) {
@@ -393,5 +404,15 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster {
             return CraftingAllow.ONLY_NONPLAYER;
         }
         return CraftingAllow.ALLOW_ALL;
+    }
+
+    private static ComputationCpuSelectionMode cpuSelectionMode(CraftingAllow mode) {
+        if (mode == CraftingAllow.ONLY_PLAYER) {
+            return ComputationCpuSelectionMode.PLAYER_ONLY;
+        }
+        if (mode == CraftingAllow.ONLY_NONPLAYER) {
+            return ComputationCpuSelectionMode.MACHINE_ONLY;
+        }
+        return ComputationCpuSelectionMode.ANY;
     }
 }

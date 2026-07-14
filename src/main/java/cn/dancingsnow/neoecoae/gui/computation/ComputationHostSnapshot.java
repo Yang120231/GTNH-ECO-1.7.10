@@ -157,7 +157,16 @@ public final class ComputationHostSnapshot {
         }
         for (ComputationTaskInfo taskInfo : taskInfos) {
             if (taskInfo != null) {
-                entries.add(new TaskEntry(taskInfo.outputStack, taskInfo.elapsedNanos));
+                entries.add(new TaskEntry(
+                    taskInfo.outputStack,
+                    taskInfo.outputAmount,
+                    taskInfo.elapsedNanos,
+                    taskInfo.cpuName,
+                    taskInfo.cpuSerial,
+                    taskInfo.cpuStorage,
+                    taskInfo.coProcessors,
+                    taskInfo.cpuSelectionMode,
+                    taskInfo.status));
             }
         }
         return entries;
@@ -167,21 +176,66 @@ public final class ComputationHostSnapshot {
 
         public final String outputName;
         public final ItemStack outputStack;
+        public final long outputAmount;
         public final long elapsedNanos;
+        public final String cpuName;
+        public final int cpuSerial;
+        public final long cpuStorage;
+        public final int coProcessors;
+        public final ComputationCpuSelectionMode cpuSelectionMode;
+        public final ComputationTaskInfo.Status status;
 
-        public TaskEntry(ItemStack outputStack, long elapsedNanos) {
+        public TaskEntry(ItemStack outputStack, long outputAmount, long elapsedNanos, String cpuName, int cpuSerial,
+            long cpuStorage, int coProcessors, ComputationCpuSelectionMode cpuSelectionMode,
+            ComputationTaskInfo.Status status) {
             this.outputStack = outputStack == null ? null : outputStack.copy();
             this.outputName = this.outputStack == null ? "" : this.outputStack.getDisplayName();
+            this.outputAmount = Math.max(0L, outputAmount);
             this.elapsedNanos = Math.max(0L, elapsedNanos);
+            this.cpuName = cpuName == null ? "" : cpuName;
+            this.cpuSerial = Math.max(0, cpuSerial);
+            this.cpuStorage = Math.max(0L, cpuStorage);
+            this.coProcessors = Math.max(0, coProcessors);
+            this.cpuSelectionMode = cpuSelectionMode == null ? ComputationCpuSelectionMode.ANY : cpuSelectionMode;
+            this.status = status == null ? ComputationTaskInfo.Status.RUNNING : status;
         }
 
         private void write(ByteBuf buf) {
             ByteBufUtils.writeItemStack(buf, this.outputStack);
+            buf.writeLong(this.outputAmount);
             buf.writeLong(this.elapsedNanos);
+            writeString(buf, this.cpuName);
+            buf.writeInt(this.cpuSerial);
+            buf.writeLong(this.cpuStorage);
+            buf.writeInt(this.coProcessors);
+            buf.writeInt(this.cpuSelectionMode.ordinal());
+            buf.writeInt(this.status.ordinal());
         }
 
         private static TaskEntry read(ByteBuf buf) {
-            return new TaskEntry(ByteBufUtils.readItemStack(buf), buf.readLong());
+            ItemStack output = ByteBufUtils.readItemStack(buf);
+            long outputAmount = buf.readLong();
+            long elapsedNanos = buf.readLong();
+            String cpuName = readString(buf);
+            int cpuSerial = buf.readInt();
+            long cpuStorage = buf.readLong();
+            int coProcessors = buf.readInt();
+            ComputationCpuSelectionMode mode = ComputationCpuSelectionMode.fromOrdinal(buf.readInt());
+            ComputationTaskInfo.Status[] statuses = ComputationTaskInfo.Status.values();
+            int statusOrdinal = buf.readInt();
+            ComputationTaskInfo.Status status = statusOrdinal < 0 || statusOrdinal >= statuses.length
+                ? ComputationTaskInfo.Status.RUNNING
+                : statuses[statusOrdinal];
+            return new TaskEntry(
+                output,
+                outputAmount,
+                elapsedNanos,
+                cpuName,
+                cpuSerial,
+                cpuStorage,
+                coProcessors,
+                mode,
+                status);
         }
     }
 }

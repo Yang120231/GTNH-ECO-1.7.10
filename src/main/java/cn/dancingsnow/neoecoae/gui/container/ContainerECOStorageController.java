@@ -5,7 +5,6 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
-import cn.dancingsnow.neoecoae.gui.HostUiLayouts;
 import cn.dancingsnow.neoecoae.gui.HostUiStateContainer;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostSnapshot;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -13,10 +12,10 @@ import io.netty.buffer.ByteBuf;
 
 public class ContainerECOStorageController extends HostUiStateContainer {
 
-    private static final int STATE_VERSION = 5;
+    private static final int STATE_VERSION = 6;
     private static final int CONTROLLER_SLOT_COUNT = 1;
-    public static final int INFINITE_COMPONENT_SLOT_FRAME_X = 145;
-    public static final int INFINITE_COMPONENT_SLOT_FRAME_Y = 131;
+    public static final int INFINITE_COMPONENT_SLOT_FRAME_X = 306;
+    public static final int INFINITE_COMPONENT_SLOT_FRAME_Y = 184;
     public static final int INFINITE_COMPONENT_SLOT_X = INFINITE_COMPONENT_SLOT_FRAME_X + 1;
     public static final int INFINITE_COMPONENT_SLOT_Y = INFINITE_COMPONENT_SLOT_FRAME_Y + 1;
 
@@ -27,7 +26,7 @@ public class ContainerECOStorageController extends HostUiStateContainer {
         this.controller = controller;
         this.addSlotToContainer(
             new SlotInfiniteComponent(controller, 0, INFINITE_COMPONENT_SLOT_X, INFINITE_COMPONENT_SLOT_Y));
-        this.addPlayerInventory(playerInventory, HostUiLayouts.STORAGE);
+        this.addPlayerInventory(playerInventory);
     }
 
     public TileECOController getController() {
@@ -99,20 +98,20 @@ public class ContainerECOStorageController extends HostUiStateContainer {
         return copied;
     }
 
-    private void addPlayerInventory(InventoryPlayer playerInventory, HostUiLayouts.Layout layout) {
+    private void addPlayerInventory(InventoryPlayer playerInventory) {
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
                 this.addSlotToContainer(
                     new Slot(
                         playerInventory,
                         column + row * 9 + 9,
-                        layout.inventoryX() + 1 + column * 18,
-                        layout.inventoryY() + 1 + row * 18));
+                        14 + column * 18,
+                        148 + row * 18));
             }
         }
         for (int column = 0; column < 9; column++) {
             this.addSlotToContainer(
-                new Slot(playerInventory, column, layout.inventoryX() + 1 + column * 18, layout.hotbarY() + 1));
+                new Slot(playerInventory, column, 14 + column * 18, 206));
         }
     }
 }

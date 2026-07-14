@@ -90,6 +90,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private static final int MIGRATION_SOURCE_CLEARED = 2;
     private static final int MIGRATION_BOUND_AS_MEMBER = 3;
     private static final int CRAFTING_OUTPUT_DRAIN_INTERVAL = 5;
+    private static final long PERFORMANCE_SAMPLE_WINDOW_TICKS = 20L;
 
     private ECOControllerSubsystem subsystem = ECOControllerSubsystem.STORAGE;
     private ECOControllerTier tier = ECOControllerTier.L4;
@@ -115,6 +116,9 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private int craftingCoolantMaxOverclock;
     private int craftingPlannerAccepted;
     private int craftingPlannerRejected;
+    private long craftingPerformanceWindowStartTick = Long.MIN_VALUE;
+    private long craftingPerformanceWindowNanos;
+    private long craftingPerformanceAverageNanos;
     private boolean computationInterfaceOnline;
     private final List<UUID> memberDiskIds = new ArrayList<UUID>();
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<UUID, Integer>();
@@ -509,6 +513,31 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
     public int getCraftingPlannerRejectedCount() {
         return this.craftingPlannerRejected;
+    }
+
+    public long getCraftingPerformanceAverageNanos() {
+        return Math.max(0L, this.craftingPerformanceAverageNanos);
+    }
+
+    /** Accumulates real worker execution time and publishes a per-tick 20 tick moving window. */
+    public void recordCraftingPerformanceSample(long elapsedNanos) {
+        if (elapsedNanos < 0L || this.worldObj == null || this.worldObj.isRemote) {
+            return;
+        }
+        long currentTick = this.worldObj.getTotalWorldTime();
+        if (this.craftingPerformanceWindowStartTick == Long.MIN_VALUE
+            || currentTick < this.craftingPerformanceWindowStartTick) {
+            this.craftingPerformanceWindowStartTick = currentTick;
+            this.craftingPerformanceWindowNanos = 0L;
+        }
+        long remaining = Long.MAX_VALUE - this.craftingPerformanceWindowNanos;
+        this.craftingPerformanceWindowNanos += Math.min(remaining, elapsedNanos);
+        long elapsedTicks = currentTick - this.craftingPerformanceWindowStartTick;
+        if (elapsedTicks >= PERFORMANCE_SAMPLE_WINDOW_TICKS) {
+            this.craftingPerformanceAverageNanos = this.craftingPerformanceWindowNanos / Math.max(1L, elapsedTicks);
+            this.craftingPerformanceWindowStartTick = currentTick;
+            this.craftingPerformanceWindowNanos = 0L;
+        }
     }
 
     public int getCraftingFastPathFallbackCount() {

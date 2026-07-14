@@ -5,7 +5,7 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
-import cn.dancingsnow.neoecoae.gui.HostUiLayouts;
+import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerLayout;
 import cn.dancingsnow.neoecoae.gui.HostUiStateContainer;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingHostSnapshot;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -13,14 +13,14 @@ import io.netty.buffer.ByteBuf;
 
 public class ContainerECOCraftingController extends HostUiStateContainer {
 
-    private static final int STATE_VERSION = 3;
+    private static final int STATE_VERSION = 5;
 
     private final TileECOController controller;
     private CraftingHostSnapshot state = CraftingHostSnapshot.EMPTY;
 
     public ContainerECOCraftingController(InventoryPlayer playerInventory, TileECOController controller) {
         this.controller = controller;
-        this.addPlayerInventory(playerInventory, HostUiLayouts.CRAFTING);
+        this.addPlayerInventory(playerInventory);
     }
 
     @Override
@@ -62,20 +62,21 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
         return 5;
     }
 
-    private void addPlayerInventory(InventoryPlayer playerInventory, HostUiLayouts.Layout layout) {
+    private void addPlayerInventory(InventoryPlayer playerInventory) {
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
                 this.addSlotToContainer(
                     new Slot(
                         playerInventory,
                         column + row * 9 + 9,
-                        layout.inventoryX() + 1 + column * 18,
-                        layout.inventoryY() + 1 + row * 18));
+                        CraftingControllerLayout.INVENTORY_X + 1 + column * 18,
+                        CraftingControllerLayout.INVENTORY_Y + 1 + row * 18));
             }
         }
         for (int column = 0; column < 9; column++) {
             this.addSlotToContainer(
-                new Slot(playerInventory, column, layout.inventoryX() + 1 + column * 18, layout.hotbarY() + 1));
+                new Slot(playerInventory, column, CraftingControllerLayout.INVENTORY_X + 1 + column * 18,
+                    CraftingControllerLayout.HOTBAR_Y + 1));
         }
     }
 }

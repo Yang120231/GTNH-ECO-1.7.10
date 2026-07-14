@@ -26,6 +26,7 @@ public final class StorageHostSnapshot {
 
     private static final int MAX_TYPE_STATS = 32;
     private static final int MAX_MATRIX_CELLS = 256;
+    private static final int MAX_HUGE_STACKS = 128;
 
     public static final StorageHostSnapshot EMPTY = new StorageHostSnapshot(
         false,
@@ -43,7 +44,8 @@ public final class StorageHostSnapshot {
         0L,
         false,
         Collections.<TypeStat>emptyList(),
-        Collections.<MatrixCell>emptyList());
+        Collections.<MatrixCell>emptyList(),
+        Collections.<HugeStack>emptyList());
 
     public final boolean formed;
     public final String tier;
@@ -61,11 +63,12 @@ public final class StorageHostSnapshot {
     public final boolean canTakeInfiniteComponent;
     public final List<TypeStat> typeStats;
     public final List<MatrixCell> matrixCells;
+    public final List<HugeStack> hugeStacks;
 
     private StorageHostSnapshot(boolean formed, String tier, String hostMode, int infiniteComponentCount,
         int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes,
         BigInteger preciseUsedBytes, long totalBytes, long usedTypes, long totalTypes, boolean canTakeInfiniteComponent,
-        List<TypeStat> typeStats, List<MatrixCell> matrixCells) {
+        List<TypeStat> typeStats, List<MatrixCell> matrixCells, List<HugeStack> hugeStacks) {
         this.formed = formed;
         this.tier = tier;
         this.hostMode = hostMode;
@@ -82,6 +85,7 @@ public final class StorageHostSnapshot {
         this.canTakeInfiniteComponent = canTakeInfiniteComponent;
         this.typeStats = Collections.unmodifiableList(typeStats);
         this.matrixCells = Collections.unmodifiableList(matrixCells);
+        this.hugeStacks = Collections.unmodifiableList(hugeStacks);
     }
 
     public static StorageHostSnapshot create(TileECOController controller) {
@@ -97,12 +101,14 @@ public final class StorageHostSnapshot {
         long totalBytes = 0L;
         long totalTypes = 0L;
         long usedTypes = 0L;
+        ECOStorageBackend domainBackend = null;
 
         boolean hostDomainStorage = controller.canUseHostDomainStorage();
         if (hostDomainStorage && controller.getWorldObj() != null) {
             ECOStorageBackend domain = ECOStorageDomainData.get(controller.getWorldObj())
                 .getDomain(controller.getHostDomainId());
             if (domain != null) {
+                domainBackend = domain;
                 preciseUsedBytes = domain.getUsed()
                     .toBigInteger();
                 usedBytes = saturatedLong(preciseUsedBytes);
@@ -158,7 +164,8 @@ public final class StorageHostSnapshot {
             totalTypes,
             controller.canTakeInfiniteStorageComponent(),
             stats,
-            cells);
+            cells,
+            hugeStacks(domainBackend));
     }
 
     public void write(ByteBuf buf) {
@@ -188,6 +195,11 @@ public final class StorageHostSnapshot {
             this.matrixCells.get(i)
                 .write(buf);
         }
+        int hugeCount = Math.min(this.hugeStacks.size(), MAX_HUGE_STACKS);
+        buf.writeInt(hugeCount);
+        for (int i = 0; i < hugeCount; i++) {
+            this.hugeStacks.get(i).write(buf);
+        }
     }
 
     public static StorageHostSnapshot read(ByteBuf buf) {
@@ -215,6 +227,11 @@ public final class StorageHostSnapshot {
         for (int i = 0; i < cellCount; i++) {
             matrixCells.add(MatrixCell.read(buf));
         }
+        int hugeCount = Math.min(Math.max(0, buf.readInt()), MAX_HUGE_STACKS);
+        List<HugeStack> hugeStacks = new ArrayList<HugeStack>(hugeCount);
+        for (int i = 0; i < hugeCount; i++) {
+            hugeStacks.add(HugeStack.read(buf));
+        }
         return new StorageHostSnapshot(
             formed,
             tier,
@@ -231,7 +248,54 @@ public final class StorageHostSnapshot {
             totalTypes,
             canTakeInfiniteComponent,
             typeStats,
-            matrixCells);
+            matrixCells,
+            hugeStacks);
+    }
+
+    private static List<HugeStack> hugeStacks(ECOStorageBackend backend) {
+        if (backend == null) {
+            return Collections.emptyList();
+        }
+        List<HugeStack> result = new ArrayList<HugeStack>();
+        for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend
+            .getEntriesView().entrySet()) {
+            ECOStorageKey key = entry.getKey();
+            result.add(new HugeStack(key.getChannel(), key.getIdentity(), key.getMetadata(),
+                entry.getValue().toBigInteger()));
+        }
+        Collections.sort(result, new java.util.Comparator<HugeStack>() {
+            @Override
+            public int compare(HugeStack left, HugeStack right) {
+                return right.amount.compareTo(left.amount);
+            }
+        });
+        return result.size() <= MAX_HUGE_STACKS ? result
+            : new ArrayList<HugeStack>(result.subList(0, MAX_HUGE_STACKS));
+    }
+
+    public static final class HugeStack {
+        public final String channel;
+        public final String identity;
+        public final int metadata;
+        public final BigInteger amount;
+
+        private HugeStack(String channel, String identity, int metadata, BigInteger amount) {
+            this.channel = channel;
+            this.identity = identity;
+            this.metadata = metadata;
+            this.amount = amount == null ? BigInteger.ZERO : amount.max(BigInteger.ZERO);
+        }
+
+        private void write(ByteBuf buf) {
+            writeString(buf, this.channel);
+            writeString(buf, this.identity);
+            buf.writeInt(this.metadata);
+            writeBigInteger(buf, this.amount);
+        }
+
+        private static HugeStack read(ByteBuf buf) {
+            return new HugeStack(readString(buf), readString(buf), buf.readInt(), readBigInteger(buf));
+        }
     }
 
     private static long saturatedAdd(long left, long right) {

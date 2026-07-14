@@ -54,6 +54,7 @@ import java.util.Map;
 
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Slot;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 
@@ -87,6 +88,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     private GuiTabButton priorityButton;
     private List<String> hoveredLines;
     private int matrixScrollColumn;
+    private int hugeStackScrollRow;
     private double usageAnimationStart = 0.0D;
     private double usageAnimationTarget = -1.0D;
     private long usageAnimationStartMs = 0L;
@@ -118,13 +120,16 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         }
         int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
         int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
-        if (!this.isMouseIn(
-            MATRIX_GRID_AREA_X,
-            this.matrixGridY(),
-            MATRIX_GRID_AREA_W,
-            this.matrixGridHeight(),
-            mouseX,
-            mouseY)) {
+        if (isInfiniteDisplay(this.container.state())
+            && this.isMouseIn(USAGE_DETAIL_X, USAGE_DETAIL_Y + USAGE_DETAIL_LINE_H * 4 + 1,
+                USAGE_DETAIL_W, 65, mouseX, mouseY)) {
+            int max = Math.max(0, this.container.state().hugeStacks.size() - 3);
+            this.hugeStackScrollRow = Math.max(0, Math.min(max,
+                this.hugeStackScrollRow + (wheel < 0 ? 1 : -1)));
+            return;
+        }
+        if (!this.isMouseIn(MATRIX_GRID_AREA_X, this.matrixGridY(), MATRIX_GRID_AREA_W,
+            this.matrixGridHeight(), mouseX, mouseY)) {
             return;
         }
         int maxScroll = this.maxMatrixScroll(this.container.state());
@@ -139,9 +144,32 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.hoveredLines = null;
+        this.updateConditionalSlotPositions(isInfiniteDisplay(this.container.state()));
         super.drawScreen(mouseX, mouseY, partialTicks);
         if (this.hoveredLines != null && !this.hoveredLines.isEmpty()) {
             this.drawTooltip(this.hoveredLines, mouseX, mouseY);
+        }
+    }
+
+    private void updateConditionalSlotPositions(boolean visible) {
+        for (int index = 0; index < this.container.inventorySlots.size(); index++) {
+            Slot slot = (Slot) this.container.inventorySlots.get(index);
+            if (!visible) {
+                slot.xDisplayPosition = -10000;
+                slot.yDisplayPosition = -10000;
+            } else if (index == 0) {
+                slot.xDisplayPosition = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_X;
+                slot.yDisplayPosition = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_Y;
+            } else {
+                int playerIndex = index - 1;
+                if (playerIndex < 27) {
+                    slot.xDisplayPosition = 14 + playerIndex % 9 * 18;
+                    slot.yDisplayPosition = 148 + playerIndex / 9 * 18;
+                } else {
+                    slot.xDisplayPosition = 14 + (playerIndex - 27) * 18;
+                    slot.yDisplayPosition = 206;
+                }
+            }
         }
     }
 
@@ -162,12 +190,13 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         }
         this.drawDarkInsetRect(LEFT_X, LEFT_Y, LEFT_W, LEFT_H);
         this.drawDarkInsetRect(RIGHT_X, RIGHT_Y, RIGHT_W, RIGHT_H);
-        this.drawDarkInsetRect(MATRIX_X, MATRIX_Y, MATRIX_W, MATRIX_H);
-        this.drawSlotTexture(this.guiLeft + COMPONENT_SLOT_X, this.guiTop + COMPONENT_SLOT_Y);
-        this.drawPlayerInventorySlots(
-            HostUiLayouts.STORAGE.inventoryX(),
-            HostUiLayouts.STORAGE.inventoryY(),
-            HostUiLayouts.STORAGE.hotbarY());
+        // Background layers draw in screen coordinates. The local variant is only valid from the
+        // foreground layer, where GuiContainer has already translated by guiLeft/guiTop.
+        this.drawTinyInsetRect(RIGHT_DARK_X, RIGHT_DARK_Y, RIGHT_DARK_W, RIGHT_DARK_H, 0xFF201E27);
+        if (isInfiniteDisplay(this.container.state())) {
+            this.drawSlotTexture(this.guiLeft + COMPONENT_SLOT_X, this.guiTop + COMPONENT_SLOT_Y);
+            this.drawPlayerInventorySlots(13, 147, 205);
+        }
     }
 
     @Override
@@ -177,12 +206,9 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawMonitor(state);
         this.drawUsage(state, mouseX, mouseY);
         this.drawComponent(state, mouseX, mouseY);
-        this.drawMatrices(state, mouseX, mouseY);
-        this.drawLocalText(
-            tr("container.inventory", "Inventory"),
-            HostUiLayouts.STORAGE.inventoryX(),
-            159,
-            HostUiStyle.TEXT_MUTED);
+        if (isInfiniteDisplay(state)) {
+            this.drawLocalText(tr("container.inventory", "Inventory"), 13, 136, HostUiStyle.TEXT_MUTED);
+        }
         this.drawPriorityTooltip(state, mouseX, mouseY);
     }
 
@@ -218,14 +244,8 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             y,
             HostUiStyle.DARK_TEXT_PRIMARY);
         y += TEXT_STEP;
-        this.drawUsedTotal(
-            tr("gui.neoecoae.storage_ui.energy_storage", "Energy Storage") + ": ",
-            0L,
-            0L,
-            " AE",
-            TEXT_X,
-            y,
-            false);
+        this.drawLocalText(tr("gui.neoecoae.storage_ui.energy_storage", "Energy Storage") + ": -",
+            TEXT_X, y, HostUiStyle.DARK_TEXT_MUTED);
         y += TEXT_STEP + 4;
         this.drawLocalText(
             tr("gui.neoecoae.storage_ui.item_storage", "Item Storage"),
@@ -240,53 +260,33 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             HostUiStyle.DARK_TEXT_USED);
         y += TEXT_STEP;
         this.drawStorageBytesLine(state, TEXT_X, y);
-        y += TEXT_STEP + 4;
-        this.drawLocalText(
-            tr("gui.neoecoae.storage_ui.host_mode", "Mode") + ": " + modeName(state.hostMode),
-            TEXT_X,
-            y,
-            HostUiStyle.DARK_TEXT_VALUE);
-        y += TEXT_STEP;
-        this.drawLocalText(
-            tr("gui.neoecoae.storage_ui.drives", "Drives") + ": "
-                + state.formedDriveCount
-                + " / "
-                + state.requiredDriveCount,
-            TEXT_X,
-            y,
-            state.formedDriveCount >= state.requiredDriveCount ? HostUiStyle.DARK_TEXT_SUCCESS
-                : HostUiStyle.DARK_TEXT_MUTED);
-        y += TEXT_STEP;
-        this.drawLocalText(
-            tr("gui.neoecoae.storage_ui.l9_ready", "All L9 Matrices") + ": " + yesNo(state.allDrivesL9),
-            TEXT_X,
-            y,
-            state.allDrivesL9 ? HostUiStyle.DARK_TEXT_SUCCESS : HostUiStyle.DARK_TEXT_MUTED);
     }
 
     private void drawUsage(StorageHostSnapshot state, int mouseX, int mouseY) {
         this.drawLocalCentered(
-            tr("gui.neoecoae.storage_ui.usage", "Usage"),
+            tr("gui.neoecoae.storage_ui.system_load", "System Load"),
             RIGHT_X,
-            RIGHT_Y + 8,
+            RIGHT_Y + 2,
             RIGHT_W,
             HostUiStyle.DARK_TEXT_PRIMARY);
         boolean infiniteMode = isInfiniteMode(state);
-        double ratio = infiniteMode ? 1.0D : this.animatedUsageRatio(ratio(state.usedBytes, state.totalBytes));
-        this.drawTinyInsetLocal(RIGHT_DARK_X, RIGHT_DARK_Y, RIGHT_DARK_W, RIGHT_DARK_H, 0xFF201E27);
-        if (infiniteMode) {
+        boolean migrating = isMigrating(state);
+        double ratio = infiniteMode || migrating ? 1.0D
+            : this.animatedUsageRatio(ratio(state.usedBytes, state.totalBytes));
+        if (infiniteMode || migrating) {
             this.drawStorageGauge(STORAGE_GAUGE_X, STORAGE_GAUGE_Y, ratio, HostUiStyle.MATRIX_USAGE_INFINITE);
         } else {
             this.drawStorageGauge(STORAGE_GAUGE_X, STORAGE_GAUGE_Y, ratio, false);
         }
         this.drawUsageDetails(state);
+        this.drawHugeStacks(state, mouseX, mouseY);
         this.drawLocalCenteredScaled(
-            infiniteMode ? "\u221e" : percent(ratio),
+            infiniteMode ? "\u221e" : migrating ? "..." : percent(ratio),
             STORAGE_GAUGE_X,
-            RIGHT_Y + 120,
+            RIGHT_DARK_Y + RIGHT_DARK_H - 12,
             STORAGE_GAUGE_W,
             8,
-            infiniteMode ? HostUiStyle.MATRIX_USAGE_INFINITE
+            infiniteMode || migrating ? HostUiStyle.MATRIX_USAGE_INFINITE
                 : HostUiStyle.usedValueColor(state.usedBytes, state.totalBytes),
             USAGE_PERCENT_SCALE);
     }
@@ -294,35 +294,78 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     private void drawUsageDetails(StorageHostSnapshot state) {
         int y = USAGE_DETAIL_Y;
         boolean infiniteMode = isInfiniteMode(state);
-        this.drawDetailLine(
-            tr("gui.neoecoae.storage_ui.max_load", "Max Load") + ": "
-                + (infiniteMode ? "-" : percent(this.maxMatrixLoad(state))),
-            y,
-            HostUiStyle.DARK_TEXT_WARNING);
+        boolean migrating = isMigrating(state);
+        this.drawDetailLine(tr("gui.neoecoae.storage_ui.current_load", "Current Load") + ": "
+            + (infiniteMode ? tr("gui.neoecoae.storage_ui.infinite_value", "Infinite")
+                : migrating ? tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating")
+                : percent(state.usedBytes, state.totalBytes)), y, HostUiStyle.DARK_TEXT_VALUE);
         y += USAGE_DETAIL_LINE_H;
-        this.drawDetailLine(
-            tr("gui.neoecoae.storage_ui.avg_load", "Avg Load") + ": "
-                + (infiniteMode ? "-" : percent(this.averageMatrixLoad(state))),
-            y,
-            HostUiStyle.DARK_TEXT_MUTED);
+        this.drawDetailLine(tr("gui.neoecoae.storage_ui.max_load", "Max Load") + ": "
+            + (infiniteMode ? "MAX" : migrating ? "-" : percent(this.maxMatrixLoad(state))), y,
+            infiniteMode || migrating ? HostUiStyle.MATRIX_USAGE_INFINITE : HostUiStyle.DARK_TEXT_WARNING);
         y += USAGE_DETAIL_LINE_H;
-        this.drawDetailLine(
-            tr("gui.neoecoae.storage_ui.idle_matrices", "Idle") + ": "
-                + (infiniteMode ? "-" : this.idleMatrixCount(state)),
-            y,
-            HostUiStyle.DARK_TEXT_MUTED);
-        y += USAGE_DETAIL_LINE_H + 4;
-        for (StorageHostSnapshot.TypeStat stat : state.typeStats) {
-            this.drawDetailLine(this.typeStatLine(stat), y, this.typeColor(stat.typeId));
-            y += USAGE_DETAIL_LINE_H;
-        }
+        this.drawDetailLine(tr("gui.neoecoae.storage_ui.status", "Status") + ": "
+            + (infiniteMode ? tr("gui.neoecoae.storage_ui.mode.infinite", "Infinite")
+                : migrating ? tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating")
+                : (state.formed ? tr("gui.neoecoae.storage_ui.formed", "Formed")
+                    : tr("gui.neoecoae.storage_ui.mode.unformed", "Unformed"))), y,
+            state.formed ? HostUiStyle.DARK_TEXT_SUCCESS : HostUiStyle.DARK_TEXT_WARNING);
+        y += USAGE_DETAIL_LINE_H;
+        this.drawDetailLine(tr("gui.neoecoae.storage_ui.idle_matrices", "Idle Matrices") + ": "
+            + this.idleMatrixCount(state), y, HostUiStyle.DARK_TEXT_MUTED);
     }
 
     private void drawDetailLine(String text, int y, int color) {
         this.drawLocalCenteredScaled(text, USAGE_DETAIL_X, y, USAGE_DETAIL_W, USAGE_DETAIL_LINE_H, color, 1F);
     }
 
+    private void drawHugeStacks(StorageHostSnapshot state, int mouseX, int mouseY) {
+        if (!isInfiniteDisplay(state) || state.hugeStacks.isEmpty()) {
+            return;
+        }
+        int x = USAGE_DETAIL_X;
+        int y = USAGE_DETAIL_Y + USAGE_DETAIL_LINE_H * 4 + 1;
+        int height = 65;
+        int rowHeight = 18;
+        int maxScroll = Math.max(0, state.hugeStacks.size() - 3);
+        this.hugeStackScrollRow = Math.max(0, Math.min(maxScroll, this.hugeStackScrollRow));
+        this.beginScissor(x, y, USAGE_DETAIL_W, height);
+        for (int row = 0; row < 4 && this.hugeStackScrollRow + row < state.hugeStacks.size(); row++) {
+            StorageHostSnapshot.HugeStack stack = state.hugeStacks.get(this.hugeStackScrollRow + row);
+            int rowY = y + row * rowHeight;
+            String name = shortIdentity(stack.identity);
+            this.drawLocalCenteredScaled(name, x, rowY, USAGE_DETAIL_W - 3, 8,
+                HostUiStyle.DARK_TEXT_VALUE, 0.72F);
+            this.drawLocalCenteredScaled(formatInfiniteStorageBytes(stack.amount), x, rowY + 8,
+                USAGE_DETAIL_W - 3, 8, HostUiStyle.DARK_TEXT_USED, 0.72F);
+            if (this.isMouseIn(x, rowY, USAGE_DETAIL_W, rowHeight, mouseX, mouseY)) {
+                List<String> lines = new ArrayList<String>();
+                lines.add(EnumChatFormatting.AQUA + stack.identity);
+                lines.add(formatInfiniteStorageBytes(stack.amount));
+                this.hoveredLines = lines;
+            }
+        }
+        this.endScissor();
+        if (maxScroll > 0) {
+            int thumbH = Math.max(10, height * 3 / state.hugeStacks.size());
+            int thumbY = y + (height - thumbH) * this.hugeStackScrollRow / maxScroll;
+            drawRect(x + USAGE_DETAIL_W - 2, y, x + USAGE_DETAIL_W, y + height, 0xAA17141E);
+            drawRect(x + USAGE_DETAIL_W - 2, thumbY, x + USAGE_DETAIL_W, thumbY + thumbH, 0xFF8377FF);
+        }
+    }
+
+    private static String shortIdentity(String identity) {
+        if (identity == null) {
+            return "";
+        }
+        int separator = identity.indexOf(':');
+        return separator >= 0 && separator + 1 < identity.length() ? identity.substring(separator + 1) : identity;
+    }
+
     private void drawComponent(StorageHostSnapshot state, int mouseX, int mouseY) {
+        if (!isInfiniteDisplay(state)) {
+            return;
+        }
         if (state.infiniteComponentCount > 0 && !state.canTakeInfiniteComponent) {
             drawRect(COMPONENT_SLOT_X, COMPONENT_SLOT_Y, COMPONENT_SLOT_X + 18, COMPONENT_SLOT_Y + 18, 0x99505050);
         }
@@ -633,6 +676,17 @@ public class GuiECOStorageController extends GuiHostMachineBase {
 
     private static boolean isInfiniteMode(StorageHostSnapshot state) {
         return state != null && "formed_infinite".equals(state.hostMode);
+    }
+
+    private static boolean isInfiniteDisplay(StorageHostSnapshot state) {
+        return state != null && (isInfiniteMode(state)
+            || "migrating_to_infinite".equals(state.hostMode)
+            || "migrating".equals(state.hostMode));
+    }
+
+    private static boolean isMigrating(StorageHostSnapshot state) {
+        return state != null && ("migrating_to_infinite".equals(state.hostMode)
+            || "migrating".equals(state.hostMode));
     }
 
     private static boolean isInfiniteMatrix(StorageHostSnapshot.MatrixCell cell) {

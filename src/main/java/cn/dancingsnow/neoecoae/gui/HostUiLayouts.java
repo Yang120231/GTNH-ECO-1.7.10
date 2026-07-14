@@ -2,9 +2,14 @@ package cn.dancingsnow.neoecoae.gui;
 
 public final class HostUiLayouts {
 
-    public static final Layout STORAGE = new Layout(344, 256, 8, 171, 229);
-    public static final Layout COMPUTATION = new Layout(344, 252, 8, 171, 229);
-    public static final Layout CRAFTING = new Layout(304, 216, 7, 135, 193);
+    /**
+     * Pixel contracts shared with the 1.21.1 host panels and their 1.20.1
+     * LDLib2-style backport. Keep container slots and client rendering on the
+     * same coordinates: changing only the screen makes ghost-slot hit boxes.
+     */
+    public static final Layout STORAGE = new Layout(344, 232, 13, 147, 205);
+    public static final Layout COMPUTATION = new Layout(344, 232, 6, 147, 205);
+    public static final Layout CRAFTING = new Layout(304, 196, 6, 113, 169);
 
     private HostUiLayouts() {}
 

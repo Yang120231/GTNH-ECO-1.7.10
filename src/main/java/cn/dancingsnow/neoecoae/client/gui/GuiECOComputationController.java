@@ -129,7 +129,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
         this.drawLocalText(
             tr("gui.neoecoae.common.inventory", "Inventory"),
             HostUiLayouts.COMPUTATION.inventoryX(),
-            159,
+            ComputationControllerLayout.INVENTORY_LABEL_Y,
             HostUiStyle.TEXT_MUTED);
     }
 
@@ -146,7 +146,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
         int width = this.fontRendererObj.getStringWidth(formedLabel) + this.fontRendererObj.getStringWidth(formedValue)
             + this.fontRendererObj.getStringWidth(activeLabel)
             + this.fontRendererObj.getStringWidth(activeValue);
-        int x = Math.max(8, ComputationControllerLayout.TOOLBAR_X - 4 - width);
+        int x = Math.max(8, ComputationControllerLayout.HEADER_STATUS_RIGHT - width);
         x += this.drawLocalSegment(formedLabel, x, ComputationControllerLayout.HEADER_Y, HostUiStyle.TEXT_SECONDARY);
         x += this.drawLocalSegment(
             formedValue,
@@ -213,45 +213,23 @@ public class GuiECOComputationController extends GuiHostMachineBase {
 
     private void drawMainStats(ComputationHostSnapshot state, int mouseX, int mouseY) {
         int x = ComputationControllerLayout.STAT_X;
-        int y = ComputationControllerLayout.MAIN_Y + 8;
-        this.drawUsedTotal(
-            tr("gui.neoecoae.computation.threads", "Threads") + ": ",
-            state.usedThreads,
-            state.totalThreads,
-            "",
-            x,
-            y,
-            false,
-            HostUiStyle.DARK_TEXT_USED);
-        this.drawUsageBarLocal(
-            ComputationControllerLayout.STAT_BAR_X,
-            ComputationControllerLayout.THREAD_BAR_Y,
-            ComputationControllerLayout.STAT_BAR_W,
-            ComputationControllerLayout.STAT_BAR_H,
-            state.usedThreads,
-            state.totalThreads,
-            HostUiStyle.TEXT_GOOD);
-        y += 24;
         this.drawLocalText(
-            tr("gui.neoecoae.computation.parallel_count", "Parallel Capacity") + ": "
-                + this.formatNumber(state.parallelCount),
+            tr("gui.neoecoae.computation.capacity", "Capacity"),
             x,
-            y,
+            ComputationControllerLayout.CAPACITY_TITLE_Y,
             HostUiStyle.DARK_TEXT_PRIMARY);
-        y += 12;
         this.drawLocalText(
-            tr("gui.neoecoae.computation.cpu_selection_mode.short", "Mode") + ": "
-                + cpuModeShortName(state.cpuSelectionMode),
+            tr("gui.neoecoae.computation.storage_used", "Storage Used"),
             x,
-            y,
-            HostUiStyle.DARK_TEXT_VALUE);
+            ComputationControllerLayout.STORAGE_LABEL_Y,
+            HostUiStyle.DARK_TEXT_MUTED);
         this.drawUsedTotal(
-            tr("gui.neoecoae.computation.storage_used", "Storage") + ": ",
+            "",
             state.usedComputationBytes,
             state.totalBytes,
             "",
-            x,
-            ComputationControllerLayout.STORAGE_TEXT_Y,
+            ComputationControllerLayout.STAT_VALUE_X,
+            ComputationControllerLayout.STORAGE_DETAIL_Y,
             true,
             HostUiStyle.DARK_TEXT_BLUE);
         this.drawUsageBarLocal(
@@ -263,16 +241,52 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             state.totalBytes,
             HostUiStyle.DARK_TEXT_BLUE);
         this.drawLocalText(
-            tr("gui.neoecoae.computation.parallel_cores", "Parallel Cores") + ": "
-                + this.formatNumber(state.parallelCores),
+            tr("gui.neoecoae.computation.threads", "Threads"),
             x,
-            ComputationControllerLayout.PARALLEL_CORES_Y,
-            HostUiStyle.DARK_TEXT_PRIMARY);
-        if (this.isMouseIn(
+            ComputationControllerLayout.THREAD_LABEL_Y,
+            HostUiStyle.DARK_TEXT_MUTED);
+        this.drawUsedTotal(
+            "",
+            state.usedThreads,
+            state.totalThreads,
+            "",
+            ComputationControllerLayout.STAT_VALUE_X,
+            ComputationControllerLayout.THREAD_DETAIL_Y,
+            false,
+            HostUiStyle.DARK_TEXT_USED);
+        this.drawUsageBarLocal(
             ComputationControllerLayout.STAT_BAR_X,
             ComputationControllerLayout.THREAD_BAR_Y,
             ComputationControllerLayout.STAT_BAR_W,
             ComputationControllerLayout.STAT_BAR_H,
+            state.usedThreads,
+            state.totalThreads,
+            HostUiStyle.TEXT_GOOD);
+        this.drawLocalText(
+            tr("gui.neoecoae.computation.parallel_count", "Parallel Capacity"),
+            x,
+            ComputationControllerLayout.PARALLEL_COUNT_LABEL_Y,
+            HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalText(
+            this.formatNumber(state.parallelCount),
+            x,
+            ComputationControllerLayout.PARALLEL_COUNT_VALUE_Y,
+            HostUiStyle.DARK_TEXT_VALUE);
+        this.drawLocalText(
+            tr("gui.neoecoae.computation.available_storage", "Available Storage"),
+            x,
+            ComputationControllerLayout.FREE_MEMORY_LABEL_Y,
+            HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalText(
+            this.formatStorageBytes(Math.max(0L, state.totalBytes - state.usedComputationBytes)),
+            x,
+            ComputationControllerLayout.FREE_MEMORY_VALUE_Y,
+            HostUiStyle.DARK_TEXT_VALUE);
+        if (this.isMouseIn(
+            ComputationControllerLayout.STAT_BAR_X,
+            ComputationControllerLayout.THREAD_LABEL_Y,
+            ComputationControllerLayout.STAT_W,
+            20,
             mouseX,
             mouseY)) {
             this.hoveredLines = usedTotalTooltip(
@@ -282,9 +296,9 @@ public class GuiECOComputationController extends GuiHostMachineBase {
                 false);
         } else if (this.isMouseIn(
             ComputationControllerLayout.STAT_BAR_X,
-            ComputationControllerLayout.STORAGE_BAR_Y,
-            ComputationControllerLayout.STAT_BAR_W,
-            ComputationControllerLayout.STAT_BAR_H,
+            ComputationControllerLayout.STORAGE_LABEL_Y,
+            ComputationControllerLayout.STAT_W,
+            20,
             mouseX,
             mouseY)) {
                 this.hoveredLines = usedTotalTooltip(
@@ -317,12 +331,12 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             return;
         }
         this.taskScroll = Math.min(this.taskScroll, this.maxTaskScroll());
-        int visible = (ComputationControllerLayout.TASK_H - 24) / ComputationControllerLayout.TASK_CARD_STEP;
+        int visible = visibleTaskCount();
         this.beginScissor(
-            ComputationControllerLayout.TASK_X + 4,
+            ComputationControllerLayout.TASK_X + 6,
             ComputationControllerLayout.TASK_CARD_Y,
-            ComputationControllerLayout.TASK_W - 8,
-            ComputationControllerLayout.TASK_H - 23);
+            ComputationControllerLayout.TASK_W - 12,
+            ComputationControllerLayout.TASK_LIST_BOTTOM_Y - ComputationControllerLayout.TASK_CARD_Y + 1);
         for (int i = 0; i < visible && i + this.taskScroll < state.tasks.size(); i++) {
             int taskIndex = i + this.taskScroll;
             ComputationHostSnapshot.TaskEntry task = state.tasks.get(taskIndex);
@@ -351,15 +365,25 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             hovered ? 0xFF2A2535 : 0xFF201E27);
         this.drawLocalItemIcon(task.outputStack, x + 4, y + 4);
         this.drawLocalText(
-            this.trimToWidth(task.outputName, ComputationControllerLayout.TASK_CARD_W - 90),
+            this.trimToWidth(task.outputName, ComputationControllerLayout.TASK_CARD_W - 62),
             x + 24,
             y + 4,
             HostUiStyle.DARK_TEXT_PRIMARY);
+        String amountText = "x" + this.formatNumber(task.outputAmount);
         this.drawLocalRight(
-            this.formatElapsedNanos(task.elapsedNanos),
+            amountText,
             x + ComputationControllerLayout.TASK_CARD_W - 5,
             y + 11,
             HostUiStyle.DARK_TEXT_VALUE);
+        int statusColor = task.status == cn.dancingsnow.neoecoae.computation.ComputationTaskInfo.Status.WAITING
+            ? HostUiStyle.DARK_TEXT_WARNING
+            : HostUiStyle.DARK_TEXT_USED;
+        drawRect(
+            x + 3,
+            y + ComputationControllerLayout.TASK_CARD_H - 3,
+            x + ComputationControllerLayout.TASK_CARD_W - 3,
+            y + ComputationControllerLayout.TASK_CARD_H - 2,
+            statusColor);
         if (hovered) {
             List<String> lines = new ArrayList<String>();
             if (task.outputStack != null) {
@@ -370,7 +394,22 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             } else {
                 lines.add(EnumChatFormatting.AQUA + task.outputName);
             }
-            lines.add(EnumChatFormatting.GRAY + tr("gui.neoecoae.crafting.task.status.running", "Running"));
+            String cpuName = task.cpuName.isEmpty() ? "CPU #" + task.cpuSerial : task.cpuName;
+            lines.add(EnumChatFormatting.AQUA + cpuName);
+            lines.add(
+                EnumChatFormatting.GRAY + tr("gui.neoecoae.computation.cpu_storage", "CPU Storage")
+                    + ": "
+                    + this.formatStorageBytes(task.cpuStorage));
+            lines.add(
+                EnumChatFormatting.GRAY + tr("gui.neoecoae.computation.co_processors", "Co-processors")
+                    + ": "
+                    + this.formatNumber(task.coProcessors));
+            lines.add(EnumChatFormatting.GRAY + cpuModeName(task.cpuSelectionMode));
+            lines.add(
+                EnumChatFormatting.GRAY
+                    + (task.status == cn.dancingsnow.neoecoae.computation.ComputationTaskInfo.Status.WAITING
+                        ? tr("gui.neoecoae.crafting.task.status.queued", "Waiting")
+                        : tr("gui.neoecoae.crafting.task.status.running", "Running")));
             lines.add(
                 EnumChatFormatting.GRAY + tr("gui.neoecoae.computation.elapsed", "Elapsed")
                     + ": "
@@ -380,23 +419,25 @@ public class GuiECOComputationController extends GuiHostMachineBase {
     }
 
     private void drawTaskScrollMarker(ComputationHostSnapshot state) {
-        int trackX = ComputationControllerLayout.TASK_X + ComputationControllerLayout.TASK_W - 5;
+        int trackX = ComputationControllerLayout.TASK_SCROLLBAR_X;
         int trackY = ComputationControllerLayout.TASK_CARD_Y;
-        int trackH = ComputationControllerLayout.TASK_H - 27;
+        int trackH = Math.max(1, ComputationControllerLayout.TASK_LIST_BOTTOM_Y - trackY);
         int maxScroll = Math.max(1, this.maxTaskScroll());
-        int visible = Math
-            .max(1, (ComputationControllerLayout.TASK_H - 24) / ComputationControllerLayout.TASK_CARD_STEP);
+        int visible = visibleTaskCount();
         int thumbH = Math.max(8, trackH * visible / Math.max(1, state.tasks.size()));
         int thumbY = trackY + (trackH - thumbH) * this.taskScroll / maxScroll;
-        drawRect(trackX, trackY, trackX + 2, trackY + trackH, 0xFF2C2833);
-        drawRect(trackX, thumbY, trackX + 2, thumbY + thumbH, 0xFFBEB6D4);
+        drawRect(trackX, trackY, trackX + ComputationControllerLayout.TASK_SCROLLBAR_W, trackY + trackH, 0xFF2C2833);
+        drawRect(trackX, thumbY, trackX + ComputationControllerLayout.TASK_SCROLLBAR_W, thumbY + thumbH, 0xFFBEB6D4);
     }
 
     private int maxTaskScroll() {
         ComputationHostSnapshot state = this.container.state();
-        int visible = Math
-            .max(1, (ComputationControllerLayout.TASK_H - 24) / ComputationControllerLayout.TASK_CARD_STEP);
-        return Math.max(0, state.tasks.size() - visible);
+        return Math.max(0, state.tasks.size() - visibleTaskCount());
+    }
+
+    private static int visibleTaskCount() {
+        return Math.max(1, (ComputationControllerLayout.TASK_LIST_BOTTOM_Y - ComputationControllerLayout.TASK_CARD_Y
+            - ComputationControllerLayout.TASK_CARD_H) / ComputationControllerLayout.TASK_CARD_STEP + 1);
     }
 
     private void drawUsedTotal(String prefix, long used, long total, String suffix, int x, int y, boolean storageBytes,
