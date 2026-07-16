@@ -123,7 +123,7 @@ public class BlockECOController extends BlockDirectionalModernModel {
     @Override
     public boolean removedByPlayer(World world, EntityPlayer player, int x, int y, int z, boolean willHarvest) {
         TileEntity tile = world.getTileEntity(x, y, z);
-        if (tile instanceof TileECOController && !((TileECOController) tile).prepareForWorldRemoval()) {
+        if (tile instanceof TileECOController && ((TileECOController) tile).blocksWorldRemoval()) {
             if (!world.isRemote && player != null) {
                 player.addChatMessage(new ChatComponentTranslation("chat.neoecoae.storage.infinite_remove_blocked"));
             }
@@ -135,7 +135,7 @@ public class BlockECOController extends BlockDirectionalModernModel {
     @Override
     public void onBlockExploded(World world, int x, int y, int z, Explosion explosion) {
         TileEntity tile = world.getTileEntity(x, y, z);
-        if (tile instanceof TileECOController && !((TileECOController) tile).prepareForWorldRemoval()) {
+        if (tile instanceof TileECOController && ((TileECOController) tile).blocksWorldRemoval()) {
             return;
         }
         super.onBlockExploded(world, x, y, z, explosion);
@@ -146,7 +146,7 @@ public class BlockECOController extends BlockDirectionalModernModel {
         TileEntity tile = world.getTileEntity(x, y, z);
         if (tile instanceof TileECOController) {
             TileECOController controller = (TileECOController) tile;
-            if (!controller.prepareForWorldRemoval()) {
+            if (controller.blocksWorldRemoval()) {
                 return;
             }
             ItemStack stack = ((TileECOController) tile).getStackInSlot(0);

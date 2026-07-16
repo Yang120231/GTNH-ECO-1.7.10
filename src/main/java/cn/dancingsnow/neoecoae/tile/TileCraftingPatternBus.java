@@ -71,7 +71,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
 
     public static boolean pushPattern(TileECOController controller, ICraftingPatternDetails patternDetails,
         InventoryCrafting table) {
-        if (controller == null || !controller.isFormed() || !controller.hasVirtualCraftingCapacity()) {
+        if (controller == null || !controller.isFormed() || controller.lacksVirtualCraftingCapacity()) {
             return false;
         }
         // AE2 authorises exactly one craft per pushPattern and has already consumed that craft's
@@ -125,7 +125,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     @Override
     public boolean isBusy() {
         TileECOController controller = this.findCraftingController();
-        return controller == null || !controller.isFormed() || !controller.hasVirtualCraftingCapacity();
+        return controller == null || !controller.isFormed() || controller.lacksVirtualCraftingCapacity();
     }
 
     @Override

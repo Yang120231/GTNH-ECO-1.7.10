@@ -6,7 +6,6 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
 
@@ -113,7 +112,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             HostUiLayouts.COMPUTATION.inventoryX(),
             HostUiLayouts.COMPUTATION.inventoryY(),
             HostUiLayouts.COMPUTATION.hotbarY());
-        this.drawCpuModeButtonBackground(mouseX, mouseY);
+        this.drawCpuModeButton(mouseX, mouseY);
         if (this.cpuModeButton != null) {
             this.cpuModeButton.displayString = "";
         }
@@ -161,21 +160,16 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             state.active ? HostUiStyle.TEXT_GOOD : HostUiStyle.TEXT_MUTED);
     }
 
-    private void drawCpuModeButtonBackground(int mouseX, int mouseY) {
-        boolean hovered = this.isMouseIn(
+    private void drawCpuModeButton(int mouseX, int mouseY) {
+        ComputationHostSnapshot state = this.container.state();
+        AEA2ToolbarIconButton.draw(
+            this,
             ComputationControllerLayout.TOOLBAR_X,
             ComputationControllerLayout.TOOLBAR_Y,
-            ComputationControllerLayout.TOOLBAR_SIZE,
-            ComputationControllerLayout.TOOLBAR_SIZE,
             mouseX,
-            mouseY);
-        this.drawButtonTexture(
-            ComputationControllerLayout.TOOLBAR_X,
-            ComputationControllerLayout.TOOLBAR_Y,
+            mouseY,
             ComputationControllerLayout.TOOLBAR_SIZE,
-            ComputationControllerLayout.TOOLBAR_SIZE,
-            hovered,
-            true,
+            ComputationCpuModeIcons.icon(state.cpuSelectionMode),
             false);
     }
 
@@ -187,20 +181,8 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             ComputationControllerLayout.TOOLBAR_SIZE,
             mouseX,
             mouseY);
-        ItemStack icon = ComputationCpuModeIcons.icon(state.cpuSelectionMode);
-        if (icon == null) {
-            String symbol = cpuModeSymbol(state.cpuSelectionMode);
-            this.drawLocalCentered(
-                symbol,
-                ComputationControllerLayout.TOOLBAR_X,
-                ComputationControllerLayout.TOOLBAR_Y + 4,
-                ComputationControllerLayout.TOOLBAR_SIZE,
-                HostUiStyle.TEXT_VALUE);
-        } else {
-            this.drawLocalItemIcon(icon, ComputationControllerLayout.TOOLBAR_X, ComputationControllerLayout.TOOLBAR_Y);
-        }
         if (hovered) {
-            List<String> lines = new ArrayList<String>();
+            List<String> lines = new ArrayList<>();
             lines
                 .add(EnumChatFormatting.AQUA + tr("gui.neoecoae.computation.cpu_selection_mode", "CPU Selection Mode"));
             lines.add(cpuModeName(state.cpuSelectionMode));
@@ -224,11 +206,8 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             ComputationControllerLayout.STORAGE_LABEL_Y,
             HostUiStyle.DARK_TEXT_MUTED);
         this.drawUsedTotal(
-            "",
             state.usedComputationBytes,
             state.totalBytes,
-            "",
-            ComputationControllerLayout.STAT_VALUE_X,
             ComputationControllerLayout.STORAGE_DETAIL_Y,
             true,
             HostUiStyle.DARK_TEXT_BLUE);
@@ -246,11 +225,8 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             ComputationControllerLayout.THREAD_LABEL_Y,
             HostUiStyle.DARK_TEXT_MUTED);
         this.drawUsedTotal(
-            "",
             state.usedThreads,
             state.totalThreads,
-            "",
-            ComputationControllerLayout.STAT_VALUE_X,
             ComputationControllerLayout.THREAD_DETAIL_Y,
             false,
             HostUiStyle.DARK_TEXT_USED);
@@ -341,7 +317,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             int taskIndex = i + this.taskScroll;
             ComputationHostSnapshot.TaskEntry task = state.tasks.get(taskIndex);
             int y = ComputationControllerLayout.TASK_CARD_Y + i * ComputationControllerLayout.TASK_CARD_STEP;
-            this.drawTaskCard(task, ComputationControllerLayout.TASK_CARD_X, y, mouseX, mouseY);
+            this.drawTaskCard(task, y, mouseX, mouseY);
         }
         this.endScissor();
         if (this.maxTaskScroll() > 0) {
@@ -349,45 +325,44 @@ public class GuiECOComputationController extends GuiHostMachineBase {
         }
     }
 
-    private void drawTaskCard(ComputationHostSnapshot.TaskEntry task, int x, int y, int mouseX, int mouseY) {
+    private void drawTaskCard(ComputationHostSnapshot.TaskEntry task, int y, int mouseX, int mouseY) {
         boolean hovered = this.isMouseIn(
-            x,
+            ComputationControllerLayout.TASK_CARD_X,
             y,
             ComputationControllerLayout.TASK_CARD_W,
             ComputationControllerLayout.TASK_CARD_H,
             mouseX,
             mouseY);
         this.drawTinyInsetLocal(
-            x,
+            ComputationControllerLayout.TASK_CARD_X,
             y,
             ComputationControllerLayout.TASK_CARD_W,
             ComputationControllerLayout.TASK_CARD_H,
             hovered ? 0xFF2A2535 : 0xFF201E27);
-        this.drawLocalItemIcon(task.outputStack, x + 4, y + 4);
+        this.drawLocalItemIcon(task.outputStack, ComputationControllerLayout.TASK_CARD_X + 4, y + 4);
         this.drawLocalText(
-            this.trimToWidth(task.outputName, ComputationControllerLayout.TASK_CARD_W - 62),
-            x + 24,
+            this.trimTaskName(task.outputName),
+            ComputationControllerLayout.TASK_CARD_X + 24,
             y + 4,
             HostUiStyle.DARK_TEXT_PRIMARY);
         String amountText = "x" + this.formatNumber(task.outputAmount);
         this.drawLocalRight(
             amountText,
-            x + ComputationControllerLayout.TASK_CARD_W - 5,
+            ComputationControllerLayout.TASK_CARD_X + ComputationControllerLayout.TASK_CARD_W - 5,
             y + 11,
             HostUiStyle.DARK_TEXT_VALUE);
         int statusColor = task.status == cn.dancingsnow.neoecoae.computation.ComputationTaskInfo.Status.WAITING
             ? HostUiStyle.DARK_TEXT_WARNING
             : HostUiStyle.DARK_TEXT_USED;
         drawRect(
-            x + 3,
+            ComputationControllerLayout.TASK_CARD_X + 3,
             y + ComputationControllerLayout.TASK_CARD_H - 3,
-            x + ComputationControllerLayout.TASK_CARD_W - 3,
+            ComputationControllerLayout.TASK_CARD_X + ComputationControllerLayout.TASK_CARD_W - 3,
             y + ComputationControllerLayout.TASK_CARD_H - 2,
             statusColor);
         if (hovered) {
-            List<String> lines = new ArrayList<String>();
+            List<String> lines = new ArrayList<>();
             if (task.outputStack != null) {
-                @SuppressWarnings("unchecked")
                 List<String> itemLines = task.outputStack
                     .getTooltip(this.mc.thePlayer, this.mc.gameSettings.advancedItemTooltips);
                 lines.addAll(itemLines);
@@ -440,19 +415,18 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             - ComputationControllerLayout.TASK_CARD_H) / ComputationControllerLayout.TASK_CARD_STEP + 1);
     }
 
-    private void drawUsedTotal(String prefix, long used, long total, String suffix, int x, int y, boolean storageBytes,
-        int usedColor) {
-        int cursor = this.drawLocalSegment(prefix, x, y, HostUiStyle.DARK_TEXT_MUTED);
+    private void drawUsedTotal(long used, long total, int y, boolean storageBytes, int usedColor) {
+        int x = ComputationControllerLayout.STAT_VALUE_X;
+        int cursor = 0;
         String usedText = storageBytes ? this.formatStorageBytes(used) : this.formatNumber(used);
         String totalText = storageBytes ? this.formatStorageBytes(total) : this.formatNumber(total);
         cursor += this.drawLocalSegment(usedText, x + cursor, y, usedColor);
         cursor += this.drawLocalSegment(" / ", x + cursor, y, HostUiStyle.DARK_TEXT_MUTED);
-        cursor += this.drawLocalSegment(totalText, x + cursor, y, HostUiStyle.DARK_TEXT_VALUE);
-        this.drawLocalText(suffix, x + cursor, y, HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalSegment(totalText, x + cursor, y, HostUiStyle.DARK_TEXT_VALUE);
     }
 
     private List<String> usedTotalTooltip(String title, long used, long total, boolean storageBytes) {
-        List<String> lines = new ArrayList<String>();
+        List<String> lines = new ArrayList<>();
         lines.add(EnumChatFormatting.AQUA + title);
         lines.add(
             (storageBytes ? this.formatStorageBytes(used) : this.formatNumber(used)) + " / "
@@ -460,7 +434,8 @@ public class GuiECOComputationController extends GuiHostMachineBase {
         return lines;
     }
 
-    private String trimToWidth(String text, int width) {
+    private String trimTaskName(String text) {
+        int width = ComputationControllerLayout.TASK_CARD_W - 62;
         String safe = text == null ? "" : text;
         if (this.fontRendererObj.getStringWidth(safe) <= width) {
             return safe;
@@ -480,16 +455,6 @@ public class GuiECOComputationController extends GuiHostMachineBase {
         return String.format(java.util.Locale.US, "%02d:%02d", minutes, remainingSeconds);
     }
 
-    private static String cpuModeSymbol(ComputationCpuSelectionMode mode) {
-        if (mode == ComputationCpuSelectionMode.PLAYER_ONLY) {
-            return "P";
-        }
-        if (mode == ComputationCpuSelectionMode.MACHINE_ONLY) {
-            return "M";
-        }
-        return "A";
-    }
-
     private static String cpuModeName(ComputationCpuSelectionMode mode) {
         if (mode == ComputationCpuSelectionMode.PLAYER_ONLY) {
             return tr("gui.neoecoae.computation.cpu_selection_mode.player", "Player Only");
@@ -498,16 +463,6 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             return tr("gui.neoecoae.computation.cpu_selection_mode.machine", "Machine Only");
         }
         return tr("gui.neoecoae.computation.cpu_selection_mode.any", "Any");
-    }
-
-    private static String cpuModeShortName(ComputationCpuSelectionMode mode) {
-        if (mode == ComputationCpuSelectionMode.PLAYER_ONLY) {
-            return tr("gui.neoecoae.computation.cpu_selection_mode.short.player", "Player");
-        }
-        if (mode == ComputationCpuSelectionMode.MACHINE_ONLY) {
-            return tr("gui.neoecoae.computation.cpu_selection_mode.short.machine", "Machine");
-        }
-        return tr("gui.neoecoae.computation.cpu_selection_mode.short.any", "Any");
     }
 
     private static String tr(String key, String fallback) {

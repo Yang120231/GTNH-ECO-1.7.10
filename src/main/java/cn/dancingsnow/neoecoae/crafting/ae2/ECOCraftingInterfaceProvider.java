@@ -52,7 +52,7 @@ final class ECOCraftingInterfaceProvider implements ICraftingProvider {
     public boolean isBusy() {
         return !this.active || this.controller == null
             || !this.controller.isFormed()
-            || !this.controller.hasVirtualCraftingCapacity();
+            || this.controller.lacksVirtualCraftingCapacity();
     }
 
     @Override

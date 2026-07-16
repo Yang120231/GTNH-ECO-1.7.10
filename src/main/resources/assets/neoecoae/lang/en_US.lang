@@ -112,6 +112,7 @@ gui.neoecoae.crafting.parallel_per_core=Parallel: %s
 gui.neoecoae.crafting.patterns_short=Patterns
 gui.neoecoae.crafting.recipe_slots=Task Slots
 gui.neoecoae.crafting.stats=Stats
+gui.neoecoae.crafting.ui.stats=Statistics
 gui.neoecoae.crafting.status=Status
 gui.neoecoae.crafting.task.amount=Output: %s
 gui.neoecoae.crafting.task.crafts=Batches: %s
