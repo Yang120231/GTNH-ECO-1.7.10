@@ -144,6 +144,7 @@ final class CraftingFormationPattern implements ECOFormationPattern {
                 workerStart.offset(directions.back),
                 ventEnd,
                 endCasings,
+                tier,
                 directions));
     }
 
@@ -175,13 +176,13 @@ final class CraftingFormationPattern implements ECOFormationPattern {
         return hidden;
     }
 
-    private List<ECOFormationBlockPos> formedMembers(Pos workerStart, Pos upperParallelEnd, Pos lowerParallelEnd,
+    List<ECOFormationBlockPos> formedMembers(Pos workerStart, Pos upperParallelEnd, Pos lowerParallelEnd,
         Pos upperPatternStart, Pos upperPatternEnd, Pos lowerPatternStart, Pos lowerPatternEnd, Pos ventStart,
-        Pos ventEnd, List<Pos> tailCasings, FormationDirections directions) {
+        Pos ventEnd, List<Pos> tailCasings, ECOControllerTier tier, FormationDirections directions) {
         List<ECOFormationBlockPos> formedMembers = new ArrayList<>();
         addLine(formedMembers, workerStart, upperParallelEnd.offset(directions.down));
-        addLine(formedMembers, workerStart.offset(directions.top), upperParallelEnd);
-        addLine(formedMembers, workerStart.offset(directions.down), lowerParallelEnd);
+        addLine(formedMembers, workerStart.offset(directions.top), upperParallelEnd, tier);
+        addLine(formedMembers, workerStart.offset(directions.down), lowerParallelEnd, tier);
         addLine(formedMembers, ventStart, ventEnd);
         addLine(formedMembers, upperPatternStart, upperPatternEnd);
         addLine(formedMembers, lowerPatternStart, lowerPatternEnd);

@@ -87,14 +87,6 @@ public final class CraftingHostStats {
                     }
                 } else if (block == NEBlocks.craftingWorker) {
                     workerCount++;
-                    TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
-                    if (tile instanceof TileCraftingWorker) {
-                        TileCraftingWorker worker = (TileCraftingWorker) tile;
-                        if (worker.isRunning()) {
-                            runningWorkerCount++;
-                        }
-                        queuedWorkCount = saturatedAdd(queuedWorkCount, worker.queueSize());
-                    }
                 } else if (isParallelCore(block)) {
                     parallelCoreCount++;
                     parallelCount = saturatedAdd(
@@ -103,6 +95,8 @@ public final class CraftingHostStats {
                 }
             }
         }
+        runningWorkerCount = controller.isVirtualCraftingRunning() ? workerCount : 0;
+        queuedWorkCount = controller.getVirtualCraftingOccupiedSlots();
 
         int inputCachedItems = 0;
         int outputCachedItems = 0;
@@ -148,15 +142,11 @@ public final class CraftingHostStats {
         }
 
         int workerCount = 0;
-        int runningWorkerCount = 0;
-        int queuedWorkCount = 0;
         for (TileCraftingWorker worker : cache.workers()) {
             workerCount++;
-            if (worker.isRunning()) {
-                runningWorkerCount++;
-            }
-            queuedWorkCount = saturatedAdd(queuedWorkCount, worker.queueSize());
         }
+        int runningWorkerCount = controller.isVirtualCraftingRunning() ? workerCount : 0;
+        int queuedWorkCount = controller.getVirtualCraftingOccupiedSlots();
 
         int parallelCount = 0;
         int parallelCoreCount = 0;

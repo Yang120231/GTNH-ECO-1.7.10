@@ -34,6 +34,7 @@ import appeng.api.util.AECableType;
 import appeng.api.util.DimensionalCoord;
 import appeng.helpers.IPriorityHost;
 import appeng.me.GridAccessException;
+import appeng.me.cache.CraftingGridCache;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import appeng.util.item.AEItemStack;
@@ -142,6 +143,18 @@ public class TileECOInterface extends TileEntity
         return this.injectCraftingOutput(stack, false);
     }
 
+    public ItemStack injectCraftingRecovery(ItemStack stack) {
+        return this.injectCraftingStack(stack, false, false);
+    }
+
+    public long injectCraftingOutput(ItemStack prototype, long amount) {
+        return this.injectCraftingAmount(prototype, amount, false, true);
+    }
+
+    public long injectCraftingRecovery(ItemStack prototype, long amount) {
+        return this.injectCraftingAmount(prototype, amount, false, false);
+    }
+
     public IAEItemStack extractCraftingInput(IAEItemStack stack, boolean simulate) {
         if (stack == null || stack.getStackSize() <= 0L) {
             return null;
@@ -158,23 +171,52 @@ public class TileECOInterface extends TileEntity
     }
 
     public ItemStack injectCraftingOutput(ItemStack stack, boolean simulate) {
+        return this.injectCraftingStack(stack, simulate, true);
+    }
+
+    private ItemStack injectCraftingStack(ItemStack stack, boolean simulate, boolean offerToCraftingCpus) {
         if (stack == null || stack.stackSize <= 0) {
             return null;
         }
+        long remaining = this.injectCraftingAmount(stack, stack.stackSize, simulate, offerToCraftingCpus);
+        return copyCraftingRemainder(stack, remaining);
+    }
+
+    private long injectCraftingAmount(ItemStack prototype, long amount, boolean simulate,
+        boolean offerToCraftingCpus) {
+        if (prototype == null || amount <= 0L) {
+            return 0L;
+        }
         if (this.subsystem != ECOControllerSubsystem.CRAFTING) {
-            return stack.copy();
+            return amount;
+        }
+        IAEItemStack aeStack = createCraftingAmount(prototype, amount);
+        if (aeStack == null) {
+            return amount;
+        }
+        Actionable mode = simulate ? Actionable.SIMULATE : Actionable.MODULATE;
+        MachineSource source = new MachineSource(this);
+        IAEItemStack leftover = aeStack;
+        if (offerToCraftingCpus) {
+            ICraftingGrid craftingGrid = this.currentCraftingGrid();
+            if (craftingGrid instanceof CraftingGridCache) {
+                leftover = (IAEItemStack) ((CraftingGridCache) craftingGrid).injectItems(leftover, mode, source);
+            }
         }
         IStorageGrid storageGrid = this.currentStorageGrid();
-        if (storageGrid == null) {
-            return stack.copy();
+        if (leftover != null && storageGrid != null) {
+            leftover = storageGrid.getItemInventory()
+                .injectItems(leftover, mode, source);
         }
-        IAEItemStack aeStack = AEItemStack.create(stack);
-        if (aeStack == null) {
-            return stack.copy();
+        return leftover == null ? 0L : Math.max(0L, Math.min(amount, leftover.getStackSize()));
+    }
+
+    private static IAEItemStack createCraftingAmount(ItemStack prototype, long amount) {
+        if (prototype == null || amount <= 0L) {
+            return null;
         }
-        IAEItemStack leftover = storageGrid.getItemInventory()
-            .injectItems(aeStack, simulate ? Actionable.SIMULATE : Actionable.MODULATE, new MachineSource(this));
-        return copyCraftingRemainder(stack, leftover);
+        IAEItemStack stack = AEItemStack.create(prototype);
+        return stack == null ? null : stack.setStackSize(amount);
     }
 
     public FluidStack extractCraftingFluid(FluidStack stack, boolean simulate) {
@@ -207,11 +249,11 @@ public class TileECOInterface extends TileEntity
         return extractedStack == null ? null : extractedStack.copy();
     }
 
-    private static ItemStack copyCraftingRemainder(ItemStack original, IAEItemStack leftover) {
-        if (original == null || original.stackSize <= 0 || leftover == null || leftover.getStackSize() <= 0L) {
+    private static ItemStack copyCraftingRemainder(ItemStack original, long remainingAmount) {
+        if (original == null || original.stackSize <= 0 || remainingAmount <= 0L) {
             return null;
         }
-        long boundedRemaining = Math.min((long) original.stackSize, leftover.getStackSize());
+        long boundedRemaining = Math.min((long) original.stackSize, remainingAmount);
         if (boundedRemaining <= 0L) {
             return null;
         }
@@ -263,9 +305,6 @@ public class TileECOInterface extends TileEntity
     @Override
     public void gridChanged() {
         this.refreshSubsystemRegistration(false);
-        if (this.subsystem == ECOControllerSubsystem.CRAFTING) {
-            this.requestCraftingProviderRefresh();
-        }
     }
 
     @Override

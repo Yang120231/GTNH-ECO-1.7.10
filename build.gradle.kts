@@ -17,6 +17,11 @@ val gregTechVersion: String by project
 val wailaVersion: String by project
 
 dependencies {
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
+    testCompileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
+    testRuntimeOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
+
     // Match E:\Minecraft Project\ECO-1.7.10: use explicit stable GTNH coordinates instead of the daily catalog.
     compileOnly(gtnhApiJar("Applied-Energistics-2-Unofficial", ae2Version))
     compileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
@@ -30,4 +35,8 @@ dependencies {
     runtimeOnlyNonPublishable(gtnhDevJar("GTNHLib", gtnhLibVersion))
     runtimeOnlyNonPublishable(gtnhDevJar("GT5-Unofficial", gregTechVersion))
     runtimeOnlyNonPublishable(gtnhDevJar("waila", wailaVersion))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

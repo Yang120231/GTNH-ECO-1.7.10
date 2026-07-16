@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.energy;
 
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathConfig;
 import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 
 public final class ECOEnergyProfile {
@@ -142,6 +143,20 @@ public final class ECOEnergyProfile {
         int multiplier = Math.max(1, powerMultiplier);
         double requested = safeTicks * (double) safeBonus * slots * multiplier;
         return Math.min(requested, CRAFTING_MAX_WORK_POWER_PER_TICK);
+    }
+
+    public static double craftingBatchWorkPowerRequest(int ticksPassed, int bonusValue, int occupiedThreadSlots,
+        int powerMultiplier) {
+        int slots = Math.max(1, occupiedThreadSlots);
+        if (slots <= 1 || !ECOFastPathConfig.isAggressiveBatchEnabled()) {
+            return craftingWorkPowerRequest(ticksPassed, bonusValue, slots, powerMultiplier);
+        }
+        int safeTicks = Math.max(1, ticksPassed);
+        int safeBonus = Math.max(1, Math.min(100, bonusValue));
+        int multiplier = Math.max(1, powerMultiplier);
+        double requested = safeTicks * (double) safeBonus * slots * multiplier;
+        double aggressiveCap = safeTicks * (double) safeBonus * multiplier * ECOFastPathConfig.batchTickLimit();
+        return Math.min(requested, aggressiveCap);
     }
 
     /**

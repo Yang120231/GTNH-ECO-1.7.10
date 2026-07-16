@@ -38,6 +38,8 @@ public final class ECOFastPathPatternInspector {
         }
         requireMeaningful(inputs, "input");
         requireMeaningful(outputs, "output");
+        requireFastPathSafe(inputs, true, "input");
+        requireFastPathSafe(outputs, false, "output");
         return new ECOFastPathPatternProfile(key, inputs, outputs, craftable, substitutionAllowed);
     }
 
@@ -84,5 +86,21 @@ public final class ECOFastPathPatternInspector {
                 throw new ECOFastPathPatternException("invalid " + label);
             }
         }
+    }
+
+    private static void requireFastPathSafe(IAEItemStack[] stacks, boolean input, String label)
+        throws ECOFastPathPatternException {
+        for (IAEItemStack stack : stacks) {
+            net.minecraft.item.ItemStack item = stack.getItemStack();
+            if (!isFastPathSafe(item, input)) {
+                throw new ECOFastPathPatternException("unsafe " + label);
+            }
+        }
+    }
+
+    static boolean isFastPathSafe(net.minecraft.item.ItemStack item, boolean input) {
+        return item != null && item.getItem() != null && !item.hasTagCompound() && !item.isItemStackDamageable()
+            && (!input || !item.getItem()
+                .hasContainerItem(item));
     }
 }

@@ -30,7 +30,14 @@ public abstract class TileCraftingMember extends TileEntity {
     protected void notifyCraftingControllerChanged() {
         TileECOController controller = this.findCraftingController();
         if (controller != null) {
-            controller.onCraftingHostStateChanged();
+            controller.onCraftingMemberStateChanged();
+        }
+    }
+
+    protected void notifyCraftingPatternsChanged() {
+        TileECOController controller = this.findCraftingController();
+        if (controller != null) {
+            controller.onCraftingPatternsChanged();
         }
     }
 }

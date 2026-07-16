@@ -5,9 +5,6 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.world.World;
-
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.tile.CraftingHostStats;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
@@ -136,10 +133,9 @@ public final class CraftingHostSnapshot {
         CraftingHostStats stats = controller.getCraftingHostStats();
         List<ECOFormationBlockPos> formedMembers = controller.getFormedMemberBlocks();
         int workQueueDepth = stats.queuedWorkCount;
-        int workQueueCapacity = safeInt((long) stats.workerCount * TileCraftingWorker.BASE_QUEUE_CAPACITY);
+        int workQueueCapacity = controller.getCraftingMaxInFlightCrafts();
         int utilization = ratioPercent(workQueueDepth, workQueueCapacity);
-        int maxRecipeSlots = cn.dancingsnow.neoecoae.energy.ECOEnergyProfile.craftingThreadCapacity(
-            stats.workerCount, controller.getTier(), controller.isCraftingOverclocked());
+        int maxRecipeSlots = controller.getCraftingMaxInFlightCrafts();
         int batchParallel = Math.min(stats.parallelCount, maxRecipeSlots);
         return new CraftingHostSnapshot(
             controller.isFormed(),
@@ -174,7 +170,7 @@ public final class CraftingHostSnapshot {
             controller.getCraftingEffectiveOverclockTimes(),
             controller.getCraftingCoolantMaxOverclock(),
             controller.getCraftingPerformanceAverageNanos(),
-            workerEntries(controller, formedMembers));
+            virtualPoolEntries(controller));
     }
 
     public void write(ByteBuf buffer) {
@@ -317,18 +313,15 @@ public final class CraftingHostSnapshot {
         return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    private static List<WorkerEntry> workerEntries(TileECOController controller, List<ECOFormationBlockPos> members) {
+    private static List<WorkerEntry> virtualPoolEntries(TileECOController controller) {
         List<WorkerEntry> entries = new ArrayList<WorkerEntry>();
-        World world = controller.getWorldObj();
-        if (world == null || !controller.isFormed()) {
+        if (controller.getWorldObj() == null || !controller.isFormed()) {
             return entries;
         }
-        for (int i = 0; i < members.size() && entries.size() < MAX_WORKER_ENTRIES; i++) {
-            ECOFormationBlockPos pos = members.get(i);
-            TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
-            if (tile instanceof TileCraftingWorker) {
-                entries.add(WorkerEntry.from((TileCraftingWorker) tile, entries.size()));
-            }
+        List<TileCraftingWorker.WorkSnapshot> snapshots =
+            controller.getVirtualCraftingWorkSnapshots(MAX_WORKER_ENTRIES);
+        for (int i = 0; i < snapshots.size(); i++) {
+            entries.add(WorkerEntry.from(snapshots.get(i), i));
         }
         return entries;
     }
@@ -367,8 +360,7 @@ public final class CraftingHostSnapshot {
             this.totalProgress = safeInt(totalProgress);
         }
 
-        private static WorkerEntry from(TileCraftingWorker worker, int index) {
-            TileCraftingWorker.WorkSnapshot snapshot = worker.snapshot();
+        private static WorkerEntry from(TileCraftingWorker.WorkSnapshot snapshot, int index) {
             return new WorkerEntry(
                 index,
                 snapshot.output,

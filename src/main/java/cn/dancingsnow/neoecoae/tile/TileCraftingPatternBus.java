@@ -12,12 +12,16 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraftforge.common.util.Constants;
 
 import appeng.api.implementations.ICraftingPatternItem;
+import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.util.ScheduledReason;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
+import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
+import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchCoordinator;
+import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
 
 public class TileCraftingPatternBus extends TileCraftingMember implements IInventory, ICraftingProvider {
 
@@ -33,18 +37,22 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     private static final String TAG_PATTERN_COUNT = "PatternCount";
 
     private final ItemStack[] patterns = new ItemStack[PATTERN_SLOTS];
-    private int clientPatternCount;
+    private int cachedPatternCount;
     private ScheduledReason scheduledReason = ScheduledReason.UNDEFINED;
 
     @Override
     public void provideCrafting(ICraftingProviderHelper helper) {
+        this.provideCrafting(helper, this);
+    }
+
+    public void provideCrafting(ICraftingProviderHelper helper, ICraftingMedium medium) {
         if (helper == null || this.worldObj == null) {
             return;
         }
         for (ItemStack pattern : this.patterns) {
             ICraftingPatternDetails details = this.patternDetails(pattern);
             if (details != null) {
-                helper.addCraftingOption(this, details);
+                helper.addCraftingOption(medium, details);
             }
         }
     }
@@ -52,31 +60,72 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     @Override
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
         TileECOController controller = this.findCraftingController();
-        if (controller == null || !controller.isFormed()) {
-            this.scheduledReason = ScheduledReason.NO_TARGET;
-            return false;
-        }
-        TileCraftingWorker worker = controller.findAvailableCraftingWorker();
-        if (worker == null) {
-            this.scheduledReason = ScheduledReason.SOMETHING_STUCK;
+        boolean accepted = pushPattern(controller, patternDetails, table);
+        this.scheduledReason = accepted
+            ? ScheduledReason.UNDEFINED
+            : controller == null || !controller.isFormed()
+                ? ScheduledReason.NO_TARGET
+                : ScheduledReason.SOMETHING_STUCK;
+        return accepted;
+    }
+
+    public static boolean pushPattern(TileECOController controller, ICraftingPatternDetails patternDetails,
+        InventoryCrafting table) {
+        if (controller == null || !controller.isFormed() || !controller.hasVirtualCraftingCapacity()) {
             return false;
         }
         // AE2 authorises exactly one craft per pushPattern and has already consumed that craft's
         // inputs into the table. We must enqueue exactly one craft here - pulling additional inputs
         // from the network to inflate the batch would overproduce and double-spend ingredients.
-        boolean accepted = worker.acceptPattern(patternDetails, table);
+        ECOCraftingBatchTransaction transaction = null;
+        ECOCraftingBatchCoordinator coordinator = ECOCraftingExecutionContext.currentBatchCoordinator();
+        if (coordinator != null) {
+            transaction = coordinator.prepareBatch(patternDetails, table, controller);
+            if (transaction == null && coordinator.isBatchDispatchSuspended()) {
+                return false;
+            }
+        }
+        int craftCount = transaction == null ? 1 : Math.max(1, transaction.craftCount());
+        boolean accepted;
+        try {
+            accepted = controller.acceptVirtualCraftingBatch(
+                patternDetails,
+                table,
+                craftCount,
+                ECOCraftingExecutionContext.currentJobId());
+        } catch (RuntimeException e) {
+            if (transaction != null) {
+                try {
+                    transaction.rollback();
+                } catch (RuntimeException rollbackFailure) {
+                    e.addSuppressed(rollbackFailure);
+                }
+            }
+            if (coordinator != null) {
+                coordinator.handleBatchFailure(e);
+            }
+            return false;
+        }
+        if (transaction != null) {
+            if (accepted) {
+                transaction.commit();
+            } else {
+                transaction.rollback();
+            }
+        } else if (accepted && coordinator != null) {
+            coordinator.recordSlowCraftAccepted();
+        }
         if (accepted) {
             ECOFastPathPlan plannerPlan = ECOFastPathPlannerHook.tryPlan(controller, patternDetails, table);
             controller.recordCraftingPlannerDecision(plannerPlan.accepted());
         }
-        this.scheduledReason = accepted ? ScheduledReason.UNDEFINED : ScheduledReason.SOMETHING_STUCK;
         return accepted;
     }
 
     @Override
     public boolean isBusy() {
         TileECOController controller = this.findCraftingController();
-        return controller == null || !controller.isFormed() || controller.findAvailableCraftingWorker() == null;
+        return controller == null || !controller.isFormed() || !controller.hasVirtualCraftingCapacity();
     }
 
     @Override
@@ -90,10 +139,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     }
 
     public int getPatternCount() {
-        if (this.worldObj != null && this.worldObj.isRemote) {
-            return this.clientPatternCount;
-        }
-        return this.countPatterns();
+        return this.cachedPatternCount;
     }
 
     public int patternCount() {
@@ -229,26 +275,26 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
                 this.patterns[slot] = ItemStack.loadItemStackFromNBT(slotTag.getCompoundTag(TAG_STACK));
             }
         }
-        this.clientPatternCount = this.countPatterns();
+        this.cachedPatternCount = this.countPatterns();
     }
 
     @Override
     public Packet getDescriptionPacket() {
         NBTTagCompound tag = new NBTTagCompound();
-        tag.setInteger(TAG_PATTERN_COUNT, this.countPatterns());
+        tag.setInteger(TAG_PATTERN_COUNT, this.cachedPatternCount);
         return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
     }
 
     @Override
     public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {
-        this.clientPatternCount = packet.func_148857_g()
+        this.cachedPatternCount = packet.func_148857_g()
             .getInteger(TAG_PATTERN_COUNT);
     }
 
     private void onInventoryChanged() {
-        this.clientPatternCount = this.countPatterns();
+        this.cachedPatternCount = this.countPatterns();
         this.markDirty();
-        this.notifyCraftingControllerChanged();
+        this.notifyCraftingPatternsChanged();
     }
 
     private int countPatterns() {

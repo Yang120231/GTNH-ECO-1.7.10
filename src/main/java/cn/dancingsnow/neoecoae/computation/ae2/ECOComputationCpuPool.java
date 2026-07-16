@@ -125,10 +125,12 @@ public final class ECOComputationCpuPool {
         List<ECOComputationVirtualCpu> snapshot = new ArrayList<ECOComputationVirtualCpu>(this.cpus);
         for (ECOComputationVirtualCpu cpu : snapshot) {
             cpu.shutdown();
+            if (cpu.shouldPersist()) {
+                this.pendingRestore.add(this.writeCpu(cpu));
+            }
         }
         this.cpus.clear();
         this.pendingRelease.clear();
-        this.pendingRestore.clear();
         this.idleCpu = null;
         this.detach();
     }
@@ -216,6 +218,10 @@ public final class ECOComputationCpuPool {
     void onCpuJobFinished(ECOComputationVirtualCpu cpu) {
         this.release(cpu);
         this.host.requestComputationCpuRefresh();
+    }
+
+    void requestLinkRebind() {
+        this.syncCurrent();
     }
 
     String nameFor(int serial, boolean busy) {

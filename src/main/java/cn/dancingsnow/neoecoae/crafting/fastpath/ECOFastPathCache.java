@@ -5,8 +5,10 @@ import java.util.Map;
 
 public final class ECOFastPathCache {
 
+    static final long NEGATIVE_CACHE_TTL_TICKS = 1200L;
+
     private final LruMap<ECOFastPathPatternKey, ECOFastPathPatternProfile> profiles;
-    private final LruMap<ECOFastPathPatternKey, String> negatives;
+    private final LruMap<ECOFastPathPatternKey, NegativeEntry> negatives;
 
     public ECOFastPathCache() {
         this(ECOFastPathConfig.patternCacheSize(), ECOFastPathConfig.negativeCacheSize());
@@ -14,15 +16,23 @@ public final class ECOFastPathCache {
 
     public ECOFastPathCache(int profileSize, int negativeSize) {
         this.profiles = new LruMap<ECOFastPathPatternKey, ECOFastPathPatternProfile>(Math.max(1, profileSize));
-        this.negatives = new LruMap<ECOFastPathPatternKey, String>(Math.max(1, negativeSize));
+        this.negatives = new LruMap<ECOFastPathPatternKey, NegativeEntry>(Math.max(1, negativeSize));
     }
 
     public synchronized ECOFastPathPatternProfile getProfile(ECOFastPathPatternKey key) {
         return key == null ? null : this.profiles.get(key);
     }
 
-    public synchronized String getNegativeReason(ECOFastPathPatternKey key) {
-        return key == null ? null : this.negatives.get(key);
+    public synchronized String getNegativeReason(ECOFastPathPatternKey key, long tick) {
+        if (key == null) {
+            return null;
+        }
+        NegativeEntry entry = this.negatives.get(key);
+        if (entry != null && negativeExpired(entry.createdTick, tick)) {
+            this.negatives.remove(key);
+            return null;
+        }
+        return entry == null ? null : entry.reason;
     }
 
     public synchronized void putProfile(ECOFastPathPatternProfile profile) {
@@ -33,12 +43,12 @@ public final class ECOFastPathCache {
         this.profiles.put(profile.getKey(), profile);
     }
 
-    public synchronized void putNegative(ECOFastPathPatternKey key, String reason) {
+    public synchronized void putNegative(ECOFastPathPatternKey key, String reason, long tick) {
         if (key == null) {
             return;
         }
         this.profiles.remove(key);
-        this.negatives.put(key, reason == null ? "" : reason);
+        this.negatives.put(key, new NegativeEntry(reason, tick));
     }
 
     public synchronized void clear() {
@@ -52,6 +62,26 @@ public final class ECOFastPathCache {
 
     public synchronized int negativeSize() {
         return this.negatives.size();
+    }
+
+    static boolean negativeExpired(long createdTick, long tick) {
+        long age = tick - createdTick;
+        return age < 0L || age >= NEGATIVE_CACHE_TTL_TICKS;
+    }
+
+    private static final class NegativeEntry {
+
+        private final String reason;
+        private final long createdTick;
+
+        private NegativeEntry(String reason, long createdTick) {
+            this.reason = reason == null ? "" : reason;
+            this.createdTick = tickOrZero(createdTick);
+        }
+
+        private static long tickOrZero(long tick) {
+            return Math.max(0L, tick);
+        }
     }
 
     private static final class LruMap<K, V> extends LinkedHashMap<K, V> {

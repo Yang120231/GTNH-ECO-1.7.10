@@ -2,73 +2,28 @@ package cn.dancingsnow.neoecoae.tile;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
-import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
-import net.minecraftforge.common.util.Constants;
 
-import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.storage.data.IAEItemStack;
-import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
-
+/**
+ * Physical FX core. It contributes capacity through the formed structure and intentionally owns no
+ * crafting state; the controller's virtual pool is the sole executor and persistence owner.
+ */
 public class TileCraftingWorker extends TileCraftingMember {
 
     public static final int BASE_QUEUE_CAPACITY = 32;
-
-    private static final String TAG_RUNNING = "Running";
-    private static final String TAG_SLOT_ID = "SlotId";
-    private static final String TAG_PROGRESS = "Progress";
-    private static final String TAG_TOTAL_PROGRESS = "TotalProgress";
-    private static final String TAG_QUEUE = "Queue";
-    private static final String TAG_OUTPUT = "Output";
-    private static final int PROGRESS_SYNC_BUCKETS = 10;
-
-    private final List<WorkEntry> queue = new ArrayList<WorkEntry>();
-
-    public boolean acceptPattern(ICraftingPatternDetails details, InventoryCrafting table) {
-        return this.acceptPatternBatch(details, table, 1);
-    }
-
-    public boolean acceptPatternBatch(ICraftingPatternDetails details, InventoryCrafting table, int craftCount) {
-        if (details == null || table == null || !this.hasQueueSpace()) {
-            return false;
-        }
-        int acceptedCrafts = Math.min(Math.max(1, craftCount), this.availableQueueSpace());
-        if (acceptedCrafts <= 0) {
-            return false;
-        }
-        ItemStack output = details.getOutput(table, this.worldObj);
-        if (output == null) {
-            IAEItemStack[] outputs = details.getCondensedOutputs();
-            if (outputs != null && outputs.length > 0 && outputs[0] != null) {
-                output = outputs[0].getItemStack();
-            }
-        }
-        if (output == null) {
-            return false;
-        }
-        TileECOController controller = this.findCraftingController();
-        if (controller != null && !controller.consumeCraftingCoolantForWork(acceptedCrafts)) {
-            return false;
-        }
-        for (int i = 0; i < acceptedCrafts; i++) {
-            this.queue
-                .add(new WorkEntry(this.queue.size(), 0, ECOEnergyProfile.CRAFTING_WORK_MAX_PROGRESS, output.copy()));
-        }
-        this.normalizeSlots();
-        this.onStateChanged();
-        return true;
-    }
+    private static final String TAG_STACK_AMOUNT = "EcoAmount";
 
     public boolean isRunning() {
-        return !this.queue.isEmpty();
+        TileECOController controller = this.findCraftingController();
+        return controller != null && controller.isVirtualCraftingRunning();
     }
 
     public boolean isWorking() {
@@ -76,331 +31,156 @@ public class TileCraftingWorker extends TileCraftingMember {
     }
 
     public int queueSize() {
-        return this.queue.size();
+        return 0;
     }
 
     public int queueCapacity() {
-        return BASE_QUEUE_CAPACITY;
+        TileECOController controller = this.findCraftingController();
+        return controller == null ? BASE_QUEUE_CAPACITY : controller.getCraftingMaxInFlightCrafts();
     }
 
     public boolean hasQueueSpace() {
-        return this.queueSize() < this.queueCapacity();
+        TileECOController controller = this.findCraftingController();
+        return controller != null && controller.getCraftingCurrentBatchSlots() > 0;
     }
 
     public int availableQueueSpace() {
-        return Math.max(0, this.queueCapacity() - this.queueSize());
+        TileECOController controller = this.findCraftingController();
+        return controller == null ? 0 : controller.getCraftingCurrentBatchSlots();
     }
 
     public int getSlotId() {
-        WorkEntry entry = this.peekEntry();
-        return entry == null ? -1 : entry.slotId;
+        return -1;
     }
 
     public int getProgress() {
-        WorkEntry entry = this.peekEntry();
-        return entry == null ? 0 : entry.progress;
+        return 0;
     }
 
     public int getTotalProgress() {
-        WorkEntry entry = this.peekEntry();
-        return entry == null ? 0 : entry.totalProgress;
+        return 0;
     }
 
     public ItemStack getCurrentOutput() {
-        WorkEntry entry = this.peekEntry();
-        return entry == null || entry.output == null ? null : entry.output.copy();
+        return null;
     }
 
     public ItemStack takePendingOutput() {
-        WorkEntry entry = this.queue.isEmpty() ? null : this.queue.remove(0);
-        if (entry == null) {
-            return null;
-        }
-        this.normalizeSlots();
-        this.onStateChanged();
-        return entry.output == null ? null : entry.output.copy();
+        return null;
     }
 
     public List<ItemStack> takeQueuedOutputs() {
-        if (this.queue.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<ItemStack> outputs = new ArrayList<ItemStack>();
-        for (WorkEntry entry : this.queue) {
-            if (entry.output != null) {
-                outputs.add(entry.output.copy());
-            }
-        }
-        this.queue.clear();
-        this.onStateChanged();
-        return outputs;
+        return Collections.emptyList();
     }
 
-    public void clearRunningSlot() {
-        if (!this.queue.isEmpty()) {
-            this.queue.remove(0);
-            this.normalizeSlots();
-            this.onStateChanged();
-        }
-    }
+    public void clearRunningSlot() {}
 
-    public void setRunningSlot(int slotId, int progress, int totalProgress, boolean running) {
-        int normalizedTotal = Math.max(0, totalProgress);
-        int normalizedProgress = Math.max(0, Math.min(progress, normalizedTotal));
-        int normalizedSlot = running ? Math.max(0, slotId) : -1;
-        WorkEntry current = this.peekEntry();
-        if (!running) {
-            if (this.queue.isEmpty()) {
-                return;
-            }
-            this.queue.clear();
-            this.onStateChanged();
-            return;
-        }
-        if (current != null && current.slotId == normalizedSlot
-            && current.progress == normalizedProgress
-            && current.totalProgress == normalizedTotal) {
-            return;
-        }
-        if (current == null) {
-            this.queue.add(new WorkEntry(normalizedSlot, normalizedProgress, normalizedTotal, null));
-        } else {
-            current.slotId = normalizedSlot;
-            current.progress = normalizedProgress;
-            current.totalProgress = normalizedTotal;
-        }
-        this.normalizeSlots();
-        this.onStateChanged();
-    }
+    public void setRunningSlot(int slotId, int progress, int totalProgress, boolean running) {}
 
     @Override
-    public void markDirty() {
-        super.markDirty();
-        if (this.worldObj != null && !this.worldObj.isRemote) {
-            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
-        }
+    public void updateEntity() {
+        // Intentionally empty. All work is executed once by ECOCraftingVirtualPool on the controller.
     }
 
     @Override
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
-        WorkEntry current = this.peekEntry();
-        tag.setBoolean(TAG_RUNNING, current != null);
-        tag.setInteger(TAG_SLOT_ID, current == null ? -1 : current.slotId);
-        tag.setInteger(TAG_PROGRESS, current == null ? 0 : current.progress);
-        tag.setInteger(TAG_TOTAL_PROGRESS, current == null ? 0 : current.totalProgress);
-        if (current != null && current.output != null) {
-            NBTTagCompound legacyOutput = new NBTTagCompound();
-            current.output.writeToNBT(legacyOutput);
-            tag.setTag("PendingOutput", legacyOutput);
-        }
-        NBTTagList list = new NBTTagList();
-        for (WorkEntry entry : this.queue) {
-            NBTTagCompound entryTag = new NBTTagCompound();
-            entryTag.setInteger(TAG_SLOT_ID, entry.slotId);
-            entryTag.setInteger(TAG_PROGRESS, entry.progress);
-            entryTag.setInteger(TAG_TOTAL_PROGRESS, entry.totalProgress);
-            if (entry.output != null) {
-                NBTTagCompound outputTag = new NBTTagCompound();
-                entry.output.writeToNBT(outputTag);
-                entryTag.setTag(TAG_OUTPUT, outputTag);
-            }
-            list.appendTag(entryTag);
-        }
-        tag.setTag(TAG_QUEUE, list);
     }
 
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
-        this.queue.clear();
-        NBTTagList list = tag.getTagList(TAG_QUEUE, Constants.NBT.TAG_COMPOUND);
-        int capacity = this.queueCapacity();
-        if (list.tagCount() > capacity) {
-            NeoECOAE.LOG.warn(
-                "Dropping {} crafting tasks at {} due to capacity limit (capacity={})",
-                list.tagCount() - capacity,
-                this.xCoord + "," + this.yCoord + "," + this.zCoord,
-                capacity);
-        }
-        for (int i = 0; i < list.tagCount() && this.queue.size() < capacity; i++) {
-            WorkEntry entry = readEntry(list.getCompoundTagAt(i));
-            if (entry != null) {
-                this.queue.add(entry);
-            }
-        }
-        if (this.queue.isEmpty() && tag.getBoolean(TAG_RUNNING)) {
-            ItemStack output = tag.hasKey("PendingOutput")
-                ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag("PendingOutput"))
-                : null;
-            this.queue.add(
-                new WorkEntry(
-                    Math.max(0, tag.getInteger(TAG_SLOT_ID)),
-                    Math.max(0, tag.getInteger(TAG_PROGRESS)),
-                    Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS)),
-                    output));
-        }
-        this.normalizeSlots();
     }
 
     @Override
     public Packet getDescriptionPacket() {
-        NBTTagCompound tag = new NBTTagCompound();
-        WorkEntry current = this.peekEntry();
-        tag.setBoolean(TAG_RUNNING, current != null);
-        tag.setInteger(TAG_SLOT_ID, current == null ? -1 : current.slotId);
-        tag.setInteger(TAG_PROGRESS, current == null ? 0 : current.progress);
-        tag.setInteger(TAG_TOTAL_PROGRESS, current == null ? 0 : current.totalProgress);
-        return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
+        return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, new NBTTagCompound());
     }
 
     @Override
-    public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {
-        NBTTagCompound tag = packet.func_148857_g();
-        this.queue.clear();
-        if (tag.getBoolean(TAG_RUNNING)) {
-            this.queue.add(
-                new WorkEntry(
-                    Math.max(0, tag.getInteger(TAG_SLOT_ID)),
-                    Math.max(0, tag.getInteger(TAG_PROGRESS)),
-                    Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS)),
-                    null));
-        }
-        this.normalizeSlots();
+    public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {}
+
+    public WorkSnapshot snapshot() {
+        return new WorkSnapshot(null, 0, this.queueCapacity(), 0, 0);
     }
 
-    private void onStateChanged() {
-        this.markDirty();
-        this.notifyCraftingControllerChanged();
+    static List<ItemStack> multiplyStack(ItemStack stack, int multiplier) {
+        List<ItemStack> result = new ArrayList<ItemStack>();
+        if (stack == null || stack.stackSize <= 0 || multiplier <= 0) {
+            return result;
+        }
+        long amount = (long) stack.stackSize * multiplier;
+        while (amount > 0L) {
+            ItemStack part = stack.copy();
+            part.stackSize = (int) Math.min(amount, Integer.MAX_VALUE);
+            result.add(part);
+            amount -= part.stackSize;
+        }
+        return result;
     }
 
-    @Override
-    public void updateEntity() {
-        if (this.worldObj == null || this.worldObj.isRemote || this.queue.isEmpty()) {
-            return;
-        }
-        TileECOController controller = this.findCraftingController();
-        if (controller == null) {
-            return;
-        }
-        long performanceStartNanos = System.nanoTime();
-        int burstLimit = Math.max(1, controller.getCraftingBurstCraftsPerTick());
-        int bonusValue = controller.getCraftingWorkBonusValue();
-        int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
+    static boolean sameStackType(ItemStack left, ItemStack right) {
+        return left != null && right != null && left.isItemEqual(right) && ItemStack.areItemStackTagsEqual(left, right);
+    }
 
-        boolean queueChanged = false;
-        boolean progressDirty = false;
-        int completed = 0;
+    static long countMatching(List<ItemStack> stacks, ItemStack prototype) {
+        long count = 0L;
+        for (ItemStack stack : stacks) {
+            if (sameStackType(prototype, stack)) {
+                count += stack.stackSize;
+            }
+        }
+        return count;
+    }
 
-        // Each queued entry is exactly one AE2-authorised craft (inputs already consumed by AE2 at
-        // push time). Draining several finished entries per tick is safe - it only speeds up output
-        // of work that was already authorised, it never fabricates extra crafts or inputs.
-        while (completed < burstLimit) {
-            WorkEntry current = this.peekEntry();
-            if (current == null) {
-                break;
-            }
-            if (current.progress < current.totalProgress) {
-                int gained = this.advanceProgress(controller, current, bonusValue, powerMultiplier);
-                if (gained <= 0) {
-                    break;
-                }
-                int previousProgress = current.progress;
-                current.progress = Math.min(current.totalProgress, current.progress + gained);
-                if (this.progressBucketChanged(previousProgress, current)) {
-                    progressDirty = true;
-                }
-                if (current.progress < current.totalProgress) {
-                    break;
-                }
-            }
-            ItemStack remaining = current.output == null ? null : controller.acceptCraftingOutput(current.output);
-            if (remaining == null) {
-                this.queue.remove(0);
-                queueChanged = true;
-                completed++;
+    static void removeMatching(List<ItemStack> stacks, ItemStack prototype, long amount) {
+        for (Iterator<ItemStack> it = stacks.iterator(); it.hasNext() && amount > 0L;) {
+            ItemStack stack = it.next();
+            if (!sameStackType(prototype, stack)) {
                 continue;
             }
-            if (current.output == null || remaining.stackSize < current.output.stackSize) {
-                current.output = remaining.copy();
-                queueChanged = true;
+            int removed = (int) Math.min(amount, stack.stackSize);
+            stack.stackSize -= removed;
+            amount -= removed;
+            if (stack.stackSize <= 0) {
+                it.remove();
             }
-            break;
-        }
-
-        if (queueChanged) {
-            this.normalizeSlots();
-            this.onStateChanged();
-        } else if (progressDirty) {
-            this.markDirty();
-        }
-        controller.recordCraftingPerformanceSample(System.nanoTime() - performanceStartNanos);
-    }
-
-    private int advanceProgress(TileECOController controller, WorkEntry current, int bonusValue, int powerMultiplier) {
-        double request = ECOEnergyProfile.craftingWorkPowerRequest(1, bonusValue, 1, powerMultiplier);
-        double simulated = controller.extractCraftingEnergy(request, true);
-        if (simulated <= 0D) {
-            return 0;
-        }
-        double consumable = Math.min(request, simulated);
-        int progress = ECOEnergyProfile.craftingWorkPowerFromExtracted(consumable, 1, powerMultiplier);
-        if (progress <= 0) {
-            return 0;
-        }
-        double extracted = controller.extractCraftingEnergy(consumable, false);
-        return ECOEnergyProfile.craftingWorkPowerFromExtracted(extracted, 1, powerMultiplier);
-    }
-
-    private WorkEntry peekEntry() {
-        return this.queue.isEmpty() ? null : this.queue.get(0);
-    }
-
-    private boolean progressBucketChanged(int previousProgress, WorkEntry current) {
-        if (current == null || current.progress <= previousProgress) {
-            return false;
-        }
-        return current.progress >= current.totalProgress || progressSyncBucket(previousProgress, current.totalProgress)
-            != progressSyncBucket(current.progress, current.totalProgress);
-    }
-
-    private static int progressSyncBucket(int progress, int totalProgress) {
-        if (progress <= 0 || totalProgress <= 0) {
-            return 0;
-        }
-        if (progress >= totalProgress) {
-            return PROGRESS_SYNC_BUCKETS;
-        }
-        long longTotal = (long) totalProgress;
-        if (longTotal <= 0L || progress < 0) {
-            return 0;
-        }
-        return (int) Math.min(PROGRESS_SYNC_BUCKETS - 1L, (long) progress * (long) PROGRESS_SYNC_BUCKETS / longTotal);
-    }
-
-    private void normalizeSlots() {
-        for (int i = 0; i < this.queue.size(); i++) {
-            WorkEntry entry = this.queue.get(i);
-            entry.slotId = i;
-            entry.totalProgress = Math.max(0, entry.totalProgress);
-            entry.progress = Math.max(0, Math.min(entry.progress, entry.totalProgress));
         }
     }
 
-    private static WorkEntry readEntry(NBTTagCompound tag) {
-        if (tag == null || !tag.hasKey(TAG_OUTPUT)) {
-            return null;
+    static NBTTagList writeStacks(List<ItemStack> stacks) {
+        NBTTagList list = new NBTTagList();
+        for (ItemStack stack : stacks) {
+            if (stack == null || stack.stackSize <= 0) {
+                continue;
+            }
+            NBTTagCompound stackTag = new NBTTagCompound();
+            ItemStack prototype = stack.copy();
+            prototype.stackSize = 1;
+            prototype.writeToNBT(stackTag);
+            stackTag.setInteger(TAG_STACK_AMOUNT, stack.stackSize);
+            list.appendTag(stackTag);
         }
-        ItemStack output = ItemStack.loadItemStackFromNBT(tag.getCompoundTag(TAG_OUTPUT));
-        if (output == null) {
-            return null;
+        return list;
+    }
+
+    static List<ItemStack> readStacks(NBTTagList list) {
+        List<ItemStack> result = new ArrayList<ItemStack>();
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound stackTag = list.getCompoundTagAt(i);
+            ItemStack stack = ItemStack.loadItemStackFromNBT(stackTag);
+            if (stack != null) {
+                stack.stackSize = persistedStackAmount(stackTag, stack.stackSize);
+                result.add(stack);
+            }
         }
-        int totalProgress = Math.max(0, tag.getInteger(TAG_TOTAL_PROGRESS));
-        return new WorkEntry(
-            Math.max(0, tag.getInteger(TAG_SLOT_ID)),
-            Math.max(0, Math.min(tag.getInteger(TAG_PROGRESS), totalProgress)),
-            totalProgress,
-            output);
+        return result;
+    }
+
+    static int persistedStackAmount(NBTTagCompound stackTag, int decodedAmount) {
+        return stackTag.hasKey(TAG_STACK_AMOUNT)
+            ? Math.max(1, stackTag.getInteger(TAG_STACK_AMOUNT))
+            : Math.max(1, decodedAmount);
     }
 
     public static final class WorkSnapshot {
@@ -413,35 +193,15 @@ public class TileCraftingWorker extends TileCraftingMember {
 
         private WorkSnapshot(ItemStack output, int queueSize, int queueCapacity, int progress, int totalProgress) {
             this.output = output == null ? null : output.copy();
-            this.queueSize = Math.max(0, queueSize);
-            this.queueCapacity = Math.max(0, queueCapacity);
-            this.progress = Math.max(0, progress);
-            this.totalProgress = Math.max(0, totalProgress);
+            this.queueSize = queueSize;
+            this.queueCapacity = queueCapacity;
+            this.progress = progress;
+            this.totalProgress = totalProgress;
         }
-    }
 
-    public WorkSnapshot snapshot() {
-        WorkEntry current = this.peekEntry();
-        return new WorkSnapshot(
-            current == null ? null : current.output,
-            this.queueSize(),
-            this.queueCapacity(),
-            current == null ? 0 : current.progress,
-            current == null ? 0 : current.totalProgress);
-    }
-
-    private static final class WorkEntry {
-
-        private int slotId;
-        private int progress;
-        private int totalProgress;
-        private ItemStack output;
-
-        private WorkEntry(int slotId, int progress, int totalProgress, ItemStack output) {
-            this.slotId = Math.max(0, slotId);
-            this.totalProgress = Math.max(0, totalProgress);
-            this.progress = Math.max(0, Math.min(progress, this.totalProgress));
-            this.output = output == null ? null : output.copy();
+        static WorkSnapshot create(ItemStack output, int queueSize, int queueCapacity, int progress,
+            int totalProgress) {
+            return new WorkSnapshot(output, queueSize, queueCapacity, progress, totalProgress);
         }
     }
 }

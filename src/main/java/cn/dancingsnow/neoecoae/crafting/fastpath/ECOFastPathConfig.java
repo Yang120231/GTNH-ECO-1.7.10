@@ -8,6 +8,7 @@ public final class ECOFastPathConfig {
     public static final int NEGATIVE_CACHE_SIZE = 256;
     public static final int MAX_PATTERN_INPUTS = 9;
     public static final int MAX_PATTERN_OUTPUTS = 3;
+    public static final int MAX_BATCH_SIZE = 65536;
 
     private ECOFastPathConfig() {}
 
@@ -21,5 +22,13 @@ public final class ECOFastPathConfig {
 
     public static int negativeCacheSize() {
         return NEGATIVE_CACHE_SIZE;
+    }
+
+    public static int batchTickLimit() {
+        return Config.getEcoCraftingFastPathTickLimit();
+    }
+
+    public static boolean isAggressiveBatchEnabled() {
+        return Config.isEcoAggressiveCraftingFastPathEnabled();
     }
 }

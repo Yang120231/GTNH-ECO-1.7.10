@@ -7,6 +7,7 @@ import cn.dancingsnow.neoecoae.all.NEOreDictionary;
 import cn.dancingsnow.neoecoae.all.NERecipes;
 import cn.dancingsnow.neoecoae.all.NETileEntities;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipes;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
 import cn.dancingsnow.neoecoae.gui.NEGuiHandler;
 import cn.dancingsnow.neoecoae.network.HostUiStatePacket;
 import cn.dancingsnow.neoecoae.network.NENetwork;
@@ -55,7 +56,9 @@ public class CommonProxy {
     }
 
     // register server commands in this event handler (Remove if not needed)
-    public void serverStarting(FMLServerStartingEvent event) {}
+    public void serverStarting(FMLServerStartingEvent event) {
+        ECOFastPathPlannerHook.clearCaches();
+    }
 
     public Object createHostControllerGui(int id, net.minecraft.entity.player.InventoryPlayer playerInventory,
         TileECOController controller) {
