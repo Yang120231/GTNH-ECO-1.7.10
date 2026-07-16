@@ -103,6 +103,10 @@ abstract class GuiHostMachineBase extends GuiContainer {
             6);
     }
 
+    protected final void drawCompactHostPanelBorderLocal(int x, int y, int width, int height) {
+        this.drawNineSlice(HostPanelBorderTexture.location(), x, y, width, height, 16, 16, 3, 3, 3, 3);
+    }
+
     protected final void drawTinyInsetRect(int x, int y, int width, int height, int innerColor) {
         int left = this.guiLeft + x;
         int top = this.guiTop + y;
@@ -175,6 +179,23 @@ abstract class GuiHostMachineBase extends GuiContainer {
         int filled = this.ratioSize(value, max, width - 4);
         if (filled > 0) {
             drawRect(x + 2, y + 2, x + 2 + filled, y + height - 2, color);
+        }
+    }
+
+    /** 1.21.1 host statistics progress bar: two-pixel frame, inset track, and highlighted fill. */
+    protected final void drawThickProgressBarLocal(int x, int y, int width, int height, long value, long max,
+        int color) {
+        if (width < 7 || height < 7) {
+            this.drawUsageBarLocal(x, y, width, height, value, max, color);
+            return;
+        }
+        this.drawCompactHostPanelBorderLocal(x, y, width, height);
+        drawRect(x + 2, y + 2, x + width - 2, y + height - 2, 0xFF201E27);
+        int innerWidth = width - 6;
+        int fill = this.ratioSize(value, max, innerWidth);
+        if (fill > 0) {
+            drawRect(x + 3, y + 3, x + 3 + fill, y + height - 3, color);
+            drawRect(x + 3, y + 3, x + 3 + fill, Math.min(y + height - 3, y + 4), 0x70FFFFFF);
         }
     }
 
@@ -349,6 +370,14 @@ abstract class GuiHostMachineBase extends GuiContainer {
     protected final String translate(String key, Object... args) {
         String translated = StatCollector.translateToLocalFormatted(key, args);
         return key.equals(translated) ? key : translated;
+    }
+
+    protected final String hostBlockTitle(String subsystem, String tier, String fallback) {
+        String rawTier = tier == null ? "" : tier.toLowerCase(Locale.US);
+        String normalizedTier = rawTier.endsWith("9") ? "l9" : rawTier.endsWith("6") ? "l6" : "l4";
+        String key = "tile." + subsystem + "_system_" + normalizedTier + ".name";
+        String translated = StatCollector.translateToLocal(key);
+        return key.equals(translated) ? fallback : translated;
     }
 
     protected final String yesNo(boolean value) {

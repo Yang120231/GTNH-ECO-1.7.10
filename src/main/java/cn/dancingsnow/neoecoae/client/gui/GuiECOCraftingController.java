@@ -6,15 +6,22 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.IIcon;
 import net.minecraft.util.StatCollector;
+
+import net.minecraftforge.fluids.Fluid;
 
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
+import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipe;
+import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipes;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerLayout;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingHostSnapshot;
 import cn.dancingsnow.neoecoae.network.NENetwork;
@@ -30,7 +37,8 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private static final int COOLING_BUTTON_ID = 7702;
     private static final int EDGE = 6;
     private static final int GAP = 6;
-    private static final int HEADER_Y = 8;
+    private static final int HEADER_X = 6;
+    private static final int HEADER_Y = 9;
     private static final int TOP_AREA_Y = 27;
     private static final int TOP_AREA_H = 70;
     private static final int STATUS_AREA_X = EDGE;
@@ -39,7 +47,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private static final int MODULE_AREA_Y = TOP_AREA_Y;
     private static final int MODULE_AREA_W = 114;
     private static final int GAUGE_AREA_X = MODULE_AREA_X + MODULE_AREA_W + GAP;
-    private static final int GAUGE_AREA_W = 90;
+    private static final int GAUGE_AREA_W = 96;
     private static final int TASK_PANEL_X = 176;
     private static final int TASK_PANEL_Y = 102;
     private static final int TASK_PANEL_W = 122;
@@ -57,7 +65,6 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private static final int GAUGE_BAR_W = 20;
     private static final int COOLANT_GAUGE_W = 23;
     private static final int GAUGE_GAP = 14;
-    private static final int GAUGE_HOVER_BOTTOM_PADDING = 11;
     private static final int TOOLBAR_SIZE = 16;
     private static final int TOOLBAR_GAP = 4;
     private static final int TOOLBAR_Y = 4;
@@ -194,10 +201,10 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private void drawHeader(CraftingHostSnapshot state) {
         boolean active = state.formed;
         this.drawLocalText(
-            tr("gui.neoecoae.crafting_ui.title", "ECO Crafting Host") + " " + state.tier,
-            EDGE,
+            this.hostBlockTitle("crafting", state.tier, "ECO Crafting Host " + state.tier),
+            HEADER_X,
             HEADER_Y,
-            HostUiStyle.TEXT_PRIMARY);
+            HostUiStyle.HOST_TITLE);
         String status = tr("gui.neoecoae.machine.formed", "Formed") + ": " + yesNo(state.formed);
         this.drawLocalRight(
             status,
@@ -303,23 +310,22 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
 
     private void drawStatsPanel(CraftingHostSnapshot state, int mouseX, int mouseY) {
         int x = MODULE_AREA_X + 8;
-        int right = MODULE_AREA_X + MODULE_AREA_W - 8;
         this.drawScaledText(tr("gui.neoecoae.crafting.ui.stats", "Statistics"), x, TOP_AREA_Y + 7,
             TEXT_SCALE, HostUiStyle.DARK_TEXT_PRIMARY);
-        String perf = formatPerformance(state.performanceAverageNanos);
-        int perfW = Math.round(this.fontRendererObj.getStringWidth(perf) * TEXT_SCALE);
-        this.drawScaledText(perf, right - perfW, TOP_AREA_Y + 7, TEXT_SCALE, HostUiStyle.DARK_TEXT_VALUE);
 
         String slots = tr("gui.neoecoae.crafting.recipe_slots", "Recipe Slots") + ": "
             + this.formatNumber(state.occupiedRecipeSlots) + " / " + this.formatNumber(state.maxRecipeSlots);
         this.drawScaledFittedText(slots, x, TOP_AREA_Y + 21, MODULE_AREA_W - 16, TEXT_SCALE,
             HostUiStyle.DARK_TEXT_MUTED);
         int barY = TOP_AREA_Y + 32;
-        this.drawTinyInsetLocal(x, barY, MODULE_AREA_W - 16, 9, 0xFF201E27);
-        int fill = this.ratioWidth(state.occupiedRecipeSlots, state.maxRecipeSlots, MODULE_AREA_W - 20);
-        if (fill > 0) {
-            drawRect(x + 2, barY + 2, x + 2 + fill, barY + 7, HostUiStyle.DARK_TEXT_VALUE);
-        }
+        this.drawThickProgressBarLocal(
+            x,
+            barY,
+            MODULE_AREA_W - 16,
+            9,
+            state.occupiedRecipeSlots,
+            state.maxRecipeSlots,
+            HostUiStyle.DARK_TEXT_VALUE);
         this.drawScaledFittedText(tr("gui.neoecoae.crafting.batch_parallel", "Batch Parallel") + ": "
             + this.formatNumber(state.batchParallel), x, TOP_AREA_Y + 45, MODULE_AREA_W - 16, TEXT_SCALE,
             HostUiStyle.DARK_TEXT_MUTED);
@@ -341,23 +347,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             + this.formatNumber(state.batchParallel));
         lines.add(tr("gui.neoecoae.host.crafting.overflow", "Overflow") + ": "
             + this.formatNumber(state.overflowThreads));
-        lines.add(tr("gui.neoecoae.crafting.performance", "Performance") + ": "
-            + formatPerformanceDetailed(state.performanceAverageNanos));
         return lines;
-    }
-
-    private static String formatPerformance(long averageNanos) {
-        long safe = Math.max(0L, averageNanos);
-        long micros = Math.round(safe / 1000.0D);
-        return micros < 1000L ? micros + " us"
-            : String.format(java.util.Locale.US, "%.3f ms", safe / 1000000.0D).replaceAll("0+$", "")
-                .replaceAll("\\.$", "");
-    }
-
-    private static String formatPerformanceDetailed(long averageNanos) {
-        long safe = Math.max(0L, averageNanos);
-        return Math.round(safe / 1000.0D) + " us / "
-            + String.format(java.util.Locale.US, "%.3f ms", safe / 1000000.0D);
     }
 
     private static String recipeTimeMultiplier(int effectiveOverclockTimes) {
@@ -515,34 +505,13 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             state.maxEnergyUsage,
             Math.max(1, state.energyGaugeReference),
             energyColor(state));
-        this.drawVerticalGaugeLocal(
-            coolantX,
-            GAUGE_BAR_Y,
-            COOLANT_GAUGE_W,
-            GAUGE_BAR_H,
-            state.coolant,
-            Math.max(1, state.maxCoolant),
-            HostUiStyle.DARK_TEXT_BLUE);
-        this.drawScaledCenteredText(
-            tr("gui.neoecoae.crafting.energy_short", "AE"),
-            energyX - 7,
-            GAUGE_BAR_Y + GAUGE_BAR_H + 2,
-            GAUGE_BAR_W + 14,
-            TEXT_SCALE,
-            HostUiStyle.DARK_TEXT_MUTED);
-        this.drawScaledCenteredText(
-            tr("gui.neoecoae.crafting.cooling_short", "Cool"),
-            coolantX - 7,
-            GAUGE_BAR_Y + GAUGE_BAR_H + 2,
-            COOLANT_GAUGE_W + 14,
-            TEXT_SCALE,
-            HostUiStyle.DARK_TEXT_MUTED);
+        this.drawCoolantGauge(state, coolantX);
         int hoverTop = GAUGE_BAR_Y;
-        int hoverBottom = GAUGE_BAR_Y + GAUGE_BAR_H + GAUGE_HOVER_BOTTOM_PADDING;
-        int energyHoverLeft = energyX - 7;
-        int energyHoverRight = energyX + GAUGE_BAR_W + 7;
-        int coolantHoverLeft = coolantX - 7;
-        int coolantHoverRight = coolantX + COOLANT_GAUGE_W + 7;
+        int hoverBottom = GAUGE_BAR_Y + GAUGE_BAR_H;
+        int energyHoverLeft = energyX;
+        int energyHoverRight = energyX + GAUGE_BAR_W;
+        int coolantHoverLeft = coolantX;
+        int coolantHoverRight = coolantX + COOLANT_GAUGE_W;
         if (this.isMouseIn(
             energyHoverLeft,
             hoverTop,
@@ -679,13 +648,75 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawVerticalGaugeLocal(int x, int y, int width, int height, long value, long max, int color) {
-        this.drawTinyInsetLocal(x, y, width, height, 0xFF201E27);
-        int filled = this.ratioWidth(value, max, height - 4);
+        this.drawGaugeFrame(x, y, width, height);
+        int filled = this.ratioWidth(value, max, height - 8);
         if (filled > 0) {
-            int bottom = y + height - 2;
-            drawRect(x + 2, bottom - filled, x + width - 2, bottom, color);
-            drawRect(x + 2, bottom - filled, x + width - 2, Math.min(bottom, bottom - filled + 1), 0x70FFFFFF);
+            int bottom = y + height - 4;
+            drawRect(x + 4, bottom - filled, x + width - 4, bottom, color);
+            drawRect(x + 4, bottom - filled, x + width - 4, Math.min(bottom, bottom - filled + 2), 0x70FFFFFF);
         }
+    }
+
+    private void drawCoolantGauge(CraftingHostSnapshot state, int x) {
+        this.drawGaugeFrame(x, GAUGE_BAR_Y, COOLANT_GAUGE_W, GAUGE_BAR_H);
+        int innerWidth = COOLANT_GAUGE_W - 8;
+        int innerHeight = GAUGE_BAR_H - 8;
+        int filled = this.ratioWidth(state.coolant, Math.max(1, state.maxCoolant), innerHeight);
+        if (filled <= 0) {
+            return;
+        }
+        int fillY = GAUGE_BAR_Y + 4 + innerHeight - filled;
+        Fluid fluid = this.coolantFluid(state);
+        IIcon icon = fluid == null ? null : fluid.getStillIcon();
+        drawRect(x + 4, fillY, x + 4 + innerWidth, GAUGE_BAR_Y + 4 + innerHeight,
+            HostUiStyle.DARK_TEXT_BLUE);
+        if (icon != null) {
+            this.drawFluidFill(x + 4, fillY, innerWidth, filled, icon);
+        }
+    }
+
+    private void drawGaugeFrame(int x, int y, int width, int height) {
+        drawRect(x, y, x + width, y + height, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
+        drawRect(x + 1, y + 1, x + width - 1, y + height - 1, HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(x + 2, y + 2, x + width - 2, y + height - 2, HostUiStyle.DARK_PANEL_MIDDLE);
+        drawRect(x + 3, y + 3, x + width - 3, y + height - 3, HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(x + 4, y + 4, x + width - 4, y + height - 4, 0xFF201E27);
+    }
+
+    private Fluid coolantFluid(CraftingHostSnapshot state) {
+        if (state.coolant <= 0) {
+            return null;
+        }
+        for (ECOCoolingRecipe recipe : ECOCoolingRecipes.all()) {
+            if (recipe.getMaxOverclock() == state.coolantMaxOverclock) {
+                return recipe.getInputFluid();
+            }
+        }
+        return null;
+    }
+
+    private void drawFluidFill(int x, int y, int width, int height, IIcon icon) {
+        this.mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        for (int offsetY = 0; offsetY < height; offsetY += 16) {
+            int partHeight = Math.min(16, height - offsetY);
+            this.drawFluidIconPart(x, y + offsetY, width, partHeight, icon);
+        }
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private void drawFluidIconPart(int x, int y, int width, int height, IIcon icon) {
+        float minU = icon.getMinU();
+        float maxU = minU + (icon.getMaxU() - minU) * width / 16.0F;
+        float minV = icon.getMinV();
+        float maxV = minV + (icon.getMaxV() - minV) * height / 16.0F;
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawingQuads();
+        tessellator.addVertexWithUV(x, y + height, this.zLevel, minU, maxV);
+        tessellator.addVertexWithUV(x + width, y + height, this.zLevel, maxU, maxV);
+        tessellator.addVertexWithUV(x + width, y, this.zLevel, maxU, minV);
+        tessellator.addVertexWithUV(x, y, this.zLevel, minU, minV);
+        tessellator.draw();
     }
 
     private List<String> moduleTooltip(CraftingHostSnapshot state) {
@@ -730,8 +761,9 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                 this.formatNumber(state.coolant),
                 this.formatNumber(state.maxCoolant)));
         lines.add(this.percentText(state.coolant, state.maxCoolant));
-        lines.add(tr("gui.neoecoae.crafting.coolant_max_overclock", "Max Overclock") + ": "
-            + this.formatNumber(state.coolantMaxOverclock));
+        lines.add(state.coolantMaxOverclock <= 0
+            ? tr("gui.neoecoae.crafting.coolant_max_overclock.none", "Current Coolant Max Overclock: None")
+            : translate("gui.neoecoae.crafting.coolant_max_overclock", Integer.valueOf(state.coolantMaxOverclock)));
         return lines;
     }
 

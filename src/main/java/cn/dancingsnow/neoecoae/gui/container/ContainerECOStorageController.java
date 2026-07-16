@@ -15,7 +15,7 @@ public class ContainerECOStorageController extends HostUiStateContainer {
     private static final int STATE_VERSION = 6;
     private static final int CONTROLLER_SLOT_COUNT = 1;
     public static final int INFINITE_COMPONENT_SLOT_FRAME_X = 306;
-    public static final int INFINITE_COMPONENT_SLOT_FRAME_Y = 184;
+    public static final int INFINITE_COMPONENT_SLOT_FRAME_Y = 190;
     public static final int INFINITE_COMPONENT_SLOT_X = INFINITE_COMPONENT_SLOT_FRAME_X + 1;
     public static final int INFINITE_COMPONENT_SLOT_Y = INFINITE_COMPONENT_SLOT_FRAME_Y + 1;
 

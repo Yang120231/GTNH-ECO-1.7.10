@@ -135,10 +135,10 @@ public class GuiECOComputationController extends GuiHostMachineBase {
 
     private void drawHeader(ComputationHostSnapshot state) {
         this.drawLocalText(
-            tr("gui.neoecoae.computation_ui.title", "ECO Computation Host") + " " + state.tier,
-            8,
+            this.hostBlockTitle("computation", state.tier, "ECO Computation Host " + state.tier),
+            ComputationControllerLayout.HEADER_X,
             ComputationControllerLayout.HEADER_Y,
-            HostUiStyle.TEXT_PRIMARY);
+            HostUiStyle.HOST_TITLE);
         String formedLabel = tr("gui.neoecoae.machine.formed", "Formed") + ": ";
         String activeLabel = "    " + tr("gui.neoecoae.machine.active", "Active") + ": ";
         String formedValue = yesNo(state.formed);
@@ -232,7 +232,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             ComputationControllerLayout.STORAGE_DETAIL_Y,
             true,
             HostUiStyle.DARK_TEXT_BLUE);
-        this.drawUsageBarLocal(
+        this.drawThickProgressBarLocal(
             ComputationControllerLayout.STAT_BAR_X,
             ComputationControllerLayout.STORAGE_BAR_Y,
             ComputationControllerLayout.STAT_BAR_W,
@@ -254,7 +254,7 @@ public class GuiECOComputationController extends GuiHostMachineBase {
             ComputationControllerLayout.THREAD_DETAIL_Y,
             false,
             HostUiStyle.DARK_TEXT_USED);
-        this.drawUsageBarLocal(
+        this.drawThickProgressBarLocal(
             ComputationControllerLayout.STAT_BAR_X,
             ComputationControllerLayout.THREAD_BAR_Y,
             ComputationControllerLayout.STAT_BAR_W,

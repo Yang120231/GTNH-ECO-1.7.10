@@ -28,6 +28,7 @@ import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_D
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_H;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_CONTENT_SHIFT_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_W;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_Y;
@@ -50,15 +51,25 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.IIcon;
 import net.minecraft.util.StatCollector;
 
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
+
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
 
 import appeng.client.gui.widgets.GuiTabButton;
 import appeng.core.localization.GuiText;
@@ -144,29 +155,26 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         this.hoveredLines = null;
-        this.updateConditionalSlotPositions(isInfiniteDisplay(this.container.state()));
+        this.updateSlotPositions();
         super.drawScreen(mouseX, mouseY, partialTicks);
         if (this.hoveredLines != null && !this.hoveredLines.isEmpty()) {
             this.drawTooltip(this.hoveredLines, mouseX, mouseY);
         }
     }
 
-    private void updateConditionalSlotPositions(boolean visible) {
+    private void updateSlotPositions() {
         for (int index = 0; index < this.container.inventorySlots.size(); index++) {
             Slot slot = (Slot) this.container.inventorySlots.get(index);
-            if (!visible) {
-                slot.xDisplayPosition = -10000;
-                slot.yDisplayPosition = -10000;
-            } else if (index == 0) {
+            if (index == 0) {
                 slot.xDisplayPosition = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_X;
                 slot.yDisplayPosition = ContainerECOStorageController.INFINITE_COMPONENT_SLOT_Y;
             } else {
                 int playerIndex = index - 1;
                 if (playerIndex < 27) {
-                    slot.xDisplayPosition = 14 + playerIndex % 9 * 18;
+                    slot.xDisplayPosition = LEFT_X + 1 + playerIndex % 9 * 18;
                     slot.yDisplayPosition = 148 + playerIndex / 9 * 18;
                 } else {
-                    slot.xDisplayPosition = 14 + (playerIndex - 27) * 18;
+                    slot.xDisplayPosition = LEFT_X + 1 + (playerIndex - 27) * 18;
                     slot.yDisplayPosition = 206;
                 }
             }
@@ -193,22 +201,18 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         // Background layers draw in screen coordinates. The local variant is only valid from the
         // foreground layer, where GuiContainer has already translated by guiLeft/guiTop.
         this.drawTinyInsetRect(RIGHT_DARK_X, RIGHT_DARK_Y, RIGHT_DARK_W, RIGHT_DARK_H, 0xFF201E27);
-        if (isInfiniteDisplay(this.container.state())) {
-            this.drawSlotTexture(this.guiLeft + COMPONENT_SLOT_X, this.guiTop + COMPONENT_SLOT_Y);
-            this.drawPlayerInventorySlots(13, 147, 205);
-        }
+        this.drawSlotTexture(this.guiLeft + COMPONENT_SLOT_X, this.guiTop + COMPONENT_SLOT_Y);
+        this.drawPlayerInventorySlots(LEFT_X, 147, 205);
     }
 
     @Override
     protected void drawGuiContainerForegroundLayer(int mouseX, int mouseY) {
         StorageHostSnapshot state = this.container.state();
         this.drawHeader(state);
-        this.drawMonitor(state);
+        this.drawMonitor(state, mouseX, mouseY);
         this.drawUsage(state, mouseX, mouseY);
         this.drawComponent(state, mouseX, mouseY);
-        if (isInfiniteDisplay(state)) {
-            this.drawLocalText(tr("container.inventory", "Inventory"), 13, 136, HostUiStyle.TEXT_MUTED);
-        }
+        this.drawLocalText(tr("container.inventory", "Inventory"), LEFT_X, 136, HostUiStyle.TEXT_MUTED);
         this.drawPriorityTooltip(state, mouseX, mouseY);
     }
 
@@ -224,10 +228,10 @@ public class GuiECOStorageController extends GuiHostMachineBase {
 
     private void drawHeader(StorageHostSnapshot state) {
         this.drawLocalText(
-            tr("gui.neoecoae.storage_ui.title", "ECO Storage Host") + " " + state.tier,
+            this.hostBlockTitle("storage", state.tier, "ECO Storage Host " + state.tier),
             8,
             8,
-            HostUiStyle.TEXT_PRIMARY);
+            HostUiStyle.HOST_TITLE);
         String label = tr("gui.neoecoae.storage_ui.formed", "Formed") + ": ";
         String value = yesNo(state.formed);
         int width = this.fontRendererObj.getStringWidth(label) + this.fontRendererObj.getStringWidth(value);
@@ -236,7 +240,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         this.drawLocalText(value, x, 8, state.formed ? HostUiStyle.TEXT_GOOD : HostUiStyle.TEXT_BAD);
     }
 
-    private void drawMonitor(StorageHostSnapshot state) {
+    private void drawMonitor(StorageHostSnapshot state, int mouseX, int mouseY) {
         int y = TEXT_Y;
         this.drawLocalText(
             tr("gui.neoecoae.storage_ui.energy_monitor", "Energy Monitor"),
@@ -260,13 +264,24 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             HostUiStyle.DARK_TEXT_USED);
         y += TEXT_STEP;
         this.drawStorageBytesLine(state, TEXT_X, y);
+        if (this.isMouseIn(TEXT_X, y, LEFT_W - 16, this.fontRendererObj.FONT_HEIGHT, mouseX, mouseY)) {
+            List<String> lines = new ArrayList<String>();
+            String bytes = tr("gui.neoecoae.storage_ui.bytes", "Bytes");
+            if (isInfiniteMode(state)) {
+                lines.add(formatExactBytes(state.preciseUsedBytes) + " " + bytes);
+            } else {
+                lines.add(formatExactBytes(BigInteger.valueOf(state.usedBytes)) + " / "
+                    + formatExactBytes(BigInteger.valueOf(state.totalBytes)) + " " + bytes);
+            }
+            this.hoveredLines = lines;
+        }
     }
 
     private void drawUsage(StorageHostSnapshot state, int mouseX, int mouseY) {
         this.drawLocalCentered(
             tr("gui.neoecoae.storage_ui.system_load", "System Load"),
             RIGHT_X,
-            RIGHT_Y + 2,
+            RIGHT_Y + 2 + RIGHT_CONTENT_SHIFT_Y,
             RIGHT_W,
             HostUiStyle.DARK_TEXT_PRIMARY);
         boolean infiniteMode = isInfiniteMode(state);
@@ -316,7 +331,16 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     private void drawDetailLine(String text, int y, int color) {
-        this.drawLocalCenteredScaled(text, USAGE_DETAIL_X, y, USAGE_DETAIL_W, USAGE_DETAIL_LINE_H, color, 1F);
+        int textWidth = Math.max(1, this.fontRendererObj.getStringWidth(text));
+        float scale = Math.min(1.0F, Math.max(0.55F, (float) (USAGE_DETAIL_W - 4) / textWidth));
+        GL11.glPushMatrix();
+        GL11.glTranslatef(
+            USAGE_DETAIL_X + 2,
+            y + (USAGE_DETAIL_LINE_H - this.fontRendererObj.FONT_HEIGHT * scale) / 2.0F,
+            200.0F);
+        GL11.glScalef(scale, scale, 1.0F);
+        this.fontRendererObj.drawString(text, 0, 0, color);
+        GL11.glPopMatrix();
     }
 
     private void drawHugeStacks(StorageHostSnapshot state, int mouseX, int mouseY) {
@@ -333,14 +357,22 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         for (int row = 0; row < 4 && this.hugeStackScrollRow + row < state.hugeStacks.size(); row++) {
             StorageHostSnapshot.HugeStack stack = state.hugeStacks.get(this.hugeStackScrollRow + row);
             int rowY = y + row * rowHeight;
-            String name = shortIdentity(stack.identity);
-            this.drawLocalCenteredScaled(name, x, rowY, USAGE_DETAIL_W - 3, 8,
-                HostUiStyle.DARK_TEXT_VALUE, 0.72F);
-            this.drawLocalCenteredScaled(formatInfiniteStorageBytes(stack.amount), x, rowY + 8,
-                USAGE_DETAIL_W - 3, 8, HostUiStyle.DARK_TEXT_USED, 0.72F);
+            ItemStack itemStack = displayItemStack(stack);
+            FluidStack fluidStack = displayFluidStack(stack);
+            if (itemStack != null) {
+                this.drawLocalItemIcon(itemStack, x, rowY + 1);
+            } else if (fluidStack != null) {
+                this.drawFluidIcon(fluidStack, x, rowY + 1);
+            }
+            int textX = x + 19;
+            int textW = USAGE_DETAIL_W - 23;
+            this.drawHugeStackText(displayName(stack, itemStack, fluidStack), textX, rowY + 1, textW,
+                HostUiStyle.DARK_TEXT_VALUE);
+            this.drawHugeStackText(formatInfiniteStorageBytes(stack.amount), textX, rowY + 9,
+                textW, HostUiStyle.DARK_TEXT_USED);
             if (this.isMouseIn(x, rowY, USAGE_DETAIL_W, rowHeight, mouseX, mouseY)) {
                 List<String> lines = new ArrayList<String>();
-                lines.add(EnumChatFormatting.AQUA + stack.identity);
+                lines.add(EnumChatFormatting.AQUA + displayName(stack, itemStack, fluidStack));
                 lines.add(formatInfiniteStorageBytes(stack.amount));
                 this.hoveredLines = lines;
             }
@@ -362,10 +394,54 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         return separator >= 0 && separator + 1 < identity.length() ? identity.substring(separator + 1) : identity;
     }
 
-    private void drawComponent(StorageHostSnapshot state, int mouseX, int mouseY) {
-        if (!isInfiniteDisplay(state)) {
+    private void drawHugeStackText(String text, int x, int y, int width, int color) {
+        float scale = 0.72F;
+        int unscaledWidth = Math.max(1, (int) (width / scale));
+        String fitted = this.fontRendererObj.trimStringToWidth(text, unscaledWidth);
+        GL11.glPushMatrix();
+        GL11.glTranslatef(x, y, 200.0F);
+        GL11.glScalef(scale, scale, 1.0F);
+        this.fontRendererObj.drawString(fitted, 0, 0, color);
+        GL11.glPopMatrix();
+    }
+
+    private static ItemStack displayItemStack(StorageHostSnapshot.HugeStack stack) {
+        if (stack == null || !"item".equals(stack.channel)) {
+            return null;
+        }
+        Item item = (Item) Item.itemRegistry.getObject(stack.identity);
+        return item == null ? null : new ItemStack(item, 1, Math.max(0, stack.metadata));
+    }
+
+    private static FluidStack displayFluidStack(StorageHostSnapshot.HugeStack stack) {
+        return stack == null || !"fluid".equals(stack.channel)
+            ? null
+            : FluidRegistry.getFluidStack(stack.identity, 1);
+    }
+
+    private static String displayName(StorageHostSnapshot.HugeStack stack, ItemStack item, FluidStack fluid) {
+        if (item != null) {
+            return item.getDisplayName();
+        }
+        if (fluid != null && fluid.getFluid() != null) {
+            return fluid.getFluid().getLocalizedName(fluid);
+        }
+        return shortIdentity(stack == null ? "" : stack.identity);
+    }
+
+    private void drawFluidIcon(FluidStack stack, int x, int y) {
+        Fluid fluid = stack == null ? null : stack.getFluid();
+        IIcon icon = fluid == null ? null : fluid.getIcon(stack);
+        if (icon == null) {
             return;
         }
+        this.mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+        this.drawTexturedModelRectFromIcon(x, y, icon, 16, 16);
+        GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private void drawComponent(StorageHostSnapshot state, int mouseX, int mouseY) {
         if (state.infiniteComponentCount > 0 && !state.canTakeInfiniteComponent) {
             drawRect(COMPONENT_SLOT_X, COMPONENT_SLOT_Y, COMPONENT_SLOT_X + 18, COMPONENT_SLOT_Y + 18, 0x99505050);
         }
@@ -713,6 +789,11 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         return scaled.stripTrailingZeros()
             .toPlainString() + " "
             + EXTENDED_BYTE_UNITS[unit];
+    }
+
+    private static String formatExactBytes(BigInteger value) {
+        BigInteger safe = value == null || value.signum() < 0 ? BigInteger.ZERO : value;
+        return String.format(Locale.US, "%,d", safe);
     }
 
     private double animatedUsageRatio(double target) {

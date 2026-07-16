@@ -260,8 +260,10 @@ public final class StorageHostSnapshot {
         for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend
             .getEntriesView().entrySet()) {
             ECOStorageKey key = entry.getKey();
-            result.add(new HugeStack(key.getChannel(), key.getIdentity(), key.getMetadata(),
-                entry.getValue().toBigInteger()));
+            BigInteger amount = entry.getValue().toBigInteger();
+            if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                result.add(new HugeStack(key.getChannel(), key.getIdentity(), key.getMetadata(), amount));
+            }
         }
         Collections.sort(result, new java.util.Comparator<HugeStack>() {
             @Override

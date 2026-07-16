@@ -10,26 +10,28 @@ final class StorageControllerLayout {
 
     static final int LEFT_X = 6;
     static final int LEFT_Y = 24;
-    static final int LEFT_W = 176;
-    static final int LEFT_H = 200;
+    static final int LEFT_W = 162;
+    static final int LEFT_H = 108;
     static final int TEXT_X = LEFT_X + 8;
     static final int TEXT_Y = LEFT_Y + 8;
     static final int TEXT_STEP = 13;
 
-    static final int RIGHT_X = 186;
+    static final int RIGHT_X = 180;
     static final int RIGHT_Y = 24;
-    static final int RIGHT_W = 156;
+    static final int RIGHT_W = 157;
     static final int RIGHT_H = 200;
     static final int STORAGE_GAUGE_W = 32;
     static final int STORAGE_GAUGE_H = 143;
-    static final int STORAGE_GAUGE_X = RIGHT_X + 10;
-    static final int STORAGE_GAUGE_Y = RIGHT_Y + 26;
+    static final int RIGHT_CONTENT_X = RIGHT_X + 6;
+    static final int STORAGE_GAUGE_X = RIGHT_CONTENT_X + 10;
+    static final int RIGHT_CONTENT_SHIFT_Y = 6;
+    static final int STORAGE_GAUGE_Y = RIGHT_Y + 26 + RIGHT_CONTENT_SHIFT_Y;
     static final int USAGE_DETAIL_X = STORAGE_GAUGE_X + STORAGE_GAUGE_W + 8;
     static final int USAGE_DETAIL_Y = STORAGE_GAUGE_Y + 5;
-    static final int USAGE_DETAIL_W = 86;
+    static final int USAGE_DETAIL_W = 88;
     static final int USAGE_DETAIL_LINE_H = 15;
-    static final int RIGHT_DARK_X = RIGHT_X + 2;
-    static final int RIGHT_DARK_Y = RIGHT_Y + 14;
+    static final int RIGHT_DARK_X = RIGHT_CONTENT_X + 2;
+    static final int RIGHT_DARK_Y = RIGHT_Y + 14 + RIGHT_CONTENT_SHIFT_Y;
     static final int RIGHT_DARK_W = 141;
     static final int RIGHT_DARK_H = 169;
 

@@ -18,6 +18,7 @@ final class HostUiStyle {
     static final ResourceLocation STORAGE_CONTROLLER_ELEMENTS = texture("storage/estorage_controller_elements");
 
     static final int TEXT_PRIMARY = 0xFF404040;
+    static final int HOST_TITLE = 0xFF3F3D52;
     static final int TEXT_SECONDARY = 0xFF606060;
     static final int TEXT_MUTED = 0xFF707070;
     static final int TEXT_HINT = 0xFF2A5080;

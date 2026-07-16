@@ -3,7 +3,8 @@ package cn.dancingsnow.neoecoae.client.gui;
 /** Pixel geometry shared with the 1.21.1 computation-host panel. */
 final class ComputationControllerLayout {
 
-    static final int HEADER_Y = 8;
+    static final int HEADER_X = 5;
+    static final int HEADER_Y = 9;
 
     static final int MAIN_X = 6;
     static final int MAIN_Y = 24;
@@ -22,10 +23,10 @@ final class ComputationControllerLayout {
     static final int FREE_MEMORY_VALUE_Y = MAIN_Y + 91;
     static final int STAT_BAR_X = STAT_X;
     static final int STAT_BAR_W = 70;
-    static final int STAT_BAR_H = 4;
+    static final int STAT_BAR_H = 9;
     static final int STAT_VALUE_X = STAT_BAR_X + STAT_BAR_W + 4;
-    static final int STORAGE_BAR_Y = STORAGE_DETAIL_Y + 2;
-    static final int THREAD_BAR_Y = THREAD_DETAIL_Y + 2;
+    static final int STORAGE_BAR_Y = STORAGE_DETAIL_Y;
+    static final int THREAD_BAR_Y = THREAD_DETAIL_Y;
 
     static final int INVENTORY_LABEL_Y = 136;
 
