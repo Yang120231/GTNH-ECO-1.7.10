@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoae.tile;
 
+import java.util.Arrays;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.InventoryCrafting;
@@ -142,10 +144,6 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
         return this.cachedPatternCount;
     }
 
-    public int patternCount() {
-        return this.getPatternCount();
-    }
-
     public int getPageCount() {
         return PAGE_COUNT;
     }
@@ -264,9 +262,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
-        for (int i = 0; i < this.patterns.length; i++) {
-            this.patterns[i] = null;
-        }
+        Arrays.fill(this.patterns, null);
         NBTTagList list = tag.getTagList(TAG_PATTERNS, Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound slotTag = list.getCompoundTagAt(i);

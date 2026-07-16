@@ -478,7 +478,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             TASK_CARD_W,
             TASK_CARD_H,
             hovered ? 0xFF2A2535 : 0xFF201E27);
-        this.drawScaledItemIcon(worker.outputStack, TASK_CARD_X + 3, y + 1);
+        this.drawScaledItemIcon(worker.outputStack, y + 1);
         int textX = TASK_CARD_X + 17;
         this.drawScaledFittedText(
             worker.outputName.isEmpty() ? tr("gui.neoecoae.crafting.task.status.queued", "Queued") : worker.outputName,
@@ -528,7 +528,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawVerticalGaugeLocal(int x, long value, long max, int color) {
-        this.drawGaugeFrame(x, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H);
+        this.drawGaugeFrame(x, GAUGE_BAR_W);
         int filled = this.ratioLength(value, max, GAUGE_BAR_H - 8);
         if (filled > 0) {
             int bottom = GAUGE_BAR_Y + GAUGE_BAR_H - 4;
@@ -543,7 +543,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawCoolantGauge(CraftingHostSnapshot state, int x) {
-        this.drawGaugeFrame(x, GAUGE_BAR_Y, COOLANT_GAUGE_W, GAUGE_BAR_H);
+        this.drawGaugeFrame(x, COOLANT_GAUGE_W);
         int innerWidth = COOLANT_GAUGE_W - 8;
         int innerHeight = GAUGE_BAR_H - 8;
         int filled = this.ratioLength(state.coolant, Math.max(1, state.maxCoolant), innerHeight);
@@ -560,12 +560,27 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         }
     }
 
-    private void drawGaugeFrame(int x, int y, int width, int height) {
-        drawRect(x, y, x + width, y + height, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
-        drawRect(x + 1, y + 1, x + width - 1, y + height - 1, HostUiStyle.DARK_PANEL_OUTER);
-        drawRect(x + 2, y + 2, x + width - 2, y + height - 2, HostUiStyle.DARK_PANEL_MIDDLE);
-        drawRect(x + 3, y + 3, x + width - 3, y + height - 3, HostUiStyle.DARK_PANEL_OUTER);
-        drawRect(x + 4, y + 4, x + width - 4, y + height - 4, 0xFF201E27);
+    private void drawGaugeFrame(int x, int width) {
+        drawRect(x, GAUGE_BAR_Y, x + width, GAUGE_BAR_Y + GAUGE_BAR_H, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
+        drawRect(
+            x + 1,
+            GAUGE_BAR_Y + 1,
+            x + width - 1,
+            GAUGE_BAR_Y + GAUGE_BAR_H - 1,
+            HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(
+            x + 2,
+            GAUGE_BAR_Y + 2,
+            x + width - 2,
+            GAUGE_BAR_Y + GAUGE_BAR_H - 2,
+            HostUiStyle.DARK_PANEL_MIDDLE);
+        drawRect(
+            x + 3,
+            GAUGE_BAR_Y + 3,
+            x + width - 3,
+            GAUGE_BAR_Y + GAUGE_BAR_H - 3,
+            HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(x + 4, GAUGE_BAR_Y + 4, x + width - 4, GAUGE_BAR_Y + GAUGE_BAR_H - 4, 0xFF201E27);
     }
 
     private Fluid coolantFluid(CraftingHostSnapshot state) {
@@ -678,12 +693,12 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         this.drawScaledText(this.fit(text, unscaledWidth), x, y, scale, color);
     }
 
-    private void drawScaledItemIcon(ItemStack stack, int x, int y) {
+    private void drawScaledItemIcon(ItemStack stack, int y) {
         if (stack == null) {
             return;
         }
         GL11.glPushMatrix();
-        GL11.glTranslatef(x, y, 220.0F);
+        GL11.glTranslatef(TASK_CARD_X + 3, y, 220.0F);
         GL11.glScalef(CARD_ICON_SCALE, CARD_ICON_SCALE, 1.0F);
         RenderHelper.enableGUIStandardItemLighting();
         this.drawLocalItemIcon(stack, 0, 0);

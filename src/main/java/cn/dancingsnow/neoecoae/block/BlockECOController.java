@@ -10,7 +10,6 @@ import net.minecraft.world.Explosion;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cn.dancingsnow.neoecoae.gui.NEGuiIds;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
@@ -31,29 +30,6 @@ public class BlockECOController extends BlockDirectionalModernModel {
     public BlockECOController(String id, String modelName, String formedModelName, String mirroredFormedModelName,
         String[] textureNames, ECOControllerSubsystem subsystem, ECOControllerTier tier) {
         super(id, modelName, textureNames);
-        this.subsystem = subsystem;
-        this.tier = tier;
-        this.formedModelName = formedModelName;
-        this.mirroredFormedModelName = mirroredFormedModelName;
-    }
-
-    public BlockECOController(String id, String modelName, String formedModelName, String[] textureNames,
-        ModelFacing inventoryModelFacing, ECOControllerSubsystem subsystem, ECOControllerTier tier) {
-        this(
-            id,
-            modelName,
-            formedModelName,
-            formedModelName + "_mirrored",
-            textureNames,
-            inventoryModelFacing,
-            subsystem,
-            tier);
-    }
-
-    public BlockECOController(String id, String modelName, String formedModelName, String mirroredFormedModelName,
-        String[] textureNames, ModelFacing inventoryModelFacing, ECOControllerSubsystem subsystem,
-        ECOControllerTier tier) {
-        super(id, modelName, textureNames, inventoryModelFacing);
         this.subsystem = subsystem;
         this.tier = tier;
         this.formedModelName = formedModelName;
@@ -144,12 +120,11 @@ public class BlockECOController extends BlockDirectionalModernModel {
     @Override
     public void breakBlock(World world, int x, int y, int z, net.minecraft.block.Block block, int meta) {
         TileEntity tile = world.getTileEntity(x, y, z);
-        if (tile instanceof TileECOController) {
-            TileECOController controller = (TileECOController) tile;
+        if (tile instanceof TileECOController controller) {
             if (controller.blocksWorldRemoval()) {
                 return;
             }
-            ItemStack stack = ((TileECOController) tile).getStackInSlot(0);
+            ItemStack stack = controller.getStackInSlot(0);
             if (stack != null && !world.isRemote) {
                 world.spawnEntityInWorld(new EntityItem(world, x + 0.5D, y + 0.5D, z + 0.5D, stack.copy()));
             }

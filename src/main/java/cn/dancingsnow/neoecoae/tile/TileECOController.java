@@ -24,7 +24,6 @@ import net.minecraftforge.fluids.FluidStack;
 
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AECableType;
 import appeng.helpers.IPriorityHost;
 import cn.dancingsnow.neoecoae.NeoECOAE;
@@ -491,15 +490,6 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return this.getCraftingMaxInFlightCrafts();
     }
 
-    public int getCraftingWorkQueueUtilizationPercent() {
-        int capacity = this.getCraftingWorkQueueCapacity();
-        int depth = this.getCraftingWorkQueueDepth();
-        if (depth <= 0 || capacity <= 0) {
-            return 0;
-        }
-        return (int) Math.max(1L, Math.min(100L, (long) depth * 100L / capacity));
-    }
-
     public int getCraftingPlannerAcceptedCount() {
         return this.craftingPlannerAccepted;
     }
@@ -543,14 +533,6 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             this.craftingPlannerRejected = saturatedIncrement(this.craftingPlannerRejected);
         }
         this.markDirty();
-    }
-
-    public int getCraftingRunningWorkerCount() {
-        return this.getCraftingHostStats().runningWorkerCount;
-    }
-
-    public int getCraftingThreadCount() {
-        return this.getCraftingHostStats().workerCount;
     }
 
     public boolean isCraftingOverclocked() {
@@ -1354,8 +1336,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                 return;
             }
             ItemStack stack = drive.getCellStack();
-            int step = this.migrationSteps.containsKey(diskId) ? this.migrationSteps.get(diskId)
-                : MIGRATION_NOT_STARTED;
+            int step = this.migrationSteps.getOrDefault(diskId, MIGRATION_NOT_STARTED);
             if (step < MIGRATION_COPYING) {
                 this.setMigrationStep(diskId, MIGRATION_COPYING);
                 step = MIGRATION_COPYING;
@@ -1386,8 +1367,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         boolean complete = !this.memberDiskIds.isEmpty();
         for (UUID diskId : this.memberDiskIds) {
-            if (!this.migrationSteps.containsKey(diskId)
-                || this.migrationSteps.get(diskId) != MIGRATION_BOUND_AS_MEMBER) {
+            if (this.migrationSteps.getOrDefault(diskId, MIGRATION_NOT_STARTED) != MIGRATION_BOUND_AS_MEMBER) {
                 complete = false;
                 break;
             }
