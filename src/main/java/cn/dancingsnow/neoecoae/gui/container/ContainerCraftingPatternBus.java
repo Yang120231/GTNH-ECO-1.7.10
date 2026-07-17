@@ -1,11 +1,14 @@
 package cn.dancingsnow.neoecoae.gui.container;
 
+import java.util.List;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.ICrafting;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
+import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
@@ -25,11 +28,13 @@ public class ContainerCraftingPatternBus extends Container {
 
     private static final int FIELD_PAGE = 0;
     private static final int FIELD_PAGE_COUNT = 1;
+    private static final int VISIBLE_SLOT_SYNC_BATCH_SIZE = 8;
+    private static final ItemStack FORCE_SYNC_SENTINEL = new ItemStack(Items.stick);
 
     private final TileCraftingPatternBus bus;
     private int currentPage;
     private int pageCount;
-    private boolean forceVisibleSlotSync = true;
+    private int visibleSlotSyncCursor = -1;
 
     public ContainerCraftingPatternBus(InventoryPlayer playerInventory, TileCraftingPatternBus bus) {
         this.bus = bus;
@@ -50,6 +55,31 @@ public class ContainerCraftingPatternBus extends Container {
     }
 
     @Override
+    public void addCraftingToCrafters(ICrafting listener) {
+        if (this.crafters.contains(listener)) {
+            throw new IllegalArgumentException("Listener already listening");
+        }
+
+        this.crafters.add(listener);
+        List<ItemStack> initialContents = this.getInventory();
+        for (int slot = 0; slot < this.inventorySlots.size(); slot++) {
+            ItemStack stack = initialContents.get(slot);
+            if (slot < PATTERN_SLOTS_PER_PAGE) {
+                // Encoded patterns can carry large NBT payloads. Keep them out of the initial
+                // WindowItems packet and let detectAndSendChanges spread their copies over
+                // several ticks instead of stalling the server thread in one tick.
+                initialContents.set(slot, null);
+                this.inventoryItemStacks.set(slot, stack);
+            } else {
+                this.inventoryItemStacks.set(slot, stack == null ? null : stack.copy());
+            }
+        }
+        listener.sendContainerAndContentsToPlayer(this, initialContents);
+        this.scheduleVisibleSlotSync();
+        this.detectAndSendChanges();
+    }
+
+    @Override
     public boolean canInteractWith(EntityPlayer player) {
         return this.bus != null && this.bus.isUseableByPlayer(player);
     }
@@ -62,7 +92,7 @@ public class ContainerCraftingPatternBus extends Container {
             ((ICrafting) crafter).sendProgressBarUpdate(this, FIELD_PAGE, this.currentPage);
             ((ICrafting) crafter).sendProgressBarUpdate(this, FIELD_PAGE_COUNT, this.pageCount);
         }
-        this.prepareForcedVisibleSlotSync();
+        this.prepareVisibleSlotSyncBatch();
         super.detectAndSendChanges();
     }
 
@@ -143,19 +173,34 @@ public class ContainerCraftingPatternBus extends Container {
         int maxPage = Math.max(0, this.pageCount() - 1);
         int clampedPage = Math.max(0, Math.min(maxPage, page));
         if (this.currentPage != clampedPage) {
-            this.forceVisibleSlotSync = true;
+            this.scheduleVisibleSlotSync();
         }
         this.currentPage = clampedPage;
     }
 
-    private void prepareForcedVisibleSlotSync() {
-        if (!this.forceVisibleSlotSync) {
+    private void scheduleVisibleSlotSync() {
+        this.visibleSlotSyncCursor = 0;
+    }
+
+    private void prepareVisibleSlotSyncBatch() {
+        if (this.visibleSlotSyncCursor < 0) {
             return;
         }
-        for (int slot = 0; slot < PATTERN_SLOTS_PER_PAGE && slot < this.inventoryItemStacks.size(); slot++) {
-            this.inventoryItemStacks.set(slot, null);
+
+        int slotLimit = Math.min(PATTERN_SLOTS_PER_PAGE, this.inventoryItemStacks.size());
+        int batchEnd = Math.min(slotLimit, this.visibleSlotSyncCursor + VISIBLE_SLOT_SYNC_BATCH_SIZE);
+
+        // Suppress the not-yet-scheduled slots by temporarily comparing them by identity.
+        // Their real snapshot is installed by Container when their batch is sent.
+        for (int slot = batchEnd; slot < slotLimit; slot++) {
+            this.inventoryItemStacks.set(slot, ((Slot) this.inventorySlots.get(slot)).getStack());
         }
-        this.forceVisibleSlotSync = false;
+        for (int slot = this.visibleSlotSyncCursor; slot < batchEnd; slot++) {
+            // A non-null sentinel also forces an explicit clear packet for empty slots.
+            this.inventoryItemStacks.set(slot, FORCE_SYNC_SENTINEL);
+        }
+
+        this.visibleSlotSyncCursor = batchEnd >= slotLimit ? -1 : batchEnd;
     }
 
     private int actualSlot(int pageSlot) {

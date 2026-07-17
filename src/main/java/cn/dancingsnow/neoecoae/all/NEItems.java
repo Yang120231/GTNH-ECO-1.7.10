@@ -8,6 +8,7 @@ import net.minecraft.item.ItemSword;
 import net.minecraftforge.common.util.EnumHelper;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.item.ItemECOStructureTerminal;
 import cn.dancingsnow.neoecoae.item.ItemFluidContainer;
 import cpw.mods.fml.common.registry.GameRegistry;
 
@@ -44,6 +45,7 @@ public final class NEItems {
     public static final Item superconductingProcessor = simpleItem("superconducting_processor");
     public static final Item cryotheum = simpleItem("cryotheum");
     public static final Item cryotheumCrystal = simpleItem("cryotheum_crystal");
+    public static final Item ecoStructureTerminal = new ItemECOStructureTerminal();
     public static final Item cryotheumSolutionBucket = new ItemFluidContainer(
         "cryotheum_solution_bucket",
         NEFluids.CRYOTHEUM_SOLUTION,
@@ -103,6 +105,7 @@ public final class NEItems {
         register(superconductingProcessor, "superconducting_processor");
         register(cryotheum, "cryotheum");
         register(cryotheumCrystal, "cryotheum_crystal");
+        register(ecoStructureTerminal, "eco_structure_terminal");
         register(cryotheumSolutionBucket, "cryotheum_solution_bucket");
         NEStorageItems.register();
 

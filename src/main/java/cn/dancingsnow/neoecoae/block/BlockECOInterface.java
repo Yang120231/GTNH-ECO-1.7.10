@@ -1,8 +1,11 @@
 package cn.dancingsnow.neoecoae.block;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.gui.NEGuiIds;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
@@ -27,5 +30,22 @@ public class BlockECOInterface extends BlockDirectionalModernModel {
     @Override
     public TileEntity createTileEntity(World world, int metadata) {
         return new TileECOInterface(this.subsystem);
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
+        float hitY, float hitZ) {
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (!(tile instanceof TileECOInterface)) {
+            return false;
+        }
+        TileECOInterface ecoInterface = (TileECOInterface) tile;
+        if (this.subsystem != ECOControllerSubsystem.STORAGE) {
+            return false;
+        }
+        if (!world.isRemote) {
+            player.openGui(NeoECOAE.instance, NEGuiIds.ECO_STORAGE_INTERFACE, world, x, y, z);
+        }
+        return true;
     }
 }

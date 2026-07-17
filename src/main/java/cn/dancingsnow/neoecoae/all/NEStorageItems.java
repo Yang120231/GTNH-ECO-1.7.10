@@ -18,6 +18,7 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.client.render.model.ModernIconRegistrar;
 import cn.dancingsnow.neoecoae.client.tooltip.NETooltips;
 import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
+import cn.dancingsnow.neoecoae.item.ItemECOStorageRecoveryTerminal;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageSnapshot;
@@ -34,6 +35,7 @@ public final class NEStorageItems {
     public static final Item ecoCellComponent64M = simpleItem("eco_cell_component_64m");
     public static final Item ecoCellComponent256M = simpleItem("eco_cell_component_256m");
     public static final Item ecoInfiniteCellComponent = simpleItem("eco_infinite_cell_component");
+    public static final Item ecoStorageRecoveryTerminal = new ItemECOStorageRecoveryTerminal();
     public static final Item ecoItemCellHousing = simpleItem("eco_item_cell_housing");
     public static final Item ecoItemStorageCell16M = storageCell("eco_item_storage_cell_16m", "16M");
     public static final Item ecoItemStorageCell64M = storageCell("eco_item_storage_cell_64m", "64M");
@@ -58,6 +60,7 @@ public final class NEStorageItems {
         register(ecoCellComponent64M, "eco_cell_component_64m");
         register(ecoCellComponent256M, "eco_cell_component_256m");
         register(ecoInfiniteCellComponent, "eco_infinite_cell_component");
+        register(ecoStorageRecoveryTerminal, "eco_storage_recovery_terminal");
         register(ecoItemCellHousing, "eco_item_cell_housing");
         register(ecoItemStorageCell16M, "eco_item_storage_cell_16m");
         register(ecoItemStorageCell64M, "eco_item_storage_cell_64m");

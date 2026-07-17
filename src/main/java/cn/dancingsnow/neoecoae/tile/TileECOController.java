@@ -41,6 +41,7 @@ import cn.dancingsnow.neoecoae.multiblock.ECOFormationResult;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationScanner;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOStorageDriveProvider;
+import cn.dancingsnow.neoecoae.storage.ae2.ECOStorageInterfaceTransfer;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageDomainData;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageHostMode;
@@ -182,6 +183,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return new ArrayList<>(this.formedMemberBlocks);
     }
 
+    public List<ECOFormationBlockPos> getHiddenBlocks() {
+        return new ArrayList<>(this.hiddenBlocks);
+    }
+
     boolean hasFormedMemberBlock(int x, int y, int z) {
         for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
             if (pos.getX() == x && pos.getY() == y && pos.getZ() == z) {
@@ -206,6 +211,20 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
     boolean hasOnlineStorageInterface() {
         return this.hasOnlineInterface(ECOControllerSubsystem.STORAGE);
+    }
+
+    public TileECOInterface getStorageInterfaceForTransfer() {
+        if (this.worldObj == null || this.subsystem != ECOControllerSubsystem.STORAGE || !this.formed) {
+            return null;
+        }
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface ecoInterface
+                && ecoInterface.getSubsystem() == ECOControllerSubsystem.STORAGE) {
+                return ecoInterface;
+            }
+        }
+        return null;
     }
 
     private boolean hasOnlineInterface(ECOControllerSubsystem targetSubsystem) {
@@ -270,6 +289,164 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
     public boolean canUseHostDomainStorage() {
         return this.formed && this.hostMode == ECOStorageHostMode.FORMED_INFINITE && this.hostDomainId != null;
+    }
+
+    /**
+     * Makes a newly formed, empty infinite host point at an orphaned domain.
+     *
+     * <p>
+     * This operation never merges storage. The target domain created by the new host must be
+     * empty, and all target matrices must still be empty domain members. That makes the operation
+     * restart-safe for the intended "new host takes over old domain" workflow and prevents an
+     * accidental overwrite of real data.
+     * </p>
+     *
+     * @return a stable result id for the recovery terminal's server-side message
+     */
+    public String adoptRecoveredDomain(UUID sourceDomainId) {
+        if (this.worldObj == null || this.worldObj.isRemote) {
+            return "invalid_target";
+        }
+        if (this.subsystem != ECOControllerSubsystem.STORAGE || !this.formed
+            || this.tier != ECOControllerTier.L9
+            || this.hostMode != ECOStorageHostMode.FORMED_INFINITE
+            || this.hostDomainId == null) {
+            return "invalid_target";
+        }
+        if (sourceDomainId == null) {
+            return "source_missing";
+        }
+        if (sourceDomainId.equals(this.hostDomainId)) {
+            return this.repairRecoveredDomain(sourceDomainId);
+        }
+
+        ECOStorageDomainData data = ECOStorageDomainData.get(this.worldObj);
+        if (data.getDomain(sourceDomainId) == null) {
+            return "source_missing";
+        }
+        if (ECOControllerRegistry.isDomainBound(this.worldObj, sourceDomainId, this)) {
+            return "source_bound";
+        }
+
+        UUID oldDomainId = this.hostDomainId;
+        if (!data.isDomainEmpty(oldDomainId)) {
+            return "target_not_empty";
+        }
+
+        List<TileECODrive> drives = new ArrayList<>();
+        List<UUID> diskIds = new ArrayList<>();
+        Set<UUID> seenDiskIds = new HashSet<>();
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (!(tile instanceof TileECODrive)) {
+                return "target_invalid";
+            }
+            TileECODrive drive = (TileECODrive) tile;
+            ItemStack stack = drive.getCellStack();
+            if (isNotL9StorageMatrix(stack) || !ECOStorageCellMetadata.hasNonPortableState(stack)
+                || !oldDomainId.equals(ECOStorageCellMetadata.getHostDomainId(stack))) {
+                return "target_invalid";
+            }
+            ECOStorageBackend localStorage = ECOStorageCellAccess.load(stack);
+            if (!localStorage.isEmpty()) {
+                return "target_not_empty";
+            }
+            UUID diskId = ECOStorageCellMetadata.getDiskId(stack);
+            if (diskId == null) {
+                diskId = ECOStorageCellMetadata.getOrCreateDiskId(stack);
+                drive.markDirty();
+            }
+            if (!seenDiskIds.add(diskId)) {
+                return "target_invalid";
+            }
+            drives.add(drive);
+            diskIds.add(diskId);
+        }
+        if (drives.size() < REQUIRED_INFINITE_DRIVES) {
+            return "target_invalid";
+        }
+
+        // Publish the new pointer before changing member metadata. If the server stops between
+        // two member writes, selecting this same UUID again can repair the remaining empty members.
+        this.hostDomainId = sourceDomainId;
+        this.memberDiskIds.clear();
+        this.memberDiskIds.addAll(diskIds);
+        this.migrationSteps.clear();
+        this.hostMode = ECOStorageHostMode.FORMED_INFINITE;
+        this.storageBackendRevision++;
+        this.markDirty();
+
+        // All validation is complete before any member binding is changed.
+        for (int i = 0; i < drives.size(); i++) {
+            TileECODrive drive = drives.get(i);
+            ItemStack stack = drive.getCellStack();
+            UUID diskId = diskIds.get(i);
+            data.forgetCommittedSource(oldDomainId, diskId);
+            ECOStorageCellMetadata.markDomainMember(stack, sourceDomainId, i);
+            ECOStorageCellMetadata.writeSummary(stack, 0L, 0);
+            drive.discardCellBackend();
+            drive.markDirty();
+        }
+
+        data.replaceCommittedSources(sourceDomainId, diskIds);
+        data.removeDomain(oldDomainId);
+        this.markDirty();
+        this.hostDomainClientUpdatePending = true;
+        this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        return "recovered";
+    }
+
+    private String repairRecoveredDomain(UUID sourceDomainId) {
+        if (this.worldObj == null || this.hostMode != ECOStorageHostMode.FORMED_INFINITE
+            || this.subsystem != ECOControllerSubsystem.STORAGE) {
+            return "invalid_target";
+        }
+        if (ECOControllerRegistry.isDomainBound(this.worldObj, sourceDomainId, this)) {
+            return "source_bound";
+        }
+        ECOStorageDomainData data = ECOStorageDomainData.get(this.worldObj);
+        if (data.getDomain(sourceDomainId) == null) {
+            return "source_missing";
+        }
+        List<UUID> diskIds = new ArrayList<>();
+        Set<UUID> seenDiskIds = new HashSet<>();
+        for (int i = 0; i < this.formedMemberBlocks.size(); i++) {
+            ECOFormationBlockPos pos = this.formedMemberBlocks.get(i);
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (!(tile instanceof TileECODrive)) {
+                return "target_invalid";
+            }
+            TileECODrive drive = (TileECODrive) tile;
+            ItemStack stack = drive.getCellStack();
+            if (isNotL9StorageMatrix(stack) || !ECOStorageCellMetadata.hasNonPortableState(stack)
+                || !ECOStorageCellAccess.load(stack)
+                    .isEmpty()) {
+                return "target_not_empty";
+            }
+            UUID diskId = ECOStorageCellMetadata.getDiskId(stack);
+            if (diskId == null || !seenDiskIds.add(diskId)) {
+                return "target_invalid";
+            }
+            if (!sourceDomainId.equals(ECOStorageCellMetadata.getHostDomainId(stack))) {
+                ECOStorageCellMetadata.markDomainMember(stack, sourceDomainId, i);
+                ECOStorageCellMetadata.writeSummary(stack, 0L, 0);
+                drive.discardCellBackend();
+                drive.markDirty();
+            }
+            diskIds.add(diskId);
+        }
+        if (diskIds.size() < REQUIRED_INFINITE_DRIVES) {
+            return "target_invalid";
+        }
+        this.memberDiskIds.clear();
+        this.memberDiskIds.addAll(diskIds);
+        this.migrationSteps.clear();
+        data.replaceCommittedSources(sourceDomainId, diskIds);
+        this.storageBackendRevision++;
+        this.markDirty();
+        this.hostDomainClientUpdatePending = true;
+        this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        return "recovered";
     }
 
     @Override
@@ -1007,6 +1184,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         this.hostDomainClientUpdatePending = true;
     }
 
+    public void onStorageInterfaceModeChanged() {
+        if (this.subsystem != ECOControllerSubsystem.STORAGE) {
+            return;
+        }
+        this.onStorageBackendChanged();
+    }
+
     public boolean canExtractDriveCell(TileECODrive drive) {
         ItemStack stack = drive == null ? null : drive.getCellStack();
         return stack == null || !ECOStorageCellMetadata.hasNonPortableState(stack)
@@ -1657,6 +1841,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             this.scanFormation();
         } else if (this.hostMode == ECOStorageHostMode.MIGRATING_TO_INFINITE) {
             this.resumeInfiniteMigration();
+        }
+        if (this.subsystem == ECOControllerSubsystem.STORAGE && this.formed
+            && this.hostMode != ECOStorageHostMode.MIGRATING_TO_INFINITE) {
+            TileECOInterface storageInterface = this.getStorageInterfaceForTransfer();
+            if (storageInterface != null && storageInterface.isStorageTransferMode()) {
+                ECOStorageInterfaceTransfer.transfer(storageInterface, this);
+            }
         }
         if (this.worldObj.getTotalWorldTime() % CRAFTING_OUTPUT_DRAIN_INTERVAL == 0L) {
             this.drainCraftingOutputHatchesToNetwork();

@@ -28,6 +28,21 @@ public final class NENetwork {
             Side.SERVER);
         CHANNEL
             .registerMessage(PacketCraftingHostAction.Handler.class, PacketCraftingHostAction.class, id++, Side.SERVER);
+        CHANNEL.registerMessage(
+            PacketStructureTerminalAction.Handler.class,
+            PacketStructureTerminalAction.class,
+            id++,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            PacketStorageRecoveryTerminalAction.Handler.class,
+            PacketStorageRecoveryTerminalAction.class,
+            id++,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            PacketStorageInterfaceAction.Handler.class,
+            PacketStorageInterfaceAction.class,
+            id++,
+            Side.SERVER);
         registered = true;
     }
 }

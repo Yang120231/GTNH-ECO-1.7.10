@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.tile;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -27,7 +28,9 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.MachineSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
+import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.util.AECableType;
@@ -46,16 +49,23 @@ import cn.dancingsnow.neoecoae.computation.ae2.ECOComputationCpuPool;
 import cn.dancingsnow.neoecoae.crafting.ae2.ECOCraftingAe2Registration;
 import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
+import cn.dancingsnow.neoecoae.storage.ae2.ECOStorageDriveProvider;
+import cn.dancingsnow.neoecoae.storage.domain.ECOStorageInterfaceMode;
 
 public class TileECOInterface extends TileEntity
     implements IGridProxyable, IActionHost, IPriorityHost, ICraftingProvider {
 
     private static final String TAG_SUBSYSTEM = "Subsystem";
     private static final String TAG_COMPUTATION_CPU_POOL = "ComputationCpuPool";
+    private static final String TAG_STORAGE_INTERFACE_MODE = "StorageInterfaceMode";
+    private static final String TAG_STORAGE_INTERFACE_TRANSFERRED_LAST_TICK = "StorageInterfaceTransferredLastTick";
+    private static final String TAG_STORAGE_INTERFACE_TRANSFERRED_TOTAL = "StorageInterfaceTransferredTotal";
     private ECOControllerSubsystem subsystem = ECOControllerSubsystem.STORAGE;
     private final AENetworkProxy proxy;
     private IStorageGrid registeredStorageGrid;
     private ICellProvider registeredCellProvider;
+    private ECOStorageDriveProvider transferProvider;
+    private int transferProviderRevision = -1;
     private TileECOController cachedController;
     private int registeredControllerRevision = -1;
     private boolean networkReady;
@@ -65,6 +75,9 @@ public class TileECOInterface extends TileEntity
     private boolean craftingProviderRefreshQueued;
     private long craftingProviderRefreshQueuedTick;
     private final ECOCraftingAe2Registration craftingAe2Registration = new ECOCraftingAe2Registration(this);
+    private ECOStorageInterfaceMode storageInterfaceMode = ECOStorageInterfaceMode.STORAGE;
+    private long storageInterfaceTransferredLastTick;
+    private long storageInterfaceTransferredTotal;
 
     public TileECOInterface() {
         this(ECOControllerSubsystem.STORAGE);
@@ -80,6 +93,80 @@ public class TileECOInterface extends TileEntity
 
     public ECOControllerSubsystem getSubsystem() {
         return this.subsystem;
+    }
+
+    public ECOStorageInterfaceMode getStorageInterfaceMode() {
+        return this.storageInterfaceMode;
+    }
+
+    public boolean isStorageInputMode() {
+        return this.storageInterfaceMode == ECOStorageInterfaceMode.INPUT;
+    }
+
+    public boolean isStorageOutputMode() {
+        return this.storageInterfaceMode == ECOStorageInterfaceMode.OUTPUT;
+    }
+
+    public boolean isStorageTransferMode() {
+        return this.subsystem == ECOControllerSubsystem.STORAGE && this.storageInterfaceMode.isTransfer();
+    }
+
+    public long getStorageInterfaceTransferredLastTick() {
+        return this.storageInterfaceTransferredLastTick;
+    }
+
+    public long getStorageInterfaceTransferredTotal() {
+        return this.storageInterfaceTransferredTotal;
+    }
+
+    public void setStorageInterfaceMode(ECOStorageInterfaceMode mode) {
+        ECOStorageInterfaceMode normalized = mode == null ? ECOStorageInterfaceMode.STORAGE : mode;
+        if (this.storageInterfaceMode == normalized) {
+            return;
+        }
+        this.storageInterfaceMode = normalized;
+        this.storageInterfaceTransferredLastTick = 0L;
+        this.markDirty();
+        if (this.worldObj != null && !this.worldObj.isRemote) {
+            TileECOController controller = this.getBoundController();
+            if (controller != null) {
+                controller.onStorageInterfaceModeChanged();
+            }
+            this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
+        }
+    }
+
+    public void cycleStorageInterfaceMode() {
+        this.setStorageInterfaceMode(this.storageInterfaceMode.next());
+    }
+
+    public void recordStorageInterfaceTransfer(long amount) {
+        long safeAmount = Math.max(0L, amount);
+        this.storageInterfaceTransferredLastTick = safeAmount;
+        if (safeAmount > 0L) {
+            if (Long.MAX_VALUE - this.storageInterfaceTransferredTotal < safeAmount) {
+                this.storageInterfaceTransferredTotal = Long.MAX_VALUE;
+            } else {
+                this.storageInterfaceTransferredTotal += safeAmount;
+            }
+            this.markDirty();
+        }
+    }
+
+    public IStorageGrid getStorageGridForTransfer() {
+        return this.subsystem == ECOControllerSubsystem.STORAGE ? this.currentStorageGrid() : null;
+    }
+
+    public List<IMEInventoryHandler> getStorageTransferHandlers(TileECOController controller, StorageChannel channel) {
+        if (controller == null || channel == null || this.subsystem != ECOControllerSubsystem.STORAGE) {
+            return Collections.emptyList();
+        }
+        int revision = controller.getStorageBackendRevision();
+        if (this.transferProvider == null || this.transferProviderRevision != revision) {
+            this.transferProvider = controller.createStorageDriveProvider();
+            this.transferProviderRevision = revision;
+        }
+        return this.transferProvider.getCellArray(channel);
     }
 
     public TileECOController getBoundController() {
@@ -317,6 +404,8 @@ public class TileECOInterface extends TileEntity
         this.unregisterStorageProvider();
         this.unregisterCraftingProvider();
         this.shutdownComputationCpus();
+        this.transferProvider = null;
+        this.transferProviderRevision = -1;
         this.proxy.invalidate();
         super.invalidate();
     }
@@ -326,6 +415,8 @@ public class TileECOInterface extends TileEntity
         this.unregisterStorageProvider();
         this.unregisterCraftingProvider();
         this.unregisterComputationCpus();
+        this.transferProvider = null;
+        this.transferProviderRevision = -1;
         this.proxy.onChunkUnload();
         super.onChunkUnload();
     }
@@ -361,6 +452,10 @@ public class TileECOInterface extends TileEntity
         this.unregisterComputationCpus();
         this.unregisterCraftingProvider();
         this.setSubsystem(ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM)));
+        this.storageInterfaceMode = ECOStorageInterfaceMode.byName(tag.getString(TAG_STORAGE_INTERFACE_MODE));
+        this.storageInterfaceTransferredLastTick = Math
+            .max(0L, tag.getLong(TAG_STORAGE_INTERFACE_TRANSFERRED_LAST_TICK));
+        this.storageInterfaceTransferredTotal = Math.max(0L, tag.getLong(TAG_STORAGE_INTERFACE_TRANSFERRED_TOTAL));
         this.computationCpuPool.readFromNBT(tag.getCompoundTag(TAG_COMPUTATION_CPU_POOL));
         this.proxy.readFromNBT(tag);
         this.proxy.setVisualRepresentation(this.interfaceStack());
@@ -370,6 +465,9 @@ public class TileECOInterface extends TileEntity
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
         tag.setString(TAG_SUBSYSTEM, this.subsystem.getId());
+        tag.setString(TAG_STORAGE_INTERFACE_MODE, this.storageInterfaceMode.name());
+        tag.setLong(TAG_STORAGE_INTERFACE_TRANSFERRED_LAST_TICK, this.storageInterfaceTransferredLastTick);
+        tag.setLong(TAG_STORAGE_INTERFACE_TRANSFERRED_TOTAL, this.storageInterfaceTransferredTotal);
         if (this.subsystem == ECOControllerSubsystem.COMPUTATION || this.computationCpuPool.hasPersistentState()) {
             NBTTagCompound poolTag = new NBTTagCompound();
             this.computationCpuPool.writeToNBT(poolTag);
@@ -385,6 +483,9 @@ public class TileECOInterface extends TileEntity
             TAG_SUBSYSTEM,
             this.currentBlockSubsystem()
                 .getId());
+        tag.setString(TAG_STORAGE_INTERFACE_MODE, this.storageInterfaceMode.name());
+        tag.setLong(TAG_STORAGE_INTERFACE_TRANSFERRED_LAST_TICK, this.storageInterfaceTransferredLastTick);
+        tag.setLong(TAG_STORAGE_INTERFACE_TRANSFERRED_TOTAL, this.storageInterfaceTransferredTotal);
         return new S35PacketUpdateTileEntity(this.xCoord, this.yCoord, this.zCoord, 0, tag);
     }
 
@@ -392,6 +493,10 @@ public class TileECOInterface extends TileEntity
     public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {
         NBTTagCompound tag = packet.func_148857_g();
         this.setSubsystem(ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM)));
+        this.storageInterfaceMode = ECOStorageInterfaceMode.byName(tag.getString(TAG_STORAGE_INTERFACE_MODE));
+        this.storageInterfaceTransferredLastTick = Math
+            .max(0L, tag.getLong(TAG_STORAGE_INTERFACE_TRANSFERRED_LAST_TICK));
+        this.storageInterfaceTransferredTotal = Math.max(0L, tag.getLong(TAG_STORAGE_INTERFACE_TRANSFERRED_TOTAL));
         if (this.worldObj != null) {
             this.worldObj.markBlockRangeForRenderUpdate(
                 this.xCoord,
@@ -442,6 +547,8 @@ public class TileECOInterface extends TileEntity
         this.subsystem = normalized;
         this.proxy.setVisualRepresentation(this.interfaceStack());
         this.cachedController = null;
+        this.transferProvider = null;
+        this.transferProviderRevision = -1;
         this.shutdownComputationCpus();
         if (this.worldObj != null && !this.worldObj.isRemote) {
             this.markDirty();

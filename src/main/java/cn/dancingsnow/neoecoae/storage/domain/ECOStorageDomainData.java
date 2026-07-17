@@ -1,7 +1,11 @@
 package cn.dancingsnow.neoecoae.storage.domain;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -59,6 +63,26 @@ public class ECOStorageDomainData extends WorldSavedData {
         return this.domains.get(domainId);
     }
 
+    /** Returns the non-empty domain UUIDs currently indexed by this save data. */
+    public List<UUID> getDomainIds() {
+        List<UUID> ids = new ArrayList<UUID>(this.domains.keySet());
+        Collections.sort(
+            ids,
+            (left, right) -> left.toString()
+                .compareTo(right.toString()));
+        return ids;
+    }
+
+    public int getDomainTypeCount(UUID domainId) {
+        ECOStorageBackend backend = this.domains.get(domainId);
+        return backend == null ? 0 : backend.getTypeCount();
+    }
+
+    public ECOAmount getDomainUsed(UUID domainId) {
+        ECOStorageBackend backend = this.domains.get(domainId);
+        return backend == null ? ECOAmount.ZERO : backend.getUsed();
+    }
+
     public boolean isDomainEmpty(UUID domainId) {
         ECOStorageBackend backend = this.domains.get(domainId);
         return backend == null || backend.isEmpty();
@@ -83,6 +107,44 @@ public class ECOStorageDomainData extends WorldSavedData {
         }
         if (committed.isEmpty()) {
             this.committedSources.remove(domainId);
+        }
+        this.markDirty();
+    }
+
+    /**
+     * Adds a physical member UUID to a domain without copying storage. This is used by recovery:
+     * the domain already owns the data and a new, empty matrix set is only changing the owner link.
+     */
+    public void bindCommittedSource(UUID domainId, UUID diskId) {
+        if (domainId == null || diskId == null || !this.domains.containsKey(domainId)) {
+            return;
+        }
+        Set<UUID> committed = this.committedSources.get(domainId);
+        if (committed == null) {
+            committed = new HashSet<UUID>();
+            this.committedSources.put(domainId, committed);
+        }
+        if (committed.add(diskId)) {
+            this.markDirty();
+        }
+    }
+
+    public void replaceCommittedSources(UUID domainId, Collection<UUID> diskIds) {
+        if (domainId == null || !this.domains.containsKey(domainId)) {
+            return;
+        }
+        Set<UUID> replacement = new HashSet<UUID>();
+        if (diskIds != null) {
+            for (UUID diskId : diskIds) {
+                if (diskId != null) {
+                    replacement.add(diskId);
+                }
+            }
+        }
+        if (replacement.isEmpty()) {
+            this.committedSources.remove(domainId);
+        } else {
+            this.committedSources.put(domainId, replacement);
         }
         this.markDirty();
     }

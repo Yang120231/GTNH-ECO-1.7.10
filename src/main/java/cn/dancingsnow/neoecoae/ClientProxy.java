@@ -15,7 +15,10 @@ import cn.dancingsnow.neoecoae.client.gui.GuiCraftingPatternBus;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOComputationController;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOCraftingController;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageController;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageInterface;
 import cn.dancingsnow.neoecoae.client.gui.GuiECOStoragePriority;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageRecoveryTerminal;
+import cn.dancingsnow.neoecoae.client.gui.GuiECOStructureTerminal;
 import cn.dancingsnow.neoecoae.client.render.ComputationCellItemModels;
 import cn.dancingsnow.neoecoae.client.render.ComputationCellItemRenderer;
 import cn.dancingsnow.neoecoae.client.render.DriveModels;
@@ -27,6 +30,7 @@ import cn.dancingsnow.neoecoae.network.HostUiStatePacket;
 import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
+import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cpw.mods.fml.client.registry.RenderingRegistry;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -73,6 +77,21 @@ public class ClientProxy extends CommonProxy {
     public Object createCraftingHatchGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
         TileCraftingHatch hatch) {
         return new GuiCraftingHatch(playerInventory, hatch);
+    }
+
+    @Override
+    public Object createStructureTerminalGui(net.minecraft.entity.player.EntityPlayer player) {
+        return new GuiECOStructureTerminal(player);
+    }
+
+    @Override
+    public Object createStorageRecoveryTerminalGui(net.minecraft.entity.player.EntityPlayer player) {
+        return new GuiECOStorageRecoveryTerminal(player);
+    }
+
+    @Override
+    public Object createStorageInterfaceGui(TileECOInterface storageInterface) {
+        return new GuiECOStorageInterface(storageInterface);
     }
 
     @Override

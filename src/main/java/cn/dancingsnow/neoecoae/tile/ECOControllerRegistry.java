@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 import net.minecraft.world.World;
@@ -47,5 +48,20 @@ final class ECOControllerRegistry {
             return Collections.emptyList();
         }
         return new ArrayList<TileECOController>(controllers);
+    }
+
+    static boolean isDomainBound(World world, UUID domainId, TileECOController except) {
+        if (world == null || domainId == null) {
+            return false;
+        }
+        for (TileECOController controller : controllers(world)) {
+            if (controller == except || !controller.isFormed() || !controller.canUseHostDomainStorage()) {
+                continue;
+            }
+            if (domainId.equals(controller.getHostDomainId())) {
+                return true;
+            }
+        }
+        return false;
     }
 }

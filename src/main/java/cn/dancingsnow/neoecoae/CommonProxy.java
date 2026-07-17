@@ -15,6 +15,7 @@ import cn.dancingsnow.neoecoae.storage.ae2.NEAE2Storage;
 import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
+import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cn.dancingsnow.neoecoae.world.NEOreWorldGenerator;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -71,6 +72,18 @@ public class CommonProxy {
 
     public Object createCraftingHatchGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
         TileCraftingHatch hatch) {
+        return null;
+    }
+
+    public Object createStructureTerminalGui(net.minecraft.entity.player.EntityPlayer player) {
+        return null;
+    }
+
+    public Object createStorageRecoveryTerminalGui(net.minecraft.entity.player.EntityPlayer player) {
+        return null;
+    }
+
+    public Object createStorageInterfaceGui(TileECOInterface storageInterface) {
         return null;
     }
 

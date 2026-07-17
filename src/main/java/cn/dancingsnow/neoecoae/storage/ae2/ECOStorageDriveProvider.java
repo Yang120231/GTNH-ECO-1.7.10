@@ -2,7 +2,9 @@ package cn.dancingsnow.neoecoae.storage.ae2;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.world.World;
 
@@ -19,6 +21,8 @@ public class ECOStorageDriveProvider implements ICellProvider {
     private final World world;
     private final List<ECOFormationBlockPos> drivePositions;
     private final TileECOController controller;
+    private final Map<StorageChannel, List<IMEInventoryHandler>> cachedHandlers = new EnumMap<StorageChannel, List<IMEInventoryHandler>>(
+        StorageChannel.class);
 
     public ECOStorageDriveProvider(World world, List<ECOFormationBlockPos> drivePositions,
         TileECOController controller) {
@@ -30,9 +34,20 @@ public class ECOStorageDriveProvider implements ICellProvider {
 
     @Override
     public List<IMEInventoryHandler> getCellArray(StorageChannel channel) {
-        if (this.world == null) {
+        if (this.world == null || channel == null) {
             return Collections.emptyList();
         }
+        List<IMEInventoryHandler> cached = this.cachedHandlers.get(channel);
+        if (cached != null) {
+            return cached;
+        }
+
+        List<IMEInventoryHandler> handlers = this.createCellArray(channel);
+        this.cachedHandlers.put(channel, handlers);
+        return handlers;
+    }
+
+    private List<IMEInventoryHandler> createCellArray(StorageChannel channel) {
         if (this.controller != null && this.controller.canUseHostDomainStorage()) {
             List<IMEInventoryHandler> domainHandlers = new ArrayList<IMEInventoryHandler>();
             domainHandlers.add(new ECOHostDomainInventoryHandler(this.controller, channel));

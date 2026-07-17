@@ -11,10 +11,14 @@ import cn.dancingsnow.neoecoae.gui.container.ContainerCraftingPatternBus;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOComputationController;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
 import cn.dancingsnow.neoecoae.gui.container.ContainerECOStorageController;
+import cn.dancingsnow.neoecoae.gui.container.ContainerECOStorageInterface;
+import cn.dancingsnow.neoecoae.gui.container.ContainerECOStorageRecoveryTerminal;
+import cn.dancingsnow.neoecoae.gui.container.ContainerECOStructureTerminal;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
+import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cpw.mods.fml.common.network.IGuiHandler;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -27,6 +31,16 @@ public final class NEGuiHandler implements IGuiHandler {
 
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        if (id == NEGuiIds.ECO_STRUCTURE_TERMINAL) {
+            return new ContainerECOStructureTerminal(player);
+        }
+        if (id == NEGuiIds.ECO_STORAGE_RECOVERY_TERMINAL) {
+            return new ContainerECOStorageRecoveryTerminal(player);
+        }
+        TileECOInterface storageInterface = getStorageInterface(id, world, x, y, z);
+        if (storageInterface != null) {
+            return new ContainerECOStorageInterface(storageInterface);
+        }
         TileCraftingPatternBus patternBus = getPatternBus(id, world, x, y, z);
         if (patternBus != null) {
             return new ContainerCraftingPatternBus(player.inventory, patternBus);
@@ -58,6 +72,16 @@ public final class NEGuiHandler implements IGuiHandler {
     @Override
     @SideOnly(Side.CLIENT)
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        if (id == NEGuiIds.ECO_STRUCTURE_TERMINAL) {
+            return NeoECOAE.proxy.createStructureTerminalGui(player);
+        }
+        if (id == NEGuiIds.ECO_STORAGE_RECOVERY_TERMINAL) {
+            return NeoECOAE.proxy.createStorageRecoveryTerminalGui(player);
+        }
+        TileECOInterface storageInterface = getStorageInterface(id, world, x, y, z);
+        if (storageInterface != null) {
+            return NeoECOAE.proxy.createStorageInterfaceGui(storageInterface);
+        }
         TileCraftingPatternBus patternBus = getPatternBus(id, world, x, y, z);
         if (patternBus != null) {
             return NeoECOAE.proxy.createCraftingPatternBusGui(player.inventory, patternBus);
@@ -109,5 +133,17 @@ public final class NEGuiHandler implements IGuiHandler {
         }
         TileEntity tile = world.getTileEntity(x, y, z);
         return tile instanceof TileCraftingHatch ? (TileCraftingHatch) tile : null;
+    }
+
+    private static TileECOInterface getStorageInterface(int id, World world, int x, int y, int z) {
+        if (id != NEGuiIds.ECO_STORAGE_INTERFACE || world == null) {
+            return null;
+        }
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (!(tile instanceof TileECOInterface)) {
+            return null;
+        }
+        TileECOInterface storageInterface = (TileECOInterface) tile;
+        return storageInterface.getSubsystem() == ECOControllerSubsystem.STORAGE ? storageInterface : null;
     }
 }
