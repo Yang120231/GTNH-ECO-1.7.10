@@ -8,12 +8,12 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.function.DoubleUnaryOperator;
 
-import net.minecraft.item.ItemStack;
 import net.minecraft.inventory.InventoryCrafting;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
-import appeng.api.config.CraftingAllow;
 import appeng.api.config.Actionable;
+import appeng.api.config.CraftingAllow;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
@@ -40,8 +40,8 @@ import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingOutputFlushContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingOwnershipRegistry;
 import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
-import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
+import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
 public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOCraftingBatchCoordinator {
 
@@ -323,10 +323,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
     }
 
     @Override
-    public ECOCraftingBatchTransaction prepareBatch(
-        appeng.api.networking.crafting.ICraftingPatternDetails details,
-        InventoryCrafting table,
-        TileECOController controller) {
+    public ECOCraftingBatchTransaction prepareBatch(appeng.api.networking.crafting.ICraftingPatternDetails details,
+        InventoryCrafting table, TileECOController controller) {
         try {
             return this.doPrepareBatch(details, table, controller);
         } catch (RuntimeException e) {
@@ -337,13 +335,14 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         }
     }
 
-    private ECOCraftingBatchTransaction doPrepareBatch(
-        appeng.api.networking.crafting.ICraftingPatternDetails details,
-        InventoryCrafting table,
-        TileECOController controller) {
-        if (TASK_PROGRESS_VALUE == null || this.batchEnergyGrid == null || details == null || table == null
+    private ECOCraftingBatchTransaction doPrepareBatch(appeng.api.networking.crafting.ICraftingPatternDetails details,
+        InventoryCrafting table, TileECOController controller) {
+        if (TASK_PROGRESS_VALUE == null || this.batchEnergyGrid == null
+            || details == null
+            || table == null
             || controller == null
-            || !ECOFastPathPlannerHook.tryVerifiedPlan(controller, details, table).accepted()) {
+            || !ECOFastPathPlannerHook.tryVerifiedPlan(controller, details, table)
+                .accepted()) {
             return null;
         }
         TaskProgress progress = this.tasks.get(details);
@@ -432,8 +431,9 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
     }
 
     private void filterDispatchableTasks(boolean blockUnfinishedDependencies) {
-        for (Iterator<Entry<appeng.api.networking.crafting.ICraftingPatternDetails, TaskProgress>> it =
-            this.workableTasks.entrySet().iterator(); it.hasNext();) {
+        for (Iterator<Entry<appeng.api.networking.crafting.ICraftingPatternDetails, TaskProgress>> it = this.workableTasks
+            .entrySet()
+            .iterator(); it.hasNext();) {
             Entry<appeng.api.networking.crafting.ICraftingPatternDetails, TaskProgress> entry = it.next();
             if (blockUnfinishedDependencies
                 && (this.hasInFlightInput(entry.getKey()) || this.hasUnfinishedDependency(entry.getKey()))) {
@@ -457,12 +457,13 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         if (inputs.isEmpty()) {
             return false;
         }
-        for (Entry<appeng.api.networking.crafting.ICraftingPatternDetails, TaskProgress> candidate :
-            this.tasks.entrySet()) {
+        for (Entry<appeng.api.networking.crafting.ICraftingPatternDetails, TaskProgress> candidate : this.tasks
+            .entrySet()) {
             if (candidate.getKey() == consumer) {
                 continue;
             }
-            IAEStack<?>[] outputs = candidate.getKey().getCondensedAEOutputs();
+            IAEStack<?>[] outputs = candidate.getKey()
+                .getCondensedAEOutputs();
             if (outputs == null) {
                 continue;
             }
@@ -493,8 +494,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         this.workableTasks.clear();
     }
 
-    private int maxCraftsNeededForFinalOutput(
-        appeng.api.networking.crafting.ICraftingPatternDetails details) {
+    private int maxCraftsNeededForFinalOutput(appeng.api.networking.crafting.ICraftingPatternDetails details) {
         if (details == null || !this.finalOutput.isFinalPattern(details)) {
             return Integer.MAX_VALUE;
         }
@@ -535,8 +535,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         return Math.max(0, Math.max(0, tickLimit) - Math.max(0, acceptedCrafts));
     }
 
-    private static List<IAEStack<?>> safeInputs(
-        appeng.api.networking.crafting.ICraftingPatternDetails details) {
+    private static List<IAEStack<?>> safeInputs(appeng.api.networking.crafting.ICraftingPatternDetails details) {
         List<IAEStack<?>> result = new ArrayList<IAEStack<?>>();
         IAEStack<?>[] inputs = details.getAEInputs();
         if (inputs != null) {
@@ -572,11 +571,12 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         int availableCrafts = Math.max(0, requestedExtraCrafts);
         for (IAEItemStack perCraft : additionalInputs(table, 1)) {
             long desired = saturatingMultiply(perCraft.getStackSize(), availableCrafts);
-            IAEItemStack request = perCraft.copy().setStackSize(desired);
+            IAEItemStack request = perCraft.copy()
+                .setStackSize(desired);
             IAEItemStack available = this.inventory.extractItems(request, Actionable.SIMULATE);
             long availableAmount = available == null ? 0L : available.getStackSize();
-            availableCrafts = Math.min(availableCrafts, (int) Math.min(Integer.MAX_VALUE,
-                availableAmount / perCraft.getStackSize()));
+            availableCrafts = Math
+                .min(availableCrafts, (int) Math.min(Integer.MAX_VALUE, availableAmount / perCraft.getStackSize()));
             if (availableCrafts <= 0) {
                 return 0;
             }
@@ -586,7 +586,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
 
     static int maxAffordableCrafts(double powerPerCraft, int requested, DoubleUnaryOperator simulatedExtraction) {
         int boundedRequested = Math.min(ECOFastPathConfig.MAX_BATCH_SIZE, Math.max(0, requested));
-        if (boundedRequested <= 0 || !Double.isFinite(powerPerCraft) || powerPerCraft < 0D
+        if (boundedRequested <= 0 || !Double.isFinite(powerPerCraft)
+            || powerPerCraft < 0D
             || simulatedExtraction == null) {
             return 0;
         }
@@ -655,7 +656,9 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
             long amount = saturatingMultiply(input.getStackSize(), multiplier);
             IAEItemStack existing = findSameType(inputs, input);
             if (existing == null) {
-                inputs.add(input.copy().setStackSize(amount));
+                inputs.add(
+                    input.copy()
+                        .setStackSize(amount));
             } else {
                 existing.setStackSize(saturatingAdd(existing.getStackSize(), amount));
             }
@@ -683,8 +686,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         return power;
     }
 
-    private void accountAdditionalOutputs(
-        appeng.api.networking.crafting.ICraftingPatternDetails details, InventoryCrafting table, int extraCrafts) {
+    private void accountAdditionalOutputs(appeng.api.networking.crafting.ICraftingPatternDetails details,
+        InventoryCrafting table, int extraCrafts) {
         IAEStack<?>[] outputs = details.getCondensedAEOutputs();
         if (outputs != null) {
             for (IAEStack<?> output : outputs) {
@@ -693,7 +696,9 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         }
         if (details.isCraftable()) {
             for (int slot = 0; slot < table.getSizeInventory(); slot++) {
-                this.addWaitingOutput(AEItemStack.create(Platform.getContainerItem(table.getStackInSlot(slot))), extraCrafts);
+                this.addWaitingOutput(
+                    AEItemStack.create(Platform.getContainerItem(table.getStackInSlot(slot))),
+                    extraCrafts);
             }
         }
     }
@@ -702,7 +707,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         if (output == null || output.getStackSize() <= 0L || multiplier <= 0) {
             return;
         }
-        IAEStack<?> total = output.copy().setStackSize(saturatingMultiply(output.getStackSize(), multiplier));
+        IAEStack<?> total = output.copy()
+            .setStackSize(saturatingMultiply(output.getStackSize(), multiplier));
         this.postChange(total, this.machineSrc);
         this.waitingFor.add(total);
         this.postCraftingStatusChange(total);
@@ -795,15 +801,15 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
             double charged = Double.NaN;
             boolean energyFailure = false;
             try {
-                charged = ECOComputationVirtualCpu.this.batchEnergyGrid.extractAEPower(
-                    this.extraPower, Actionable.MODULATE, PowerMultiplier.CONFIG);
+                charged = ECOComputationVirtualCpu.this.batchEnergyGrid
+                    .extractAEPower(this.extraPower, Actionable.MODULATE, PowerMultiplier.CONFIG);
             } catch (RuntimeException e) {
                 energyFailure = true;
                 NeoECOAE.LOG.error("ECO batch accepted but its crafting energy could not be charged", e);
             }
             if (!energyFailure && (Double.isNaN(charged) || charged < this.extraPower - 0.01D)) {
-                NeoECOAE.LOG.error("ECO batch accepted but energy charge was incomplete: {} / {}", charged,
-                    this.extraPower);
+                NeoECOAE.LOG
+                    .error("ECO batch accepted but energy charge was incomplete: {} / {}", charged, this.extraPower);
             }
             try {
                 ECOComputationVirtualCpu.this.accountAdditionalOutputs(this.details, this.table, extraCrafts);
@@ -811,7 +817,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
                 NeoECOAE.LOG.error("ECO batch accepted but its CPU accounting update failed", e);
             }
             ECOComputationVirtualCpu.this.craftsThisTick = saturatingIntAdd(
-                ECOComputationVirtualCpu.this.craftsThisTick, this.craftCount);
+                ECOComputationVirtualCpu.this.craftsThisTick,
+                this.craftCount);
             // AE2 decrements one normal operation after pushPattern returns. Verified batches
             // use the independent fast-path budget, matching the modern CPU scheduler.
             ECOComputationVirtualCpu.this.remainingOperations++;

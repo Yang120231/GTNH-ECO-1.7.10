@@ -6,30 +6,35 @@ import net.minecraftforge.oredict.OreDictionary;
 
 public final class NEOreDictionary {
 
+    public static final String NEO_TUNGSTEN_ORE = "neoecoaeTungstenOre";
+    public static final String NEO_TUNGSTEN_RAW = "neoecoaeTungstenRaw";
+    public static final String NEO_TUNGSTEN_INGOT = "neoecoaeTungstenIngot";
+    public static final String NEO_TUNGSTEN_DUST = "neoecoaeTungstenDust";
+    public static final String NEO_TUNGSTEN_RAW_BLOCK = "neoecoaeTungstenRawBlock";
+    public static final String NEO_TUNGSTEN_BLOCK = "neoecoaeTungstenBlock";
+
     private NEOreDictionary() {}
 
     public static void register() {
         ore("oreAluminum", NEBlocks.aluminumOre);
-        ore("oreTungsten", NEBlocks.tungstenOre);
+        ore(NEO_TUNGSTEN_ORE, NEBlocks.tungstenOre);
 
         ore("rawAluminum", NEItems.rawAluminumOre);
         ore("rawAluminium", NEItems.rawAluminumOre);
-        ore("rawTungsten", NEItems.rawTungstenOre);
+        ore(NEO_TUNGSTEN_RAW, NEItems.rawTungstenOre);
 
         ore("ingotAluminum", NEItems.aluminumIngot);
         ore("ingotAluminium", NEItems.aluminumIngot);
-        ore("ingotTungsten", NEItems.tungstenIngot);
+        ore(NEO_TUNGSTEN_INGOT, NEItems.tungstenIngot);
         ore("ingotAluminumAlloy", NEItems.aluminumAlloyIngot);
         ore("ingotAluminiumAlloy", NEItems.aluminumAlloyIngot);
         ore("ingotBlackTungstenAlloy", NEItems.blackTungstenAlloyIngot);
-        ore("ingotSuperconductive", NEItems.blackTungstenAlloyIngot);
         ore("ingotCrystal", NEItems.crystalIngot);
         ore("ingotEnergizedSuperconductive", NEItems.energizedSuperconductiveIngot);
-        ore("ingotSuperconductive", NEItems.energizedSuperconductiveIngot);
 
         ore("dustAluminum", NEItems.aluminumDust);
         ore("dustAluminium", NEItems.aluminumDust);
-        ore("dustTungsten", NEItems.tungstenDust);
+        ore(NEO_TUNGSTEN_DUST, NEItems.tungstenDust);
         ore("dustAluminumAlloy", NEItems.aluminumAlloyDust);
         ore("dustAluminiumAlloy", NEItems.aluminumAlloyDust);
         ore("dustBlackTungstenAlloy", NEItems.blackTungstenAlloyDust);
@@ -42,10 +47,10 @@ public final class NEOreDictionary {
 
         ore("blockRawAluminum", NEBlocks.rawAluminumBlock);
         ore("blockRawAluminium", NEBlocks.rawAluminumBlock);
-        ore("blockRawTungsten", NEBlocks.rawTungstenBlock);
+        ore(NEO_TUNGSTEN_RAW_BLOCK, NEBlocks.rawTungstenBlock);
         ore("blockAluminum", NEBlocks.aluminumBlock);
         ore("blockAluminium", NEBlocks.aluminumBlock);
-        ore("blockTungsten", NEBlocks.tungstenBlock);
+        ore(NEO_TUNGSTEN_BLOCK, NEBlocks.tungstenBlock);
         ore("blockAluminumAlloy", NEBlocks.aluminumAlloyBlock);
         ore("blockAluminiumAlloy", NEBlocks.aluminumAlloyBlock);
         ore("blockBlackTungstenAlloy", NEBlocks.blackTungstenAlloyBlock);

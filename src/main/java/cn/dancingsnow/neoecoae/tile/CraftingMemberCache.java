@@ -9,13 +9,7 @@ import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 
-/**
- * Caches references to crafting member TileEntities for fast lookup.
- * This cache eliminates O(N) scans of the formed member list.
- *
- * Thread Safety: All access must be on the server main thread.
- * Lifecycle: Rebuilt when structure changes, invalidated on chunk unload.
- */
+/** Server-thread cache rebuilt whenever the formed crafting structure changes. */
 final class CraftingMemberCache {
 
     public static final CraftingMemberCache EMPTY = new CraftingMemberCache(
@@ -47,15 +41,6 @@ final class CraftingMemberCache {
         this.valid = valid;
     }
 
-    /**
-     * Build cache from controller's formed members.
-     * This method scans the member lists once and categorizes all TileEntities.
-     *
-     * @param controller    the crafting controller
-     * @param formedMembers list of formed member positions
-     * @param hiddenMembers list of hidden member positions (interfaces, hatches)
-     * @return populated cache, or EMPTY if build fails
-     */
     static CraftingMemberCache build(TileECOController controller, List<ECOFormationBlockPos> formedMembers,
         List<ECOFormationBlockPos> hiddenMembers) {
         if (controller == null || controller.getWorldObj() == null) {
@@ -64,13 +49,12 @@ final class CraftingMemberCache {
 
         World world = controller.getWorldObj();
         if (world.isRemote) {
-            return EMPTY; // Client-side does not build cache
+            return EMPTY;
         }
 
         List<TileCraftingWorker> workers = new ArrayList<>();
         List<TileCraftingPatternBus> patternBuses = new ArrayList<>();
 
-        // Scan formed members for workers and pattern buses
         for (ECOFormationBlockPos pos : formedMembers) {
             TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (tile == null || tile.isInvalid()) {
@@ -88,7 +72,6 @@ final class CraftingMemberCache {
         List<TileCraftingHatch> inputHatches = new ArrayList<>();
         List<TileCraftingHatch> outputHatches = new ArrayList<>();
 
-        // Scan hidden members for interfaces and hatches
         for (ECOFormationBlockPos pos : hiddenMembers) {
             TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (tile == null || tile.isInvalid()) {
@@ -120,52 +103,26 @@ final class CraftingMemberCache {
             true);
     }
 
-    /**
-     * Check if this cache is still valid for the given controller revision.
-     *
-     * @param currentRevision the controller's current cache revision
-     * @return true if cache can be used
-     */
     boolean isValid(int currentRevision) {
         return this.valid && this.controllerRevision == currentRevision;
     }
 
-    /**
-     * Get list of cached workers.
-     * Returns unmodifiable view to prevent external modification.
-     */
     List<TileCraftingWorker> workers() {
         return Collections.unmodifiableList(this.workers);
     }
 
-    /**
-     * Get list of cached pattern buses.
-     * Returns unmodifiable view to prevent external modification.
-     */
     List<TileCraftingPatternBus> patternBuses() {
         return Collections.unmodifiableList(this.patternBuses);
     }
 
-    /**
-     * Get list of cached crafting interfaces.
-     * Returns unmodifiable view to prevent external modification.
-     */
     List<TileECOInterface> craftingInterfaces() {
         return Collections.unmodifiableList(this.craftingInterfaces);
     }
 
-    /**
-     * Get list of cached input hatches.
-     * Returns unmodifiable view to prevent external modification.
-     */
     List<TileCraftingHatch> inputHatches() {
         return Collections.unmodifiableList(this.inputHatches);
     }
 
-    /**
-     * Get list of cached output hatches.
-     * Returns unmodifiable view to prevent external modification.
-     */
     List<TileCraftingHatch> outputHatches() {
         return Collections.unmodifiableList(this.outputHatches);
     }

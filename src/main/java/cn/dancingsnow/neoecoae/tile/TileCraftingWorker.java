@@ -1,7 +1,6 @@
 package cn.dancingsnow.neoecoae.tile;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -20,62 +19,6 @@ public class TileCraftingWorker extends TileCraftingMember {
 
     public static final int BASE_QUEUE_CAPACITY = 32;
     private static final String TAG_STACK_AMOUNT = "EcoAmount";
-
-    public boolean isRunning() {
-        TileECOController controller = this.findCraftingController();
-        return controller != null && controller.isVirtualCraftingRunning();
-    }
-
-    public boolean isWorking() {
-        return this.isRunning();
-    }
-
-    public int queueSize() {
-        return 0;
-    }
-
-    public int queueCapacity() {
-        TileECOController controller = this.findCraftingController();
-        return controller == null ? BASE_QUEUE_CAPACITY : controller.getCraftingMaxInFlightCrafts();
-    }
-
-    public boolean hasQueueSpace() {
-        TileECOController controller = this.findCraftingController();
-        return controller != null && controller.getCraftingCurrentBatchSlots() > 0;
-    }
-
-    public int availableQueueSpace() {
-        TileECOController controller = this.findCraftingController();
-        return controller == null ? 0 : controller.getCraftingCurrentBatchSlots();
-    }
-
-    public int getSlotId() {
-        return -1;
-    }
-
-    public int getProgress() {
-        return 0;
-    }
-
-    public int getTotalProgress() {
-        return 0;
-    }
-
-    public ItemStack getCurrentOutput() {
-        return null;
-    }
-
-    public ItemStack takePendingOutput() {
-        return null;
-    }
-
-    public List<ItemStack> takeQueuedOutputs() {
-        return Collections.emptyList();
-    }
-
-    public void clearRunningSlot() {}
-
-    public void setRunningSlot(int slotId, int progress, int totalProgress, boolean running) {}
 
     @Override
     public void updateEntity() {
@@ -99,10 +42,6 @@ public class TileCraftingWorker extends TileCraftingMember {
 
     @Override
     public void onDataPacket(NetworkManager net, S35PacketUpdateTileEntity packet) {}
-
-    public WorkSnapshot snapshot() {
-        return new WorkSnapshot(null, 0, this.queueCapacity(), 0, 0);
-    }
 
     static List<ItemStack> multiplyStack(ItemStack stack, int multiplier) {
         List<ItemStack> result = new ArrayList<ItemStack>();
@@ -178,8 +117,7 @@ public class TileCraftingWorker extends TileCraftingMember {
     }
 
     static int persistedStackAmount(NBTTagCompound stackTag, int decodedAmount) {
-        return stackTag.hasKey(TAG_STACK_AMOUNT)
-            ? Math.max(1, stackTag.getInteger(TAG_STACK_AMOUNT))
+        return stackTag.hasKey(TAG_STACK_AMOUNT) ? Math.max(1, stackTag.getInteger(TAG_STACK_AMOUNT))
             : Math.max(1, decodedAmount);
     }
 

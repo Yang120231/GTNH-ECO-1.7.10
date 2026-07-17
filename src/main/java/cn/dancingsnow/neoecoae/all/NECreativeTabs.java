@@ -90,9 +90,6 @@ public final class NECreativeTabs {
         if (isTool(name)) {
             return 5;
         }
-        if ("debug".equals(name)) {
-            return 8;
-        }
         return 9;
     }
 

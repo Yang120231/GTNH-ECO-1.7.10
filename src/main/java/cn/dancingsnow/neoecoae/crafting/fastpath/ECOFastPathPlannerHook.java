@@ -19,14 +19,16 @@ public final class ECOFastPathPlannerHook {
 
     private static final ECOFastPathPatternInspector INSPECTOR = new ECOFastPathPatternInspector();
     private static final ECOFastPathCache CACHE = new ECOFastPathCache();
-    private static final Map<RuntimeVerificationKey, RuntimeVerification> VERIFIED =
-        new LinkedHashMap<RuntimeVerificationKey, RuntimeVerification>(256, 0.75F, true) {
+    private static final Map<RuntimeVerificationKey, RuntimeVerification> VERIFIED = new LinkedHashMap<RuntimeVerificationKey, RuntimeVerification>(
+        256,
+        0.75F,
+        true) {
 
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<RuntimeVerificationKey, RuntimeVerification> eldest) {
-                return this.size() > ECOFastPathConfig.patternCacheSize();
-            }
-        };
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<RuntimeVerificationKey, RuntimeVerification> eldest) {
+            return this.size() > ECOFastPathConfig.patternCacheSize();
+        }
+    };
 
     private ECOFastPathPlannerHook() {}
 
@@ -63,8 +65,8 @@ public final class ECOFastPathPlannerHook {
         }
     }
 
-    public static ECOFastPathPlan tryVerifiedPlan(TileECOController controller,
-        ICraftingPatternDetails patternDetails, InventoryCrafting table) {
+    public static ECOFastPathPlan tryVerifiedPlan(TileECOController controller, ICraftingPatternDetails patternDetails,
+        InventoryCrafting table) {
         ECOFastPathPlan plan = tryPlan(controller, patternDetails, table);
         if (!plan.accepted()) {
             return plan;
@@ -78,8 +80,7 @@ public final class ECOFastPathPlannerHook {
                 VERIFIED.remove(key);
                 verification = null;
             }
-            return verification != null && verification.accepted
-                ? plan
+            return verification != null && verification.accepted ? plan
                 : ECOFastPathPlan.rejected(ECOFastPathDecision.CACHE_NEGATIVE, "pattern not runtime-verified");
         }
     }
@@ -97,8 +98,10 @@ public final class ECOFastPathPlannerHook {
         RuntimeVerificationKey key = RuntimeVerificationKey.of(details, table, world);
         appeng.api.storage.data.IAEItemStack actual = AEItemStack.create(output);
         appeng.api.storage.data.IAEItemStack[] expected = profile.getOutputs();
-        boolean matches = actual != null && expected.length == 1 && expected[0] != null
-            && expected[0].isSameType(actual) && expected[0].getStackSize() == actual.getStackSize();
+        boolean matches = actual != null && expected.length == 1
+            && expected[0] != null
+            && expected[0].isSameType(actual)
+            && expected[0].getStackSize() == actual.getStackSize();
         synchronized (VERIFIED) {
             VERIFIED.put(key, new RuntimeVerification(matches, currentTick(world)));
         }
@@ -219,7 +222,8 @@ public final class ECOFastPathPlannerHook {
                 return false;
             }
             StackSignature that = (StackSignature) other;
-            return this.itemId == that.itemId && this.damage == that.damage && this.amount == that.amount
+            return this.itemId == that.itemId && this.damage == that.damage
+                && this.amount == that.amount
                 && (this.tag == null ? that.tag == null : this.tag.equals(that.tag));
         }
 

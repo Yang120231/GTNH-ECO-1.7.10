@@ -122,7 +122,8 @@ public class BakedEcoModel {
             rotateUv(uvVertices(face, face.getSide()), face.getRotation()),
             face.isFullBright(),
             element.isShade(),
-            modelBoundsAreWorldBoundary && isBoundaryFace(rotatedVertices, normal, bounds));
+            modelBoundsAreWorldBoundary && isBoundaryFace(rotatedVertices, normal, bounds),
+            face.getRenderLayer(element.getRenderLayer()));
     }
 
     private static BakedQuad bakeRawFace(ModernModel model, ModelElement element, ModelFace face, ModelFacing facing,
@@ -143,7 +144,8 @@ public class BakedEcoModel {
             rotateUv(uvVertices(face, face.getSide()), face.getRotation()),
             face.isFullBright(),
             element.isShade(),
-            isBoundaryFace(transformedVertices, normal, bounds));
+            isBoundaryFace(transformedVertices, normal, bounds),
+            face.getRenderLayer(element.getRenderLayer()));
     }
 
     private static boolean isBoundaryFace(double[][] vertices, ForgeDirection normal, ModelBounds bounds) {

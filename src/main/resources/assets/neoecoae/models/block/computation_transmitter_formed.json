@@ -2,7 +2,7 @@
 	"format_version": "1.9.0",
 	"credit": "Made with Blockbench, made by TedXenon",
 	"parent": "block/block",
-	"render_type": "translucent",
+	"render_type": "cutout",
 	"textures": {
 		"0": "neoecoae:block/compute/cable/plug_off",
 		"1": "neoecoae:block/compute/casing_back",
@@ -108,8 +108,8 @@
 			"from": [1, 6, 1],
 			"to": [15, 10, 1],
 			"faces": {
-				"north": {"uv": [1, 6, 15, 10], "texture": "#4"},
-				"south": {"uv": [1, 6, 15, 10], "texture": "#4"}
+				"north": {"uv": [1, 6, 15, 10], "texture": "#4", "render_type": "translucent"},
+				"south": {"uv": [1, 6, 15, 10], "texture": "#4", "render_type": "translucent"}
 			}
 		},
 		{

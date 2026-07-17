@@ -21,9 +21,9 @@ import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.util.ScheduledReason;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
-import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchCoordinator;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
+import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
 
 public class TileCraftingPatternBus extends TileCraftingMember implements IInventory, ICraftingProvider {
 
@@ -63,10 +63,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
         TileECOController controller = this.findCraftingController();
         boolean accepted = pushPattern(controller, patternDetails, table);
-        this.scheduledReason = accepted
-            ? ScheduledReason.UNDEFINED
-            : controller == null || !controller.isFormed()
-                ? ScheduledReason.NO_TARGET
+        this.scheduledReason = accepted ? ScheduledReason.UNDEFINED
+            : controller == null || !controller.isFormed() ? ScheduledReason.NO_TARGET
                 : ScheduledReason.SOMETHING_STUCK;
         return accepted;
     }

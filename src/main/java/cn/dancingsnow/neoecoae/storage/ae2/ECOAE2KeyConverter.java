@@ -83,9 +83,12 @@ public final class ECOAE2KeyConverter {
     }
 
     private static boolean sameSemanticKey(ECOStorageKey left, ECOStorageKey right) {
-        if (left == null || right == null || left.getMetadata() != right.getMetadata()
-            || !left.getChannel().equals(right.getChannel())
-            || !left.getIdentity().equals(right.getIdentity())) {
+        if (left == null || right == null
+            || left.getMetadata() != right.getMetadata()
+            || !left.getChannel()
+                .equals(right.getChannel())
+            || !left.getIdentity()
+                .equals(right.getIdentity())) {
             return false;
         }
         NBTTagCompound leftTag = decodeTag(left.getVariant());

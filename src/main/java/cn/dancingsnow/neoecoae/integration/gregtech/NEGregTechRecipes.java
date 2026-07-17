@@ -35,6 +35,7 @@ public final class NEGregTechRecipes {
     private NEGregTechRecipes() {}
 
     public static void register() {
+        registerBaseMaterialRecipes();
         registerAlloyMaterialRecipes();
         registerCryotheumMixerRecipes();
         registerHighVersionMaterialRecipes();
@@ -44,6 +45,11 @@ public final class NEGregTechRecipes {
         registerInfiniteComponentRecipe();
     }
 
+    private static void registerBaseMaterialRecipes() {
+        macerator(stack(NEItems.aluminumIngot), stack(NEItems.aluminumDust), 3 * SECONDS, TierEU.RECIPE_HV);
+        macerator(stack(NEItems.tungstenIngot), stack(NEItems.tungstenDust), 4 * SECONDS, TierEU.RECIPE_HV);
+    }
+
     private static void registerAlloyMaterialRecipes() {
         ItemStack certusDust = NEAE2RecipeItems.certusQuartzDust();
         ItemStack fluixDust = NEAE2RecipeItems.fluixDust();
@@ -51,14 +57,14 @@ public final class NEGregTechRecipes {
         mixer(
             new ItemStack[] { ore("dustIron", 1), stack(NEItems.aluminumDust), copy(certusDust, 2) },
             null,
-            new ItemStack[] { stack(NEItems.aluminumAlloyDust, 4) },
+            new ItemStack[] { stack(NEItems.aluminumAlloyDust) },
             null,
             10 * SECONDS,
             TierEU.RECIPE_LV);
         mixer(
             new ItemStack[] { stack(NEItems.tungstenDust), stack(NEItems.aluminumAlloyDust), copy(fluixDust, 2) },
             null,
-            new ItemStack[] { stack(NEItems.blackTungstenAlloyDust, 4) },
+            new ItemStack[] { stack(NEItems.blackTungstenAlloyDust) },
             null,
             15 * SECONDS,
             TierEU.RECIPE_MV);

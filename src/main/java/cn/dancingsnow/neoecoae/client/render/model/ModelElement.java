@@ -11,15 +11,21 @@ public class ModelElement {
     private final double[] to;
     private final Map<ForgeDirection, ModelFace> faces = new EnumMap<ForgeDirection, ModelFace>(ForgeDirection.class);
     private final boolean shade;
+    private final ModelRenderLayer renderLayer;
 
     public ModelElement(double[] from, double[] to) {
-        this(from, to, true);
+        this(from, to, true, ModelRenderLayer.CUTOUT);
     }
 
     public ModelElement(double[] from, double[] to, boolean shade) {
+        this(from, to, shade, ModelRenderLayer.CUTOUT);
+    }
+
+    public ModelElement(double[] from, double[] to, boolean shade, ModelRenderLayer renderLayer) {
         this.from = from;
         this.to = to;
         this.shade = shade;
+        this.renderLayer = renderLayer;
     }
 
     public double[] getFrom() {
@@ -40,5 +46,9 @@ public class ModelElement {
 
     public boolean isShade() {
         return this.shade;
+    }
+
+    public ModelRenderLayer getRenderLayer() {
+        return this.renderLayer;
     }
 }

@@ -23,9 +23,8 @@ class ECOCraftingOutputAllocationTest {
 
     @Test
     void handlesLargeValuesWithoutOverflow() {
-        long[] shares = ECOCraftingOutputAllocation.proportional(
-            new long[] { Long.MAX_VALUE / 2L, Long.MAX_VALUE / 2L },
-            Long.MAX_VALUE / 2L);
+        long[] shares = ECOCraftingOutputAllocation
+            .proportional(new long[] { Long.MAX_VALUE / 2L, Long.MAX_VALUE / 2L }, Long.MAX_VALUE / 2L);
 
         assertEquals(Long.MAX_VALUE / 2L, shares[0] + shares[1]);
     }

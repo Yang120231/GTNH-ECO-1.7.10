@@ -13,15 +13,14 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.IIcon;
 import net.minecraft.util.StatCollector;
-
 import net.minecraftforge.fluids.Fluid;
 
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
-import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipe;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipes;
+import cn.dancingsnow.neoecoae.gui.container.ContainerECOCraftingController;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerLayout;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingHostSnapshot;
 import cn.dancingsnow.neoecoae.network.NENetwork;
@@ -213,8 +212,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             active ? HostUiStyle.TEXT_GOOD : HostUiStyle.TEXT_BAD);
     }
 
-    private void drawToolbarButton(int x, int mouseX, int mouseY, boolean selected,
-        AEA2ToolbarIconButton.Sprite icon) {
+    private void drawToolbarButton(int x, int mouseX, int mouseY, boolean selected, AEA2ToolbarIconButton.Sprite icon) {
         AEA2ToolbarIconButton.draw(this, x, TOOLBAR_Y, mouseX, mouseY, TOOLBAR_SIZE, icon, selected);
     }
 
@@ -247,14 +245,8 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             TOP_AREA_Y + 7,
             TEXT_SCALE,
             HostUiStyle.DARK_TEXT_PRIMARY);
-        this.drawStatusRow(
-            tr("gui.neoecoae.crafting.overclock", "OC"),
-            state.overclocked,
-            TOP_AREA_Y + 24);
-        this.drawStatusRow(
-            tr("gui.neoecoae.crafting.cooling_short", "Cool"),
-            state.activeCooling,
-            TOP_AREA_Y + 42);
+        this.drawStatusRow(tr("gui.neoecoae.crafting.overclock", "OC"), state.overclocked, TOP_AREA_Y + 24);
+        this.drawStatusRow(tr("gui.neoecoae.crafting.cooling_short", "Cool"), state.activeCooling, TOP_AREA_Y + 42);
         this.statusTooltip(state, mouseX, mouseY);
     }
 
@@ -310,8 +302,12 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
 
     private void drawStatsPanel(CraftingHostSnapshot state, int mouseX, int mouseY) {
         int x = MODULE_AREA_X + 8;
-        this.drawScaledText(tr("gui.neoecoae.crafting.ui.stats", "Statistics"), x, TOP_AREA_Y + 7,
-            TEXT_SCALE, HostUiStyle.DARK_TEXT_PRIMARY);
+        this.drawScaledText(
+            tr("gui.neoecoae.crafting.ui.stats", "Statistics"),
+            x,
+            TOP_AREA_Y + 7,
+            TEXT_SCALE,
+            HostUiStyle.DARK_TEXT_PRIMARY);
 
         this.drawScaledSegments(
             x,
@@ -341,14 +337,10 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         this.drawScaledSegments(
             x,
             TOP_AREA_Y + 56,
-            new TextSegment(
-                tr("gui.neoecoae.host.crafting.overflow", "Overflow") + ": ",
-                HostUiStyle.DARK_TEXT_MUTED),
+            new TextSegment(tr("gui.neoecoae.host.crafting.overflow", "Overflow") + ": ", HostUiStyle.DARK_TEXT_MUTED),
             new TextSegment(this.formatNumber(state.overflowThreads), HostUiStyle.DARK_TEXT_ORANGE),
             new TextSegment("  ", HostUiStyle.DARK_TEXT_MUTED),
-            new TextSegment(
-                recipeTimeMultiplier(state.effectiveOverclockTimes),
-                HostUiStyle.DARK_TEXT_WARNING));
+            new TextSegment(recipeTimeMultiplier(state.effectiveOverclockTimes), HostUiStyle.DARK_TEXT_WARNING));
         if (this.isMouseIn(MODULE_AREA_X, TOP_AREA_Y, MODULE_AREA_W, TOP_AREA_H, mouseX, mouseY)) {
             this.hoveredLines = this.statsTooltip(state);
         }
@@ -357,12 +349,16 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private List<String> statsTooltip(CraftingHostSnapshot state) {
         List<String> lines = new ArrayList<>();
         lines.add(EnumChatFormatting.AQUA + tr("gui.neoecoae.crafting.ui.stats", "Statistics"));
-        lines.add(tr("gui.neoecoae.crafting.recipe_slots", "Recipe Slots") + ": "
-            + this.formatNumber(state.occupiedRecipeSlots) + " / " + this.formatNumber(state.maxRecipeSlots));
-        lines.add(tr("gui.neoecoae.crafting.batch_parallel", "Batch Parallel") + ": "
-            + this.formatNumber(state.batchParallel));
-        lines.add(tr("gui.neoecoae.host.crafting.overflow", "Overflow") + ": "
-            + this.formatNumber(state.overflowThreads));
+        lines.add(
+            tr("gui.neoecoae.crafting.recipe_slots", "Recipe Slots") + ": "
+                + this.formatNumber(state.occupiedRecipeSlots)
+                + " / "
+                + this.formatNumber(state.maxRecipeSlots));
+        lines.add(
+            tr("gui.neoecoae.crafting.batch_parallel", "Batch Parallel") + ": "
+                + this.formatNumber(state.batchParallel));
+        lines.add(
+            tr("gui.neoecoae.host.crafting.overflow", "Overflow") + ": " + this.formatNumber(state.overflowThreads));
         return lines;
     }
 
@@ -389,21 +385,9 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
             Math.max(1, state.energyGaugeReference),
             energyColor(state));
         this.drawCoolantGauge(state, coolantX);
-        if (this.isMouseIn(
-            energyX,
-            GAUGE_BAR_Y,
-            GAUGE_BAR_W,
-            GAUGE_BAR_H,
-            mouseX,
-            mouseY)) {
+        if (this.isMouseIn(energyX, GAUGE_BAR_Y, GAUGE_BAR_W, GAUGE_BAR_H, mouseX, mouseY)) {
             this.hoveredLines = this.energyTooltip(state);
-        } else if (this.isMouseIn(
-            coolantX,
-            GAUGE_BAR_Y,
-            COOLANT_GAUGE_W,
-            GAUGE_BAR_H,
-            mouseX,
-            mouseY)) {
+        } else if (this.isMouseIn(coolantX, GAUGE_BAR_Y, COOLANT_GAUGE_W, GAUGE_BAR_H, mouseX, mouseY)) {
             this.hoveredLines = this.coolantTooltip(state);
         }
     }
@@ -445,11 +429,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         int visible = Math.min(active.size() - firstIndex, TASK_VISIBLE_CARDS + (offset > 0 ? 1 : 0));
         this.beginScissor(TASK_LIST_X, TASK_LIST_Y, TASK_LIST_W, TASK_LIST_H);
         for (int i = 0; i < visible; i++) {
-            this.drawWorkerCard(
-                active.get(firstIndex + i),
-                TASK_CARD_Y + i * TASK_CARD_STEP - offset,
-                mouseX,
-                mouseY);
+            this.drawWorkerCard(active.get(firstIndex + i), TASK_CARD_Y + i * TASK_CARD_STEP - offset, mouseX, mouseY);
         }
         this.endScissor();
         if (active.size() > TASK_VISIBLE_CARDS) {
@@ -472,12 +452,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     private void drawWorkerCard(CraftingHostSnapshot.WorkerEntry worker, int y, int mouseX, int mouseY) {
         boolean hovered = this.isMouseIn(TASK_CARD_X, y, TASK_CARD_W, TASK_CARD_H, mouseX, mouseY)
             && this.isMouseIn(TASK_LIST_X, TASK_LIST_Y, TASK_LIST_W, TASK_LIST_H, mouseX, mouseY);
-        this.drawTinyInsetLocal(
-            TASK_CARD_X,
-            y,
-            TASK_CARD_W,
-            TASK_CARD_H,
-            hovered ? 0xFF2A2535 : 0xFF201E27);
+        this.drawTinyInsetLocal(TASK_CARD_X, y, TASK_CARD_W, TASK_CARD_H, hovered ? 0xFF2A2535 : 0xFF201E27);
         this.drawScaledItemIcon(worker.outputStack, y + 1);
         int textX = TASK_CARD_X + 17;
         this.drawScaledFittedText(
@@ -533,12 +508,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         if (filled > 0) {
             int bottom = GAUGE_BAR_Y + GAUGE_BAR_H - 4;
             drawRect(x + 4, bottom - filled, x + GAUGE_BAR_W - 4, bottom, color);
-            drawRect(
-                x + 4,
-                bottom - filled,
-                x + GAUGE_BAR_W - 4,
-                Math.min(bottom, bottom - filled + 2),
-                0x70FFFFFF);
+            drawRect(x + 4, bottom - filled, x + GAUGE_BAR_W - 4, Math.min(bottom, bottom - filled + 2), 0x70FFFFFF);
         }
     }
 
@@ -553,8 +523,7 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
         int fillY = GAUGE_BAR_Y + 4 + innerHeight - filled;
         Fluid fluid = this.coolantFluid(state);
         IIcon icon = fluid == null ? null : fluid.getStillIcon();
-        drawRect(x + 4, fillY, x + 4 + innerWidth, GAUGE_BAR_Y + 4 + innerHeight,
-            HostUiStyle.DARK_TEXT_BLUE);
+        drawRect(x + 4, fillY, x + 4 + innerWidth, GAUGE_BAR_Y + 4 + innerHeight, HostUiStyle.DARK_TEXT_BLUE);
         if (icon != null) {
             this.drawFluidFill(x + 4, fillY, innerWidth, filled, icon);
         }
@@ -562,24 +531,9 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
 
     private void drawGaugeFrame(int x, int width) {
         drawRect(x, GAUGE_BAR_Y, x + width, GAUGE_BAR_Y + GAUGE_BAR_H, HostUiStyle.DARK_PANEL_LIGHT_EDGE);
-        drawRect(
-            x + 1,
-            GAUGE_BAR_Y + 1,
-            x + width - 1,
-            GAUGE_BAR_Y + GAUGE_BAR_H - 1,
-            HostUiStyle.DARK_PANEL_OUTER);
-        drawRect(
-            x + 2,
-            GAUGE_BAR_Y + 2,
-            x + width - 2,
-            GAUGE_BAR_Y + GAUGE_BAR_H - 2,
-            HostUiStyle.DARK_PANEL_MIDDLE);
-        drawRect(
-            x + 3,
-            GAUGE_BAR_Y + 3,
-            x + width - 3,
-            GAUGE_BAR_Y + GAUGE_BAR_H - 3,
-            HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(x + 1, GAUGE_BAR_Y + 1, x + width - 1, GAUGE_BAR_Y + GAUGE_BAR_H - 1, HostUiStyle.DARK_PANEL_OUTER);
+        drawRect(x + 2, GAUGE_BAR_Y + 2, x + width - 2, GAUGE_BAR_Y + GAUGE_BAR_H - 2, HostUiStyle.DARK_PANEL_MIDDLE);
+        drawRect(x + 3, GAUGE_BAR_Y + 3, x + width - 3, GAUGE_BAR_Y + GAUGE_BAR_H - 3, HostUiStyle.DARK_PANEL_OUTER);
         drawRect(x + 4, GAUGE_BAR_Y + 4, x + width - 4, GAUGE_BAR_Y + GAUGE_BAR_H - 4, 0xFF201E27);
     }
 
@@ -596,7 +550,8 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
     }
 
     private void drawFluidFill(int x, int y, int width, int height, IIcon icon) {
-        this.mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
+        this.mc.getTextureManager()
+            .bindTexture(TextureMap.locationBlocksTexture);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         for (int offsetY = 0; offsetY < height; offsetY += 16) {
             int partHeight = Math.min(16, height - offsetY);
@@ -640,9 +595,10 @@ public class GuiECOCraftingController extends GuiHostMachineBase {
                 this.formatNumber(state.coolant),
                 this.formatNumber(state.maxCoolant)));
         lines.add(this.percentText(state.coolant, state.maxCoolant));
-        lines.add(state.coolantMaxOverclock <= 0
-            ? tr("gui.neoecoae.crafting.coolant_max_overclock.none", "Current Coolant Max Overclock: None")
-            : translate("gui.neoecoae.crafting.coolant_max_overclock", state.coolantMaxOverclock));
+        lines.add(
+            state.coolantMaxOverclock <= 0
+                ? tr("gui.neoecoae.crafting.coolant_max_overclock.none", "Current Coolant Max Overclock: None")
+                : translate("gui.neoecoae.crafting.coolant_max_overclock", state.coolantMaxOverclock));
         return lines;
     }
 

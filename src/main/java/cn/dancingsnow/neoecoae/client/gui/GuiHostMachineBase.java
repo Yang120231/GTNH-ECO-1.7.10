@@ -122,8 +122,8 @@ abstract class GuiHostMachineBase extends GuiContainer {
     }
 
     /** Pixel-equivalent of the LDLib2 host inset button used by all three controllers. */
-    protected final void drawInsetButtonLocal(int x, int y, int width, int height, boolean hovered,
-        boolean pressed, boolean selected) {
+    protected final void drawInsetButtonLocal(int x, int y, int width, int height, boolean hovered, boolean pressed,
+        boolean selected) {
         int edge = hovered ? 0xFFDAD5E8 : HostUiStyle.DARK_PANEL_LIGHT_EDGE;
         int middle = selected ? 0xFF3B3445 : 0xFF47434F;
         int inner = selected ? 0xFF282232 : 0xFF5A5460;
@@ -142,8 +142,7 @@ abstract class GuiHostMachineBase extends GuiContainer {
             drawRect(x + 3, y + height - 4, x + width - 3, y + height - 3, 0x99000000);
         }
         if (selected) {
-            drawRect(x + 3, y + height - 4, x + width - 3, y + height - 3,
-                HostUiStyle.DARK_TEXT_SUCCESS);
+            drawRect(x + 3, y + height - 4, x + width - 3, y + height - 3, HostUiStyle.DARK_TEXT_SUCCESS);
         }
     }
 
@@ -210,7 +209,12 @@ abstract class GuiHostMachineBase extends GuiContainer {
 
     protected final void drawStorageGauge(int x, int y, double percentage, boolean reverseColor) {
         double clamped = Math.max(0.0D, Math.min(1.0D, percentage));
-        this.drawStorageGauge(x, y, STORAGE_GAUGE_WIDTH, 143, clamped,
+        this.drawStorageGauge(
+            x,
+            y,
+            STORAGE_GAUGE_WIDTH,
+            143,
+            clamped,
             HostUiStyle.storageGaugeColor(clamped, reverseColor));
     }
 

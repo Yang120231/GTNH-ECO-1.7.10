@@ -411,8 +411,10 @@ public class GuiECOComputationController extends GuiHostMachineBase {
     }
 
     private static int visibleTaskCount() {
-        return Math.max(1, (ComputationControllerLayout.TASK_LIST_BOTTOM_Y - ComputationControllerLayout.TASK_CARD_Y
-            - ComputationControllerLayout.TASK_CARD_H) / ComputationControllerLayout.TASK_CARD_STEP + 1);
+        return Math.max(
+            1,
+            (ComputationControllerLayout.TASK_LIST_BOTTOM_Y - ComputationControllerLayout.TASK_CARD_Y
+                - ComputationControllerLayout.TASK_CARD_H) / ComputationControllerLayout.TASK_CARD_STEP + 1);
     }
 
     private void drawUsedTotal(long used, long total, int y, boolean storageBytes, int usedColor) {

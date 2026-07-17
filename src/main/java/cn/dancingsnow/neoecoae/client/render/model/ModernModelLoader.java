@@ -35,6 +35,7 @@ public final class ModernModelLoader {
         ModernModel model = parentModel != null ? parentModel.copy() : new ModernModel();
 
         readTextures(json, model);
+        readRenderLayer(json, model);
         readElements(json, model, location.toString());
         readChildren(json, model, depth);
         return model;
@@ -65,6 +66,7 @@ public final class ModernModelLoader {
         ModernModel parentModel = loadParent(json, depth);
         ModernModel model = parentModel != null ? parentModel.copy() : new ModernModel();
         readTextures(json, model);
+        readRenderLayer(json, model);
         readElements(json, model, "inline model");
         readChildren(json, model, depth);
         return model;
@@ -146,6 +148,17 @@ public final class ModernModelLoader {
         }
     }
 
+    private static void readRenderLayer(JsonObject json, ModernModel model) {
+        if (!json.has("render_type")) {
+            return;
+        }
+        model.setRenderLayer(
+            ModelRenderLayer.fromJsonName(
+                json.get("render_type")
+                    .getAsString(),
+                model.getRenderLayer()));
+    }
+
     private static void readElements(JsonObject json, ModernModel model, String modelName) {
         if (!json.has("elements")) {
             return;
@@ -169,7 +182,8 @@ public final class ModernModelLoader {
                 readVector(elementJson.getAsJsonArray("from")),
                 readVector(elementJson.getAsJsonArray("to")),
                 !elementJson.has("shade") || elementJson.get("shade")
-                    .getAsBoolean());
+                    .getAsBoolean(),
+                model.getRenderLayer());
             readFaces(elementJson.getAsJsonObject("faces"), element, modelName, "element " + i);
             model.getElements()
                 .add(element);
@@ -212,6 +226,10 @@ public final class ModernModelLoader {
             int rotation = faceJson.has("rotation") ? faceJson.get("rotation")
                 .getAsInt() : 0;
             boolean fullBright = isFullBright(faceJson);
+            ModelRenderLayer renderLayer = faceJson.has("render_type") ? ModelRenderLayer.fromJsonName(
+                faceJson.get("render_type")
+                    .getAsString(),
+                element.getRenderLayer()) : element.getRenderLayer();
             element.addFace(
                 new ModelFace(
                     side,
@@ -227,7 +245,8 @@ public final class ModernModelLoader {
                     uv.get(3)
                         .getAsDouble(),
                     rotation,
-                    fullBright));
+                    fullBright,
+                    renderLayer));
         }
     }
 

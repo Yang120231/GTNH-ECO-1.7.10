@@ -177,19 +177,22 @@ public final class NEStorageItems {
             long used = snapshot.getUsed()
                 .toLongSaturated();
             tooltip.add(
-                colorForUsage(used, this.getDisplayBytes(stack)) + formatAmount(snapshot.getUsed())
+                EnumChatFormatting.DARK_GRAY + translate("tooltip.neoecoae.storage.bytes_used")
+                    + "  "
+                    + colorForUsage(used, this.getDisplayBytes(stack))
+                    + formatAmount(snapshot.getUsed())
                     + EnumChatFormatting.GRAY
                     + " / "
                     + TOTAL_COLOR
                     + formatLong(this.getDisplayBytes(stack))
                     + EnumChatFormatting.GRAY
                     + " "
-                    + translate("tooltip.neoecoae.storage.bytes_used"));
+                    + translate("tooltip.neoecoae.storage.bytes"));
             tooltip.add(
-                EnumChatFormatting.GREEN + formatLong(snapshot.getTypeCount())
-                    + EnumChatFormatting.GRAY
-                    + " "
-                    + translate("tooltip.neoecoae.storage.types"));
+                EnumChatFormatting.DARK_GRAY + translate("tooltip.neoecoae.storage.types")
+                    + "  "
+                    + EnumChatFormatting.GREEN
+                    + formatLong(snapshot.getTypeCount()));
             if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
                 tooltip.add(EnumChatFormatting.LIGHT_PURPLE + translate("tooltip.neoecoae.storage.infinite_locked"));
             }
@@ -271,9 +274,6 @@ public final class NEStorageItems {
 
     public static class ECOComputationCellItem extends TooltipItem {
 
-        private static final EnumChatFormatting TIER_L4 = EnumChatFormatting.YELLOW;
-        private static final EnumChatFormatting TIER_L6 = EnumChatFormatting.AQUA;
-        private static final EnumChatFormatting TIER_L9 = EnumChatFormatting.LIGHT_PURPLE;
         private static final EnumChatFormatting VALUE = EnumChatFormatting.BLUE;
         private static final String[] MODEL_TEXTURES = { NeoECOAE.MODID + ":block/compute/drive/cell_inside_back",
             NeoECOAE.MODID + ":block/compute/drive/cell_north_a", NeoECOAE.MODID + ":block/compute/drive/cell_north_b",
@@ -326,28 +326,14 @@ public final class NEStorageItems {
         @SuppressWarnings({ "rawtypes", "unchecked" })
         public void addInformation(ItemStack stack, EntityPlayer player, java.util.List tooltip, boolean advanced) {
             tooltip.add(
-                EnumChatFormatting.GRAY + translate("tooltip.neoecoae.computation_cell.prefix")
+                EnumChatFormatting.DARK_GRAY + translate("tooltip.neoecoae.computation_cell.prefix")
+                    + "  "
                     + VALUE
                     + this.numberFormat.format(this.bytes)
                     + EnumChatFormatting.GRAY
                     + " "
                     + translate("tooltip.neoecoae.computation_cell.bytes"));
-            tooltip.add(
-                tierColor() + this.tier
-                    + EnumChatFormatting.GRAY
-                    + " "
-                    + translate("tooltip.neoecoae.computation_cell.tier"));
             NETooltips.addBlockTooltips(stack, tooltip);
-        }
-
-        private EnumChatFormatting tierColor() {
-            if ("CE9".equals(this.tier)) {
-                return TIER_L9;
-            }
-            if ("CE6".equals(this.tier)) {
-                return TIER_L6;
-            }
-            return TIER_L4;
         }
 
         private static String translate(String key) {

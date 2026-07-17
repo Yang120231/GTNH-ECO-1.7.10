@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
+import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
+
 class ECOCraftingCapacityTest {
 
     @Test
@@ -36,17 +39,17 @@ class ECOCraftingCapacityTest {
     }
 
     @Test
-    void elevenL9SegmentsReproduceModernCapacityAndOverclock() {
+    void elevenL9SegmentsUseCurrentParallelProfileAndWorkerLimit() {
         int coreCount = 11;
         int workerCount = 11;
-        int baseParallel = coreCount * 256;
-        int overclockedParallel = coreCount * (256 + 384);
+        int baseParallel = coreCount * ECOEnergyProfile.craftingParallel(ECOControllerTier.L9);
+        int overclockedParallel = coreCount * (ECOEnergyProfile.craftingParallel(ECOControllerTier.L9)
+            + ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L9));
         int baseSlots = ECOCraftingCapacity.threadSlotsPerWorker(32, 16, false, true);
         int overclockedSlots = ECOCraftingCapacity.threadSlotsPerWorker(32, 16, true, true);
 
         assertEquals(352, ECOCraftingCapacity.maxInFlightCrafts(baseParallel, workerCount, baseSlots));
-        assertEquals(5632,
-            ECOCraftingCapacity.maxInFlightCrafts(overclockedParallel, workerCount, overclockedSlots));
+        assertEquals(5632, ECOCraftingCapacity.maxInFlightCrafts(overclockedParallel, workerCount, overclockedSlots));
         assertEquals(9, ECOCraftingCapacity.overclockTimes(overclockedParallel, workerCount * overclockedSlots));
     }
 }

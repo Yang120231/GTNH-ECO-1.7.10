@@ -6,8 +6,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.tile.TileCraftingWorker;
-
 final class CraftingBlockDrops {
 
     private CraftingBlockDrops() {}
@@ -20,11 +18,6 @@ final class CraftingBlockDrops {
             IInventory inventory = (IInventory) tile;
             for (int slot = 0; slot < inventory.getSizeInventory(); slot++) {
                 dropStack(world, x, y, z, inventory.getStackInSlotOnClosing(slot));
-            }
-        }
-        if (tile instanceof TileCraftingWorker) {
-            for (ItemStack stack : ((TileCraftingWorker) tile).takeQueuedOutputs()) {
-                dropStack(world, x, y, z, stack);
             }
         }
     }

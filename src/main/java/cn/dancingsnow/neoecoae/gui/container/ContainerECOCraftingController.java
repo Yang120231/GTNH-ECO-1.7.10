@@ -5,8 +5,8 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 
-import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerLayout;
 import cn.dancingsnow.neoecoae.gui.HostUiStateContainer;
+import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerLayout;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingHostSnapshot;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import io.netty.buffer.ByteBuf;
@@ -75,7 +75,10 @@ public class ContainerECOCraftingController extends HostUiStateContainer {
         }
         for (int column = 0; column < 9; column++) {
             this.addSlotToContainer(
-                new Slot(playerInventory, column, CraftingControllerLayout.INVENTORY_X + 1 + column * 18,
+                new Slot(
+                    playerInventory,
+                    column,
+                    CraftingControllerLayout.INVENTORY_X + 1 + column * 18,
                     CraftingControllerLayout.HOTBAR_Y + 1));
         }
     }

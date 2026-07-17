@@ -16,10 +16,8 @@ import cn.dancingsnow.neoecoae.tile.TileECOController;
 /** Tracks loaded workers that own inputs extracted by a specific ECO CPU job. */
 public final class ECOCraftingOwnershipRegistry {
 
-    private static final Map<String, WeakReference<ECOComputationVirtualCpu>> ACTIVE_JOBS =
-        new HashMap<String, WeakReference<ECOComputationVirtualCpu>>();
-    private static final Map<String, WeakReference<TileECOController>> OWNERS =
-        new HashMap<String, WeakReference<TileECOController>>();
+    private static final Map<String, WeakReference<ECOComputationVirtualCpu>> ACTIVE_JOBS = new HashMap<String, WeakReference<ECOComputationVirtualCpu>>();
+    private static final Map<String, WeakReference<TileECOController>> OWNERS = new HashMap<String, WeakReference<TileECOController>>();
 
     private ECOCraftingOwnershipRegistry() {}
 

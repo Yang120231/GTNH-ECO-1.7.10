@@ -99,7 +99,9 @@ public final class ECOFastPathPatternInspector {
     }
 
     static boolean isFastPathSafe(net.minecraft.item.ItemStack item, boolean input) {
-        return item != null && item.getItem() != null && !item.hasTagCompound() && !item.isItemStackDamageable()
+        return item != null && item.getItem() != null
+            && !item.hasTagCompound()
+            && !item.isItemStackDamageable()
             && (!input || !item.getItem()
                 .hasContainerItem(item));
     }

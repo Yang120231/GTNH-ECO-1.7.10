@@ -12,23 +12,21 @@ import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_AREA_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_LABEL_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_GRID_ROWS;
-import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_H;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_ROW_H;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_ROW_STEP;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_TOP;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_W;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_LEGEND_X;
-import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_W;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.MATRIX_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.PRIORITY_TAB_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.PRIORITY_TAB_Y;
+import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_CONTENT_SHIFT_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_H;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_W;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_DARK_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_H;
-import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_CONTENT_SHIFT_Y;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_W;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_X;
 import static cn.dancingsnow.neoecoae.client.gui.StorageControllerLayout.RIGHT_Y;
@@ -63,7 +61,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.IIcon;
 import net.minecraft.util.StatCollector;
-
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
@@ -131,16 +128,24 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         }
         int mouseX = Mouse.getEventX() * this.width / this.mc.displayWidth;
         int mouseY = this.height - Mouse.getEventY() * this.height / this.mc.displayHeight - 1;
-        if (isInfiniteDisplay(this.container.state())
-            && this.isMouseIn(USAGE_DETAIL_X, USAGE_DETAIL_Y + USAGE_DETAIL_LINE_H * 4 + 1,
-                USAGE_DETAIL_W, 65, mouseX, mouseY)) {
+        if (isInfiniteDisplay(this.container.state()) && this.isMouseIn(
+            USAGE_DETAIL_X,
+            USAGE_DETAIL_Y + USAGE_DETAIL_LINE_H * 4 + 1,
+            USAGE_DETAIL_W,
+            65,
+            mouseX,
+            mouseY)) {
             int max = Math.max(0, this.container.state().hugeStacks.size() - 3);
-            this.hugeStackScrollRow = Math.max(0, Math.min(max,
-                this.hugeStackScrollRow + (wheel < 0 ? 1 : -1)));
+            this.hugeStackScrollRow = Math.max(0, Math.min(max, this.hugeStackScrollRow + (wheel < 0 ? 1 : -1)));
             return;
         }
-        if (!this.isMouseIn(MATRIX_GRID_AREA_X, this.matrixGridY(), MATRIX_GRID_AREA_W,
-            this.matrixGridHeight(), mouseX, mouseY)) {
+        if (!this.isMouseIn(
+            MATRIX_GRID_AREA_X,
+            this.matrixGridY(),
+            MATRIX_GRID_AREA_W,
+            this.matrixGridHeight(),
+            mouseX,
+            mouseY)) {
             return;
         }
         int maxScroll = this.maxMatrixScroll(this.container.state());
@@ -248,8 +253,11 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             y,
             HostUiStyle.DARK_TEXT_PRIMARY);
         y += TEXT_STEP;
-        this.drawLocalText(tr("gui.neoecoae.storage_ui.energy_storage", "Energy Storage") + ": -",
-            TEXT_X, y, HostUiStyle.DARK_TEXT_MUTED);
+        this.drawLocalText(
+            tr("gui.neoecoae.storage_ui.energy_storage", "Energy Storage") + ": -",
+            TEXT_X,
+            y,
+            HostUiStyle.DARK_TEXT_MUTED);
         y += TEXT_STEP + 4;
         this.drawLocalText(
             tr("gui.neoecoae.storage_ui.item_storage", "Item Storage"),
@@ -270,8 +278,11 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             if (isInfiniteMode(state)) {
                 lines.add(formatExactBytes(state.preciseUsedBytes) + " " + bytes);
             } else {
-                lines.add(formatExactBytes(BigInteger.valueOf(state.usedBytes)) + " / "
-                    + formatExactBytes(BigInteger.valueOf(state.totalBytes)) + " " + bytes);
+                lines.add(
+                    formatExactBytes(BigInteger.valueOf(state.usedBytes)) + " / "
+                        + formatExactBytes(BigInteger.valueOf(state.totalBytes))
+                        + " "
+                        + bytes);
             }
             this.hoveredLines = lines;
         }
@@ -310,24 +321,33 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         int y = USAGE_DETAIL_Y;
         boolean infiniteMode = isInfiniteMode(state);
         boolean migrating = isMigrating(state);
-        this.drawDetailLine(tr("gui.neoecoae.storage_ui.current_load", "Current Load") + ": "
-            + (infiniteMode ? tr("gui.neoecoae.storage_ui.infinite_value", "Infinite")
-                : migrating ? tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating")
-                : percent(state.usedBytes, state.totalBytes)), y, HostUiStyle.DARK_TEXT_VALUE);
+        this.drawDetailLine(
+            tr("gui.neoecoae.storage_ui.current_load", "Current Load") + ": "
+                + (infiniteMode ? tr("gui.neoecoae.storage_ui.infinite_value", "Infinite")
+                    : migrating ? tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating")
+                        : percent(state.usedBytes, state.totalBytes)),
+            y,
+            HostUiStyle.DARK_TEXT_VALUE);
         y += USAGE_DETAIL_LINE_H;
-        this.drawDetailLine(tr("gui.neoecoae.storage_ui.max_load", "Max Load") + ": "
-            + (infiniteMode ? "MAX" : migrating ? "-" : percent(this.maxMatrixLoad(state))), y,
+        this.drawDetailLine(
+            tr("gui.neoecoae.storage_ui.max_load", "Max Load") + ": "
+                + (infiniteMode ? "MAX" : migrating ? "-" : percent(this.maxMatrixLoad(state))),
+            y,
             infiniteMode || migrating ? HostUiStyle.MATRIX_USAGE_INFINITE : HostUiStyle.DARK_TEXT_WARNING);
         y += USAGE_DETAIL_LINE_H;
-        this.drawDetailLine(tr("gui.neoecoae.storage_ui.status", "Status") + ": "
-            + (infiniteMode ? tr("gui.neoecoae.storage_ui.mode.infinite", "Infinite")
-                : migrating ? tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating")
-                : (state.formed ? tr("gui.neoecoae.storage_ui.formed", "Formed")
-                    : tr("gui.neoecoae.storage_ui.mode.unformed", "Unformed"))), y,
+        this.drawDetailLine(
+            tr("gui.neoecoae.storage_ui.status", "Status") + ": "
+                + (infiniteMode ? tr("gui.neoecoae.storage_ui.mode.infinite", "Infinite")
+                    : migrating ? tr("gui.neoecoae.storage_ui.mode.migrating", "Migrating")
+                        : (state.formed ? tr("gui.neoecoae.storage_ui.formed", "Formed")
+                            : tr("gui.neoecoae.storage_ui.mode.unformed", "Unformed"))),
+            y,
             state.formed ? HostUiStyle.DARK_TEXT_SUCCESS : HostUiStyle.DARK_TEXT_WARNING);
         y += USAGE_DETAIL_LINE_H;
-        this.drawDetailLine(tr("gui.neoecoae.storage_ui.idle_matrices", "Idle Matrices") + ": "
-            + this.idleMatrixCount(state), y, HostUiStyle.DARK_TEXT_MUTED);
+        this.drawDetailLine(
+            tr("gui.neoecoae.storage_ui.idle_matrices", "Idle Matrices") + ": " + this.idleMatrixCount(state),
+            y,
+            HostUiStyle.DARK_TEXT_MUTED);
     }
 
     private void drawDetailLine(String text, int y, int color) {
@@ -366,10 +386,18 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             }
             int textX = x + 19;
             int textW = USAGE_DETAIL_W - 23;
-            this.drawHugeStackText(displayName(stack, itemStack, fluidStack), textX, rowY + 1, textW,
+            this.drawHugeStackText(
+                displayName(stack, itemStack, fluidStack),
+                textX,
+                rowY + 1,
+                textW,
                 HostUiStyle.DARK_TEXT_VALUE);
-            this.drawHugeStackText(formatInfiniteStorageBytes(stack.amount), textX, rowY + 9,
-                textW, HostUiStyle.DARK_TEXT_USED);
+            this.drawHugeStackText(
+                formatInfiniteStorageBytes(stack.amount),
+                textX,
+                rowY + 9,
+                textW,
+                HostUiStyle.DARK_TEXT_USED);
             if (this.isMouseIn(x, rowY, USAGE_DETAIL_W, rowHeight, mouseX, mouseY)) {
                 List<String> lines = new ArrayList<String>();
                 lines.add(EnumChatFormatting.AQUA + displayName(stack, itemStack, fluidStack));
@@ -414,9 +442,7 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     private static FluidStack displayFluidStack(StorageHostSnapshot.HugeStack stack) {
-        return stack == null || !"fluid".equals(stack.channel)
-            ? null
-            : FluidRegistry.getFluidStack(stack.identity, 1);
+        return stack == null || !"fluid".equals(stack.channel) ? null : FluidRegistry.getFluidStack(stack.identity, 1);
     }
 
     private static String displayName(StorageHostSnapshot.HugeStack stack, ItemStack item, FluidStack fluid) {
@@ -424,7 +450,8 @@ public class GuiECOStorageController extends GuiHostMachineBase {
             return item.getDisplayName();
         }
         if (fluid != null && fluid.getFluid() != null) {
-            return fluid.getFluid().getLocalizedName(fluid);
+            return fluid.getFluid()
+                .getLocalizedName(fluid);
         }
         return shortIdentity(stack == null ? "" : stack.identity);
     }
@@ -435,7 +462,8 @@ public class GuiECOStorageController extends GuiHostMachineBase {
         if (icon == null) {
             return;
         }
-        this.mc.getTextureManager().bindTexture(TextureMap.locationBlocksTexture);
+        this.mc.getTextureManager()
+            .bindTexture(TextureMap.locationBlocksTexture);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
         this.drawTexturedModelRectFromIcon(x, y, icon, 16, 16);
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
@@ -755,14 +783,12 @@ public class GuiECOStorageController extends GuiHostMachineBase {
     }
 
     private static boolean isInfiniteDisplay(StorageHostSnapshot state) {
-        return state != null && (isInfiniteMode(state)
-            || "migrating_to_infinite".equals(state.hostMode)
+        return state != null && (isInfiniteMode(state) || "migrating_to_infinite".equals(state.hostMode)
             || "migrating".equals(state.hostMode));
     }
 
     private static boolean isMigrating(StorageHostSnapshot state) {
-        return state != null && ("migrating_to_infinite".equals(state.hostMode)
-            || "migrating".equals(state.hostMode));
+        return state != null && ("migrating_to_infinite".equals(state.hostMode) || "migrating".equals(state.hostMode));
     }
 
     private static boolean isInfiniteMatrix(StorageHostSnapshot.MatrixCell cell) {

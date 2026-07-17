@@ -5,6 +5,9 @@ import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 
 public final class ECOEnergyProfile {
 
+    private static final int OVERCLOCKED_CRAFTING_PARALLEL_MULTIPLIER = 16;
+    private static final int COMPUTATION_ACCELERATOR_MULTIPLIER = 16;
+
     public static final int CRAFTING_ENERGY_GAUGE_REFERENCE = 1000000;
     public static final int CRAFTING_BASE_WORK_POWER = 100;
     public static final int CRAFTING_COOLANT_PER_CRAFT = 5;
@@ -37,22 +40,22 @@ public final class ECOEnergyProfile {
 
     public static int overclockedCraftingParallel(ECOControllerTier tier) {
         if (tier == ECOControllerTier.L9) {
-            return 384;
+            return 384 * OVERCLOCKED_CRAFTING_PARALLEL_MULTIPLIER;
         }
         if (tier == ECOControllerTier.L6) {
-            return 96;
+            return 96 * OVERCLOCKED_CRAFTING_PARALLEL_MULTIPLIER;
         }
-        return 32;
+        return 32 * OVERCLOCKED_CRAFTING_PARALLEL_MULTIPLIER;
     }
 
     public static int computationAccelerators(ECOControllerTier tier) {
         if (tier == ECOControllerTier.L9) {
-            return 576;
+            return 576 * COMPUTATION_ACCELERATOR_MULTIPLIER;
         }
         if (tier == ECOControllerTier.L6) {
-            return 192;
+            return 192 * COMPUTATION_ACCELERATOR_MULTIPLIER;
         }
-        return 64;
+        return 64 * COMPUTATION_ACCELERATOR_MULTIPLIER;
     }
 
     public static int computationThreads(ECOControllerTier tier) {

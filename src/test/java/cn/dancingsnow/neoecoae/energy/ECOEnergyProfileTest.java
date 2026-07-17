@@ -4,7 +4,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 
+import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
+
 class ECOEnergyProfileTest {
+
+    @Test
+    void highPerformanceParallelValuesStayExplicitlyTiered() {
+        assertEquals(24, ECOEnergyProfile.craftingParallel(ECOControllerTier.L4));
+        assertEquals(72, ECOEnergyProfile.craftingParallel(ECOControllerTier.L6));
+        assertEquals(256, ECOEnergyProfile.craftingParallel(ECOControllerTier.L9));
+
+        assertEquals(512, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L4));
+        assertEquals(1536, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L6));
+        assertEquals(6144, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L9));
+
+        assertEquals(1024, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L4));
+        assertEquals(3072, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L6));
+        assertEquals(9216, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L9));
+    }
 
     @Test
     void effectiveOverclockChangesProgressFromTenTicksToOne() {
@@ -31,8 +48,7 @@ class ECOEnergyProfileTest {
         double requested = ECOEnergyProfile.craftingBatchWorkPowerRequest(1, 100, slots, powerMultiplier);
 
         assertEquals(288358400D, requested, 0D);
-        assertEquals(100,
-            ECOEnergyProfile.craftingWorkPowerFromExtracted(requested, slots, powerMultiplier));
+        assertEquals(100, ECOEnergyProfile.craftingWorkPowerFromExtracted(requested, slots, powerMultiplier));
     }
 
     @Test

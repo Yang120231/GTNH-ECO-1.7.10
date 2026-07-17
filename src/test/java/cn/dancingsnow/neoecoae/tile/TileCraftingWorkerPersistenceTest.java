@@ -22,7 +22,10 @@ class TileCraftingWorkerPersistenceTest {
 
         NBTTagList encoded = TileCraftingWorker.writeStacks(multiplied);
         assertEquals(1, encoded.tagCount());
-        assertEquals(360448, encoded.getCompoundTagAt(0).getInteger("EcoAmount"));
+        assertEquals(
+            360448,
+            encoded.getCompoundTagAt(0)
+                .getInteger("EcoAmount"));
         assertEquals(360448, TileCraftingWorker.persistedStackAmount(encoded.getCompoundTagAt(0), 1));
     }
 }

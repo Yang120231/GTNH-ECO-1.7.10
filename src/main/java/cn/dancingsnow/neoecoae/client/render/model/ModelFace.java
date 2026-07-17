@@ -13,6 +13,7 @@ public class ModelFace {
     private final double maxV;
     private final int rotation;
     private final boolean fullBright;
+    private final ModelRenderLayer renderLayer;
 
     public ModelFace(ForgeDirection side, String texture, String cullFace, double minU, double minV, double maxU,
         double maxV, int rotation) {
@@ -21,6 +22,11 @@ public class ModelFace {
 
     public ModelFace(ForgeDirection side, String texture, String cullFace, double minU, double minV, double maxU,
         double maxV, int rotation, boolean fullBright) {
+        this(side, texture, cullFace, minU, minV, maxU, maxV, rotation, fullBright, null);
+    }
+
+    public ModelFace(ForgeDirection side, String texture, String cullFace, double minU, double minV, double maxU,
+        double maxV, int rotation, boolean fullBright, ModelRenderLayer renderLayer) {
         this.side = side;
         this.texture = texture;
         this.cullFace = cullFace;
@@ -30,6 +36,7 @@ public class ModelFace {
         this.maxV = maxV;
         this.rotation = rotation;
         this.fullBright = fullBright;
+        this.renderLayer = renderLayer;
     }
 
     public ForgeDirection getSide() {
@@ -66,5 +73,9 @@ public class ModelFace {
 
     public boolean isFullBright() {
         return this.fullBright;
+    }
+
+    public ModelRenderLayer getRenderLayer(ModelRenderLayer fallback) {
+        return this.renderLayer != null ? this.renderLayer : fallback;
     }
 }

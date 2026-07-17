@@ -8,7 +8,6 @@ import net.minecraft.item.ItemSword;
 import net.minecraftforge.common.util.EnumHelper;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.item.ItemDebugStick;
 import cn.dancingsnow.neoecoae.item.ItemFluidContainer;
 import cpw.mods.fml.common.registry.GameRegistry;
 
@@ -50,8 +49,6 @@ public final class NEItems {
         NEFluids.CRYOTHEUM_SOLUTION,
         net.minecraftforge.fluids.FluidContainerRegistry.BUCKET_VOLUME,
         NECreativeTabs.NEO_ECO_AE).setTextureName(NeoECOAE.MODID + ":cryotheum_solution_bucket");
-    public static final Item debug = new ItemDebugStick();
-
     public static final Item aluminumAxe = axe("aluminum_axe", aluminumToolMaterial);
     public static final Item aluminumHoe = hoe("aluminum_hoe", aluminumToolMaterial);
     public static final Item aluminumPickaxe = pickaxe("aluminum_pickaxe", aluminumToolMaterial);
@@ -107,7 +104,6 @@ public final class NEItems {
         register(cryotheum, "cryotheum");
         register(cryotheumCrystal, "cryotheum_crystal");
         register(cryotheumSolutionBucket, "cryotheum_solution_bucket");
-        register(debug, "debug");
         NEStorageItems.register();
 
         register(aluminumAxe, "aluminum_axe");

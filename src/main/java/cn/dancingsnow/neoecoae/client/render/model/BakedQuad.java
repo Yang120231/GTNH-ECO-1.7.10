@@ -18,9 +18,11 @@ public class BakedQuad {
     private final double sampleX;
     private final double sampleY;
     private final double sampleZ;
+    private final ModelRenderLayer renderLayer;
 
     public BakedQuad(String texture, String cullFace, ForgeDirection cullDirection, ForgeDirection normal,
-        double[][] vertices, double[][] uv, boolean fullBright, boolean shade, boolean boundaryFace) {
+        double[][] vertices, double[][] uv, boolean fullBright, boolean shade, boolean boundaryFace,
+        ModelRenderLayer renderLayer) {
         this.texture = texture;
         this.cullFace = cullFace;
         this.cullDirection = cullDirection;
@@ -35,6 +37,7 @@ public class BakedQuad {
         this.sampleX = sampleCoordinate(vertices, 0);
         this.sampleY = sampleCoordinate(vertices, 1);
         this.sampleZ = sampleCoordinate(vertices, 2);
+        this.renderLayer = renderLayer;
     }
 
     public String getTexture() {
@@ -87,6 +90,10 @@ public class BakedQuad {
 
     public double getSampleZ() {
         return this.sampleZ;
+    }
+
+    public ModelRenderLayer getRenderLayer() {
+        return this.renderLayer;
     }
 
     private static double sampleCoordinate(double[][] vertices, int axis) {

@@ -4,8 +4,7 @@ package cn.dancingsnow.neoecoae.crafting.runtime;
 public final class ECOCraftingExecutionContext {
 
     private static final ThreadLocal<String> CURRENT_JOB = new ThreadLocal<String>();
-    private static final ThreadLocal<ECOCraftingBatchCoordinator> CURRENT_COORDINATOR =
-        new ThreadLocal<ECOCraftingBatchCoordinator>();
+    private static final ThreadLocal<ECOCraftingBatchCoordinator> CURRENT_COORDINATOR = new ThreadLocal<ECOCraftingBatchCoordinator>();
 
     private ECOCraftingExecutionContext() {}
 

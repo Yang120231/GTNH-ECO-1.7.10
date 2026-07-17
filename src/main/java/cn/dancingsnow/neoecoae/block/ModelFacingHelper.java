@@ -10,13 +10,13 @@ public final class ModelFacingHelper {
         int quadrant = MathHelper.floor_double(yaw * 4.0F / 360.0F + 0.5D) & 3;
         switch (quadrant) {
             case 0:
-                return 0; // north
+                return 0;
             case 1:
-                return 1; // east
+                return 1;
             case 2:
-                return 2; // south
+                return 2;
             case 3:
-                return 3; // west
+                return 3;
             default:
                 return 0;
         }

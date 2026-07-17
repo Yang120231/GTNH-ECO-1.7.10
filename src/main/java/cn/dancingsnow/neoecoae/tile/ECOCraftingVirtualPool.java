@@ -39,7 +39,9 @@ final class ECOCraftingVirtualPool {
 
     boolean accept(TileECOController controller, ICraftingPatternDetails details, InventoryCrafting table,
         int craftCount, String jobId) {
-        if (controller == null || details == null || table == null || craftCount <= 0
+        if (controller == null || details == null
+            || table == null
+            || craftCount <= 0
             || craftCount > controller.getCraftingCurrentBatchSlots()) {
             return false;
         }
@@ -100,11 +102,9 @@ final class ECOCraftingVirtualPool {
                 totalPowerRequest += powerRequest(entry, bonusValue, powerMultiplier);
             }
         }
-        double extractedPower = totalPowerRequest <= 0D
-            ? 0D
+        double extractedPower = totalPowerRequest <= 0D ? 0D
             : controller.extractCraftingEnergy(totalPowerRequest, false);
-        double powerRatio = totalPowerRequest <= 0D
-            ? 0D
+        double powerRatio = totalPowerRequest <= 0D ? 0D
             : Math.max(0D, Math.min(1D, extractedPower / totalPowerRequest));
         boolean changed = false;
         boolean progressDirty = false;
@@ -172,14 +172,12 @@ final class ECOCraftingVirtualPool {
             group.weightedProgress += (long) entry.progress * entry.occupiedSlots;
             group.weightedTotal += (long) Math.max(1, entry.totalProgress) * entry.occupiedSlots;
         }
-        List<TileCraftingWorker.WorkSnapshot> result =
-            new ArrayList<TileCraftingWorker.WorkSnapshot>(groups.size());
+        List<TileCraftingWorker.WorkSnapshot> result = new ArrayList<TileCraftingWorker.WorkSnapshot>(groups.size());
         for (SnapshotGroup group : groups) {
             int totalProgress = group.weightedTotal <= 0L ? 0 : 1000;
-            int progress = totalProgress <= 0
-                ? 0
-                : (int) Math.max(0L, Math.min(totalProgress,
-                    group.weightedProgress * totalProgress / group.weightedTotal));
+            int progress = totalProgress <= 0 ? 0
+                : (int) Math
+                    .max(0L, Math.min(totalProgress, group.weightedProgress * totalProgress / group.weightedTotal));
             result.add(
                 TileCraftingWorker.WorkSnapshot.create(
                     group.output,
@@ -214,8 +212,7 @@ final class ECOCraftingVirtualPool {
             return;
         }
         for (WorkEntry entry : this.entries) {
-            if (jobId.equals(entry.jobId) && entry.state == WorkState.ACTIVE
-                && entry.progress < entry.totalProgress) {
+            if (jobId.equals(entry.jobId) && entry.state == WorkState.ACTIVE && entry.progress < entry.totalProgress) {
                 entry.pending.clear();
                 entry.pending.addAll(copyStacks(entry.inputs));
                 entry.state = WorkState.RECOVERING_INPUTS;
@@ -257,8 +254,7 @@ final class ECOCraftingVirtualPool {
             if (slots > MAX_PERSISTED_SLOTS - occupied) {
                 break;
             }
-            ItemStack output = data.hasKey(TAG_OUTPUT)
-                ? ItemStack.loadItemStackFromNBT(data.getCompoundTag(TAG_OUTPUT))
+            ItemStack output = data.hasKey(TAG_OUTPUT) ? ItemStack.loadItemStackFromNBT(data.getCompoundTag(TAG_OUTPUT))
                 : null;
             if (output == null) {
                 continue;
@@ -334,15 +330,15 @@ final class ECOCraftingVirtualPool {
         if (this.ownershipGraceTicks > 0) {
             this.ownershipGraceTicks--;
         }
-        if (controller.getWorldObj() == null || controller.getWorldObj().getTotalWorldTime() % 20L != 0L) {
+        if (controller.getWorldObj() == null || controller.getWorldObj()
+            .getTotalWorldTime() % 20L != 0L) {
             return;
         }
         List<String> orphaned = new ArrayList<String>();
         for (WorkEntry entry : this.entries) {
             if (entry.jobId != null) {
                 ECOCraftingOwnershipRegistry.register(entry.jobId, controller);
-                if (this.ownershipGraceTicks <= 0
-                    && !ECOCraftingOwnershipRegistry.isActive(entry.jobId)
+                if (this.ownershipGraceTicks <= 0 && !ECOCraftingOwnershipRegistry.isActive(entry.jobId)
                     && !orphaned.contains(entry.jobId)) {
                     orphaned.add(entry.jobId);
                 }
@@ -354,8 +350,7 @@ final class ECOCraftingVirtualPool {
     }
 
     private static double powerRequest(WorkEntry entry, int bonusValue, int powerMultiplier) {
-        return ECOEnergyProfile
-            .craftingBatchWorkPowerRequest(1, bonusValue, entry.occupiedSlots, powerMultiplier);
+        return ECOEnergyProfile.craftingBatchWorkPowerRequest(1, bonusValue, entry.occupiedSlots, powerMultiplier);
     }
 
     private static int progressBucket(int progress, int totalProgress) {
@@ -375,8 +370,7 @@ final class ECOCraftingVirtualPool {
         if (group.jobId == null) {
             return controller.acceptCraftingOutputAmount(group.prototype, group.requested);
         }
-        long accepted = ECOCraftingOwnershipRegistry
-            .injectOwnedOutput(group.jobId, group.prototype, group.requested);
+        long accepted = ECOCraftingOwnershipRegistry.injectOwnedOutput(group.jobId, group.prototype, group.requested);
         long remaining = group.requested - accepted;
         // AE2 standalone jobs consume the CPU's waitingFor amount, but CraftingLink returns
         // the final output unchanged because there is no ICraftingRequester. That return value
@@ -391,8 +385,7 @@ final class ECOCraftingVirtualPool {
 
     private static OutputGroup findGroup(List<OutputGroup> groups, ItemStack stack, boolean recovery, String jobId) {
         for (OutputGroup group : groups) {
-            if (group.recovery == recovery
-                && sameJob(group.jobId, jobId)
+            if (group.recovery == recovery && sameJob(group.jobId, jobId)
                 && TileCraftingWorker.sameStackType(group.prototype, stack)) {
                 return group;
             }
@@ -402,8 +395,7 @@ final class ECOCraftingVirtualPool {
 
     private static SnapshotGroup findSnapshotGroup(List<SnapshotGroup> groups, WorkEntry entry) {
         for (SnapshotGroup group : groups) {
-            if (group.state == entry.state
-                && sameJob(group.jobId, entry.jobId)
+            if (group.state == entry.state && sameJob(group.jobId, entry.jobId)
                 && TileCraftingWorker.sameStackType(group.output, entry.output)) {
                 return group;
             }
@@ -452,6 +444,7 @@ final class ECOCraftingVirtualPool {
     }
 
     private enum WorkState {
+
         ACTIVE,
         OUTPUT_READY,
         RECOVERING_INPUTS,

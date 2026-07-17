@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
+
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
 import cn.dancingsnow.neoecoae.tile.CraftingHostStats;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
@@ -318,8 +319,8 @@ public final class CraftingHostSnapshot {
         if (controller.getWorldObj() == null || !controller.isFormed()) {
             return entries;
         }
-        List<TileCraftingWorker.WorkSnapshot> snapshots =
-            controller.getVirtualCraftingWorkSnapshots(MAX_WORKER_ENTRIES);
+        List<TileCraftingWorker.WorkSnapshot> snapshots = controller
+            .getVirtualCraftingWorkSnapshots(MAX_WORKER_ENTRIES);
         for (int i = 0; i < snapshots.size(); i++) {
             entries.add(WorkerEntry.from(snapshots.get(i), i));
         }

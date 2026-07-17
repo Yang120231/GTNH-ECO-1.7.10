@@ -198,7 +198,8 @@ public final class StorageHostSnapshot {
         int hugeCount = Math.min(this.hugeStacks.size(), MAX_HUGE_STACKS);
         buf.writeInt(hugeCount);
         for (int i = 0; i < hugeCount; i++) {
-            this.hugeStacks.get(i).write(buf);
+            this.hugeStacks.get(i)
+                .write(buf);
         }
     }
 
@@ -258,24 +259,27 @@ public final class StorageHostSnapshot {
         }
         List<HugeStack> result = new ArrayList<HugeStack>();
         for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend
-            .getEntriesView().entrySet()) {
+            .getEntriesView()
+            .entrySet()) {
             ECOStorageKey key = entry.getKey();
-            BigInteger amount = entry.getValue().toBigInteger();
+            BigInteger amount = entry.getValue()
+                .toBigInteger();
             if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
                 result.add(new HugeStack(key.getChannel(), key.getIdentity(), key.getMetadata(), amount));
             }
         }
         Collections.sort(result, new java.util.Comparator<HugeStack>() {
+
             @Override
             public int compare(HugeStack left, HugeStack right) {
                 return right.amount.compareTo(left.amount);
             }
         });
-        return result.size() <= MAX_HUGE_STACKS ? result
-            : new ArrayList<HugeStack>(result.subList(0, MAX_HUGE_STACKS));
+        return result.size() <= MAX_HUGE_STACKS ? result : new ArrayList<HugeStack>(result.subList(0, MAX_HUGE_STACKS));
     }
 
     public static final class HugeStack {
+
         public final String channel;
         public final String identity;
         public final int metadata;

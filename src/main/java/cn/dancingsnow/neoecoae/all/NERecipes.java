@@ -27,7 +27,7 @@ public final class NERecipes {
             NEItems.aluminumShovel,
             NEItems.aluminumSword);
         registerToolRecipes(
-            "ingotTungsten",
+            NEOreDictionary.NEO_TUNGSTEN_INGOT,
             NEItems.tungstenAxe,
             NEItems.tungstenHoe,
             NEItems.tungstenPickaxe,
@@ -49,9 +49,9 @@ public final class NERecipes {
             NEItems.blackTungstenAlloySword);
 
         storageBlock("rawAluminum", NEBlocks.rawAluminumBlock, NEItems.rawAluminumOre);
-        storageBlock("rawTungsten", NEBlocks.rawTungstenBlock, NEItems.rawTungstenOre);
+        storageBlock(NEOreDictionary.NEO_TUNGSTEN_RAW, NEBlocks.rawTungstenBlock, NEItems.rawTungstenOre);
         storageBlock("ingotAluminum", NEBlocks.aluminumBlock, NEItems.aluminumIngot);
-        storageBlock("ingotTungsten", NEBlocks.tungstenBlock, NEItems.tungstenIngot);
+        storageBlock(NEOreDictionary.NEO_TUNGSTEN_INGOT, NEBlocks.tungstenBlock, NEItems.tungstenIngot);
         storageBlock("ingotAluminumAlloy", NEBlocks.aluminumAlloyBlock, NEItems.aluminumAlloyIngot);
         storageBlock("ingotBlackTungstenAlloy", NEBlocks.blackTungstenAlloyBlock, NEItems.blackTungstenAlloyIngot);
         storageBlock4("gemEnergizedCrystal", NEBlocks.energizedCrystalBlock, NEItems.energizedCrystal);
@@ -92,7 +92,12 @@ public final class NERecipes {
 
         if (!useGregTechRecipes()) {
             shapeless(NEItems.aluminumAlloyDust, "dustIron", "dustAluminum", "dustCertusQuartz", "dustCertusQuartz");
-            shapeless(NEItems.blackTungstenAlloyDust, "dustTungsten", "dustAluminumAlloy", "dustFluix", "dustFluix");
+            shapeless(
+                NEItems.blackTungstenAlloyDust,
+                NEOreDictionary.NEO_TUNGSTEN_DUST,
+                "dustAluminumAlloy",
+                "dustFluix",
+                "dustFluix");
         }
 
         smelt(NEBlocks.aluminumOre, NEItems.rawAluminumOre, 0.7F);
@@ -118,6 +123,8 @@ public final class NERecipes {
             registerProcessorRecipes();
             return;
         }
+        registerGrinder(NEItems.aluminumIngot, NEItems.aluminumDust, 4);
+        registerGrinder(NEItems.tungstenIngot, NEItems.tungstenDust, 8);
         shapedIfComplete(
             new ItemStack(NEItems.energizedCrystal, 8),
             "ABA",
@@ -303,7 +310,7 @@ public final class NERecipes {
         shaped(NEBlocks.storageVent, " A ", "ABA", " A ", 'A', "ingotAluminumAlloy", 'B', NEBlocks.storageCasing);
         shaped(NEBlocks.craftingVent, " A ", "ABA", " A ", 'A', "ingotAluminumAlloy", 'B', NEBlocks.craftingCasing);
         shaped(NEBlocks.inputHatch, " A ", "ABA", " A ", 'A', "ingotAluminumAlloy", 'B', "blockGlass");
-        shaped(NEBlocks.outputHatch, " A ", "ABA", " A ", 'A', "ingotTungsten", 'B', "blockGlass");
+        shaped(NEBlocks.outputHatch, " A ", "ABA", " A ", 'A', NEOreDictionary.NEO_TUNGSTEN_INGOT, 'B', "blockGlass");
 
         shapedIfComplete(
             NEBlocks.storageInterface,
@@ -769,6 +776,17 @@ public final class NERecipes {
             NEAE2RecipeItems.skyDust(),
             'B',
             NEItems.cryotheum);
+        shapelessIfComplete(
+            NEItems.cryotheumSolutionBucket,
+            Items.water_bucket,
+            NEItems.cryotheumCrystal,
+            NEItems.cryotheumCrystal,
+            NEItems.cryotheumCrystal,
+            NEItems.cryotheumCrystal,
+            NEItems.energizedCrystal,
+            NEItems.energizedCrystal,
+            "dustRedstone",
+            "dustRedstone");
     }
 
     private static void registerEnergyCellRecipes() {
@@ -1001,6 +1019,15 @@ public final class NERecipes {
             .registries()
             .inscriber()
             .addRecipe(builder.build());
+    }
+
+    private static void registerGrinder(Item input, Item output, int turns) {
+        if (input != null && output != null && turns > 0) {
+            AEApi.instance()
+                .registries()
+                .grinder()
+                .addRecipe(new ItemStack(input), new ItemStack(output), turns);
+        }
     }
 
     private static ItemStack stack(Object entry) {

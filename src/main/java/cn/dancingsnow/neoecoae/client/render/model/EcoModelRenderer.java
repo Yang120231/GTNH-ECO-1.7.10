@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.IBlockAccess;
+import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.lwjgl.opengl.GL11;
@@ -28,8 +29,12 @@ public final class EcoModelRenderer {
     public static void renderWorld(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons,
         IBlockAccess world, int x, int y, int z, Block block, RenderBlocks renderer) {
         Tessellator tessellator = Tessellator.instance;
+        ModelRenderLayer renderLayer = ModelRenderLayer.fromRenderPass(MinecraftForgeClient.getRenderPass());
         tessellator.addTranslation(x, y, z);
         for (BakedQuad quad : model.getQuads(facing)) {
+            if (quad.getRenderLayer() != renderLayer) {
+                continue;
+            }
             if (shouldCull(world, x, y, z, quad)) {
                 continue;
             }
@@ -42,6 +47,8 @@ public final class EcoModelRenderer {
                 : ModelLightSampler.getWorldBrightness(world, x, y, z, block, quad, facing);
             float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : quad.getWorldShade();
             tessellator.setBrightness(brightness);
+            ForgeDirection normal = quad.getNormal();
+            tessellator.setNormal(normal.offsetX, normal.offsetY, normal.offsetZ);
             tessellator.setColorOpaque_F(shade, shade, shade);
             submitQuad(tessellator, quad, icon);
         }

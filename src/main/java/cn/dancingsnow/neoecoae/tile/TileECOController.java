@@ -32,8 +32,8 @@ import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipe;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipes;
-import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingCapacity;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
 import cn.dancingsnow.neoecoae.gui.computation.ComputationHostStats;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
@@ -330,10 +330,11 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public boolean lacksVirtualCraftingCapacity() {
-        return this.subsystem != ECOControllerSubsystem.CRAFTING
-            || this.worldObj == null
+        return this.subsystem != ECOControllerSubsystem.CRAFTING || this.worldObj == null
             || !this.formed
-            || this.getCraftingMemberCache().workers().isEmpty()
+            || this.getCraftingMemberCache()
+                .workers()
+                .isEmpty()
             || this.getCraftingCurrentBatchSlots() <= 0;
     }
 
@@ -393,8 +394,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             if (!ecoInterface.isNetworkOnline()) {
                 continue;
             }
-            remaining = offerToCraftingCpus
-                ? ecoInterface.injectCraftingOutput(prototype, remaining)
+            remaining = offerToCraftingCpus ? ecoInterface.injectCraftingOutput(prototype, remaining)
                 : ecoInterface.injectCraftingRecovery(prototype, remaining);
             if (remaining <= 0L) {
                 return 0L;
@@ -624,9 +624,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingThreadCountPerWorker() {
-        int multiplier = this.craftingOverclocked
-            ? ECOEnergyProfile.overclockedCraftingQueueMultiplier(this.tier)
-            : 1;
+        int multiplier = this.craftingOverclocked ? ECOEnergyProfile.overclockedCraftingQueueMultiplier(this.tier) : 1;
         return ECOCraftingCapacity.threadSlotsPerWorker(
             TileCraftingWorker.BASE_QUEUE_CAPACITY,
             multiplier,
@@ -1696,11 +1694,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             return;
         }
         ECOFormationVisibility.replace(this.worldObj, this.hiddenBlocks, new ArrayList<>());
-        ECOFormationVisibility.replaceFormedMembers(
-            this.worldObj,
-            this.formedMemberBlocks,
-            new ArrayList<>(),
-            this.mirrored);
+        ECOFormationVisibility
+            .replaceFormedMembers(this.worldObj, this.formedMemberBlocks, new ArrayList<>(), this.mirrored);
     }
 
     @Override
@@ -1765,9 +1760,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                 TAG_DISK_ID,
                 entry.getKey()
                     .toString());
-            stepTag.setInteger(
-                TAG_STEP,
-                entry.getValue());
+            stepTag.setInteger(TAG_STEP, entry.getValue());
             migrationTag.appendTag(stepTag);
         }
         tag.setTag(TAG_MIGRATION_STEPS, migrationTag);

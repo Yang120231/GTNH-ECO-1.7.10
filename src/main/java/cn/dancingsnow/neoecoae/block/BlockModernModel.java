@@ -96,6 +96,12 @@ public class BlockModernModel extends Block implements IModelIconProvider {
         return false;
     }
 
+    @SideOnly(Side.CLIENT)
+    @Override
+    public boolean canRenderInPass(int pass) {
+        return pass == 0 || pass == 1;
+    }
+
     @Override
     public void onBlockAdded(World world, int x, int y, int z) {
         super.onBlockAdded(world, x, y, z);

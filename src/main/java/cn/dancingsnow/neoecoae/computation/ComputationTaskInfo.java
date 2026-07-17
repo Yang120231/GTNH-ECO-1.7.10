@@ -22,8 +22,8 @@ public final class ComputationTaskInfo {
     public final ComputationCpuSelectionMode cpuSelectionMode;
     public final Status status;
 
-    public ComputationTaskInfo(ItemStack outputStack, long outputAmount, long elapsedNanos, String cpuName, int cpuSerial,
-        long cpuStorage, int coProcessors, ComputationCpuSelectionMode cpuSelectionMode, Status status) {
+    public ComputationTaskInfo(ItemStack outputStack, long outputAmount, long elapsedNanos, String cpuName,
+        int cpuSerial, long cpuStorage, int coProcessors, ComputationCpuSelectionMode cpuSelectionMode, Status status) {
         this.outputStack = outputStack == null ? null : outputStack.copy();
         this.outputName = this.outputStack == null ? "" : this.outputStack.getDisplayName();
         this.outputAmount = Math.max(0L, outputAmount);

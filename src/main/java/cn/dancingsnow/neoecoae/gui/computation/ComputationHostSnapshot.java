@@ -157,16 +157,17 @@ public final class ComputationHostSnapshot {
         }
         for (ComputationTaskInfo taskInfo : taskInfos) {
             if (taskInfo != null) {
-                entries.add(new TaskEntry(
-                    taskInfo.outputStack,
-                    taskInfo.outputAmount,
-                    taskInfo.elapsedNanos,
-                    taskInfo.cpuName,
-                    taskInfo.cpuSerial,
-                    taskInfo.cpuStorage,
-                    taskInfo.coProcessors,
-                    taskInfo.cpuSelectionMode,
-                    taskInfo.status));
+                entries.add(
+                    new TaskEntry(
+                        taskInfo.outputStack,
+                        taskInfo.outputAmount,
+                        taskInfo.elapsedNanos,
+                        taskInfo.cpuName,
+                        taskInfo.cpuSerial,
+                        taskInfo.cpuStorage,
+                        taskInfo.coProcessors,
+                        taskInfo.cpuSelectionMode,
+                        taskInfo.status));
             }
         }
         return entries;

@@ -182,8 +182,7 @@ public class TileECOInterface extends TileEntity
         return copyCraftingRemainder(stack, remaining);
     }
 
-    private long injectCraftingAmount(ItemStack prototype, long amount, boolean simulate,
-        boolean offerToCraftingCpus) {
+    private long injectCraftingAmount(ItemStack prototype, long amount, boolean simulate, boolean offerToCraftingCpus) {
         if (prototype == null || amount <= 0L) {
             return 0L;
         }
