@@ -1,6 +1,6 @@
 <p align="center"><img src="/images/logo.png" alt="Logo"></p>
-<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10 移植</h1>
-<p align="center">為 GT New Horizons / Minecraft 1.7.10 作 Applied Energistics 2 附屬模組之移植。</p>
+<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10</h1>
+<p align="center">為 GT New Horizons / Minecraft 1.7.10 所作之 ECO AE Extension。</p>
 <h3 align="center">
 
 [English](/README.md) | [简体中文](/README_ZH_CN.md) | [繁體中文](/README_ZH_HK.md) | 文言
@@ -9,61 +9,31 @@
 
 ## 概
 
-Neo ECO AE Extension，AE2 之附屬也，主於高效儲藏、合成、計算諸器。
+Neo ECO AE Extension - GTNH 1.7.10，乃 [Neo ECO AE Extension](https://github.com/DancingSnow0517/NeoECOAEExtension) 為 Minecraft 一點七點十及 GT New Horizons 重作之本也。其欲移今本之 AE2 高效儲藏、合成、計算諸制於 GTNH。
 
-此倉為 GT New Horizons 一點七點十之移植工區。今上游本為 Minecraft 1.21.1+ NeoForge 所作；此本則從 GTNH 之法，須用 GTNH 所維護之 AE2、NEI、CodeChickenCore 諸分支，不可雜以上游原版。
+Forge 1.7.10、GTNH AE2、NEI、渲染、註冊與資料之法，皆與今世 Minecraft 殊，故此本為舊境重新作之，非徑抄今本源碼。其美術視覺之資，部分取自今本。
 
-上游維護：**DancingSnow0517**。
+## 所具
 
-GTNH 1.7.10 移植：**Yang120231**。
+模組分儲藏、合成、計算為三多方塊之制，各有 L4、L6、L9 三等，等愈高則容量效能愈盛。
 
-## 所欲移植者
+又有 ECO 儲藏單元與矩陣、高速合成部件、計算之器、合於 GTNH 之界面，及為後期巨型 AE2 網絡所設之 NEI 整合。
 
-- ECO 儲藏元件與存儲單元
-- AE2 附屬材料與合成部件
-- 儲藏、合成、計算三系之多方塊構想
-- 適於 GTNH 1.7.10 之 NEI 配方顯示
-- 適於 GTNH 之模型、貼圖、提示與運行邏輯
+## 告
 
-此非直抄新本。Forge 1.7.10、GTNH AE2、NEI、渲染、註冊、本地化、物品方塊模型，皆與今世 NeoForge 異。
+此 GTNH 1.7.10 本與[現代 Neo ECO AE Extension](https://github.com/DancingSnow0517/NeoECOAEExtension)各自維護。今本由 **DancingSnow0517** 主之；此 GTNH 重作本由 **Yang120231** 維護。
 
-## 今況
-
-尚在初遷。
-
-已成者：
-
-- GTNHGradle 開發環境
-- GTNH `daily` manifest catalog
-- GTNH 特供 AE2、NEI、CodeChickenCore 及運行依賴
-- 模組名號已同上游：
-  - mod id：`neoecoae`
-  - 包名：`cn.dancingsnow.neoecoae`
-  - 顯名：`Neo ECO AE Extension`
-- 初遷物品：`neoecoae:aluminum_ingot`
+此本之訛誤與求助，勿投於今本之倉；今世 Minecraft 所獨有之病，亦當報於今本，而非此倉。
 
 ## 開發
 
-GTNH 開發環境用 JDK 25。
-
-常用命令：
+此本用 GTNH 開發之具及其所維護之 AE2、NEI、CodeChickenCore 諸分支。移植筆記見 [`docs/`](/docs/README.md)。
 
 ```powershell
 .\gradlew.bat build
 .\gradlew.bat runClient
-.\gradlew.bat spotlessApply
 ```
-
-## 文檔
-
-移植筆記見 [`docs/`](/docs/README.md)。
-
-## 告
-
-Neo ECO AE Extension 與 Eco AE Extension 但有授權移植之緣，非同一維護。
-
-GTNH 1.7.10 之移植問題，勿徑投於現代上游，除非其病亦見於上游。
 
 ## 授權
 
-以 GPLv3 行。見 [`LICENSE`](/LICENSE)。
+以 [GNU GPL v3.0](/LICENSE) 行。今本及 GTNH 重作本諸作者之名，皆存於專案資料中。

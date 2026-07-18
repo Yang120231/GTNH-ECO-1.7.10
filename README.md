@@ -1,6 +1,6 @@
 <p align="center"><img src="/images/logo.png" alt="Logo"></p>
-<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10 Port</h1>
-<p align="center">An Applied Energistics 2 addon port for GT New Horizons on Minecraft 1.7.10.</p>
+<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10</h1>
+<p align="center">ECO AE Extension for GT New Horizons on Minecraft 1.7.10.</p>
 <h3 align="center">
 
 English | [简体中文](/README_ZH_CN.md) | [繁體中文](/README_ZH_HK.md) | [文言](/README_LZH.md)
@@ -9,83 +9,31 @@ English | [简体中文](/README_ZH_CN.md) | [繁體中文](/README_ZH_HK.md) | 
 
 ## Overview
 
-Neo ECO AE Extension is an Applied Energistics 2 addon focused on high-performance storage, crafting, and computation components.
+Neo ECO AE Extension - GTNH 1.7.10 is a rewrite of [Neo ECO AE Extension](https://github.com/DancingSnow0517/NeoECOAEExtension) for Minecraft 1.7.10 and the GT New Horizons ecosystem. It brings the modern project's high-performance Applied Energistics 2 storage, crafting, and computation concepts to GTNH.
 
-This repository is the GT New Horizons / Minecraft 1.7.10 porting workspace for the modern NeoForge project. The upstream modern project targets Minecraft 1.21.1+, while this port targets the GTNH ecosystem and must use GTNH-maintained forks of AE2, NEI, CodeChickenCore, and related libraries.
+Because Forge 1.7.10, GTNH AE2, NEI, rendering, registries, and data formats differ substantially from modern Minecraft, this project was rebuilt for the legacy environment rather than directly backporting the modern source code. Some artwork and visual assets originate from the modern project.
 
-Upstream maintainer: **DancingSnow0517**.
+## What does the GTNH 1.7.10 edition offer?
 
-GTNH 1.7.10 port maintainer: **Yang120231**.
+The mod introduces three independent multiblock systems for storage, crafting, and computation. Each system is available in L4, L6, and L9 tiers, with higher tiers providing greater capacity and performance.
 
-## What This Port Aims To Provide
+It also provides ECO storage cells and matrices, high-throughput crafting components, computation hardware, GTNH-compatible interfaces, and NEI integration designed for large late-game AE2 networks.
 
-- ECO storage components and storage cells
-- AE2 addon materials and crafting components
-- multiblock-inspired storage, crafting, and computation systems
-- NEI recipe/category support for GTNH 1.7.10
-- GTNH-compatible models, textures, tooltips, and runtime behavior
+## Important Reminder
 
-This is not a direct source copy. Minecraft 1.7.10 Forge, GTNH AE2, NEI, rendering, registries, localization, and item/block model handling differ substantially from modern NeoForge.
+This GTNH 1.7.10 edition and the [modern Neo ECO AE Extension project](https://github.com/DancingSnow0517/NeoECOAEExtension) are independently maintained. The modern project is led and developed by **DancingSnow0517**; this GTNH 1.7.10 rewrite is maintained by **Yang120231**.
 
-## Current Status
-
-This project is in early migration.
-
-Implemented so far:
-
-- GTNHGradle development environment
-- GTNH `daily` manifest catalog support
-- GTNH fork dependencies for AE2, NEI, CodeChickenCore, and supporting runtime mods
-- mod identity aligned with upstream:
-  - mod id: `neoecoae`
-  - package: `cn.dancingsnow.neoecoae`
-  - display name: `Neo ECO AE Extension`
-- first migrated item: `neoecoae:aluminum_ingot`
-
-## GTNH Dependency Policy
-
-Do not use upstream/original AE2, NEI, or CodeChickenCore jars in this project.
-
-Use GTNH forked artifacts from the GTNH manifest, for example:
-
-- `com.github.GTNewHorizons:Applied-Energistics-2-Unofficial`
-- `com.github.GTNewHorizons:NotEnoughItems`
-- `com.github.GTNewHorizons:CodeChickenCore`
+Please do not submit issues, bug reports, or support requests for this GTNH edition to the modern project. Likewise, problems specific to modern Minecraft versions should be reported to the modern project rather than here.
 
 ## Development
 
-Use JDK 25 for the GTNH development environment.
-
-Common commands:
+This project uses the GTNH development toolchain and GTNH-maintained forks of AE2, NEI, CodeChickenCore, and related libraries. Development notes are available under [`docs/`](/docs/README.md).
 
 ```powershell
 .\gradlew.bat build
 .\gradlew.bat runClient
-.\gradlew.bat spotlessApply
 ```
-
-For a fresh IDE setup:
-
-```powershell
-.\gradlew.bat setupDecompWorkspace
-.\gradlew.bat idea
-```
-
-## Documentation
-
-Porting notes live under [`docs/`](/docs/README.md). They are written as working notes for the GTNH migration rather than generic template documentation.
-
-Migration analysis from the 1.21.1 source project is generated in the upstream local workspace under:
-
-- `migration-analysis/migratable-items.md`
-- `migration-analysis/migratable-items.csv`
-
-## Important Reminder
-
-Neo ECO AE Extension and Eco AE Extension are related through an authorized porting relationship. They are independently maintained projects.
-
-Please do not submit GTNH 1.7.10 port issues to the upstream modern Neo ECO AE Extension project unless the issue is confirmed to apply there as well.
 
 ## License
 
-This project follows the upstream licensing direction and is distributed under GPLv3. See [`LICENSE`](/LICENSE).
+This project is distributed under the [GNU General Public License v3.0](/LICENSE). Credits for the modern project and the GTNH rewrite are retained in the project metadata.

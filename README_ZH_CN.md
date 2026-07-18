@@ -1,6 +1,6 @@
 <p align="center"><img src="/images/logo.png" alt="Logo"></p>
-<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10 移植版</h1>
-<p align="center">面向 GT New Horizons / Minecraft 1.7.10 的 Applied Energistics 2 附属模组移植工程。</p>
+<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10</h1>
+<p align="center">面向 GT New Horizons / Minecraft 1.7.10 的 ECO AE Extension。</p>
 <h3 align="center">
 
 [English](/README.md) | 简体中文 | [繁體中文](/README_ZH_HK.md) | [文言](/README_LZH.md)
@@ -9,83 +9,31 @@
 
 ## 概述
 
-Neo ECO AE Extension 是一个围绕 Applied Energistics 2 的附属模组，重点提供高性能的存储、合成与计算组件。
+Neo ECO AE Extension - GTNH 1.7.10 是 [Neo ECO AE Extension](https://github.com/DancingSnow0517/NeoECOAEExtension) 面向 Minecraft 1.7.10 与 GT New Horizons 生态的重写版本，旨在将现代版项目中的高性能 Applied Energistics 2 存储、合成与计算设计带到 GTNH。
 
-本仓库是现代 NeoForge 版本在 GT New Horizons / Minecraft 1.7.10 环境下的移植工作区。现代上游项目面向 Minecraft 1.21.1+，而本移植版面向 GTNH 生态，因此必须使用 GTNH 维护的 AE2、NEI、CodeChickenCore 以及相关库的特供版本。
+由于 Forge 1.7.10、GTNH AE2、NEI、渲染、注册机制和数据格式均与现代 Minecraft 存在显著差异，本项目针对旧版本环境重新实现，而非直接移植现代版源代码。部分美术与视觉资源来源于现代版项目。
 
-上游维护者：**DancingSnow0517**。
+## GTNH 1.7.10 版本提供了什么？
 
-GTNH 1.7.10 移植负责人：**Yang120231**。
+本模组引入了相互独立的存储、合成与计算三个多方块系统。每套系统均提供 L4、L6 和 L9 三个等级，等级越高，容量与性能越强。
 
-## 移植目标
+此外，本模组还提供 ECO 存储元件与存储矩阵、高吞吐量合成组件、计算硬件、适配 GTNH 的交互界面，以及面向大型后期 AE2 网络的 NEI 集成。
 
-- ECO 存储组件与存储元件
-- AE2 附属材料与合成组件
-- 受多方块结构启发的存储、合成、计算系统
-- 适配 GTNH 1.7.10 的 NEI 配方/分类显示
-- 适配 GTNH 的模型、贴图、物品信息与运行行为
+## 重要提示
 
-本项目不是对 1.21.1 源码的直接复制。Forge 1.7.10、GTNH AE2、NEI、渲染、注册表、本地化、物品和方块模型机制都与现代 NeoForge 有明显差异。
+本 GTNH 1.7.10 版本与[现代版 Neo ECO AE Extension 项目](https://github.com/DancingSnow0517/NeoECOAEExtension)相互独立维护。现代版项目由 **DancingSnow0517** 主导开发；本 GTNH 1.7.10 重写版本由 **Yang120231** 维护。
 
-## 当前状态
-
-项目处于早期迁移阶段。
-
-目前已完成：
-
-- GTNHGradle 开发环境
-- GTNH `daily` manifest catalog 支持
-- GTNH 特供 AE2、NEI、CodeChickenCore 与运行时辅助依赖
-- 与上游对齐的模组身份：
-  - mod id：`neoecoae`
-  - 包名：`cn.dancingsnow.neoecoae`
-  - 显示名：`Neo ECO AE Extension`
-- 第一个迁移物品：`neoecoae:aluminum_ingot`
-
-## GTNH 依赖规则
-
-不要在本项目中使用原版/上游 AE2、NEI 或 CodeChickenCore jar。
-
-必须使用 GTNH manifest 中的特供构件，例如：
-
-- `com.github.GTNewHorizons:Applied-Energistics-2-Unofficial`
-- `com.github.GTNewHorizons:NotEnoughItems`
-- `com.github.GTNewHorizons:CodeChickenCore`
+请勿将本 GTNH 版本的 Issue、错误报告或技术支持请求提交到现代版项目。同样，现代 Minecraft 版本特有的问题也应提交到现代版项目，而不是本仓库。
 
 ## 开发
 
-GTNH 开发环境使用 JDK 25。
-
-常用命令：
+本项目使用 GTNH 开发工具链，以及由 GTNH 维护的 AE2、NEI、CodeChickenCore 等依赖分支。开发与移植笔记位于 [`docs/`](/docs/README.md)。
 
 ```powershell
 .\gradlew.bat build
 .\gradlew.bat runClient
-.\gradlew.bat spotlessApply
 ```
-
-首次导入 IDE：
-
-```powershell
-.\gradlew.bat setupDecompWorkspace
-.\gradlew.bat idea
-```
-
-## 文档
-
-移植工作笔记位于 [`docs/`](/docs/README.md)。这些文档面向当前 GTNH 迁移工作，而不是通用模板说明。
-
-1.21.1 源项目的迁移分析清单位于源项目本地工作区：
-
-- `migration-analysis/migratable-items.md`
-- `migration-analysis/migratable-items.csv`
-
-## 重要提示
-
-Neo ECO AE Extension 与 Eco AE Extension 之间仅存在授权移植关系。两者是独立维护的项目。
-
-请不要把 GTNH 1.7.10 移植版的问题提交到现代上游项目，除非该问题已确认同样影响上游版本。
 
 ## 许可证
 
-本项目遵循上游许可证方向，使用 GPLv3 发布。详见 [`LICENSE`](/LICENSE)。
+本项目以 [GNU 通用公共许可证 v3.0](/LICENSE) 发布。现代版项目与 GTNH 重写版本的作者信息均保留在项目元数据中。
