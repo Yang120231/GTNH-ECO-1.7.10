@@ -440,6 +440,8 @@ public final class ECOStructureBuilder {
             this.placeColumn(this.origin.offset(this.interfaceSide), NEBlocks.computationCasing);
             this.placeColumn(this.origin.offset(this.expandSide), NEBlocks.computationCasing);
             this.placeColumn(this.origin.offset(this.back), NEBlocks.computationCasing);
+            this.place(this.origin.offset(this.top), NEBlocks.computationCasing);
+            this.place(this.origin.offset(this.down), NEBlocks.computationCasing);
             this.placeColumn(
                 this.origin.offset(this.back)
                     .offset(this.expandSide),
