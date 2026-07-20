@@ -9,28 +9,12 @@ import cn.dancingsnow.neoecoae.block.BlockECOController;
 import cn.dancingsnow.neoecoae.block.BlockModelDrive;
 import cn.dancingsnow.neoecoae.block.BlockModernModel;
 import cn.dancingsnow.neoecoae.client.ClientEventHandler;
-import cn.dancingsnow.neoecoae.client.gui.ClientHostUiStateHandler;
-import cn.dancingsnow.neoecoae.client.gui.GuiCraftingHatch;
-import cn.dancingsnow.neoecoae.client.gui.GuiCraftingPatternBus;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOComputationController;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOCraftingController;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageController;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageInterface;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOStoragePriority;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOStorageRecoveryTerminal;
-import cn.dancingsnow.neoecoae.client.gui.GuiECOStructureTerminal;
 import cn.dancingsnow.neoecoae.client.render.ComputationCellItemModels;
 import cn.dancingsnow.neoecoae.client.render.ComputationCellItemRenderer;
 import cn.dancingsnow.neoecoae.client.render.DriveModels;
 import cn.dancingsnow.neoecoae.client.render.DriveRenderHandler;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockModels;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockRenderHandler;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
-import cn.dancingsnow.neoecoae.network.HostUiStatePacket;
-import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
-import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
-import cn.dancingsnow.neoecoae.tile.TileECOController;
-import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cpw.mods.fml.client.registry.RenderingRegistry;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -47,56 +31,6 @@ public class ClientProxy extends CommonProxy {
     public void init(FMLInitializationEvent event) {
         super.init(event);
         registerRenderers();
-    }
-
-    @Override
-    public Object createHostControllerGui(int id, net.minecraft.entity.player.InventoryPlayer playerInventory,
-        TileECOController controller) {
-        if (id == NEGuiIds.ECO_COMPUTATION_CONTROLLER) {
-            return new GuiECOComputationController(playerInventory, controller);
-        }
-        if (id == NEGuiIds.ECO_CRAFTING_CONTROLLER) {
-            return new GuiECOCraftingController(playerInventory, controller);
-        }
-        return new GuiECOStorageController(playerInventory, controller);
-    }
-
-    @Override
-    public Object createStoragePriorityGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
-        TileECOController controller) {
-        return new GuiECOStoragePriority(playerInventory, controller);
-    }
-
-    @Override
-    public Object createCraftingPatternBusGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
-        TileCraftingPatternBus bus) {
-        return new GuiCraftingPatternBus(playerInventory, bus);
-    }
-
-    @Override
-    public Object createCraftingHatchGui(net.minecraft.entity.player.InventoryPlayer playerInventory,
-        TileCraftingHatch hatch) {
-        return new GuiCraftingHatch(playerInventory, hatch);
-    }
-
-    @Override
-    public Object createStructureTerminalGui(net.minecraft.entity.player.EntityPlayer player) {
-        return new GuiECOStructureTerminal(player);
-    }
-
-    @Override
-    public Object createStorageRecoveryTerminalGui(net.minecraft.entity.player.EntityPlayer player) {
-        return new GuiECOStorageRecoveryTerminal(player);
-    }
-
-    @Override
-    public Object createStorageInterfaceGui(TileECOInterface storageInterface) {
-        return new GuiECOStorageInterface(storageInterface);
-    }
-
-    @Override
-    public void handleHostUiStatePacket(HostUiStatePacket packet) {
-        ClientHostUiStateHandler.handle(packet);
     }
 
     private void registerRenderers() {

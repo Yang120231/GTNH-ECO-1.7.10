@@ -4,8 +4,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoGuiData;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
 
 public class BlockCraftingHatch extends BlockFormedTexturedMachine {
@@ -33,8 +33,9 @@ public class BlockCraftingHatch extends BlockFormedTexturedMachine {
         if (player == null || player.isSneaking()) {
             return false;
         }
-        if (!world.isRemote && world.getTileEntity(x, y, z) instanceof TileCraftingHatch) {
-            player.openGui(NeoECOAE.instance, NEGuiIds.CRAFTING_HATCH, world, x, y, z);
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (!world.isRemote && tile instanceof TileCraftingHatch) {
+            NeoEcoUiFactory.openTile(player, NeoEcoGuiData.Kind.CRAFTING_HATCH, tile);
         }
         return true;
     }

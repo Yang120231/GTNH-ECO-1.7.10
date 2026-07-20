@@ -13,7 +13,8 @@ import net.minecraft.world.World;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
 import cn.dancingsnow.neoecoae.client.tooltip.NETooltips;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoGuiData;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.multiblock.ECOStructureBuilder;
 import cn.dancingsnow.neoecoae.multiblock.StructureTerminalHostType;
 import cn.dancingsnow.neoecoae.multiblock.StructureTerminalMode;
@@ -202,7 +203,7 @@ public class ItemECOStructureTerminal extends Item {
         if (world.isRemote || player.isSneaking()) {
             return stack;
         }
-        player.openGui(NeoECOAE.instance, NEGuiIds.ECO_STRUCTURE_TERMINAL, world, 0, 0, 0);
+        NeoEcoUiFactory.openHeldItem(player, NeoEcoGuiData.Kind.STRUCTURE_TERMINAL);
         return stack;
     }
 
@@ -228,7 +229,7 @@ public class ItemECOStructureTerminal extends Item {
         setHostTarget(stack, controller);
         rememberTarget(stack, world, controller);
         if (!player.isSneaking()) {
-            player.openGui(NeoECOAE.instance, NEGuiIds.ECO_STRUCTURE_TERMINAL, world, 0, 0, 0);
+            NeoEcoUiFactory.openHeldItem(player, NeoEcoGuiData.Kind.STRUCTURE_TERMINAL);
             return true;
         }
 

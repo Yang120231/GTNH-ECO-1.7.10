@@ -9,8 +9,8 @@ import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.Explosion;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoGuiData;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -81,19 +81,19 @@ public class BlockECOController extends BlockDirectionalModernModel {
             return false;
         }
         if (!world.isRemote) {
-            player.openGui(NeoECOAE.instance, this.guiId(), world, x, y, z);
+            NeoEcoUiFactory.openTile(player, this.guiKind(), tile);
         }
         return true;
     }
 
-    private int guiId() {
+    private NeoEcoGuiData.Kind guiKind() {
         if (this.subsystem == ECOControllerSubsystem.COMPUTATION) {
-            return NEGuiIds.ECO_COMPUTATION_CONTROLLER;
+            return NeoEcoGuiData.Kind.COMPUTATION_CONTROLLER;
         }
         if (this.subsystem == ECOControllerSubsystem.CRAFTING) {
-            return NEGuiIds.ECO_CRAFTING_CONTROLLER;
+            return NeoEcoGuiData.Kind.CRAFTING_CONTROLLER;
         }
-        return NEGuiIds.ECO_STORAGE_CONTROLLER;
+        return NeoEcoGuiData.Kind.STORAGE_CONTROLLER;
     }
 
     @Override

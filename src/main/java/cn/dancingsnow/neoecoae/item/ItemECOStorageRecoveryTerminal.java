@@ -14,7 +14,8 @@ import net.minecraft.world.World;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.all.NECreativeTabs;
 import cn.dancingsnow.neoecoae.client.tooltip.NETooltips;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoGuiData;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageDomainData;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cpw.mods.fml.relauncher.Side;
@@ -49,7 +50,7 @@ public class ItemECOStorageRecoveryTerminal extends Item {
         if (player.isSneaking()) {
             return stack;
         }
-        player.openGui(NeoECOAE.instance, NEGuiIds.ECO_STORAGE_RECOVERY_TERMINAL, world, 0, 0, 0);
+        NeoEcoUiFactory.openHeldItem(player, NeoEcoGuiData.Kind.STORAGE_RECOVERY_TERMINAL);
         return stack;
     }
 
@@ -73,7 +74,7 @@ public class ItemECOStorageRecoveryTerminal extends Item {
         }
         rememberTarget(stack, world, controller);
         if (!player.isSneaking()) {
-            player.openGui(NeoECOAE.instance, NEGuiIds.ECO_STORAGE_RECOVERY_TERMINAL, world, 0, 0, 0);
+            NeoEcoUiFactory.openHeldItem(player, NeoEcoGuiData.Kind.STORAGE_RECOVERY_TERMINAL);
             return true;
         }
         UUID selected = getSelectedDomain(stack);

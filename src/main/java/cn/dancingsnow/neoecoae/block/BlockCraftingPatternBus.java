@@ -4,8 +4,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoGuiData;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 
 public class BlockCraftingPatternBus extends BlockFormedDirectionalModernModel {
@@ -30,8 +30,9 @@ public class BlockCraftingPatternBus extends BlockFormedDirectionalModernModel {
         if (player == null || player.isSneaking()) {
             return false;
         }
-        if (!world.isRemote && world.getTileEntity(x, y, z) instanceof TileCraftingPatternBus) {
-            player.openGui(NeoECOAE.instance, NEGuiIds.CRAFTING_PATTERN_BUS, world, x, y, z);
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (!world.isRemote && tile instanceof TileCraftingPatternBus) {
+            NeoEcoUiFactory.openTile(player, NeoEcoGuiData.Kind.CRAFTING_PATTERN_BUS, tile);
         }
         return true;
     }

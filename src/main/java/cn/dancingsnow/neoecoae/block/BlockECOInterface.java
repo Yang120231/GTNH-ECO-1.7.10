@@ -4,8 +4,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.gui.NEGuiIds;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoGuiData;
+import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
@@ -44,7 +44,7 @@ public class BlockECOInterface extends BlockDirectionalModernModel {
             return false;
         }
         if (!world.isRemote) {
-            player.openGui(NeoECOAE.instance, NEGuiIds.ECO_STORAGE_INTERFACE, world, x, y, z);
+            NeoEcoUiFactory.openTile(player, NeoEcoGuiData.Kind.STORAGE_INTERFACE, ecoInterface);
         }
         return true;
     }
