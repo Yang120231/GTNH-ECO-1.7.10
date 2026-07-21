@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoae.gui.mui;
 
+import java.util.UUID;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -16,6 +18,7 @@ import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSessions;
 import cn.dancingsnow.neoecoae.item.ItemECOStorageRecoveryTerminal;
 import cn.dancingsnow.neoecoae.item.ItemECOStructureTerminal;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
@@ -55,6 +58,11 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
             .open(INSTANCE, NeoEcoGuiData.item(player, kind, player.inventory.currentItem), (EntityPlayerMP) player);
     }
 
+    public static void openUpload(EntityPlayer player, UUID session) {
+        if (!(player instanceof EntityPlayerMP) || PatternUploadSessions.get(session) == null) return;
+        GuiManager.open(INSTANCE, NeoEcoGuiData.upload(player, session), (EntityPlayerMP) player);
+    }
+
     @Override
     public @NotNull String getFactoryName() {
         return "neoecoae:main";
@@ -84,6 +92,9 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
             return data.getKind() == NeoEcoGuiData.Kind.STRUCTURE_TERMINAL
                 ? stack.getItem() instanceof ItemECOStructureTerminal
                 : stack.getItem() instanceof ItemECOStorageRecoveryTerminal;
+        }
+        if (data.getKind() == NeoEcoGuiData.Kind.PATTERN_UPLOAD) {
+            return PatternUploadSessions.get(data.getUploadSession()) != null;
         }
         TileEntity tile = data.getTileEntity();
         if (tile == null || tile.isInvalid()
@@ -122,6 +133,11 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
         buffer.writeInt(data.getY());
         buffer.writeInt(data.getZ());
         buffer.writeByte(data.getItemSlot());
+        if (data.getKind() == NeoEcoGuiData.Kind.PATTERN_UPLOAD) {
+            UUID session = data.getUploadSession();
+            buffer.writeLong(session == null ? 0L : session.getMostSignificantBits());
+            buffer.writeLong(session == null ? 0L : session.getLeastSignificantBits());
+        }
     }
 
     @Override
@@ -131,7 +147,23 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
         if (ordinal < 0 || ordinal >= kinds.length) {
             throw new IllegalArgumentException("Invalid Neo ECO UI kind: " + ordinal);
         }
-        return NeoEcoGuiData
-            .read(player, kinds[ordinal], buffer.readInt(), buffer.readInt(), buffer.readInt(), buffer.readByte());
+        KindData kindData = new KindData(kinds[ordinal]);
+        int x = buffer.readInt();
+        int y = buffer.readInt();
+        int z = buffer.readInt();
+        int itemSlot = buffer.readByte();
+        UUID session = kindData.kind == NeoEcoGuiData.Kind.PATTERN_UPLOAD
+            ? new UUID(buffer.readLong(), buffer.readLong())
+            : null;
+        return NeoEcoGuiData.read(player, kindData.kind, x, y, z, itemSlot, session);
+    }
+
+    private static final class KindData {
+
+        private final NeoEcoGuiData.Kind kind;
+
+        private KindData(NeoEcoGuiData.Kind kind) {
+            this.kind = kind;
+        }
     }
 }

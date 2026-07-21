@@ -14,7 +14,7 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
     modid = NeoECOAE.MODID,
     version = Tags.VERSION,
     name = "Neo ECO AE Extension",
-    dependencies = "required-after:modularui2@[2.3.79-1.7.10,);required-after:appliedenergistics2;",
+    dependencies = "required-after:modularui2@[2.3.49-1.7.10,);required-after:appliedenergistics2;",
     acceptedMinecraftVersions = "[1.7.10]")
 public class NeoECOAE {
 

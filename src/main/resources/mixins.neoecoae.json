@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "cn.dancingsnow.neoecoae.mixin",
+  "refmap": "mixins.neoecoae.refmap.json",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinContainerPatternTerm"
+  ],
+  "client": [
+    "MixinGuiPatternTerm"
+  ]
+}

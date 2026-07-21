@@ -170,7 +170,7 @@ public class TileECOInterface extends TileEntity
     }
 
     public TileECOController getBoundController() {
-        return this.subsystem == ECOControllerSubsystem.STORAGE ? this.findController() : null;
+        return this.findController();
     }
 
     @Override
