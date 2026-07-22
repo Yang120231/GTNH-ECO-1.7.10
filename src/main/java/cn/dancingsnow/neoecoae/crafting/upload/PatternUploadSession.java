@@ -2,7 +2,6 @@ package cn.dancingsnow.neoecoae.crafting.upload;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +11,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import appeng.api.AEApi;
 import appeng.api.implementations.ICraftingPatternItem;
@@ -27,7 +27,10 @@ import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
+import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.recipe.RecipeMap;
+import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
 
 public final class PatternUploadSession {
 
@@ -194,29 +197,45 @@ public final class PatternUploadSession {
 
         // Crafting patterns prefer ECO, then the molecular assembler interface.
         if (!this.processing) {
-            PatternUploadTarget eco = null;
-            PatternUploadTarget molecular = null;
+            TargetSortKey eco = null;
+            TargetSortKey molecular = null;
             for (PatternUploadTarget target : this.targets) {
                 if (!target.isWritable(false, details, this.pattern, this.routeKey)
                     || target.compatibilityRank(false, details) != 0) continue;
-                if (target.getKind() == PatternUploadTarget.Kind.ECO_PATTERN_BUS && eco == null) {
-                    eco = target;
+                TargetSortKey candidate = new TargetSortKey(
+                    target,
+                    target.compatibilityRank(false, details, this.routeKey),
+                    null,
+                    this.pattern,
+                    false,
+                    details,
+                    this.routeKey);
+                if (target.getKind() == PatternUploadTarget.Kind.ECO_PATTERN_BUS
+                    && (eco == null || compareTargetKeys(candidate, eco) < 0)) {
+                    eco = candidate;
                 } else if ((target.getKind() == PatternUploadTarget.Kind.AE2_INTERFACE
-                    || target.getKind() == PatternUploadTarget.Kind.AE2_DUAL_INTERFACE) && molecular == null) {
-                        molecular = target;
+                    || target.getKind() == PatternUploadTarget.Kind.AE2_DUAL_INTERFACE)
+                    && (molecular == null || compareTargetKeys(candidate, molecular) < 0)) {
+                        molecular = candidate;
                     }
             }
-            return eco != null ? eco : molecular;
+            return eco != null ? eco.target : molecular == null ? null : molecular.target;
         }
 
-        PatternUploadTarget exact = null;
+        TargetSortKey exact = null;
         for (PatternUploadTarget target : this.targets) {
             if (!target.isWritable(true, details, this.pattern, this.routeKey)) continue;
-            if (target.isExactMatch(true, details, this.routeKey)
-                && (exact == null || compareTargets(target, exact, this.pattern, true, details, this.routeKey) < 0))
-                exact = target;
+            TargetSortKey candidate = new TargetSortKey(
+                target,
+                target.compatibilityRank(true, details, this.routeKey),
+                null,
+                this.pattern,
+                true,
+                details,
+                this.routeKey);
+            if (exact == null || compareTargetKeys(candidate, exact) < 0) exact = candidate;
         }
-        return exact;
+        return exact == null ? null : exact.target;
     }
 
     public boolean undoUpload() {
@@ -283,21 +302,79 @@ public final class PatternUploadSession {
         List<PatternUploadTarget> ecoTargets = new ArrayList<>();
         Set<TileCraftingPatternBus> seenEcoBuses = Collections
             .newSetFromMap(new IdentityHashMap<TileCraftingPatternBus, Boolean>());
+        IdentityHashMap<PatternUploadTarget, Integer> compatibilityRanks = new IdentityHashMap<>();
+        IdentityHashMap<PatternUploadTarget, Integer> firstEmptySlots = new IdentityHashMap<>();
         // GT does not register every build of the crafting input hatch with AE2's terminal
         // class index. Enumerate the concrete class explicitly as well; the identity set keeps
         // this from duplicating a target returned by the registry scan below.
         for (IGridNode node : grid.getMachines(gregtech.common.tileentities.machines.MTEHatchCraftingInputME.class)) {
-            if (!seenInterfaces.add(node)) continue;
             IGridHost machine = node.getMachine();
-            if (!(machine instanceof IInterfaceViewable)) continue;
+            if (!(machine instanceof MTEHatchCraftingInputME) || !seenInterfaces.add(node)) continue;
             try {
-                IInterfaceViewable viewable = (IInterfaceViewable) machine;
+                MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) machine;
                 if (!isDiscoverableInterface(viewable)) continue;
                 PatternUploadTarget target = PatternUploadTarget
                     .interfaceTarget("interface-" + serial++, viewable, grid);
-                if (details == null || target.isRecipeCompatible(processing, details, routeKey)) result.add(target);
+                addRecipeCompatibleTarget(result, compatibilityRanks, target, processing, details, routeKey);
             } catch (RuntimeException ignored) {
                 // A GT hatch can disappear while its proxy is rebuilding.
+            }
+        }
+        // Some GT builds expose the AENetworkProxy as the grid node machine, so the class-index
+        // scan above cannot recover the actual MTEHatchCraftingInputME. The loaded tile list is
+        // the authoritative local source for both the GT MetaTileEntity and ECO interfaces.
+        if (world != null && world.loadedTileEntityList != null) {
+            for (Object loaded : world.loadedTileEntityList) {
+                if (loaded instanceof IGregTechTileEntity) {
+                    try {
+                        IGregTechTileEntity base = (IGregTechTileEntity) loaded;
+                        IMetaTileEntity meta = base.getMetaTileEntity();
+                        if (meta instanceof MTEHatchCraftingInputME) {
+                            MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) meta;
+                            IGridNode node = viewable.getGridNode(ForgeDirection.UNKNOWN);
+                            if (node != null && node.isActive()
+                                && node.getGrid() == grid
+                                && seenInterfaces.add(node)
+                                && isDiscoverableInterface(viewable)) {
+                                PatternUploadTarget target = PatternUploadTarget
+                                    .interfaceTarget("interface-" + serial++, viewable, grid);
+                                addRecipeCompatibleTarget(
+                                    result,
+                                    compatibilityRanks,
+                                    target,
+                                    processing,
+                                    details,
+                                    routeKey);
+                            }
+                        }
+                    } catch (RuntimeException ignored) {
+                        // A GT hatch can be observed while its base tile or proxy is rebuilding.
+                    }
+                }
+                if (!(loaded instanceof TileECOInterface)) continue;
+                try {
+                    TileECOInterface ecoInterface = (TileECOInterface) loaded;
+                    IGridNode node = ecoInterface.getGridNode(ForgeDirection.UNKNOWN);
+                    if (node == null || !node.isActive() || node.getGrid() != grid || !seenInterfaces.add(node))
+                        continue;
+                    if (ecoInterface.getSubsystem() != ECOControllerSubsystem.CRAFTING) continue;
+                    TileECOController controller = ecoInterface.getBoundController();
+                    if (controller == null || !controller.isFormed()) continue;
+                    for (TileCraftingPatternBus bus : controller.getCraftingPatternBuses()) {
+                        if (!seenEcoBuses.add(bus)) continue;
+                        PatternUploadTarget target = PatternUploadTarget
+                            .ecoTarget("eco-" + serial++, bus, ecoInterface, grid);
+                        addRecipeCompatibleTarget(
+                            ecoTargets,
+                            compatibilityRanks,
+                            target,
+                            processing,
+                            details,
+                            routeKey);
+                    }
+                } catch (RuntimeException ignored) {
+                    // An ECO interface can be observed while its controller or proxy is rebuilding.
+                }
             }
         }
         // The interface-terminal registry is the authoritative source for GT/AE2 addon
@@ -316,22 +393,21 @@ public final class PatternUploadSession {
                     if (!isDiscoverableInterface(viewable)) continue;
                     PatternUploadTarget target = PatternUploadTarget
                         .interfaceTarget("interface-" + serial++, viewable, grid);
-                    if (details == null || target.isRecipeCompatible(processing, details, routeKey)) result.add(target);
+                    addRecipeCompatibleTarget(result, compatibilityRanks, target, processing, details, routeKey);
                 } catch (RuntimeException ignored) {
                     // A machine can be removed or rebuilt while the AE grid is being scanned.
                 }
             }
         }
         for (IGridNode node : grid.getNodes()) {
-            if (!seenInterfaces.add(node)) continue;
             IGridHost machine = node.getMachine();
-            if (!(machine instanceof IInterfaceViewable)) continue;
+            if (!(machine instanceof IInterfaceViewable) || !seenInterfaces.add(node)) continue;
             try {
                 IInterfaceViewable viewable = (IInterfaceViewable) machine;
                 if (!isDiscoverableInterface(viewable)) continue;
                 PatternUploadTarget target = PatternUploadTarget
                     .interfaceTarget("interface-" + serial++, viewable, grid);
-                if (details == null || target.isRecipeCompatible(processing, details, routeKey)) result.add(target);
+                addRecipeCompatibleTarget(result, compatibilityRanks, target, processing, details, routeKey);
             } catch (RuntimeException ignored) {
                 // A machine can be removed or rebuilt while the AE grid is being scanned. Skip
                 // only that node; a transient target must never crash the terminal or server.
@@ -343,14 +419,14 @@ public final class PatternUploadSession {
                 IPatternUploadProvider provider = (IPatternUploadProvider) node.getMachine();
                 if (!provider.isPatternUploadActive()) continue;
                 PatternUploadTarget target = PatternUploadTarget.providerTarget("provider-" + serial++, provider, grid);
-                if (target.isRecipeCompatible(processing, details, routeKey)) result.add(target);
+                addRecipeCompatibleTarget(result, compatibilityRanks, target, processing, details, routeKey);
             } catch (RuntimeException ignored) {
                 // Optional adapters are allowed to disappear during network rebuilds.
             }
         }
         for (IGridNode node : grid.getMachines(TileECOInterface.class)) {
             IGridHost machine = node.getMachine();
-            if (!(machine instanceof TileECOInterface)) continue;
+            if (!(machine instanceof TileECOInterface) || !seenInterfaces.add(node)) continue;
             TileECOInterface ecoInterface = (TileECOInterface) machine;
             if (ecoInterface.getSubsystem() != ECOControllerSubsystem.CRAFTING) continue;
             TileECOController controller = ecoInterface.getBoundController();
@@ -358,31 +434,70 @@ public final class PatternUploadSession {
             for (TileCraftingPatternBus bus : controller.getCraftingPatternBuses()) {
                 if (!seenEcoBuses.add(bus)) continue;
                 PatternUploadTarget target = PatternUploadTarget.ecoTarget("eco-" + serial++, bus, ecoInterface, grid);
-                if (details == null || target.isRecipeCompatible(processing, details, routeKey)) ecoTargets.add(target);
+                addRecipeCompatibleTarget(ecoTargets, compatibilityRanks, target, processing, details, routeKey);
             }
         }
         Collections.sort(ecoTargets, PatternUploadSession::comparePosition);
-        PatternUploadTarget availableEcoTarget = null;
+        TargetSortKey availableEcoTarget = null;
+        TargetSortKey duplicateEcoTarget = null;
         for (PatternUploadTarget target : ecoTargets) {
             int slot = target.firstEmptySlot(pattern);
-            if (slot >= 0 || slot == -2) {
-                availableEcoTarget = target;
-                break;
+            firstEmptySlots.put(target, slot);
+            Integer compatibilityRank = compatibilityRanks.get(target);
+            TargetSortKey candidate = new TargetSortKey(
+                target,
+                compatibilityRank == null ? target.compatibilityRank(processing, details, routeKey) : compatibilityRank,
+                slot,
+                pattern,
+                processing,
+                details,
+                routeKey);
+            if (slot >= 0 && (availableEcoTarget == null || compareTargetKeys(candidate, availableEcoTarget) < 0)) {
+                availableEcoTarget = candidate;
+            }
+            if (slot == -2 && (duplicateEcoTarget == null || compareTargetKeys(candidate, duplicateEcoTarget) < 0)) {
+                duplicateEcoTarget = candidate;
             }
         }
-        if (availableEcoTarget != null) {
-            result.add(availableEcoTarget);
+        // An existing copy is informative in the picker, but must not hide another ECO bus that
+        // can actually receive this pattern. The duplicate remains the fallback display target.
+        PatternUploadTarget selectedEcoTarget = availableEcoTarget != null ? availableEcoTarget.target
+            : duplicateEcoTarget == null ? null : duplicateEcoTarget.target;
+        if (selectedEcoTarget != null) {
+            result.add(selectedEcoTarget);
         } else if (!ecoTargets.isEmpty()) {
             result.add(ecoTargets.get(0));
         }
-        Collections.sort(result, new Comparator<PatternUploadTarget>() {
-
-            @Override
-            public int compare(PatternUploadTarget left, PatternUploadTarget right) {
-                return compareTargets(left, right, pattern, processing, details, routeKey);
+        List<TargetSortKey> sortKeys = new ArrayList<>(result.size());
+        for (PatternUploadTarget target : result) {
+            Integer compatibilityRank = compatibilityRanks.get(target);
+            if (compatibilityRank == null) {
+                compatibilityRank = target.compatibilityRank(processing, details, routeKey);
             }
-        });
+            sortKeys.add(
+                new TargetSortKey(
+                    target,
+                    compatibilityRank,
+                    firstEmptySlots.containsKey(target) ? firstEmptySlots.get(target) : null,
+                    pattern,
+                    processing,
+                    details,
+                    routeKey));
+        }
+        Collections.sort(sortKeys, PatternUploadSession::compareTargetKeys);
+        result.clear();
+        for (TargetSortKey sortKey : sortKeys) result.add(sortKey.target);
         return result;
+    }
+
+    private static void addRecipeCompatibleTarget(List<PatternUploadTarget> targets,
+        IdentityHashMap<PatternUploadTarget, Integer> compatibilityRanks, PatternUploadTarget target,
+        boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
+        int recipeTypeRank = details == null ? 0 : target.recipeTypeRank(processing, details, routeKey);
+        if (details != null && recipeTypeRank != 0) return;
+        targets.add(target);
+        compatibilityRanks
+            .put(target, target.compatibilityRankWithRecipeType(processing, details, routeKey, recipeTypeRank));
     }
 
     private static boolean isDiscoverableInterface(IInterfaceViewable viewable) {
@@ -394,19 +509,37 @@ public final class PatternUploadSession {
             || viewable instanceof gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
     }
 
-    private static int compareTargets(PatternUploadTarget left, PatternUploadTarget right, ItemStack pattern,
-        boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
-        int compatibility = Integer.compare(
-            left.compatibilityRank(processing, details, routeKey),
-            right.compatibilityRank(processing, details, routeKey));
+    private static int compareTargetKeys(TargetSortKey left, TargetSortKey right) {
+        int compatibility = Integer.compare(left.compatibilityRank, right.compatibilityRank);
         if (compatibility != 0) return compatibility;
-        int writable = Boolean.compare(left.firstEmptySlot(pattern) < 0, right.firstEmptySlot(pattern) < 0);
-        if (writable != 0) return writable;
-        int kind = Integer.compare(priority(left), priority(right));
+        int availability = Integer.compare(left.availabilityRank, right.availabilityRank);
+        if (availability != 0) return availability;
+        int actualMachine = Boolean.compare(right.actualMachineMatch, left.actualMachineMatch);
+        if (actualMachine != 0) return actualMachine;
+        int kind = Integer.compare(priority(left.target), priority(right.target));
         if (kind != 0) return kind;
-        int slots = Integer.compare(right.getEmptySlots(), left.getEmptySlots());
+        int slots = Integer.compare(right.emptySlots, left.emptySlots);
         if (slots != 0) return slots;
-        return comparePosition(left, right);
+        return comparePosition(left.target, right.target);
+    }
+
+    private static final class TargetSortKey {
+
+        private final PatternUploadTarget target;
+        private final int compatibilityRank;
+        private final int availabilityRank;
+        private final int emptySlots;
+        private final boolean actualMachineMatch;
+
+        private TargetSortKey(PatternUploadTarget target, int compatibilityRank, Integer firstEmptySlot,
+            ItemStack pattern, boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
+            this.target = target;
+            this.compatibilityRank = compatibilityRank;
+            int slot = firstEmptySlot == null ? target.firstEmptySlot(pattern) : firstEmptySlot;
+            this.availabilityRank = slot >= 0 ? 0 : slot == -2 ? 1 : 2;
+            this.emptySlots = target.getEmptySlots();
+            this.actualMachineMatch = target.hasActualMachineRecipeMatch(processing, details, routeKey);
+        }
     }
 
     private ICraftingPatternDetails patternDetails() {

@@ -1,11 +1,12 @@
 package cn.dancingsnow.neoecoae.crafting.upload;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.inventory.IInventory;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -20,10 +21,10 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.util.IInterfaceViewable;
 import appeng.helpers.IInterfaceHost;
+import appeng.me.helpers.IGridProxyable;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cpw.mods.fml.common.registry.GameRegistry;
-import gregtech.api.GregTechAPI;
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -54,17 +55,24 @@ public final class PatternUploadTarget {
         private final ForgeDirection side;
         private final ItemStack icon;
         private final String name;
+        private final boolean actualMachine;
 
         private Route(RecipeMap<?> recipeMap, ItemStack circuit, ForgeDirection side) {
             this(recipeMap, circuit, side, null, null);
         }
 
         private Route(RecipeMap<?> recipeMap, ItemStack circuit, ForgeDirection side, ItemStack icon, String name) {
+            this(recipeMap, circuit, side, icon, name, false);
+        }
+
+        private Route(RecipeMap<?> recipeMap, ItemStack circuit, ForgeDirection side, ItemStack icon, String name,
+            boolean actualMachine) {
             this.recipeMap = recipeMap;
             this.circuit = circuit == null ? null : circuit.copy();
             this.side = side == null ? ForgeDirection.UNKNOWN : side;
             this.icon = icon == null ? null : icon.copy();
             this.name = name;
+            this.actualMachine = actualMachine;
         }
     }
 
@@ -76,6 +84,7 @@ public final class PatternUploadTarget {
     private final ItemStack circuit;
     private final RecipeMap<?> recipeMap;
     private final List<Route> routes;
+    private final boolean hasActualMachineRoute;
     private final IInventory inventory;
     private final int slotCount;
     private final int x;
@@ -94,6 +103,7 @@ public final class PatternUploadTarget {
         this.icon = icon == null ? null : icon.copy();
         this.routingIcon = routingIcon == null ? null : routingIcon.copy();
         this.routes = routes == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(routes));
+        this.hasActualMachineRoute = hasActualMachineRoute(this.routes);
         this.recipeMap = this.routes.isEmpty() ? null : this.routes.get(0).recipeMap;
         this.circuit = this.routes.isEmpty() ? null
             : this.routes.get(0).circuit == null ? null : this.routes.get(0).circuit.copy();
@@ -261,7 +271,7 @@ public final class PatternUploadTarget {
     /** Returns the RecipeMap for the best route, optionally constrained by a captured RecipeMap. */
     public RecipeMap<?> getRecipeMap(PatternRouteKey routeKey, ICraftingPatternDetails details) {
         Route route = this.selectRoute(routeKey, details);
-        return route == null ? null : route.recipeMap;
+        return this.effectiveRecipeMap(route, routeKey);
     }
 
     public int getSlotCount() {
@@ -290,6 +300,34 @@ public final class PatternUploadTarget {
 
     public Object getHost() {
         return this.host;
+    }
+
+    /**
+     * True when the target's route was read from a live GT machine or its bound processing logic
+     * instead of only from the interface itself. It is a ranking signal; exact recipe and circuit
+     * checks still decide whether a target can accept an upload.
+     */
+    public boolean hasActualMachineRoute() {
+        return this.hasActualMachineRoute;
+    }
+
+    /** Returns whether the selected exact processing route was read from a live GT machine. */
+    public boolean hasActualMachineRecipeMatch(boolean processing, ICraftingPatternDetails details,
+        PatternRouteKey routeKey) {
+        if (!processing || details == null) return false;
+        ItemStack patternCircuit = patternCircuit(details);
+        if (patternCircuit != null && routeKey != null
+            && routeKey.hasCircuit()
+            && !routeKey.matchesCircuit(patternCircuit)) return false;
+        ItemStack requiredCircuit = patternCircuit != null ? patternCircuit
+            : routeKey == null ? null : routeKey.getCircuit();
+        for (Route route : this.routes) {
+            if (!route.actualMachine) continue;
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map == null || !this.routeMatchesRecipeForExact(route, map, details, routeKey)) continue;
+            if (requiredCircuit == null || PatternCircuitCompat.same(route.circuit, requiredCircuit)) return true;
+        }
+        return false;
     }
 
     public boolean isCompatible(boolean processing, ICraftingPatternDetails details) {
@@ -338,6 +376,12 @@ public final class PatternUploadTarget {
     public int compatibilityRank(boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
         if (details == null) return 0;
         int baseRank = this.recipeTypeRank(processing, details, routeKey);
+        return this.compatibilityRankWithRecipeType(processing, details, routeKey, baseRank);
+    }
+
+    int compatibilityRankWithRecipeType(boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey,
+        int baseRank) {
+        if (details == null) return 0;
         if (baseRank < 0) return -1;
         ItemStack patternCircuit = patternCircuit(details);
         ItemStack requiredCircuit = patternCircuit == null || !routeKeyHasCircuit(routeKey) ? patternCircuit
@@ -367,14 +411,17 @@ public final class PatternUploadTarget {
             : routeKey == null ? null : routeKey.getCircuit();
         if (requiredCircuit == null) {
             for (Route route : this.routes) {
-                if (route.recipeMap == null) continue;
-                if (route.circuit == null && this.routeMatchesRecipe(route, details, routeKey)) return true;
-                if (route.circuit != null && this.routeMatchesRecipeForExact(route, details, routeKey)) return true;
+                RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+                if (map == null) continue;
+                if (route.circuit == null && this.routeMatchesRecipe(route, map, details, routeKey)) return true;
+                if (route.circuit != null && this.routeMatchesRecipeForExact(route, map, details, routeKey))
+                    return true;
             }
             return this.kind == Kind.ECO_PATTERN_BUS || this.kind == Kind.PROGRAMMABLE_HATCH;
         }
         for (Route route : this.routes) {
-            if (route.recipeMap != null && this.routeMatchesRecipe(route, details, routeKey)
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map != null && this.routeMatchesRecipe(route, map, details, routeKey)
                 && PatternCircuitCompat.same(route.circuit, requiredCircuit)) return true;
         }
         return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details);
@@ -398,14 +445,16 @@ public final class PatternUploadTarget {
         ItemStack requiredCircuit = patternCircuit != null ? patternCircuit : routeKey.getCircuit();
         if (requiredCircuit == null) {
             for (Route route : this.routes) {
-                if (route.recipeMap != null && routeKey.matches(route.recipeMap.unlocalizedName)
-                    && this.routeMatchesRecipeForExact(route, details, routeKey)) return true;
+                RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+                if (map != null && routeKey.matches(map.unlocalizedName)
+                    && this.routeMatchesRecipeForExact(route, map, details, routeKey)) return true;
             }
             return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details);
         }
         for (Route route : this.routes) {
-            if (route.recipeMap == null || !routeKey.matches(route.recipeMap.unlocalizedName)) continue;
-            if (this.routeMatchesRecipe(route, details, routeKey)
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map == null || !routeKey.matches(map.unlocalizedName)) continue;
+            if (this.routeMatchesRecipe(route, map, details, routeKey)
                 && PatternCircuitCompat.same(route.circuit, requiredCircuit)) return true;
         }
         return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details);
@@ -414,7 +463,8 @@ public final class PatternUploadTarget {
     public boolean matchesRouteKey(PatternRouteKey routeKey, ICraftingPatternDetails details) {
         if (routeKey == null || routeKey.isEmpty()) return true;
         for (Route route : this.routes) {
-            if (route.recipeMap != null && routeKey.matches(route.recipeMap.unlocalizedName)) return true;
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map != null && routeKey.matches(map.unlocalizedName)) return true;
         }
         return false;
     }
@@ -423,7 +473,7 @@ public final class PatternUploadTarget {
         return this.recipeTypeRank(processing, details, null);
     }
 
-    private int recipeTypeRank(boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
+    int recipeTypeRank(boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
         int baseRank;
         if (this.kind == Kind.ECO_PATTERN_BUS) baseRank = processing ? 2 : 0;
         else {
@@ -458,9 +508,9 @@ public final class PatternUploadTarget {
 
     private boolean hasMatchingRecipeMap(ICraftingPatternDetails details, PatternRouteKey routeKey) {
         for (Route route : this.routes) {
-            if (route.recipeMap == null) continue;
-            if (routeKey != null && !routeKey.isEmpty() && !routeKey.matches(route.recipeMap.unlocalizedName)) continue;
-            if (this.routeMatchesRecipe(route, details, routeKey)) return true;
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map == null) continue;
+            if (this.routeMatchesRecipe(route, map, details, routeKey)) return true;
         }
         return false;
     }
@@ -473,7 +523,8 @@ public final class PatternUploadTarget {
         boolean unknown = false;
         boolean knownMap = false;
         for (Route route : this.routes) {
-            if (route.recipeMap == null || !this.routeMatchesRecipe(route, details, routeKey)) continue;
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map == null || !this.routeMatchesRecipe(route, map, details, routeKey)) continue;
             knownMap = true;
             if (PatternCircuitCompat.same(route.circuit, requiredCircuit)) return 0;
             if (route.circuit == null) unknown = true;
@@ -483,22 +534,39 @@ public final class PatternUploadTarget {
     }
 
     private boolean routeMatchesRecipe(Route route, ICraftingPatternDetails details, PatternRouteKey routeKey) {
-        if (route == null || route.recipeMap == null) return false;
+        return this.routeMatchesRecipe(route, route == null ? null : route.recipeMap, details, routeKey);
+    }
+
+    private boolean routeMatchesRecipe(Route route, RecipeMap<?> map, ICraftingPatternDetails details,
+        PatternRouteKey routeKey) {
+        if (route == null || map == null) return false;
         ItemStack patternCircuit = patternCircuit(details);
-        if (patternCircuit != null) return PatternRecipeMatcher.matches(route.recipeMap, details, null);
-        if (routeKey != null && routeKey.hasCircuit()) {
-            return PatternRecipeMatcher.matches(route.recipeMap, details, routeKey.getCircuit());
+        if (patternCircuit != null) return PatternRecipeMatcher.matches(map, details, null);
+        if (route.circuit != null) {
+            return PatternRecipeMatcher.matches(map, details, route.circuit);
         }
-        return PatternRecipeMatcher.matchesAnyCircuit(route.recipeMap, details, route.circuit);
+        if (routeKey != null && routeKey.hasCircuit()) {
+            return PatternRecipeMatcher.matches(map, details, routeKey.getCircuit());
+        }
+        // When NEI omitted the virtual circuit, the target's configured circuit is the only
+        // reliable context available. Trying every circuit makes an unknown/output-bus route
+        // look compatible with every circuit recipe.
+        return PatternRecipeMatcher.matches(map, details, route.circuit);
     }
 
     /** Exact route check used when NEI did not provide a route key. */
     private boolean routeMatchesRecipeForExact(Route route, ICraftingPatternDetails details, PatternRouteKey routeKey) {
-        if (route == null || route.recipeMap == null) return false;
+        return this.routeMatchesRecipeForExact(route, route == null ? null : route.recipeMap, details, routeKey);
+    }
+
+    private boolean routeMatchesRecipeForExact(Route route, RecipeMap<?> map, ICraftingPatternDetails details,
+        PatternRouteKey routeKey) {
+        if (route == null || map == null) return false;
         ItemStack patternCircuit = patternCircuit(details);
-        if (patternCircuit != null) return PatternRecipeMatcher.matches(route.recipeMap, details, null);
-        ItemStack contextualCircuit = routeKey != null && routeKey.hasCircuit() ? routeKey.getCircuit() : route.circuit;
-        return PatternRecipeMatcher.matches(route.recipeMap, details, contextualCircuit);
+        if (patternCircuit != null) return PatternRecipeMatcher.matches(map, details, null);
+        ItemStack contextualCircuit = route.circuit != null ? route.circuit
+            : routeKey != null && routeKey.hasCircuit() ? routeKey.getCircuit() : null;
+        return PatternRecipeMatcher.matches(map, details, contextualCircuit);
     }
 
     private boolean hasKnownCircuit() {
@@ -536,7 +604,8 @@ public final class PatternUploadTarget {
         if (routeKey != null && !routeKey.isEmpty()) {
             Route fallback = null;
             for (Route route : this.routes) {
-                if (route.recipeMap == null || !routeKey.matches(route.recipeMap.unlocalizedName)) continue;
+                RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+                if (map == null || !routeKey.matches(map.unlocalizedName)) continue;
                 if (fallback == null) fallback = route;
                 if (requiredCircuit != null && PatternCircuitCompat.same(route.circuit, requiredCircuit)) return route;
                 if (requiredCircuit == null && routeKey.hasCircuit() && routeKey.matchesCircuit(route.circuit))
@@ -548,7 +617,8 @@ public final class PatternUploadTarget {
 
         List<Route> candidates = new ArrayList<>();
         for (Route route : this.routes) {
-            if (route.recipeMap != null && PatternRecipeMatcher.matches(route.recipeMap, details)) {
+            RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+            if (map != null && this.routeMatchesRecipe(route, map, details, routeKey)) {
                 candidates.add(route);
             }
         }
@@ -559,7 +629,8 @@ public final class PatternUploadTarget {
         if (routeKey != null && !routeKey.isEmpty()) {
             List<Route> hinted = new ArrayList<>();
             for (Route route : candidates) {
-                if (route.recipeMap != null && routeKey.matches(route.recipeMap.unlocalizedName)) hinted.add(route);
+                RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
+                if (map != null && routeKey.matches(map.unlocalizedName)) hinted.add(route);
             }
             if (!hinted.isEmpty()) candidates = hinted;
         }
@@ -583,6 +654,14 @@ public final class PatternUploadTarget {
         return this.routes.get(0);
     }
 
+    private static RecipeMap<?> effectiveRecipeMap(Route route, PatternRouteKey routeKey) {
+        if (route == null || route.recipeMap == null) return null;
+        if (routeKey != null && !routeKey.isEmpty() && !routeKey.matches(route.recipeMap.unlocalizedName)) {
+            return null;
+        }
+        return route.recipeMap;
+    }
+
     public int getEmptySlots() {
         if (this.inventory == null) return 0;
         int empty = 0;
@@ -594,17 +673,19 @@ public final class PatternUploadTarget {
 
     public int firstEmptySlot(ItemStack pattern) {
         if (pattern == null || this.inventory == null) return -1;
+        int firstEmpty = -1;
+        boolean hasPattern = false;
         for (int i = 0; i < this.slotCount; i++) {
             ItemStack existing = this.inventory.getStackInSlot(i);
             if (existing != null && existing.isItemEqual(pattern)
                 && ItemStack.areItemStackTagsEqual(existing, pattern)) {
-                return -2;
+                hasPattern = true;
             }
-            if (existing == null && this.inventory.isItemValidForSlot(i, pattern)) {
-                return i;
+            if (firstEmpty < 0 && existing == null && this.inventory.isItemValidForSlot(i, pattern)) {
+                firstEmpty = i;
             }
         }
-        return -1;
+        return hasPattern ? -2 : firstEmpty;
     }
 
     public boolean hasPattern(ItemStack pattern) {
@@ -657,9 +738,18 @@ public final class PatternUploadTarget {
     }
 
     private boolean isStillOnGrid() {
-        if (!(this.host instanceof IGridHost)) return false;
-        IGridNode node = ((IGridHost) this.host).getGridNode(ForgeDirection.UNKNOWN);
+        IGridNode node = this.hostGridNode();
         return node != null && node.isActive() && node.getGrid() == this.grid;
+    }
+
+    private IGridNode hostGridNode() {
+        if (this.host instanceof IGridHost) {
+            return ((IGridHost) this.host).getGridNode(ForgeDirection.UNKNOWN);
+        }
+        if (this.host instanceof IGridProxyable) {
+            return ((IGridProxyable) this.host).getGridNode(ForgeDirection.UNKNOWN);
+        }
+        return null;
     }
 
     private static List<Route> interfaceRoutes(IInterfaceViewable viewable, ItemStack routingIcon) {
@@ -668,9 +758,13 @@ public final class PatternUploadTarget {
             IMetaTileEntity machine = (IMetaTileEntity) viewable;
             RecipeMap<?> map = recipeMap(machine);
             ItemStack circuit = circuitForMachine(machine);
+            ItemStack icon = machineIcon(machine);
+            String name = iconName(icon, machine);
             if (map != null || circuit != null) {
-                ItemStack icon = machineIcon(machine);
-                routes.add(new Route(map, circuit, ForgeDirection.UNKNOWN, icon, iconName(icon, machine)));
+                routes.add(new Route(map, circuit, ForgeDirection.UNKNOWN, icon, name, true));
+            }
+            if (machine instanceof MTEHatchCraftingInputME) {
+                addCraftingInputMachineRoutes(routes, (MTEHatchCraftingInputME) machine, circuit, icon, name);
             }
         }
         if (viewable instanceof IInterfaceHost) {
@@ -687,48 +781,113 @@ public final class PatternUploadTarget {
                             tile.zCoord + direction.offsetZ);
                     if (!(adjacent instanceof IGregTechTileEntity)) continue;
                     IMetaTileEntity machine = ((IGregTechTileEntity) adjacent).getMetaTileEntity();
+                    // A normal ME interface may face a GT multiblock controller, a casing, or an
+                    // output hatch. Only an actual input hatch/bus can receive the controller's
+                    // recipe state, so only those are valid pattern-upload routes.
+                    if (!isInputRoute(machine)) continue;
                     RecipeMap<?> map = recipeMap(machine);
                     ItemStack circuit = circuitForMachine(machine);
                     if (map != null || circuit != null) {
+                        // GT writes the owning multiblock's AE2 crafting icon into each input
+                        // hatch/bus while the structure is assembled. machineIcon therefore keeps
+                        // the target display tied to the host, not to the hatch's block item.
                         ItemStack icon = machineIcon(machine);
-                        routes.add(new Route(map, circuit, direction, icon, iconName(icon, machine)));
+                        routes.add(new Route(map, circuit, direction, icon, iconName(icon, machine), true));
                     }
                 }
             }
         }
-        boolean hasRecipeMap = false;
-        for (Route route : routes) {
-            if (route.recipeMap != null) {
-                hasRecipeMap = true;
-                break;
-            }
-        }
-        if (!hasRecipeMap) {
-            RecipeMap<?> iconMap = recipeMapFromIcon(routingIcon);
-            if (iconMap != null) routes.add(new Route(iconMap, null, ForgeDirection.UNKNOWN, routingIcon, null));
-        }
+        // Do not infer a processing route from an interface display icon. An interface adjacent
+        // to an output bus has no input recipe declaration, and the icon fallback made it appear
+        // as a valid no-circuit target for an unrelated machine.
         return routes;
     }
 
-    private static RecipeMap<?> recipeMapFromIcon(ItemStack routingIcon) {
-        if (routingIcon == null || routingIcon.getItem() != Item.getItemFromBlock(GregTechAPI.sBlockMachines)) {
+    /**
+     * GT5U registers a crafting-input ME hatch as a dual-input hatch before the ordinary input
+     * bus branch assigns {@code mRecipeMap}. When available, its processing-logic set links it
+     * back to the multiblock it currently serves. That implementation detail differs between
+     * supported GT5U builds, so it is deliberately accessed as an optional capability.
+     */
+    private static void addCraftingInputMachineRoutes(List<Route> routes, MTEHatchCraftingInputME hatch,
+        ItemStack circuit, ItemStack icon, String name) {
+        Object processingLogics = reflectedFieldValue(hatch, "processingLogics");
+        if (!(processingLogics instanceof Iterable)) return;
+        try {
+            for (Object logic : (Iterable<?>) processingLogics) {
+                RecipeMap<?> map = processingLogicRecipeMap(logic);
+                if (map == null || hasRoute(routes, map, circuit)) continue;
+                routes.add(new Route(map, circuit, ForgeDirection.UNKNOWN, icon, name, true));
+            }
+        } catch (RuntimeException ignored) {
+            // GT may rebuild the weak ProcessingLogic set while a grid scan is in progress.
+        }
+    }
+
+    private static boolean hasRoute(List<Route> routes, RecipeMap<?> map, ItemStack circuit) {
+        for (Route route : routes) {
+            if (route.recipeMap == map && PatternCircuitCompat.same(route.circuit, circuit)) return true;
+        }
+        return false;
+    }
+
+    private static RecipeMap<?> processingLogicRecipeMap(Object logic) {
+        Object supplier = reflectedFieldValue(logic, "recipeMapSupplier");
+        Object value = invokeNoArgMethod(supplier, "get");
+        return value instanceof RecipeMap ? (RecipeMap<?>) value : null;
+    }
+
+    private static Object reflectedFieldValue(Object instance, String name) {
+        if (instance == null) return null;
+        try {
+            Field field = findField(instance.getClass(), name);
+            if (field == null) return null;
+            field.setAccessible(true);
+            return field.get(instance);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
             return null;
         }
-        int id = routingIcon.getItemDamage();
-        if (id < 0 || id >= GregTechAPI.METATILEENTITIES.length) return null;
-        return recipeMap(GregTechAPI.METATILEENTITIES[id]);
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+                // The field may be inherited from a GT base class.
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeNoArgMethod(Object instance, String name) {
+        if (instance == null) return null;
+        try {
+            Method method = findNoArgMethod(instance.getClass(), name);
+            if (method == null) return null;
+            method.setAccessible(true);
+            return method.invoke(instance);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static Method findNoArgMethod(Class<?> type, String name) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(name);
+            } catch (NoSuchMethodException ignored) {
+                // The optional capability may be inherited from a GT base class.
+            }
+        }
+        return null;
     }
 
     private static Kind interfaceKind(IInterfaceViewable viewable) {
         if (isProgrammableHatch(viewable)) return Kind.PROGRAMMABLE_HATCH;
         if (viewable instanceof MTEHatchCraftingInputME) {
-            try {
-                return ((MTEHatchCraftingInputME) viewable).supportsFluids() ? Kind.GT_CRAFTING_INPUT
-                    : Kind.GT_CRAFTING_INPUT_BUS;
-            } catch (RuntimeException ignored) {
-                // A partially constructed hatch can briefly reject the capability query during chunk load.
-                return Kind.GT_CRAFTING_INPUT_BUS;
-            }
+            Object supportsFluids = invokeNoArgMethod(viewable, "supportsFluids");
+            return Boolean.TRUE.equals(supportsFluids) ? Kind.GT_CRAFTING_INPUT : Kind.GT_CRAFTING_INPUT_BUS;
         }
         if (isAe2DualInterface(viewable)) {
             return Kind.AE2_DUAL_INTERFACE;
@@ -785,6 +944,15 @@ public final class PatternUploadTarget {
             // A GT machine may be rebuilding its recipe map while the AE grid is refreshing.
         }
         return null;
+    }
+
+    private static boolean isInputRoute(IMetaTileEntity machine) {
+        return machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus;
+    }
+
+    private static boolean hasActualMachineRoute(List<Route> routes) {
+        for (Route route : routes) if (route.actualMachine) return true;
+        return false;
     }
 
     private static ItemStack machineIcon(IMetaTileEntity machine) {

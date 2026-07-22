@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.crafting.upload;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
@@ -24,6 +25,7 @@ public final class PatternUploadSessions {
 
     public static synchronized PatternUploadSession create(EntityPlayerMP player, IGrid grid, IGridNode sourceNode,
         ItemStack pattern, IInventory sourceInventory, int sourceSlot, boolean processing, PatternRouteKey routeKey) {
+        pruneExpired();
         PatternUploadSession session = PatternUploadSession
             .create(player, grid, sourceNode, pattern, sourceInventory, sourceSlot, processing, routeKey);
         SESSIONS.put(session.getId(), session);
@@ -41,14 +43,24 @@ public final class PatternUploadSessions {
 
     public static synchronized PatternUploadSession findForSource(EntityPlayerMP player, IInventory sourceInventory,
         int sourceSlot) {
+        pruneExpired();
         PatternUploadSession latest = null;
         for (PatternUploadSession session : SESSIONS.values()) {
             if (session.getPlayer() != player || session.getSourceInventory() != sourceInventory
-                || session.getSourceSlot() != sourceSlot
-                || session.isExpired()) continue;
+                || session.getSourceSlot() != sourceSlot) continue;
             latest = session;
         }
         return latest;
+    }
+
+    private static void pruneExpired() {
+        Iterator<Map.Entry<UUID, PatternUploadSession>> iterator = SESSIONS.entrySet()
+            .iterator();
+        while (iterator.hasNext()) {
+            if (iterator.next()
+                .getValue()
+                .isExpired()) iterator.remove();
+        }
     }
 
     public static synchronized void remove(UUID id) {
