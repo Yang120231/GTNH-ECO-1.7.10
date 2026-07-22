@@ -32,6 +32,7 @@ import gregtech.api.interfaces.tileentity.RecipeMapWorkable;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatchInput;
 import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
+import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.common.items.ItemIntegratedCircuit;
 import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
@@ -765,6 +766,7 @@ public final class PatternUploadTarget {
             }
             if (machine instanceof MTEHatchCraftingInputME) {
                 addCraftingInputMachineRoutes(routes, (MTEHatchCraftingInputME) machine, circuit, icon, name);
+                addCraftingInputControllerRoutes(routes, (MTEHatchCraftingInputME) machine, circuit);
             }
         }
         if (viewable instanceof IInterfaceHost) {
@@ -835,6 +837,44 @@ public final class PatternUploadTarget {
         Object supplier = reflectedFieldValue(logic, "recipeMapSupplier");
         Object value = invokeNoArgMethod(supplier, "get");
         return value instanceof RecipeMap ? (RecipeMap<?>) value : null;
+    }
+
+    /**
+     * Current GT5U builds no longer retain the older processing-logic set on an ME crafting input
+     * hatch. A formed multiblock does retain the same hatch in {@code mDualInputHatches}, though,
+     * so its public RecipeMap is the authoritative route for that hatch.
+     */
+    private static void addCraftingInputControllerRoutes(List<Route> routes, MTEHatchCraftingInputME hatch,
+        ItemStack circuit) {
+        if (hatch == null || hatch.getBaseMetaTileEntity() == null
+            || hatch.getBaseMetaTileEntity()
+                .getWorld() == null
+            || hatch.getBaseMetaTileEntity()
+                .getWorld().loadedTileEntityList == null) return;
+        try {
+            for (Object loaded : hatch.getBaseMetaTileEntity()
+                .getWorld().loadedTileEntityList) {
+                if (!(loaded instanceof IGregTechTileEntity)) continue;
+                IMetaTileEntity meta = ((IGregTechTileEntity) loaded).getMetaTileEntity();
+                if (!(meta instanceof MTEMultiBlockBase)) continue;
+                MTEMultiBlockBase controller = (MTEMultiBlockBase) meta;
+                if (!controller.mMachine || controller.mDualInputHatches == null
+                    || !controller.mDualInputHatches.contains(hatch)) continue;
+                RecipeMap<?> map = controller.getRecipeMap();
+                if (map == null || hasRoute(routes, map, circuit)) continue;
+                ItemStack controllerIcon = machineIcon(controller);
+                routes.add(
+                    new Route(
+                        map,
+                        circuit,
+                        ForgeDirection.UNKNOWN,
+                        controllerIcon,
+                        iconName(controllerIcon, controller),
+                        true));
+            }
+        } catch (RuntimeException ignored) {
+            // A multiblock can rebuild its hatch list while an AE grid scan is in progress.
+        }
     }
 
     private static Object reflectedFieldValue(Object instance, String name) {
