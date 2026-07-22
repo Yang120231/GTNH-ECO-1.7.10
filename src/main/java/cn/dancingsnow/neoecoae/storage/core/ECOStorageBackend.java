@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.storage.core;
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -37,13 +38,15 @@ public final class ECOStorageBackend {
         if (amount == null || amount.isZero()) {
             return ECOAmount.ZERO;
         }
-        ECOAmount accepted = this.capacityPolicy.limitInsert(this.used, amount);
+        ECOAmount current = this.getAmount(key);
+        ECOAmount accepted = this.limitInsert(key, current, amount);
         if (accepted.isZero() || simulate) {
             return accepted;
         }
-        ECOAmount current = this.getAmount(key);
-        this.entries.put(key, current.add(accepted));
-        this.used = this.used.add(accepted);
+        ECOAmount next = current.add(accepted);
+        this.entries.put(key, next);
+        this.used = this.used.add(
+            storageBytes(key, next, this.capacityPolicy).subtract(storageBytes(key, current, this.capacityPolicy)));
         this.markDirty();
         return accepted;
     }
@@ -64,7 +67,9 @@ public final class ECOStorageBackend {
         } else {
             this.entries.put(key, remaining);
         }
-        this.used = this.used.subtract(extracted);
+        this.used = this.used.subtract(
+            storageBytes(key, current, this.capacityPolicy)
+                .subtract(storageBytes(key, remaining, this.capacityPolicy)));
         this.markDirty();
         return extracted;
     }
@@ -105,10 +110,12 @@ public final class ECOStorageBackend {
 
     public void setCapacityPolicy(ECOCapacityPolicy capacityPolicy) {
         ECOCapacityPolicy nextPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
-        if (!nextPolicy.canHold(this.used)) {
+        ECOAmount nextUsed = calculateUsed(this.entries, nextPolicy);
+        if (!nextPolicy.canHold(nextUsed)) {
             throw new IllegalArgumentException("Capacity policy cannot hold current contents");
         }
         this.capacityPolicy = nextPolicy;
+        this.used = nextUsed;
         this.markDirty();
     }
 
@@ -131,19 +138,74 @@ public final class ECOStorageBackend {
     void loadFromCodec(ECOCapacityPolicy capacityPolicy, Map<ECOStorageKey, ECOAmount> entries, ECOAmount used,
         long revision) {
         ECOCapacityPolicy nextPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
-        ECOAmount nextUsed = used == null ? ECOAmount.ZERO : used;
-        if (!nextPolicy.canHold(nextUsed)) {
-            throw new IllegalArgumentException("Stored contents exceed configured capacity");
-        }
         this.capacityPolicy = nextPolicy;
         this.entries.clear();
         this.entries.putAll(entries);
-        this.used = nextUsed;
+        this.used = calculateUsed(this.entries, nextPolicy);
         this.revision = revision;
     }
 
     Map<ECOStorageKey, ECOAmount> getEntriesForCodec() {
         return this.entries;
+    }
+
+    static ECOAmount calculateUsed(Map<ECOStorageKey, ECOAmount> entries, ECOCapacityPolicy policy) {
+        ECOAmount total = ECOAmount.ZERO;
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : entries.entrySet()) {
+            total = total.add(storageBytes(entry.getKey(), entry.getValue(), policy));
+        }
+        return total;
+    }
+
+    private ECOAmount limitInsert(ECOStorageKey key, ECOAmount current, ECOAmount requested) {
+        if (this.capacityPolicy.isInfinite()) {
+            return requested;
+        }
+        if (current.isZero() && (long) this.entries.size() >= this.capacityPolicy.getMaxTypes()) {
+            return ECOAmount.ZERO;
+        }
+        ECOAmount remainingBytes = this.capacityPolicy.getRemaining(this.used);
+        if (remainingBytes == null) {
+            return ECOAmount.ZERO;
+        }
+
+        BigInteger typeCost = current.isZero() ? BigInteger.valueOf(this.capacityPolicy.getBytesPerType())
+            : BigInteger.ZERO;
+        BigInteger writableBytes = remainingBytes.toBigInteger()
+            .subtract(typeCost);
+        if (writableBytes.signum() < 0) {
+            return ECOAmount.ZERO;
+        }
+        BigInteger maximumTotalAmount = contentBytes(key, current).toBigInteger()
+            .add(writableBytes)
+            .multiply(BigInteger.valueOf(amountPerByte(key)));
+        BigInteger accepted = maximumTotalAmount.subtract(current.toBigInteger())
+            .min(requested.toBigInteger());
+        return accepted.signum() <= 0 ? ECOAmount.ZERO : ECOAmount.of(accepted);
+    }
+
+    private static ECOAmount storageBytes(ECOStorageKey key, ECOAmount amount, ECOCapacityPolicy policy) {
+        if (amount == null || amount.isZero()) {
+            return ECOAmount.ZERO;
+        }
+        if (policy == null || policy.isInfinite()) {
+            return amount;
+        }
+        return contentBytes(key, amount).add(ECOAmount.of(policy.getBytesPerType()));
+    }
+
+    private static ECOAmount contentBytes(ECOStorageKey key, ECOAmount amount) {
+        if (amount == null || amount.isZero()) {
+            return ECOAmount.ZERO;
+        }
+        BigInteger divisor = BigInteger.valueOf(amountPerByte(key));
+        BigInteger[] quotient = amount.toBigInteger()
+            .divideAndRemainder(divisor);
+        return ECOAmount.of(quotient[0].add(quotient[1].signum() == 0 ? BigInteger.ZERO : BigInteger.ONE));
+    }
+
+    private static long amountPerByte(ECOStorageKey key) {
+        return key != null && key.isFluid() ? 8000L : key != null && key.isItem() ? 8L : 1L;
     }
 
     private void markDirty() {

@@ -783,10 +783,11 @@ public final class PatternUploadTarget {
                             tile.zCoord + direction.offsetZ);
                     if (!(adjacent instanceof IGregTechTileEntity)) continue;
                     IMetaTileEntity machine = ((IGregTechTileEntity) adjacent).getMetaTileEntity();
-                    // A normal ME interface may face a GT multiblock controller, a casing, or an
-                    // output hatch. Only an actual input hatch/bus can receive the controller's
-                    // recipe state, so only those are valid pattern-upload routes.
-                    if (!isInputRoute(machine)) continue;
+                    // A normal ME interface may face a GT controller, casing, output hatch, or
+                    // single-block machine. An input hatch/bus and a RecipeMapWorkable
+                    // single-block both expose a real processing map; output-only blocks and
+                    // casings do not.
+                    if (!isRecipeMapRoute(machine)) continue;
                     RecipeMap<?> map = recipeMap(machine);
                     ItemStack circuit = circuitForMachine(machine);
                     if (map != null || circuit != null) {
@@ -850,7 +851,8 @@ public final class PatternUploadTarget {
             || hatch.getBaseMetaTileEntity()
                 .getWorld() == null
             || hatch.getBaseMetaTileEntity()
-                .getWorld().loadedTileEntityList == null) return;
+                .getWorld().loadedTileEntityList == null)
+            return;
         try {
             for (Object loaded : hatch.getBaseMetaTileEntity()
                 .getWorld().loadedTileEntityList) {
@@ -986,8 +988,9 @@ public final class PatternUploadTarget {
         return null;
     }
 
-    private static boolean isInputRoute(IMetaTileEntity machine) {
-        return machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus;
+    private static boolean isRecipeMapRoute(IMetaTileEntity machine) {
+        return machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus
+            || machine instanceof RecipeMapWorkable;
     }
 
     private static boolean hasActualMachineRoute(List<Route> routes) {

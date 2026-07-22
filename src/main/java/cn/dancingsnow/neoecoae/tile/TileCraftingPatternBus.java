@@ -18,6 +18,7 @@ import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.util.ScheduledReason;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
@@ -131,6 +132,30 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     @Override
     public ItemStack getCrafterIcon() {
         return this.getStackInSlot(0);
+    }
+
+    /**
+     * Returns the first product represented by the pattern in a slot for GUI rendering.
+     */
+    public ItemStack getPatternDisplayStack(int slot) {
+        return this.getPatternDisplayStack(this.getStackInSlot(slot));
+    }
+
+    public ItemStack getPatternDisplayStack(ItemStack pattern) {
+        ICraftingPatternDetails details = this.patternDetails(pattern);
+        if (details == null) {
+            return null;
+        }
+        IAEItemStack[] outputs = details.getCondensedOutputs();
+        if (outputs == null) {
+            return null;
+        }
+        for (IAEItemStack output : outputs) {
+            if (output != null && output.getItemStack() != null) {
+                return output.getItemStack();
+            }
+        }
+        return null;
     }
 
     @Override

@@ -46,10 +46,10 @@ public final class ECOStorageCellRenderModels {
     }
 
     private static String modelForTier(String tier) {
-        if ("64M".equals(tier)) {
+        if ("16G".equals(tier) || "64M".equals(tier)) {
             return MODEL_L6_ITEM;
         }
-        if ("256M".equals(tier)) {
+        if ("64G".equals(tier) || "256M".equals(tier)) {
             return MODEL_L9_ITEM;
         }
         return MODEL_L4_ITEM;

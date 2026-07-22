@@ -1702,12 +1702,15 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private static boolean isNotL9StorageMatrix(ItemStack stack) {
-        return stack == null || !"256M".equals(
-            ECOStorageCellAccess.readTier(
-                stack,
-                stack.getItem() instanceof NEStorageItems.ECOStorageCellItem
-                    ? ((NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
-                    : ""));
+        if (stack == null) {
+            return true;
+        }
+        String tier = ECOStorageCellAccess.readTier(
+            stack,
+            stack.getItem() instanceof NEStorageItems.ECOStorageCellItem
+                ? ((NEStorageItems.ECOStorageCellItem) stack.getItem()).getTier()
+                : "");
+        return !("64G".equals(tier) || "256M".equals(tier));
     }
 
     public ModelFacing getFacing() {

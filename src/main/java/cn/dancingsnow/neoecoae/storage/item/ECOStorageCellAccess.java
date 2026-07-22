@@ -67,7 +67,8 @@ public final class ECOStorageCellAccess {
 
     public static ECOCapacityPolicy capacityFor(ItemStack stack) {
         if (stack != null && stack.getItem() instanceof IECOStorageMatrixItem) {
-            return ECOCapacityPolicy.finite(((IECOStorageMatrixItem) stack.getItem()).getDisplayBytes(stack));
+            IECOStorageMatrixItem matrix = (IECOStorageMatrixItem) stack.getItem();
+            return ECOCapacityPolicy.finite(matrix.getDisplayBytes(stack), matrix.getBytesPerType(stack));
         }
         return ECOCapacityPolicy.infinite();
     }

@@ -5,4 +5,6 @@ import net.minecraft.item.ItemStack;
 public interface IECOStorageMatrixItem {
 
     long getDisplayBytes(ItemStack stack);
+
+    long getBytesPerType(ItemStack stack);
 }

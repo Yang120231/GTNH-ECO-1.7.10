@@ -10,7 +10,7 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 
 public final class ECOStorageCodec {
 
-    public static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
 
     private ECOStorageCodec() {}
 
@@ -76,9 +76,10 @@ public final class ECOStorageCodec {
                 CURRENT_VERSION);
         }
 
-        ECOCapacityPolicy policy = ECOCapacityPolicy.readFromNBT(tag.getCompoundTag("capacityPolicy"));
+        ECOCapacityPolicy configuredPolicy = backend.getCapacityPolicy();
+        ECOCapacityPolicy storedPolicy = ECOCapacityPolicy.readFromNBT(tag.getCompoundTag("capacityPolicy"));
+        ECOCapacityPolicy policy = configuredPolicy.isInfinite() ? storedPolicy : configuredPolicy;
         Map<ECOStorageKey, ECOAmount> entries = new LinkedHashMap<ECOStorageKey, ECOAmount>();
-        ECOAmount computedUsed = ECOAmount.ZERO;
         NBTTagList entryList = tag.getTagList("entries", 10);
         for (int i = 0; i < entryList.tagCount(); i++) {
             NBTTagCompound entryTag = entryList.getCompoundTagAt(i);
@@ -93,13 +94,7 @@ public final class ECOStorageCodec {
             } else {
                 entries.put(key, previous.add(amount));
             }
-            computedUsed = computedUsed.add(amount);
         }
-
-        ECOAmount storedUsed = tag.hasKey("used") ? ECOAmount.readFromNBT(tag.getCompoundTag("used")) : computedUsed;
-        if (!storedUsed.equals(computedUsed)) {
-            storedUsed = computedUsed;
-        }
-        backend.loadFromCodec(policy, entries, storedUsed, tag.getLong("revision"));
+        backend.loadFromCodec(policy, entries, ECOAmount.ZERO, tag.getLong("revision"));
     }
 }

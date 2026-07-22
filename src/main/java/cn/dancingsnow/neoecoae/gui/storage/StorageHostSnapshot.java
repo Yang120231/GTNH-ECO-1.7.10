@@ -484,9 +484,9 @@ public final class StorageHostSnapshot {
 
     private static long typeBytes(String tier) {
         int tierIndex;
-        if ("L9".equalsIgnoreCase(tier) || "256M".equalsIgnoreCase(tier)) {
+        if ("L9".equalsIgnoreCase(tier) || "64G".equalsIgnoreCase(tier) || "256M".equalsIgnoreCase(tier)) {
             tierIndex = 3;
-        } else if ("L6".equalsIgnoreCase(tier) || "64M".equalsIgnoreCase(tier)) {
+        } else if ("L6".equalsIgnoreCase(tier) || "16G".equalsIgnoreCase(tier) || "64M".equalsIgnoreCase(tier)) {
             tierIndex = 2;
         } else {
             tierIndex = 1;
@@ -572,7 +572,7 @@ public final class StorageHostSnapshot {
             String mode = ECOStorageCellMetadata.getMode(stack)
                 .getId();
             long totalBytes = matrix.getDisplayBytes(stack);
-            long totalTypes = 0L;
+            long totalTypes = maxTypeCount(totalBytes, tier);
             boolean nonPortable = ECOStorageCellMetadata.hasNonPortableState(stack);
             if (nonPortable) {
                 return new MatrixRead(
@@ -598,6 +598,13 @@ public final class StorageHostSnapshot {
                 backend.getTypeCount(),
                 totalTypes,
                 backend);
+        }
+
+        private static long maxTypeCount(long totalBytes, String tier) {
+            if (totalBytes <= 0L) {
+                return 0L;
+            }
+            return Math.max(1L, totalBytes / (typeBytes(tier) + 1L));
         }
     }
 

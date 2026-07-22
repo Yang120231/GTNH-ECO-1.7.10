@@ -177,8 +177,6 @@ final class NeoEcoPanels {
         bindPlayerInventory(syncManager, data.getPlayer());
 
         String energyLabel = StatCollector.translateToLocal("gui.neoecoae.storage_ui.energy_storage") + ": ";
-        boolean compactEnergyLabel = estimatedTextWidth(energyLabel) > 42;
-        float energyLabelScale = compactEnergyLabel ? 0.72F : 1.0F;
 
         ModularSlot componentSlot = new ModularSlot(new InvWrapper(controller), 0) {
 
@@ -190,7 +188,7 @@ final class NeoEcoPanels {
             .singletonSlotGroup(0);
 
         ModularPanel panel = panel("storage_controller", 344, 232);
-        panel.child(hostTitle(() -> hostDisplayTitle("storage", state.get().tier), 8, 8, 222));
+        panel.child(hostTitle(() -> hostDisplayTitle("storage", state.get().tier), 8, 8, 242));
         panel.child(
             dynamic(() -> formedLabel(state.get().formed), 220, 8, 96)
                 .color(() -> state.get().formed ? 0xFF1A6A3A : 0xFF8A1A2A)
@@ -199,30 +197,27 @@ final class NeoEcoPanels {
         panel.child(section(6, 24, 176, 108));
         panel.child(lang("gui.neoecoae.storage_ui.energy_monitor", 14, 32).color(TEXT));
         ParentWidget<?> energyRow = new ParentWidget<>().pos(14, 45)
-            .size(160, 12);
-        energyRow.child(
-            dynamic(() -> energyLabel, 0, 0, 68).color(MUTED)
-                .scale(energyLabelScale));
+            .size(166, 12);
+        energyRow.child(dynamic(() -> energyLabel, 0, 0, 90).color(MUTED));
         energyRow.child(
             dynamic(() -> energyUsage(state.get()).usedText, 0, 0, 24)
-                .left(() -> scaledTextWidth(energyLabel, energyLabelScale) + 2, Unit.Measure.PIXEL)
+                .left(() -> estimatedTextWidth(energyLabel) + 2, Unit.Measure.PIXEL)
                 .color(
                     () -> storageValueColor(
                         energyLong(state.get().energyStored),
                         energyLong(state.get().energyCapacity))));
-        energyRow.child(
-            dynamic(() -> "/", 0, 0, 8)
-                .left(
-                    () -> scaledTextWidth(energyLabel, energyLabelScale)
-                        + estimatedTextWidth(energyUsage(state.get()).usedText)
-                        + 4,
-                    Unit.Measure.PIXEL)
-                .color(MUTED));
+        energyRow
+            .child(
+                dynamic(() -> "/", 0, 0, 8)
+                    .left(
+                        () -> estimatedTextWidth(energyLabel) + estimatedTextWidth(energyUsage(state.get()).usedText)
+                            + 4,
+                        Unit.Measure.PIXEL)
+                    .color(MUTED));
         energyRow.child(
             dynamic(() -> energyUsage(state.get()).maxText, 0, 0, 28)
                 .left(
-                    () -> scaledTextWidth(energyLabel, energyLabelScale)
-                        + estimatedTextWidth(energyUsage(state.get()).usedText)
+                    () -> estimatedTextWidth(energyLabel) + estimatedTextWidth(energyUsage(state.get()).usedText)
                         + estimatedTextWidth("/")
                         + 6,
                     Unit.Measure.PIXEL)
@@ -230,8 +225,7 @@ final class NeoEcoPanels {
         energyRow.child(
             dynamic(() -> "AE", 0, 0, 16)
                 .left(
-                    () -> scaledTextWidth(energyLabel, energyLabelScale)
-                        + estimatedTextWidth(energyUsage(state.get()).usedText)
+                    () -> estimatedTextWidth(energyLabel) + estimatedTextWidth(energyUsage(state.get()).usedText)
                         + estimatedTextWidth("/")
                         + estimatedTextWidth(energyUsage(state.get()).maxText)
                         + 8,
@@ -244,18 +238,18 @@ final class NeoEcoPanels {
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedTypes, state.get().totalTypes), () -> STORAGE_PROGRESS)
-                .pos(35, 77)
+                .pos(47, 77)
                 .size(36, 9)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().usedTypes), 76, 76, 20)
+            dynamic(() -> ae2Amount(state.get().usedTypes), 90, 76, 24)
                 .color(() -> storageValueColor(state.get().usedTypes, state.get().totalTypes))
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> " / ", 83, 76, 12).color(MUTED)
+            dynamic(() -> " / ", 116, 76, 14).color(MUTED)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().totalTypes), 95, 76, 63).color(VALUE)
+            dynamic(() -> ae2Amount(state.get().totalTypes), 132, 76, 42).color(VALUE)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             infiniteStorageMetric(
@@ -269,18 +263,18 @@ final class NeoEcoPanels {
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedBytes, state.get().totalBytes), () -> STORAGE_PROGRESS)
-                .pos(35, 90)
+                .pos(47, 90)
                 .size(36, 9)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().preciseUsedBytes), 76, 89, 20)
+            dynamic(() -> ae2Amount(state.get().preciseUsedBytes), 90, 89, 24)
                 .color(() -> storageValueColor(state.get().usedBytes, state.get().totalBytes))
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> " / ", 83, 89, 12).color(MUTED)
+            dynamic(() -> " / ", 116, 89, 14).color(MUTED)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().totalBytes), 95, 89, 63).color(VALUE)
+            dynamic(() -> ae2Amount(state.get().totalBytes), 132, 89, 42).color(VALUE)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             infiniteStorageMetric(
@@ -899,13 +893,30 @@ final class NeoEcoPanels {
             .matrix("IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII")
             .key(
                 'I',
-                index -> new ItemSlot().slot(new ModularSlot(patterns, index).slotGroup("patterns"))
-                    .background(NeoEcoTextures.SLOT, NeoEcoTextures.PATTERN_OVERLAY_ALIGNED))
+                index -> patternBusSlot(bus, patterns, pageState, index))
             .build()
             .pos(4, 42);
         panel.child(grid);
         panel.child(playerInventory(4, 175));
         return panel;
+    }
+
+    private static ItemSlot patternBusSlot(TileCraftingPatternBus bus, PagedInventoryHandler patterns, PageState page,
+        int index) {
+        final int slot = index;
+        ItemSlot widget = new ItemSlot() {
+
+            @Override
+            protected ItemStack getItemStackForRendering(ItemStack itemstack, boolean dragging) {
+                ItemStack displayStack = bus.getPatternDisplayStack(itemstack);
+                return displayStack == null ? itemstack : displayStack;
+            }
+        };
+        ModularSlot modularSlot = new ModularSlot(patterns, index).slotGroup("patterns");
+        widget.slot(modularSlot)
+            .background(new DynamicDrawable(
+                () -> modularSlot.getStack() == null ? NeoEcoTextures.EMPTY_PATTERN_SLOT : NeoEcoTextures.SLOT));
+        return widget;
     }
 
     private static ModularPanel patternUpload(NeoEcoGuiData data, PanelSyncManager syncManager) {
@@ -1644,10 +1655,6 @@ final class NeoEcoPanels {
             width += character == ' ' ? 4 : character < 128 ? 6 : 8;
         }
         return width;
-    }
-
-    private static int scaledTextWidth(String text, float scale) {
-        return Math.round(estimatedTextWidth(text) * scale);
     }
 
     private static long saturatedLong(BigInteger value) {
