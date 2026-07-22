@@ -23,9 +23,9 @@ final class NeoEcoTextures {
         WidgetTheme theme) -> PATTERN_OVERLAY.draw(context, x, y + 1, width, height, theme);
     static final IDrawable EMPTY_PATTERN_SLOT = (GuiContext context, int x, int y, int width, int height,
         WidgetTheme theme) -> {
-            SLOT.draw(context, x, y, width, height, theme);
-            PATTERN_OVERLAY_ALIGNED.draw(context, x, y, width, height, theme);
-        };
+        SLOT.draw(context, x, y, width, height, theme);
+        PATTERN_OVERLAY_ALIGNED.draw(context, x, y, width, height, theme);
+    };
     static final UITexture PANEL = texture("crafting/panel_background", 16, 16).tiled()
         .build();
     static final UITexture CARD = texture("card_background", 16, 16).tiled()

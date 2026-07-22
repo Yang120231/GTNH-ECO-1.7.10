@@ -238,18 +238,20 @@ final class NeoEcoPanels {
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedTypes, state.get().totalTypes), () -> STORAGE_PROGRESS)
-                .pos(47, 77)
+                .pos(44, 77)
                 .size(36, 9)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().usedTypes), 90, 76, 24)
+            dynamic(() -> ae2Amount(state.get().usedTypes), 84, 76, 26)
                 .color(() -> storageValueColor(state.get().usedTypes, state.get().totalTypes))
+                .textAlign(Alignment.CenterRight)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> " / ", 116, 76, 14).color(MUTED)
+            dynamic(() -> "/", 113, 76, 6).color(MUTED)
+                .textAlign(Alignment.Center)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().totalTypes), 132, 76, 42).color(VALUE)
+            dynamic(() -> ae2Amount(state.get().totalTypes), 122, 76, 52).color(VALUE)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             infiniteStorageMetric(
@@ -263,18 +265,20 @@ final class NeoEcoPanels {
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedBytes, state.get().totalBytes), () -> STORAGE_PROGRESS)
-                .pos(47, 90)
+                .pos(44, 90)
                 .size(36, 9)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().preciseUsedBytes), 90, 89, 24)
+            dynamic(() -> ae2Amount(state.get().preciseUsedBytes), 84, 89, 26)
                 .color(() -> storageValueColor(state.get().usedBytes, state.get().totalBytes))
+                .textAlign(Alignment.CenterRight)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> " / ", 116, 89, 14).color(MUTED)
+            dynamic(() -> "/", 113, 89, 6).color(MUTED)
+                .textAlign(Alignment.Center)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().totalBytes), 132, 89, 42).color(VALUE)
+            dynamic(() -> ae2Amount(state.get().totalBytes), 122, 89, 52).color(VALUE)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
             infiniteStorageMetric(
@@ -301,7 +305,6 @@ final class NeoEcoPanels {
                 202,
                 197,
                 32).color(() -> isInfiniteStorage(state.get()) ? INFINITE_TEXT : storageTextColor(state.get()))
-                    .scale(0.9F)
                     .textAlign(Alignment.Center));
         panel.child(
             dynamic(
@@ -309,32 +312,28 @@ final class NeoEcoPanels {
                     + percent(state.get().usedBytes, state.get().totalBytes),
                 242,
                 57,
-                88).color(TEXT)
-                    .scale(0.72F));
+                88).color(TEXT));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.max_load") + ": "
                     + (isInfiniteStorage(state.get()) ? "MAX" : percent(maxMatrixLoad(state.get()))),
                 242,
                 72,
-                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : WARN)
-                    .scale(0.72F));
+                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : WARN));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.status") + ": "
                     + storageStatus(state.get()),
                 242,
                 87,
-                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : storageStatusColor(state.get()))
-                    .scale(0.72F));
+                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : storageStatusColor(state.get())));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.idle_matrices") + ": "
                     + idleMatrices(state.get()),
                 242,
                 102,
-                88).color(MUTED)
-                    .scale(0.72F));
+                88).color(MUTED));
         panel.child(lang("gui.neoecoae.common.inventory", 13, 136).color(HOST_TITLE));
         panel.child(playerInventory(13, 147));
         ParentWidget<?> infiniteComponentSlot = new ParentWidget<>().pos(306, 184)
@@ -583,8 +582,7 @@ final class NeoEcoPanels {
                 () -> ae2Amount(state.get().usedComputationBytes) + " / " + ae2Amount(state.get().totalBytes),
                 86,
                 56,
-                76).color(VALUE)
-                    .scale(0.72F));
+                76).color(VALUE));
         panel.child(lang("gui.neoecoae.computation.threads", 12, 70).color(MUTED));
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedThreads, state.get().totalThreads), () -> USED)
@@ -599,12 +597,13 @@ final class NeoEcoPanels {
         panel.child(dynamic(() -> state.get().usedThreads + " / " + state.get().totalThreads, 86, 82, 76).color(USED));
         panel.child(lang("gui.neoecoae.computation.parallel_count", 12, 96).color(MUTED));
         panel.child(dynamic(() -> number(state.get().parallelCount), 12, 108, 70).color(VALUE));
+        panel.child(lang("gui.neoecoae.computation.available_storage", 86, 96).color(MUTED));
         panel.child(
-            lang("gui.neoecoae.computation.available_storage", 86, 96).color(MUTED)
-                .scale(0.82F));
-        panel.child(
-            dynamic(() -> number(Math.max(0L, state.get().totalBytes - state.get().usedComputationBytes)), 86, 108, 76)
-                .color(MUTED));
+            dynamic(
+                () -> ae2Amount(Math.max(0L, state.get().totalBytes - state.get().usedComputationBytes)),
+                86,
+                108,
+                76).color(MUTED));
 
         panel.child(section(180, 24, 156, 200));
         panel.child(lang("gui.neoecoae.computation_ui.tasks", 192, 31).color(TEXT));
@@ -645,17 +644,15 @@ final class NeoEcoPanels {
         row.child(dynamic(() -> {
             if (index >= state.get().tasks.size()) return "";
             ComputationHostSnapshot.TaskEntry task = state.get().tasks.get(index);
-            return task.outputName;
-        }, 24, 4, 70).height(8)
-            .scale(0.72F));
+            return fitText(task.outputName, 70);
+        }, 24, 4, 70));
         row.child(
             dynamic(
-                () -> index >= state.get().tasks.size() ? "" : "x" + number(state.get().tasks.get(index).outputAmount),
+                () -> index >= state.get().tasks.size() ? ""
+                    : "x" + compactTaskAmount(state.get().tasks.get(index).outputAmount),
                 94,
                 11,
-                29).height(8)
-                    .scale(0.72F)
-                    .color(VALUE)
+                29).color(VALUE)
                     .textAlign(Alignment.CenterRight));
         row.child(
             new LineProgressWidget(
@@ -699,12 +696,18 @@ final class NeoEcoPanels {
         panel.child(statusLight(12, 46, () -> state.get().overclocked));
         panel.child(lang("gui.neoecoae.crafting.ui.overclock_short", 29, 48).color(MUTED));
         panel.child(
-            dynamic(() -> ": " + onOff(state.get().overclocked), 47, 48, 29)
+            dynamic(() -> onOff(state.get().overclocked), 0, 48, 22)
+                .left(
+                    () -> 29 + estimatedTextWidth(tr("gui.neoecoae.crafting.ui.overclock_short")) + 3,
+                    Unit.Measure.PIXEL)
                 .color(() -> state.get().overclocked ? GOOD : BAD));
         panel.child(statusLight(12, 62, () -> state.get().activeCooling));
         panel.child(lang("gui.neoecoae.crafting.ui.cooling_short", 29, 64).color(MUTED));
         panel.child(
-            dynamic(() -> ": " + onOff(state.get().activeCooling), 47, 64, 29)
+            dynamic(() -> onOff(state.get().activeCooling), 0, 64, 22)
+                .left(
+                    () -> 29 + estimatedTextWidth(tr("gui.neoecoae.crafting.ui.cooling_short")) + 3,
+                    Unit.Measure.PIXEL)
                 .color(() -> state.get().activeCooling ? GOOD : BAD));
 
         panel.child(section(88, 27, 114, 70));
@@ -722,16 +725,24 @@ final class NeoEcoPanels {
                 () -> VALUE).pos(94, 57)
                     .size(102, 9));
         panel.child(lang("gui.neoecoae.crafting.ui.batch_parallel", 94, 69).color(MUTED));
-        panel.child(dynamic(() -> number(state.get().batchParallel), 116, 69, 80).color(BLUE));
-        panel.child(dynamic(() -> tr("gui.neoecoae.host.crafting.overflow"), 94, 80, 25).color(MUTED));
-        panel.child(dynamic(() -> number(state.get().overflowThreads), 116, 80, 34).color(0xFF000000));
         panel.child(
-            dynamic(
-                () -> tr("gui.neoecoae.crafting.ui.recipe_time_ratio") + " "
-                    + recipeTimeMultiplier(state.get().effectiveOverclockTimes),
-                153,
-                80,
-                49).color(0xFF55A7FF));
+            dynamic(() -> number(state.get().batchParallel), 0, 69, 66)
+                .left(
+                    () -> 94 + estimatedTextWidth(tr("gui.neoecoae.crafting.ui.batch_parallel")) + 4,
+                    Unit.Measure.PIXEL)
+                .color(BLUE));
+        panel.child(dynamic(() -> tr("gui.neoecoae.host.crafting.overflow"), 94, 80, 28).color(MUTED));
+        panel.child(
+            dynamic(() -> number(state.get().overflowThreads), 0, 80, 28)
+                .left(() -> 94 + estimatedTextWidth(tr("gui.neoecoae.host.crafting.overflow")) + 3, Unit.Measure.PIXEL)
+                .color(0xFF000000));
+        panel.child(lang("gui.neoecoae.crafting.ui.recipe_time_ratio", 152, 80).color(MUTED));
+        panel.child(
+            dynamic(() -> recipeTimeMultiplier(state.get().effectiveOverclockTimes), 0, 80, 24)
+                .left(
+                    () -> 152 + estimatedTextWidth(tr("gui.neoecoae.crafting.ui.recipe_time_ratio")) + 2,
+                    Unit.Measure.PIXEL)
+                .color(0xFF55A7FF));
 
         panel.child(section(208, 27, 90, 70));
         panel.child(lang("gui.neoecoae.crafting.ui.energy_cooling", 214, 33).color(TEXT));
@@ -808,16 +819,14 @@ final class NeoEcoPanels {
                 .disableHoverBackground());
         row.child(dynamic(() -> {
             CraftingHostSnapshot.WorkerEntry worker = activeWorker(state.get(), index);
-            return worker == null || worker.outputName.isEmpty() ? tr("gui.neoecoae.crafting.task.status.queued")
+            String name = worker == null || worker.outputName.isEmpty() ? tr("gui.neoecoae.crafting.task.status.queued")
                 : worker.outputName;
-        }, 20, 3, 52).height(8)
-            .scale(0.68F));
+            return fitText(name, 52);
+        }, 20, 3, 52));
         row.child(dynamic(() -> {
             CraftingHostSnapshot.WorkerEntry worker = activeWorker(state.get(), index);
-            return worker == null ? "" : "x" + number(worker.queueSize);
-        }, 73, 3, 29).height(8)
-            .scale(0.68F)
-            .color(VALUE)
+            return worker == null ? "" : "x" + compactTaskAmount(worker.queueSize);
+        }, 73, 3, 29).color(VALUE)
             .textAlign(Alignment.CenterRight));
         return row;
     }
@@ -891,9 +900,7 @@ final class NeoEcoPanels {
                 .size(16, 16));
         SlotGroupWidget grid = SlotGroupWidget.builder()
             .matrix("IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII")
-            .key(
-                'I',
-                index -> patternBusSlot(bus, patterns, pageState, index))
+            .key('I', index -> patternBusSlot(bus, patterns, pageState, index))
             .build()
             .pos(4, 42);
         panel.child(grid);
@@ -914,8 +921,9 @@ final class NeoEcoPanels {
         };
         ModularSlot modularSlot = new ModularSlot(patterns, index).slotGroup("patterns");
         widget.slot(modularSlot)
-            .background(new DynamicDrawable(
-                () -> modularSlot.getStack() == null ? NeoEcoTextures.EMPTY_PATTERN_SLOT : NeoEcoTextures.SLOT));
+            .background(
+                new DynamicDrawable(
+                    () -> modularSlot.getStack() == null ? NeoEcoTextures.EMPTY_PATTERN_SLOT : NeoEcoTextures.SLOT));
         return widget;
     }
 
@@ -1602,6 +1610,17 @@ final class NeoEcoPanels {
             if (estimatedTextWidth(candidate) <= maxWidth) return candidate;
         }
         return "e" + exponent;
+    }
+
+    private static String fitText(String value, int maxWidth) {
+        String safe = value == null ? "" : value;
+        if (estimatedTextWidth(safe) <= maxWidth) return safe;
+        String suffix = "...";
+        int end = safe.length();
+        while (end > 0 && estimatedTextWidth(safe.substring(0, end) + suffix) > maxWidth) {
+            end--;
+        }
+        return end <= 0 ? suffix : safe.substring(0, end) + suffix;
     }
 
     private static String expandedStorageBytes(BigInteger value) {

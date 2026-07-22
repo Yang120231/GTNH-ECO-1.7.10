@@ -17,9 +17,7 @@ class ECOStorageBackendTest {
     void itemAmountsUseAe2BytesAndChargeEachType() {
         ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(10L, 2L));
 
-        assertEquals(
-            ECOAmount.of(64L),
-            backend.insert(ITEM, ECOAmount.of(100L), false));
+        assertEquals(ECOAmount.of(64L), backend.insert(ITEM, ECOAmount.of(100L), false));
         assertEquals(ECOAmount.of(10L), backend.getUsed());
         assertEquals(1, backend.getTypeCount());
     }
@@ -28,9 +26,7 @@ class ECOStorageBackendTest {
     void fluidAmountsUseEightThousandUnitsPerByte() {
         ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(5L, 2L));
 
-        assertEquals(
-            ECOAmount.of(24000L),
-            backend.insert(FLUID, ECOAmount.of(30000L), false));
+        assertEquals(ECOAmount.of(24000L), backend.insert(FLUID, ECOAmount.of(30000L), false));
         assertEquals(ECOAmount.of(5L), backend.getUsed());
     }
 
@@ -49,7 +45,10 @@ class ECOStorageBackendTest {
     void typeLimitIsEnforcedOnRealAndSimulatedInserts() {
         ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(6L, 2L));
 
-        assertEquals(2L, backend.getCapacityPolicy().getMaxTypes());
+        assertEquals(
+            2L,
+            backend.getCapacityPolicy()
+                .getMaxTypes());
         assertEquals(ECOAmount.of(1L), backend.insert(ITEM, ECOAmount.of(1L), false));
         assertEquals(ECOAmount.of(1L), backend.insert(OTHER_ITEM, ECOAmount.of(1L), false));
         assertEquals(ECOAmount.ZERO, backend.insert(THIRD_ITEM, ECOAmount.of(1L), true));
@@ -61,14 +60,10 @@ class ECOStorageBackendTest {
     void simulationReturnsTheSameAcceptedAmountWithoutMutating() {
         ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(4L, 2L));
 
-        assertEquals(
-            ECOAmount.of(16L),
-            backend.insert(ITEM, ECOAmount.of(100L), true));
+        assertEquals(ECOAmount.of(16L), backend.insert(ITEM, ECOAmount.of(100L), true));
         assertEquals(ECOAmount.ZERO, backend.getUsed());
         assertEquals(0, backend.getTypeCount());
-        assertEquals(
-            ECOAmount.of(16L),
-            backend.insert(ITEM, ECOAmount.of(100L), false));
+        assertEquals(ECOAmount.of(16L), backend.insert(ITEM, ECOAmount.of(100L), false));
     }
 
     @Test
