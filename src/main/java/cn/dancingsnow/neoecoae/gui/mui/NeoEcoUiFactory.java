@@ -18,6 +18,7 @@ import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSession;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSessions;
 import cn.dancingsnow.neoecoae.item.ItemECOStorageRecoveryTerminal;
 import cn.dancingsnow.neoecoae.item.ItemECOStructureTerminal;
@@ -59,8 +60,11 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
     }
 
     public static void openUpload(EntityPlayer player, UUID session) {
-        if (!(player instanceof EntityPlayerMP) || PatternUploadSessions.get(session) == null) return;
+        if (!(player instanceof EntityPlayerMP)) return;
+        PatternUploadSession uploadSession = PatternUploadSessions.get(session);
+        if (uploadSession == null) return;
         GuiManager.open(INSTANCE, NeoEcoGuiData.upload(player, session), (EntityPlayerMP) player);
+        uploadSession.bindUploadContainer(((EntityPlayerMP) player).openContainer);
     }
 
     @Override

@@ -6,6 +6,7 @@ public enum ECOFastPathDecision {
     DISABLED,
     NOT_ECO_CRAFTING_HOST,
     UNSAFE_PATTERN,
+    NON_UNIQUE_PROCESSING_SOURCE,
     CACHE_NEGATIVE,
     ERROR;
 

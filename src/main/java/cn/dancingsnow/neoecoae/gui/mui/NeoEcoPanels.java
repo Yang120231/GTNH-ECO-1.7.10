@@ -3,7 +3,11 @@ package cn.dancingsnow.neoecoae.gui.mui;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -23,6 +27,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
@@ -44,6 +49,7 @@ import com.cleanroommc.modularui.drawable.GuiTextures;
 import com.cleanroommc.modularui.drawable.Rectangle;
 import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.screen.viewport.GuiContext;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
@@ -60,6 +66,7 @@ import com.cleanroommc.modularui.value.sync.InteractionSyncHandler;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
+import com.cleanroommc.modularui.widget.sizer.Unit;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ItemDisplayWidget;
 import com.cleanroommc.modularui.widgets.ListWidget;
@@ -67,9 +74,13 @@ import com.cleanroommc.modularui.widgets.PageButton;
 import com.cleanroommc.modularui.widgets.PagedWidget;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
+import com.cleanroommc.modularui.widgets.slot.FluidSlot;
 import com.cleanroommc.modularui.widgets.slot.ItemSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
+import appeng.core.localization.ButtonToolTips;
+import appeng.util.ReadableNumberConverter;
+import cn.dancingsnow.neoecoae.Config;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipe;
 import cn.dancingsnow.neoecoae.crafting.cooling.ECOCoolingRecipes;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSession;
@@ -83,6 +94,7 @@ import cn.dancingsnow.neoecoae.item.ItemECOStorageRecoveryTerminal;
 import cn.dancingsnow.neoecoae.item.ItemECOStructureTerminal;
 import cn.dancingsnow.neoecoae.multiblock.StructureTerminalHostType;
 import cn.dancingsnow.neoecoae.multiblock.StructureTerminalMode;
+import cn.dancingsnow.neoecoae.network.NEPatternUploadNetwork;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageInterfaceMode;
 import cn.dancingsnow.neoecoae.tile.TileCraftingHatch;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
@@ -100,6 +112,10 @@ final class NeoEcoPanels {
     private static final int MUTED = 0xFFAAA4B2;
     private static final int VALUE = 0xFF8377FF;
     private static final int USED = 0xFF00FC00;
+    private static final int STORAGE_PROGRESS = 0xFF26A6BD;
+    private static final int STORAGE_ITEM = 0xFFF89737;
+    private static final int INFINITE_TEXT = 0xFFCA6CFF;
+    private static final int INFINITE_STATUS = 0xFFE0B8FF;
     private static final int GOOD = 0xFF6CFFA0;
     private static final int WARN = 0xFFFFD65A;
     private static final int BAD = 0xFFFF6A75;
@@ -109,6 +125,14 @@ final class NeoEcoPanels {
     private static final int PANEL_OUTER = 0xFF17141E;
     private static final int PANEL_MIDDLE = 0xFF2B2834;
     private static final int PANEL_EDGE = 0xFFC9C3D6;
+    private static final int BYTES_IN_K = 1024;
+    private static final long BYTES_IN_M = BYTES_IN_K * 1024L;
+    private static final long BYTES_IN_G = BYTES_IN_M * 1024L;
+    private static final long BYTES_IN_T = BYTES_IN_G * 1024L;
+    private static final BigInteger BIG_BYTES_IN_K = BigInteger.valueOf(BYTES_IN_K);
+    private static final String[] EXPANDED_BYTE_UNITS = { "", "K", "M", "G", "T", "P", "E", "Z", "Y" };
+    private static final ThreadLocal<DecimalFormat> COMPACT_DECIMAL = ThreadLocal
+        .withInitial(() -> new DecimalFormat("0.##", DecimalFormatSymbols.getInstance(Locale.US)));
 
     private NeoEcoPanels() {}
 
@@ -152,6 +176,10 @@ final class NeoEcoPanels {
             10);
         bindPlayerInventory(syncManager, data.getPlayer());
 
+        String energyLabel = StatCollector.translateToLocal("gui.neoecoae.storage_ui.energy_storage") + ": ";
+        boolean compactEnergyLabel = estimatedTextWidth(energyLabel) > 42;
+        float energyLabelScale = compactEnergyLabel ? 0.72F : 1.0F;
+
         ModularSlot componentSlot = new ModularSlot(new InvWrapper(controller), 0) {
 
             @Override
@@ -168,102 +196,154 @@ final class NeoEcoPanels {
                 .color(() -> state.get().formed ? 0xFF1A6A3A : 0xFF8A1A2A)
                 .textAlign(Alignment.CenterRight));
 
-        panel.child(section(6, 24, 162, 108));
+        panel.child(section(6, 24, 176, 108));
         panel.child(lang("gui.neoecoae.storage_ui.energy_monitor", 14, 32).color(TEXT));
-        panel.child(
-            dynamic(() -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.energy_storage") + ": -", 14, 45, 144)
+        ParentWidget<?> energyRow = new ParentWidget<>().pos(14, 45)
+            .size(160, 12);
+        energyRow.child(
+            dynamic(() -> energyLabel, 0, 0, 68).color(MUTED)
+                .scale(energyLabelScale));
+        energyRow.child(
+            dynamic(() -> energyUsage(state.get()).usedText, 0, 0, 24)
+                .left(() -> scaledTextWidth(energyLabel, energyLabelScale) + 2, Unit.Measure.PIXEL)
+                .color(
+                    () -> storageValueColor(
+                        energyLong(state.get().energyStored),
+                        energyLong(state.get().energyCapacity))));
+        energyRow.child(
+            dynamic(() -> "/", 0, 0, 8)
+                .left(
+                    () -> scaledTextWidth(energyLabel, energyLabelScale)
+                        + estimatedTextWidth(energyUsage(state.get()).usedText)
+                        + 4,
+                    Unit.Measure.PIXEL)
                 .color(MUTED));
-        panel.child(lang("gui.neoecoae.storage_ui.item_storage", 14, 62).color(0xFFFF9A3D));
+        energyRow.child(
+            dynamic(() -> energyUsage(state.get()).maxText, 0, 0, 28)
+                .left(
+                    () -> scaledTextWidth(energyLabel, energyLabelScale)
+                        + estimatedTextWidth(energyUsage(state.get()).usedText)
+                        + estimatedTextWidth("/")
+                        + 6,
+                    Unit.Measure.PIXEL)
+                .color(VALUE));
+        energyRow.child(
+            dynamic(() -> "AE", 0, 0, 16)
+                .left(
+                    () -> scaledTextWidth(energyLabel, energyLabelScale)
+                        + estimatedTextWidth(energyUsage(state.get()).usedText)
+                        + estimatedTextWidth("/")
+                        + estimatedTextWidth(energyUsage(state.get()).maxText)
+                        + 8,
+                    Unit.Measure.PIXEL)
+                .color(MUTED));
+        panel.child(energyRow);
+        panel.child(lang("gui.neoecoae.storage_ui.item_storage", 14, 62).color(STORAGE_ITEM));
         panel.child(
-            lang("gui.neoecoae.storage_ui.types", 14, 76).color(USED)
+            lang("gui.neoecoae.storage_ui.types", 14, 76).color(MUTED)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            new HostProgressWidget(() -> ratio(state.get().usedTypes, state.get().totalTypes), () -> USED).pos(36, 76)
+            new HostProgressWidget(() -> ratio(state.get().usedTypes, state.get().totalTypes), () -> STORAGE_PROGRESS)
+                .pos(35, 77)
                 .size(36, 9)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> compact(state.get().usedTypes) + " / " + compact(state.get().totalTypes), 76, 76, 82)
-                .color(USED)
+            dynamic(() -> ae2Amount(state.get().usedTypes), 76, 76, 20)
+                .color(() -> storageValueColor(state.get().usedTypes, state.get().totalTypes))
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(() -> compact(state.get().usedTypes), 14, 76, 62).color(USED)
-                .setEnabledIf(widget -> isInfiniteStorage(state.get())));
-        panel.child(
-            lang("gui.neoecoae.storage_ui.types", 78, 76).color(USED)
-                .setEnabledIf(widget -> isInfiniteStorage(state.get())));
-        panel.child(
-            lang("gui.neoecoae.storage_ui.bytes", 14, 89).color(USED)
+            dynamic(() -> " / ", 83, 76, 12).color(MUTED)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            new HostProgressWidget(() -> ratio(state.get().usedBytes, state.get().totalBytes), () -> USED).pos(36, 89)
-                .size(36, 9)
+            dynamic(() -> ae2Amount(state.get().totalTypes), 95, 76, 63).color(VALUE)
                 .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
         panel.child(
-            dynamic(
-                () -> compactStorageBytes(state.get().preciseUsedBytes) + " / " + compact(state.get().totalBytes),
+            infiniteStorageMetric(
+                () -> ae2Amount(state.get().usedTypes),
+                "gui.neoecoae.storage_ui.types",
                 76,
+                () -> storageValueColor(state.get().usedTypes, Long.MAX_VALUE))
+                    .setEnabledIf(widget -> isInfiniteStorage(state.get())));
+        panel.child(
+            lang("gui.neoecoae.storage_ui.bytes", 14, 89).color(MUTED)
+                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+        panel.child(
+            new HostProgressWidget(() -> ratio(state.get().usedBytes, state.get().totalBytes), () -> STORAGE_PROGRESS)
+                .pos(35, 90)
+                .size(36, 9)
+                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+        panel.child(
+            dynamic(() -> ae2Amount(state.get().preciseUsedBytes), 76, 89, 20)
+                .color(() -> storageValueColor(state.get().usedBytes, state.get().totalBytes))
+                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+        panel.child(
+            dynamic(() -> " / ", 83, 89, 12).color(MUTED)
+                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+        panel.child(
+            dynamic(() -> ae2Amount(state.get().totalBytes), 95, 89, 63).color(VALUE)
+                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+        panel.child(
+            infiniteStorageMetric(
+                () -> fitStorageAmount(state.get().preciseUsedBytes, 62),
+                "gui.neoecoae.storage_ui.bytes",
                 89,
-                82).color(USED)
-                    .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            dynamic(() -> compactStorageBytes(state.get().preciseUsedBytes), 14, 89, 62).color(USED)
-                .setEnabledIf(widget -> isInfiniteStorage(state.get())));
-        panel.child(
-            lang("gui.neoecoae.storage_ui.bytes", 78, 89).color(USED)
-                .setEnabledIf(widget -> isInfiniteStorage(state.get())));
+                () -> storageValueColor(state.get().usedBytes, Long.MAX_VALUE))
+                    .setEnabledIf(widget -> isInfiniteStorage(state.get())));
 
-        panel.child(section(180, 24, 157, 200));
-        panel.child(darkInset(188, 44, 141, 169));
+        panel.child(section(186, 24, 156, 200));
+        panel.child(darkInset(194, 40, 141, 169));
         panel.child(
-            lang("gui.neoecoae.storage_ui.system_load", 186, 31).color(TEXT)
-                .width(145)
+            lang("gui.neoecoae.storage_ui.system_load", 192, 28).color(TEXT)
+                .width(144)
                 .textAlign(Alignment.Center));
         panel.child(
-            new StorageGaugeWidget(() -> storageProgress(state.get()), () -> storageColor(state.get())).pos(196, 56)
+            new StorageGaugeWidget(() -> storageProgress(state.get()), () -> storageGaugeColor(state.get()))
+                .pos(202, 52)
                 .size(32, 143));
         panel.child(
             dynamic(
-                () -> isInfiniteStorage(state.get()) ? tr("gui.neoecoae.storage_ui.infinite_value")
+                () -> isInfiniteStorage(state.get()) ? "\u221e"
                     : percent(state.get().usedBytes, state.get().totalBytes),
-                190,
-                203,
-                44).color(() -> isInfiniteStorage(state.get()) ? 0xFFCA6CFF : storageColor(state.get()))
+                202,
+                197,
+                32).color(() -> isInfiniteStorage(state.get()) ? INFINITE_TEXT : storageTextColor(state.get()))
+                    .scale(0.9F)
                     .textAlign(Alignment.Center));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.current_load") + ": "
                     + percent(state.get().usedBytes, state.get().totalBytes),
-                238,
-                61,
-                86).color(VALUE)
+                242,
+                57,
+                88).color(TEXT)
                     .scale(0.72F));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.max_load") + ": "
-                    + percent(maxMatrixLoad(state.get())),
-                238,
-                76,
-                86).color(0xFFFF55FF)
+                    + (isInfiniteStorage(state.get()) ? "MAX" : percent(maxMatrixLoad(state.get()))),
+                242,
+                72,
+                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : WARN)
                     .scale(0.72F));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.status") + ": "
-                    + formedLabel(state.get().formed),
-                238,
-                91,
-                86).color(() -> state.get().formed ? GOOD : BAD)
+                    + storageStatus(state.get()),
+                242,
+                87,
+                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : storageStatusColor(state.get()))
                     .scale(0.72F));
         panel.child(
             dynamic(
                 () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.idle_matrices") + ": "
                     + idleMatrices(state.get()),
-                238,
-                106,
-                86).color(MUTED)
+                242,
+                102,
+                88).color(MUTED)
                     .scale(0.72F));
         panel.child(lang("gui.neoecoae.common.inventory", 13, 136).color(HOST_TITLE));
         panel.child(playerInventory(13, 147));
-        ParentWidget<?> infiniteComponentSlot = new ParentWidget<>().pos(306, 190)
+        ParentWidget<?> infiniteComponentSlot = new ParentWidget<>().pos(306, 184)
             .size(18, 18)
             .background(NeoEcoTextures.SLOT);
         infiniteComponentSlot.child(
@@ -481,6 +561,12 @@ final class NeoEcoPanels {
                 .overlay(new DynamicDrawable(() -> computationCpuIcon(state.get().cpuSelectionMode)))
                 .pos(321, 5)
                 .size(18, 18)
+                .addTooltipLine(IKey.lang("gui.neoecoae.computation.cpu_selection_mode"))
+                .addTooltipLine(
+                    IKey.dynamic(
+                        () -> tr("gui.neoecoae.computation.cpu_selection_mode.short") + ": "
+                            + tr(
+                                "gui.neoecoae.computation.cpu_selection_mode." + state.get().cpuSelectionMode.getId())))
                 .addTooltipLine(IKey.lang("gui.neoecoae.computation.cpu_selection_mode.click")));
 
         panel.child(section(6, 24, 162, 108));
@@ -489,16 +575,33 @@ final class NeoEcoPanels {
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedComputationBytes, state.get().totalBytes), () -> VALUE)
                 .pos(12, 57)
-                .size(70, 9));
+                .size(70, 9)
+                .addTooltipLine(
+                    IKey.dynamic(
+                        () -> tr("gui.neoecoae.computation.cpu_storage") + ": "
+                            + number(state.get().usedComputationBytes)
+                            + " / "
+                            + number(state.get().totalBytes)
+                            + " "
+                            + tr("gui.neoecoae.storage_ui.bytes"))));
         panel.child(
-            dynamic(() -> number(state.get().usedComputationBytes) + " / " + number(state.get().totalBytes), 86, 56, 76)
-                .color(VALUE)
-                .scale(0.72F));
+            dynamic(
+                () -> ae2Amount(state.get().usedComputationBytes) + " / " + ae2Amount(state.get().totalBytes),
+                86,
+                56,
+                76).color(VALUE)
+                    .scale(0.72F));
         panel.child(lang("gui.neoecoae.computation.threads", 12, 70).color(MUTED));
         panel.child(
             new HostProgressWidget(() -> ratio(state.get().usedThreads, state.get().totalThreads), () -> USED)
                 .pos(12, 83)
-                .size(70, 9));
+                .size(70, 9)
+                .addTooltipLine(
+                    IKey.dynamic(
+                        () -> tr("gui.neoecoae.computation.threads") + ": "
+                            + number(state.get().usedThreads)
+                            + " / "
+                            + number(state.get().totalThreads))));
         panel.child(dynamic(() -> state.get().usedThreads + " / " + state.get().totalThreads, 86, 82, 76).color(USED));
         panel.child(lang("gui.neoecoae.computation.parallel_count", 12, 96).color(MUTED));
         panel.child(dynamic(() -> number(state.get().parallelCount), 12, 108, 70).color(VALUE));
@@ -592,7 +695,7 @@ final class NeoEcoPanels {
                 .size(16, 16)
                 .addTooltipLine(IKey.lang("gui.neoecoae.crafting.overclocked.tooltip")));
         panel.child(
-            iconButton(NeoEcoTextures.FILTER, controller::toggleCraftingActiveCooling, () -> state.get().activeCooling)
+            iconButton(GuiTextures.FILTER, controller::toggleCraftingActiveCooling, () -> state.get().activeCooling)
                 .pos(281, 7)
                 .size(16, 16)
                 .addTooltipLine(IKey.lang("gui.neoecoae.crafting.active_cooling.tooltip")));
@@ -615,9 +718,9 @@ final class NeoEcoPanels {
         panel.child(
             dynamic(() -> formatMicros(state.get().performanceAverageNanos), 136, 33, 60).color(VALUE)
                 .textAlign(Alignment.CenterRight));
-        panel.child(lang("gui.neoecoae.crafting.ui.recipe_slots", 94, 46).color(MUTED));
+        panel.child(lang("gui.neoecoae.crafting.ui.recipe_slots", 94, 45).color(MUTED));
         panel.child(
-            dynamic(() -> state.get().occupiedRecipeSlots + " / " + state.get().maxRecipeSlots, 136, 46, 60).color(TEXT)
+            dynamic(() -> state.get().occupiedRecipeSlots + " / " + state.get().maxRecipeSlots, 134, 46, 62).color(TEXT)
                 .textAlign(Alignment.CenterRight));
         panel.child(
             new HostProgressWidget(
@@ -625,21 +728,16 @@ final class NeoEcoPanels {
                 () -> VALUE).pos(94, 57)
                     .size(102, 9));
         panel.child(lang("gui.neoecoae.crafting.ui.batch_parallel", 94, 69).color(MUTED));
-        panel.child(dynamic(() -> ": " + number(state.get().batchParallel), 116, 69, 80).color(BLUE));
-        panel.child(
-            dynamic(() -> tr("gui.neoecoae.host.crafting.overflow") + ":", 94, 80, 25).color(MUTED)
-                .scale(0.78F));
-        panel.child(
-            dynamic(() -> number(state.get().overflowThreads), 119, 80, 34).color(0xFF000000)
-                .scale(0.78F));
+        panel.child(dynamic(() -> number(state.get().batchParallel), 116, 69, 80).color(BLUE));
+        panel.child(dynamic(() -> tr("gui.neoecoae.host.crafting.overflow"), 94, 80, 25).color(MUTED));
+        panel.child(dynamic(() -> number(state.get().overflowThreads), 116, 80, 34).color(0xFF000000));
         panel.child(
             dynamic(
-                () -> tr("gui.neoecoae.crafting.ui.recipe_time_ratio") + ": "
+                () -> tr("gui.neoecoae.crafting.ui.recipe_time_ratio") + " "
                     + recipeTimeMultiplier(state.get().effectiveOverclockTimes),
                 153,
                 80,
-                43).color(0xFF55A7FF)
-                    .scale(0.78F));
+                49).color(0xFF55A7FF));
 
         panel.child(section(208, 27, 90, 70));
         panel.child(lang("gui.neoecoae.crafting.ui.energy_cooling", 214, 33).color(TEXT));
@@ -647,12 +745,24 @@ final class NeoEcoPanels {
             new CraftingEnergyGaugeWidget(
                 () -> ratio(state.get().maxEnergyUsage, state.get().energyGaugeReference),
                 () -> craftingEnergyColor(state.get())).pos(225, 53)
-                    .size(20, 32));
+                    .size(20, 32)
+                    .addTooltipLine(IKey.lang("gui.neoecoae.crafting.ui.energy_usage"))
+                    .addTooltipLine(IKey.dynamic(() -> number(state.get().maxEnergyUsage) + " AE/t")));
         panel.child(
             new CraftingCoolantGaugeWidget(
                 () -> ratio(state.get().coolant, state.get().maxCoolant),
                 () -> state.get().coolantMaxOverclock).pos(259, 53)
-                    .size(23, 32));
+                    .size(23, 32)
+                    .addTooltipLine(IKey.lang("gui.neoecoae.crafting.coolant"))
+                    .addTooltipLine(
+                        IKey.dynamic(() -> number(state.get().coolant) + " / " + number(state.get().maxCoolant)))
+                    .addTooltipLine(IKey.dynamic(() -> {
+                        int maxOverclock = state.get().coolantMaxOverclock;
+                        Fluid fluid = CraftingCoolantGaugeWidget.coolantFluid(maxOverclock);
+                        String fluidName = fluid == null ? tr("gui.neoecoae.crafting.coolant_max_overclock.none")
+                            : fluid.getLocalizedName();
+                        return fluidName + ": " + (maxOverclock <= 0 ? "-" : number(maxOverclock));
+                    })));
 
         panel.child(lang("gui.neoecoae.common.inventory", 6, 102).color(HOST_TITLE));
         panel.child(playerInventory(6, 114));
@@ -772,28 +882,29 @@ final class NeoEcoPanels {
             TileCraftingPatternBus.SLOTS_PER_PAGE);
         syncManager.registerSlotGroup("patterns", TileCraftingPatternBus.COLUMNS, 0);
 
-        ModularPanel panel = panel("crafting_pattern_bus", 176, 282);
-        panel.child(title("container.neoecoae.crafting_pattern_bus", 7, 7));
+        ModularPanel panel = panel("crafting_pattern_bus", 170, 259);
+        panel.child(title("container.neoecoae.crafting_pattern_bus", 4, 6));
         panel.child(
-            dynamic(() -> "Page " + (pageState.get() + 1) + " / " + Math.max(1, pageCount.get()), 92, 8, 77)
-                .textAlign(Alignment.CenterRight));
+            serverButton("<", () -> pageState.set(Math.max(0, pageState.get() - 1))).pos(105, 23)
+                .size(16, 16));
         panel.child(
-            serverButton("<", () -> pageState.set(Math.max(0, pageState.get() - 1))).pos(7, 24)
-                .size(28, 18));
+            dynamic(() -> (pageState.get() + 1) + "/" + Math.max(1, pageCount.get()), 123, 25, 24).color(HOST_TITLE)
+                .scale(0.85F)
+                .textAlign(Alignment.Center));
         panel.child(
             serverButton(">", () -> pageState.set(Math.min(Math.max(0, bus.getPageCount() - 1), pageState.get() + 1)))
-                .pos(141, 24)
-                .size(28, 18));
+                .pos(149, 23)
+                .size(16, 16));
         SlotGroupWidget grid = SlotGroupWidget.builder()
             .matrix("IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII")
             .key(
                 'I',
                 index -> new ItemSlot().slot(new ModularSlot(patterns, index).slotGroup("patterns"))
-                    .background(NeoEcoTextures.SLOT))
+                    .background(NeoEcoTextures.SLOT, NeoEcoTextures.PATTERN_OVERLAY_ALIGNED))
             .build()
-            .pos(7, 46);
+            .pos(4, 42);
         panel.child(grid);
-        panel.child(playerInventory(7, 180));
+        panel.child(playerInventory(4, 175));
         return panel;
     }
 
@@ -809,82 +920,137 @@ final class NeoEcoPanels {
             20);
         AtomicInteger selected = new AtomicInteger();
         syncManager.syncValue("upload_selected", new IntSyncValue(selected::get, selected::set));
+        UploadPanelHeightState heightState = new UploadPanelHeightState();
+        syncManager.syncValue("upload_height", new IntSyncValue(heightState::get, heightState::set));
 
-        ModularPanel panel = panel("pattern_upload", 304, 220);
-        panel.child(title("gui.neoecoae.pattern_upload.title", 8, 8));
-        panel.child(
+        ModularPanel panel = ModularPanel.defaultPanel("pattern_upload")
+            .width(306)
+            .height(heightState::panelHeight, Unit.Measure.PIXEL)
+            .invisible();
+        heightState.track(panel);
+        ParentWidget<?> content = new ParentWidget<>().left(20)
+            .top(0)
+            .width(286)
+            .height(heightState::panelHeight, Unit.Measure.PIXEL)
+            .background(NeoEcoTextures.BACKGROUND);
+        heightState.track(content);
+        panel.child(content);
+        content.child(title("gui.neoecoae.pattern_upload.title", 8, 8));
+        content.child(
             new ItemDisplayWidget()
-                .item(new ObjectValue.Dynamic<ItemStack>(ItemStack.class, () -> state.get().pattern, null))
+                .item(
+                    new ObjectValue.Dynamic<ItemStack>(
+                        ItemStack.class,
+                        () -> state.get().output == null ? state.get().pattern : state.get().output,
+                        null))
                 .pos(9, 27)
                 .size(20)
-                .disableHoverBackground());
-        panel.child(
-            dynamic(
-                () -> state.get().processing ? tr("gui.neoecoae.pattern_upload.processing")
-                    : tr("gui.neoecoae.pattern_upload.crafting"),
-                36,
-                29,
-                160).color(HOST_TITLE));
-        panel.child(
-            dynamic(() -> tr("gui.neoecoae.pattern_upload.targets") + ": " + state.get().targets.size(), 202, 29, 94)
-                .color(0xFF554E63)
-                .textAlign(Alignment.CenterRight));
+                .disableHoverBackground()
+                .tooltip(new RichTooltip().tooltipBuilder(tooltip -> {
+                    ItemStack pattern = state.get().pattern;
+                    if (pattern != null) tooltip.addFromItem(pattern);
+                })
+                    .setAutoUpdate(true)));
+        content.child(
+            dynamic(() -> patternOutputName(state.get()), 36, 29, 232).color(HOST_TITLE)
+                .scale(0.92F));
 
-        ListWidget<IWidget, ?> targets = new ListWidget<>().pos(8, 54)
-            .size(288, 126)
+        ListWidget<IWidget, ?> targets = new ListWidget<>().left(8)
+            .top(54)
+            .width(270)
+            .height(heightState::listHeight, Unit.Measure.PIXEL)
             .padding(2)
             .background(new Rectangle().color(PANEL));
-        for (int i = 0; i < 127; i++) targets.child(uploadTargetRow(state, selected, i));
-        panel.child(targets);
-        panel.child(
-            dynamic(
-                () -> state.get().targets.isEmpty() ? tr("gui.neoecoae.pattern_upload.no_targets") : "",
-                18,
-                108,
-                268).textAlign(Alignment.Center)
-                    .setEnabledIf(widget -> state.get().targets.isEmpty()));
-
-        panel.child(dynamicServerButton(() -> tr("gui.neoecoae.pattern_upload.upload"), () -> {
-            PatternUploadSession live = PatternUploadSessions.get(data.getUploadSession());
-            int index = selected.get();
-            if (live == null || index < 0
-                || index >= live.getTargets()
-                    .size())
-                return;
-            if (live.upload(
-                live.getTargets()
-                    .get(index)
-                    .getId())) {
-                PatternUploadSessions.remove(data.getUploadSession());
-                data.getPlayer()
-                    .closeScreen();
-            } else {
-                data.getPlayer()
-                    .addChatMessage(new ChatComponentTranslation("gui.neoecoae.pattern_upload.failed"));
-            }
-        }).pos(180, 190)
-            .size(57, 19)
-            .setEnabledIf(widget -> {
+        heightState.track(targets);
+        // Keep one row for every target the snapshot protocol can carry. ListWidget clips this
+        // to the selected panel height and handles the mouse wheel/scrollbar itself.
+        for (int i = 0; i < UploadSnapshot.MAX_TARGETS; i++) {
+            targets.child(uploadTargetRow(data, state, selected, i));
+        }
+        content.child(targets);
+        ButtonWidget<?> uploadButton = dynamicServerButton(
+            () -> state.get().uploaded ? tr("gui.neoecoae.pattern_upload.undo")
+                : tr("gui.neoecoae.pattern_upload.upload_selected"),
+            () -> {
+                PatternUploadSession live = PatternUploadSessions.get(data.getUploadSession());
+                if (live != null && live.isUploaded()) {
+                    if (live.undoUpload()) {
+                        data.getPlayer()
+                            .addChatMessage(new ChatComponentTranslation("gui.neoecoae.pattern_upload.undo_success"));
+                    } else {
+                        data.getPlayer()
+                            .addChatMessage(new ChatComponentTranslation("gui.neoecoae.pattern_upload.failed"));
+                    }
+                    return;
+                }
                 int index = selected.get();
-                return index >= 0 && index < state.get().targets.size() && !state.get().targets.get(index).maxed;
-            }));
-        panel.child(dynamicServerButton(() -> tr("gui.neoecoae.pattern_upload.cancel"), () -> {
+                if (live == null || index < 0
+                    || index >= live.getTargets()
+                        .size())
+                    return;
+                if (live.upload(
+                    live.getTargets()
+                        .get(index)
+                        .getId())) {
+                    data.getPlayer()
+                        .addChatMessage(new ChatComponentTranslation("gui.neoecoae.pattern_upload.success"));
+                } else {
+                    data.getPlayer()
+                        .addChatMessage(new ChatComponentTranslation("gui.neoecoae.pattern_upload.failed"));
+                }
+            }).left(92)
+                .top(heightState::buttonY, Unit.Measure.PIXEL)
+                .size(90, 19)
+                .setEnabledIf(widget -> {
+                    int index = selected.get();
+                    return state.get().uploaded || (index >= 0 && index < state.get().targets.size()
+                        && state.get().targets.get(index).exact
+                        && !state.get().targets.get(index).maxed
+                        && !state.get().targets.get(index).hasPattern);
+                });
+        heightState.track(uploadButton);
+        content.child(uploadButton);
+        ButtonWidget<?> cancelButton = dynamicServerButton(() -> tr("gui.neoecoae.pattern_upload.cancel"), () -> {
             PatternUploadSessions.remove(data.getUploadSession());
             data.getPlayer()
                 .closeScreen();
-        }).pos(240, 190)
-            .size(57, 19));
+        }).left(208)
+            .top(heightState::buttonY, Unit.Measure.PIXEL)
+            .size(70, 19);
+        heightState.track(cancelButton);
+        content.child(cancelButton);
+        InteractionSyncHandler heightHandler = new InteractionSyncHandler()
+            .setOnMousePressed(mouse -> { if (mouse.side.isServer() && mouse.mouseButton == 0) heightState.cycle(); });
+        panel.child(
+            new ButtonWidget<>().syncHandler(heightHandler)
+                .background(NeoEcoTextures.AE2_TERMINAL_STYLE_BUTTON)
+                .hoverBackground(NeoEcoTextures.AE2_TERMINAL_STYLE_BUTTON)
+                .overlay(new DynamicDrawable(heightState::icon))
+                .pos(0, 27)
+                .size(18, 18)
+                .addTooltipLine(IKey.dynamic(heightState::tooltip)));
         return panel;
     }
 
-    private static IWidget uploadTargetRow(SnapshotState<UploadSnapshot> state, AtomicInteger selected, int index) {
+    private static String patternOutputName(UploadSnapshot snapshot) {
+        if (snapshot.pattern == null) return tr("gui.neoecoae.pattern_upload.no_pattern");
+        if (snapshot.output != null) {
+            String name = snapshot.output.getDisplayName();
+            if (name != null && !name.isEmpty()) return name;
+        }
+        return snapshot.processing ? tr("gui.neoecoae.pattern_upload.processing")
+            : tr("gui.neoecoae.pattern_upload.crafting");
+    }
+
+    private static IWidget uploadTargetRow(NeoEcoGuiData data, SnapshotState<UploadSnapshot> state,
+        AtomicInteger selected, int index) {
         ParentWidget<?> row = new ParentWidget<>().widthRel(1.0F)
             .height(28)
             .setEnabledIf(widget -> index < state.get().targets.size());
         ButtonWidget<?> button = dynamicServerButton(() -> "", () -> selected.set(index));
         row.child(
             button.pos(24, 1)
-                .size(260, 26)
+                .size(200, 26)
                 .background(
                     new DynamicDrawable(
                         () -> selected.get() == index ? NeoEcoTextures.BUTTON_HOVER : NeoEcoTextures.BUTTON)));
@@ -902,28 +1068,54 @@ final class NeoEcoPanels {
                 () -> index < state.get().targets.size() ? targetDisplayName(state.get().targets.get(index)) : "",
                 32,
                 4,
-                240).height(9)
-                    .scale(0.88F)
+                194).height(9)
+                    .scale(0.78F)
                     .color(0xFF25212E));
         row.child(
             dynamic(
-                () -> index < state.get().targets.size() ? targetKindName(state.get().targets.get(index).kind) : "",
+                () -> index < state.get().targets.size() ? targetKindDisplay(state.get().targets.get(index)) : "",
                 32,
                 13,
-                146).height(8)
-                    .scale(0.78F)
+                108).height(8)
+                    .scale(0.72F)
                     .color(0xFF514A5D));
         row.child(
             dynamic(
                 () -> index < state.get().targets.size() ? targetCapacity(state.get().targets.get(index)) : "",
-                180,
+                139,
                 13,
-                96).height(8)
-                    .scale(0.78F)
+                82).height(8)
+                    .scale(0.72F)
                     .color(
-                        () -> index < state.get().targets.size() && state.get().targets.get(index).maxed ? 0xFF9B2435
-                            : 0xFF176B3A)
+                        () -> index < state.get().targets.size()
+                            && (state.get().targets.get(index).maxed || state.get().targets.get(index).hasPattern)
+                                ? 0xFF9B2435
+                                : 0xFF176B3A)
                     .textAlign(Alignment.CenterRight));
+        row.child(dynamicServerButton(() -> tr("gui.neoecoae.pattern_upload.position"), () -> {
+            PatternUploadSession session = PatternUploadSessions.get(data.getUploadSession());
+            if (session == null || index < 0
+                || index >= session.getTargets()
+                    .size())
+                return;
+            PatternUploadTarget target = session.getTargets()
+                .get(index);
+            if (data.getPlayer() instanceof EntityPlayerMP && target.isPresent()) {
+                NEPatternUploadNetwork.showHighlight(
+                    (EntityPlayerMP) data.getPlayer(),
+                    target.getDimension(),
+                    target.getX(),
+                    target.getY(),
+                    target.getZ());
+            }
+        }).pos(228, 5)
+            .size(36, 18)
+            .addTooltipLine(IKey.dynamic(() -> {
+                UploadTargetSnapshot target = index < state.get().targets.size() ? state.get().targets.get(index)
+                    : null;
+                return target == null ? ""
+                    : tr("gui.neoecoae.pattern_upload.position") + ": " + target.x + ", " + target.y + ", " + target.z;
+            })));
         return row;
     }
 
@@ -939,10 +1131,12 @@ final class NeoEcoPanels {
     }
 
     private static String targetCapacity(UploadTargetSnapshot target) {
-        return target.maxed ? "MAX"
-            : StatCollector.translateToLocalFormatted(
-                "gui.neoecoae.pattern_upload.empty_slots",
-                Integer.toString(target.emptySlots));
+        return target.hasPattern ? tr("gui.neoecoae.pattern_upload.existing_pattern")
+            : target.maxed ? "MAX"
+                : StatCollector.translateToLocalFormatted(
+                    "gui.neoecoae.pattern_upload.empty_slots",
+                    Integer.toString(target.emptySlots),
+                    Integer.toString(target.capacity));
     }
 
     private static String targetKindName(int kind) {
@@ -950,42 +1144,53 @@ final class NeoEcoPanels {
         if (kind < 0 || kind >= kinds.length) return "";
         switch (kinds[kind]) {
             case GT_CRAFTING_INPUT:
-                return tr("gui.neoecoae.pattern_upload.target.gt");
+                return tr("gui.neoecoae.pattern_upload.target.gt_assembly");
+            case GT_CRAFTING_INPUT_BUS:
+                return tr("gui.neoecoae.pattern_upload.target.gt_bus");
             case ECO_PATTERN_BUS:
                 return tr("gui.neoecoae.pattern_upload.target.eco");
+            case PROGRAMMABLE_HATCH:
+                return tr("gui.neoecoae.pattern_upload.target.programmable");
             case AE2_INTERFACE:
+                return tr("gui.neoecoae.pattern_upload.target.ae2");
+            case AE2_DUAL_INTERFACE:
+                return tr("gui.neoecoae.pattern_upload.target.ae2_dual");
             default:
                 return tr("gui.neoecoae.pattern_upload.target.ae2");
         }
     }
 
+    private static String targetKindDisplay(UploadTargetSnapshot target) {
+        String kind = targetKindName(target.kind);
+        String circuit = target.circuit == null ? "" : " / " + circuitDisplayName(target.circuit);
+        return kind + circuit;
+    }
+
+    private static String circuitDisplayName(ItemStack circuit) {
+        if (circuit == null) return "";
+        return tr("gui.neoecoae.pattern_upload.circuit_short") + " " + (circuit.getItemDamage() & 0xFF);
+    }
+
     private static ModularPanel craftingHatch(NeoEcoGuiData data, PanelSyncManager syncManager) {
         TileCraftingHatch hatch = tile(data, TileCraftingHatch.class);
-        AtomicInteger fluidId = new AtomicInteger(-1);
-        AtomicInteger fluidAmount = new AtomicInteger();
-        AtomicInteger capacity = new AtomicInteger();
-        syncManager.syncValue("fluid_id", new IntSyncValue(hatch::getFluidId, fluidId::set));
-        syncManager.syncValue("fluid_amount", new IntSyncValue(hatch::getFluidAmount, fluidAmount::set));
-        syncManager.syncValue("fluid_capacity", new IntSyncValue(hatch::getTankCapacity, capacity::set));
         bindPlayerInventory(syncManager, data.getPlayer());
-        ModularPanel panel = panel("crafting_hatch", 176, 196);
+        ModularPanel panel = panel("crafting_hatch", 172, 142);
         panel.child(
             title(
                 hatch.isInput() ? "container.neoecoae.crafting_input_hatch"
                     : "container.neoecoae.crafting_output_hatch",
                 7,
                 7));
-        panel.child(section(7, 25, 162, 66));
-        panel.child(dynamic(() -> fluidName(fluidId.get()), 15, 34, 146).textAlign(Alignment.Center));
         panel.child(
-            dynamic(() -> number(fluidAmount.get()) + " / " + number(capacity.get()) + " mB", 15, 52, 146)
-                .textAlign(Alignment.Center));
-        panel.child(
-            serverButton(
-                hatch.isInput() ? "Use held fluid container" : "Fill held container",
-                () -> hatch.handleFluidContainerClick(data.getPlayer())).pos(15, 69)
-                    .size(146, 18));
-        panel.child(playerInventory(7, 101));
+            new FluidSlot()
+                .syncHandler(
+                    new com.cleanroommc.modularui.value.sync.FluidSlotSyncHandler(hatch.getFluidTank())
+                        .canFillSlot(hatch.isInput())
+                        .canDrainSlot(!hatch.isInput()))
+                .background(NeoEcoTextures.SLOT)
+                .pos(77, 28)
+                .size(18, 18));
+        panel.child(playerInventory(7, 60));
         return panel;
     }
 
@@ -1151,6 +1356,18 @@ final class NeoEcoPanels {
             .color(TEXT);
     }
 
+    private static ParentWidget<?> infiniteStorageMetric(Supplier<String> amount, String labelKey, int y,
+        IntSupplier amountColor) {
+        ParentWidget<?> row = new ParentWidget<>().pos(14, y)
+            .size(150, 12);
+        row.child(dynamic(amount, 0, 0, 62).color(amountColor));
+        row.child(
+            dynamic(() -> " " + tr(labelKey), 0, 0, 60)
+                .left(() -> estimatedTextWidth(amount.get()) + 2, Unit.Measure.PIXEL)
+                .color(MUTED));
+        return row;
+    }
+
     private static PageButton tab(int index, PagedWidget.Controller controller, String text, int x) {
         return (PageButton) new PageButton(index, controller).overlay(IKey.str(text))
             .pos(x, 20)
@@ -1191,7 +1408,7 @@ final class NeoEcoPanels {
         cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode mode) {
         switch (mode) {
             case PLAYER_ONLY:
-                return NeoEcoTextures.FILTER;
+                return GuiTextures.FILTER;
             case MACHINE_ONLY:
                 return GuiTextures.GEAR;
             case ANY:
@@ -1327,29 +1544,126 @@ final class NeoEcoPanels {
         return big(used) + " / " + number(total) + " B";
     }
 
-    private static String compactStorageBytes(BigInteger value) {
-        BigInteger safe = value == null ? BigInteger.ZERO : value.max(BigInteger.ZERO);
-        if (safe.compareTo(BigInteger.valueOf(1_000_000_000L)) >= 0)
-            return safe.divide(BigInteger.valueOf(1_000_000_000L)) + "G";
-        if (safe.compareTo(BigInteger.valueOf(1_000_000L)) >= 0)
-            return safe.divide(BigInteger.valueOf(1_000_000L)) + "M";
-        if (safe.compareTo(BigInteger.valueOf(1_000L)) >= 0) return safe.divide(BigInteger.valueOf(1_000L)) + "K";
-        return safe.toString();
+    private static long energyLong(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value) || value <= 0D) return 0L;
+        return value >= Long.MAX_VALUE ? Long.MAX_VALUE : Math.round(value);
     }
 
-    private static String compact(long value) {
-        if (value >= 1_000_000_000L) return (value / 1_000_000_000L) + "G";
-        if (value >= 1_000_000L) return (value / 1_000_000L) + "M";
-        if (value >= 1_000L) return (value / 1_000L) + "K";
-        return number(value);
+    private static String ae2Amount(long value) {
+        return ReadableNumberConverter.INSTANCE.toWideReadableForm(Math.max(0L, value));
+    }
+
+    private static String ae2Amount(BigInteger value) {
+        return ae2Amount(saturatedLong(value));
+    }
+
+    private static String fitStorageAmount(BigInteger value, int maxWidth) {
+        BigInteger safe = value == null || value.signum() < 0 ? BigInteger.ZERO : value;
+        String exact = expandedStorageBytes(safe);
+        if (estimatedTextWidth(exact) <= maxWidth) return exact;
+
+        int naturalUnitIndex = 0;
+        BigInteger naturalUnit = BigInteger.ONE;
+        while (naturalUnitIndex < EXPANDED_BYTE_UNITS.length - 1
+            && safe.compareTo(naturalUnit.multiply(BIG_BYTES_IN_K)) >= 0) {
+            naturalUnit = naturalUnit.multiply(BIG_BYTES_IN_K);
+            naturalUnitIndex++;
+        }
+        for (int decimals = 2; decimals >= 0; decimals--) {
+            BigInteger unit = BIG_BYTES_IN_K;
+            for (int unitIndex = 1; unitIndex <= naturalUnitIndex; unitIndex++) {
+                String candidate = new BigDecimal(safe).divide(new BigDecimal(unit), decimals, RoundingMode.HALF_UP)
+                    .toPlainString() + EXPANDED_BYTE_UNITS[unitIndex];
+                if (estimatedTextWidth(candidate) <= maxWidth) return candidate;
+                unit = unit.multiply(BIG_BYTES_IN_K);
+            }
+        }
+
+        int exponent = Math.max(
+            0,
+            safe.toString()
+                .length() - 1);
+        BigDecimal divisor = BigDecimal.TEN.pow(exponent);
+        for (int decimals = 3; decimals >= 0; decimals--) {
+            String candidate = new BigDecimal(safe).divide(divisor, decimals, RoundingMode.HALF_UP)
+                .stripTrailingZeros()
+                .toPlainString() + "e" + exponent;
+            if (estimatedTextWidth(candidate) <= maxWidth) return candidate;
+        }
+        return "e" + exponent;
+    }
+
+    private static String expandedStorageBytes(BigInteger value) {
+        return value == null ? "0" : NUMBERS.format(value.max(BigInteger.ZERO));
+    }
+
+    private static EnergyUsage energyUsage(StorageHostSnapshot state) {
+        long used = energyLong(state.energyStored);
+        long maximum = energyLong(state.energyCapacity);
+        String usedText = number(used);
+        String maxText = number(maximum);
+        String prefix = StatCollector.translateToLocal("gui.neoecoae.storage_ui.energy_storage") + ": ";
+        if (estimatedTextWidth(prefix + usedText + " / " + maxText + " AE") > 160) {
+            usedText = compactTaskAmount(used);
+            maxText = compactTaskAmount(maximum);
+        }
+        return new EnergyUsage(usedText, maxText);
+    }
+
+    private static String compactTaskAmount(long value) {
+        long safe = Math.max(0L, value);
+        if (safe < 1_000L) return Long.toString(safe);
+        if (safe < 1_000_000L) return compactDecimal(safe, 1_000L, "K");
+        if (safe < 1_000_000_000L) return compactDecimal(safe, 1_000_000L, "M");
+        if (safe < 1_000_000_000_000L) return compactDecimal(safe, 1_000_000_000L, "G");
+        return compactDecimal(safe, 1_000_000_000_000L, "T");
+    }
+
+    private static String compactDecimal(long value, long unit, String suffix) {
+        double scaled = (double) Math.max(0L, value) / (double) unit;
+        DecimalFormat format = COMPACT_DECIMAL.get();
+        format.applyPattern(scaled >= 100.0D || Math.abs(scaled - Math.rint(scaled)) < 0.05D ? "0" : "0.0");
+        return format.format(scaled) + suffix;
+    }
+
+    private static final class EnergyUsage {
+
+        private final String usedText;
+        private final String maxText;
+
+        private EnergyUsage(String usedText, String maxText) {
+            this.usedText = usedText;
+            this.maxText = maxText;
+        }
+    }
+
+    private static int estimatedTextWidth(String text) {
+        int width = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char character = text.charAt(i);
+            width += character == ' ' ? 4 : character < 128 ? 6 : 8;
+        }
+        return width;
+    }
+
+    private static int scaledTextWidth(String text, float scale) {
+        return Math.round(estimatedTextWidth(text) * scale);
+    }
+
+    private static long saturatedLong(BigInteger value) {
+        if (value == null || value.signum() <= 0) return 0L;
+        BigInteger maximum = BigInteger.valueOf(Long.MAX_VALUE);
+        return value.compareTo(maximum) >= 0 ? Long.MAX_VALUE : value.longValue();
     }
 
     private static String percent(long used, long total) {
+        if (total <= 0L) return "N/A";
         return percent(ratio(used, total));
     }
 
     private static String percent(double value) {
-        return Math.round(Math.max(0D, Math.min(1D, value)) * 100D) + "%";
+        if (Double.isNaN(value) || Double.isInfinite(value)) return "N/A";
+        return String.format(Locale.US, "%.1f%%", Math.max(0D, Math.min(1D, value)) * 100D);
     }
 
     private static double ratio(long value, long maximum) {
@@ -1372,12 +1686,13 @@ final class NeoEcoPanels {
         return count;
     }
 
-    private static int storageColor(long used, long total) {
+    private static int storageValueColor(long used, long total) {
         double value = ratio(used, total);
-        if (value >= 0.9D) return 0xFFFF5151;
-        if (value >= 0.75D) return 0xFFFF9D32;
-        if (value >= 0.5D) return 0xFFFFEA4A;
-        return 0xFF45F05A;
+        if (used <= 0L || total <= 0L) return USED;
+        if (value >= 1.0D) return 0xFFFF6A75;
+        if (value >= 0.9D) return 0xFFFF9A3D;
+        if (value >= 0.75D) return 0xFFFFD65A;
+        return USED;
     }
 
     private static int craftingEnergyColor(CraftingHostSnapshot state) {
@@ -1390,13 +1705,56 @@ final class NeoEcoPanels {
         return isInfiniteStorage(state) ? 1D : ratio(state.usedBytes, state.totalBytes);
     }
 
-    private static int storageColor(StorageHostSnapshot state) {
-        return isInfiniteStorage(state) ? 0xD8CA6CFF : storageColor(state.usedBytes, state.totalBytes);
+    private static int storageTextColor(StorageHostSnapshot state) {
+        return storageValueColor(state.usedBytes, state.totalBytes);
+    }
+
+    private static int storageGaugeColor(StorageHostSnapshot state) {
+        if (isInfiniteStorage(state)) return 0xD8CA6CFF;
+        return 0xBF000000 | storageTextColor(state);
+    }
+
+    private static String storageStatus(StorageHostSnapshot state) {
+        if (isInfiniteStorage(state)) return tr("gui.neoecoae.storage_ui.infinite_value");
+        StorageHostSnapshot.TypeStat line = highestPressureLine(state);
+        if (line == null) return tr("gui.neoecoae.storage_ui.status.stable");
+        double value = ratio(line.usedBytes, line.totalBytes);
+        if (line.totalBytes > 0L && value >= 1.0D) {
+            return StatCollector.translateToLocalFormatted("gui.neoecoae.storage_ui.status.full", line.displayName);
+        }
+        if (value >= 0.9D) {
+            return StatCollector.translateToLocalFormatted("gui.neoecoae.storage_ui.status.high", line.displayName);
+        }
+        if (value >= 0.75D) {
+            return StatCollector.translateToLocalFormatted("gui.neoecoae.storage_ui.status.warning", line.displayName);
+        }
+        return tr("gui.neoecoae.storage_ui.status.stable");
+    }
+
+    private static int storageStatusColor(StorageHostSnapshot state) {
+        StorageHostSnapshot.TypeStat line = highestPressureLine(state);
+        return line == null ? MUTED : storageValueColor(line.usedBytes, line.totalBytes);
+    }
+
+    private static StorageHostSnapshot.TypeStat highestPressureLine(StorageHostSnapshot state) {
+        StorageHostSnapshot.TypeStat best = null;
+        double bestRatio = -1.0D;
+        for (StorageHostSnapshot.TypeStat line : state.typeStats) {
+            if (line.totalBytes <= 0L) continue;
+            double value = ratio(line.usedBytes, line.totalBytes);
+            if (value > bestRatio) {
+                best = line;
+                bestRatio = value;
+            }
+        }
+        return best;
     }
 
     private static boolean isInfiniteStorage(StorageHostSnapshot state) {
-        return "infinite".equals(state.hostMode) || "domain_member".equals(state.hostMode)
-            || "migrating".equals(state.hostMode);
+        return "infinite".equals(state.hostMode) || "formed_infinite".equals(state.hostMode)
+            || "domain_member".equals(state.hostMode)
+            || "migrating".equals(state.hostMode)
+            || "migrating_to_infinite".equals(state.hostMode);
     }
 
     private static String tr(String key) {
@@ -1656,7 +2014,6 @@ final class NeoEcoPanels {
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> entry) {
             WidgetTheme theme = getActiveWidgetTheme(entry, isHovering());
-            drawGauge(context, theme, 1D, 0xFF413E4E);
             drawGauge(context, theme, this.progress.getAsDouble(), this.color.getAsInt());
         }
 
@@ -1749,57 +2106,163 @@ final class NeoEcoPanels {
         }
     }
 
+    private static final class UploadPanelHeightState {
+
+        private static final int[] LIST_HEIGHTS = { 32, 88, 144 };
+        private final List<IWidget> trackedWidgets = new ArrayList<>();
+        private int mode = Config.getPatternUploadPanelHeight();
+
+        private int get() {
+            return this.mode;
+        }
+
+        private void set(int mode) {
+            int normalized = Math.floorMod(mode, LIST_HEIGHTS.length);
+            if (this.mode == normalized) return;
+            this.mode = normalized;
+            Config.setPatternUploadPanelHeight(normalized);
+            for (IWidget widget : this.trackedWidgets) widget.scheduleResize();
+        }
+
+        private void cycle() {
+            this.set(this.mode + 1);
+        }
+
+        private int listHeight() {
+            return LIST_HEIGHTS[this.mode];
+        }
+
+        private int buttonY() {
+            return 64 + this.listHeight();
+        }
+
+        private int panelHeight() {
+            return 93 + this.listHeight();
+        }
+
+        private IDrawable icon() {
+            switch (this.mode) {
+                case 1:
+                    return NeoEcoTextures.AE2_TERMINAL_STYLE_TALL;
+                case 2:
+                    return NeoEcoTextures.AE2_TERMINAL_STYLE_FULL;
+                case 0:
+                default:
+                    return NeoEcoTextures.AE2_TERMINAL_STYLE_SMALL;
+            }
+        }
+
+        private String tooltip() {
+            String valueKey;
+            switch (this.mode) {
+                case 1:
+                    valueKey = ButtonToolTips.TerminalStyle_Tall.getUnlocalized();
+                    break;
+                case 2:
+                    valueKey = ButtonToolTips.TerminalStyle_Full.getUnlocalized();
+                    break;
+                case 0:
+                default:
+                    valueKey = ButtonToolTips.TerminalStyle_Small.getUnlocalized();
+                    break;
+            }
+            return StatCollector.translateToLocal(ButtonToolTips.TerminalStyle.getUnlocalized()) + "\n"
+                + StatCollector.translateToLocal(valueKey);
+        }
+
+        private void track(IWidget widget) {
+            this.trackedWidgets.add(widget);
+        }
+    }
+
     private static final class UploadSnapshot {
 
+        private static final int MAX_TARGETS = 127;
         private static final UploadSnapshot EMPTY = new UploadSnapshot(
             null,
+            null,
+            false,
             false,
             Collections.<UploadTargetSnapshot>emptyList());
 
         private final ItemStack pattern;
+        private final ItemStack output;
         private final boolean processing;
+        private final boolean uploaded;
         private final List<UploadTargetSnapshot> targets;
 
-        private UploadSnapshot(ItemStack pattern, boolean processing, List<UploadTargetSnapshot> targets) {
+        private UploadSnapshot(ItemStack pattern, ItemStack output, boolean processing, boolean uploaded,
+            List<UploadTargetSnapshot> targets) {
             this.pattern = pattern == null ? null : pattern.copy();
+            this.output = output == null ? null : output.copy();
             this.processing = processing;
+            this.uploaded = uploaded;
             this.targets = targets;
         }
 
         private static UploadSnapshot create(PatternUploadSession session) {
             if (session == null) return EMPTY;
             List<UploadTargetSnapshot> targets = new ArrayList<>();
+            ItemStack pattern = session.getPattern();
             for (PatternUploadTarget target : session.getTargets()) {
                 targets.add(
                     new UploadTargetSnapshot(
                         target.getId(),
-                        target.getName(),
-                        target.getIcon(),
+                        target.getDisplayName(session.getRouteKey(), session.getPatternDetails()),
+                        target.getDisplayIcon(session.getRouteKey(), session.getPatternDetails()),
+                        target.getCircuit(session.getRouteKey(), session.getPatternDetails()),
                         target.getKind()
                             .ordinal(),
+                        target.getDimension(),
+                        target.getX(),
+                        target.getY(),
+                        target.getZ(),
                         target.getEmptySlots(),
-                        target.getEmptySlots() == 0));
+                        target.getSlotCount(),
+                        pattern != null && target.firstEmptySlot(pattern) == -1,
+                        pattern != null && target.hasPattern(pattern),
+                        pattern != null && target
+                            .isExactMatch(session.isProcessing(), session.getPatternDetails(), session.getRouteKey())));
             }
-            return new UploadSnapshot(session.getPattern(), session.isProcessing(), targets);
+            return new UploadSnapshot(
+                session.getPattern(),
+                session.getPatternOutput(),
+                session.isProcessing(),
+                session.isUploaded(),
+                targets);
         }
 
         private static void write(UploadSnapshot value, ByteBuf buffer) {
             ByteBufUtils.writeItemStack(buffer, value.pattern);
+            ByteBufUtils.writeItemStack(buffer, value.output);
             buffer.writeBoolean(value.processing);
-            buffer.writeByte(Math.min(127, value.targets.size()));
-            for (UploadTargetSnapshot target : value.targets) {
+            buffer.writeBoolean(value.uploaded);
+            int count = Math.min(MAX_TARGETS, value.targets.size());
+            buffer.writeByte(count);
+            for (int i = 0; i < count; i++) {
+                UploadTargetSnapshot target = value.targets.get(i);
                 ByteBufUtils.writeUTF8String(buffer, target.id);
                 ByteBufUtils.writeUTF8String(buffer, target.name);
                 ByteBufUtils.writeItemStack(buffer, target.icon);
+                ByteBufUtils.writeItemStack(buffer, target.circuit);
                 buffer.writeByte(target.kind);
+                buffer.writeInt(target.dimension);
+                buffer.writeInt(target.x);
+                buffer.writeInt(target.y);
+                buffer.writeInt(target.z);
                 buffer.writeShort(target.emptySlots);
+                buffer.writeShort(target.capacity);
                 buffer.writeBoolean(target.maxed);
+                buffer.writeBoolean(target.hasPattern);
+                buffer.writeBoolean(target.exact);
             }
         }
 
         private static UploadSnapshot read(ByteBuf buffer) {
             ItemStack pattern = ByteBufUtils.readItemStack(buffer);
+            ItemStack output = ByteBufUtils.readItemStack(buffer);
             boolean processing = buffer.readBoolean();
+            boolean uploaded = buffer.readBoolean();
             int count = buffer.readUnsignedByte();
             List<UploadTargetSnapshot> targets = new ArrayList<>();
             for (int i = 0; i < count; i++) {
@@ -1808,11 +2271,19 @@ final class NeoEcoPanels {
                         ByteBufUtils.readUTF8String(buffer),
                         ByteBufUtils.readUTF8String(buffer),
                         ByteBufUtils.readItemStack(buffer),
+                        ByteBufUtils.readItemStack(buffer),
                         buffer.readUnsignedByte(),
+                        buffer.readInt(),
+                        buffer.readInt(),
+                        buffer.readInt(),
+                        buffer.readInt(),
                         buffer.readUnsignedShort(),
+                        buffer.readUnsignedShort(),
+                        buffer.readBoolean(),
+                        buffer.readBoolean(),
                         buffer.readBoolean()));
             }
-            return new UploadSnapshot(pattern, processing, targets);
+            return new UploadSnapshot(pattern, output, processing, uploaded, targets);
         }
     }
 
@@ -1821,17 +2292,34 @@ final class NeoEcoPanels {
         private final String id;
         private final String name;
         private final ItemStack icon;
+        private final ItemStack circuit;
         private final int kind;
+        private final int dimension;
+        private final int x;
+        private final int y;
+        private final int z;
         private final int emptySlots;
+        private final int capacity;
         private final boolean maxed;
+        private final boolean hasPattern;
+        private final boolean exact;
 
-        private UploadTargetSnapshot(String id, String name, ItemStack icon, int kind, int emptySlots, boolean maxed) {
+        private UploadTargetSnapshot(String id, String name, ItemStack icon, ItemStack circuit, int kind, int dimension,
+            int x, int y, int z, int emptySlots, int capacity, boolean maxed, boolean hasPattern, boolean exact) {
             this.id = id;
             this.name = name;
             this.icon = icon;
+            this.circuit = circuit;
             this.kind = kind;
+            this.dimension = dimension;
+            this.x = x;
+            this.y = y;
+            this.z = z;
             this.emptySlots = emptySlots;
+            this.capacity = capacity;
             this.maxed = maxed;
+            this.hasPattern = hasPattern;
+            this.exact = exact;
         }
     }
 

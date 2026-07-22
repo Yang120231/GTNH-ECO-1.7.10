@@ -31,4 +31,8 @@ public final class ECOFastPathConfig {
     public static boolean isAggressiveBatchEnabled() {
         return Config.isEcoAggressiveCraftingFastPathEnabled();
     }
+
+    public static boolean isProcessingPatternBatchEnabled() {
+        return Config.isEcoProcessingPatternFastPathEnabled();
+    }
 }

@@ -9,6 +9,8 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import org.junit.jupiter.api.Test;
 
+import cn.dancingsnow.neoecoae.Config;
+
 class ECOFastPathPatternInspectorTest {
 
     @Test
@@ -29,4 +31,35 @@ class ECOFastPathPatternInspectorTest {
         assertFalse(ECOFastPathPatternInspector.isFastPathSafe(returnedContainer, true));
         assertTrue(ECOFastPathPatternInspector.isFastPathSafe(returnedContainer, false));
     }
+
+    @Test
+    void deterministicProcessingPatternCanUseTheVerifiedBatchPath() {
+        boolean oldFastPath = Config.enableEcoCraftingFastPath;
+        boolean oldProcessingPath = Config.enableEcoProcessingPatternFastPath;
+        try {
+            Config.enableEcoCraftingFastPath = true;
+            Config.enableEcoProcessingPatternFastPath = true;
+            assertTrue(ECOFastPathPatternInspector.isPatternTypeAllowed(false));
+            assertTrue(ECOFastPathPatternInspector.isPatternTypeAllowed(true));
+        } finally {
+            Config.enableEcoCraftingFastPath = oldFastPath;
+            Config.enableEcoProcessingPatternFastPath = oldProcessingPath;
+        }
+    }
+
+    @Test
+    void processingPatternBatchPathCanBeDisabledSeparately() {
+        boolean oldFastPath = Config.enableEcoCraftingFastPath;
+        boolean oldProcessingPath = Config.enableEcoProcessingPatternFastPath;
+        try {
+            Config.enableEcoCraftingFastPath = true;
+            Config.enableEcoProcessingPatternFastPath = false;
+            assertFalse(ECOFastPathPatternInspector.isPatternTypeAllowed(false));
+            assertTrue(ECOFastPathPatternInspector.isPatternTypeAllowed(true));
+        } finally {
+            Config.enableEcoCraftingFastPath = oldFastPath;
+            Config.enableEcoProcessingPatternFastPath = oldProcessingPath;
+        }
+    }
+
 }

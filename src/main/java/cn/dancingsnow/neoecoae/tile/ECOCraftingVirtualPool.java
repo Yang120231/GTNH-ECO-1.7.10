@@ -45,16 +45,11 @@ final class ECOCraftingVirtualPool {
             || craftCount > controller.getCraftingCurrentBatchSlots()) {
             return false;
         }
-        ItemStack output = details.getOutput(table, controller.getWorldObj());
-        if (output == null) {
-            IAEItemStack[] outputs = details.getCondensedOutputs();
-            if (outputs != null && outputs.length > 0 && outputs[0] != null) {
-                output = outputs[0].getItemStack();
-            }
-        }
-        if (output == null) {
+        List<ItemStack> outputs = collectOutputs(details, table, controller.getWorldObj());
+        if (outputs.isEmpty()) {
             return false;
         }
+        ItemStack output = outputs.get(0);
         try {
             ECOFastPathPlannerHook.recordRuntimeResult(details, table, controller.getWorldObj(), output);
         } catch (RuntimeException ignored) {
@@ -66,7 +61,7 @@ final class ECOCraftingVirtualPool {
         }
         List<ItemStack> inputs = multiplyStacks(snapshotInventory(table), craftCount);
         List<ItemStack> pending = new ArrayList<ItemStack>();
-        pending.addAll(TileCraftingWorker.multiplyStack(output, craftCount));
+        pending.addAll(multiplyStacks(outputs, craftCount));
         for (int slot = 0; slot < table.getSizeInventory(); slot++) {
             ItemStack container = Platform.getContainerItem(table.getStackInSlot(slot));
             if (container != null && container.stackSize > 0) {
@@ -421,6 +416,59 @@ final class ECOCraftingVirtualPool {
             if (stack != null && stack.stackSize > 0) {
                 result.add(stack.copy());
             }
+        }
+        return result;
+    }
+
+    static List<ItemStack> collectOutputs(ICraftingPatternDetails details, InventoryCrafting table,
+        net.minecraft.world.World world) {
+        List<ItemStack> result = new ArrayList<ItemStack>();
+        ItemStack runtimeOutput = details.getOutput(table, world);
+        if (details.isCraftable()) {
+            if (runtimeOutput != null && runtimeOutput.stackSize > 0) {
+                result.add(runtimeOutput.copy());
+            }
+            return result;
+        }
+
+        List<ItemStack> declaredOutputs = new ArrayList<ItemStack>();
+        IAEItemStack[] condensedOutputs = details.getCondensedOutputs();
+        if (condensedOutputs != null) {
+            for (IAEItemStack condensedOutput : condensedOutputs) {
+                if (condensedOutput == null || condensedOutput.getStackSize() <= 0L) {
+                    continue;
+                }
+                ItemStack stack = condensedOutput.getItemStack();
+                if (stack != null && stack.stackSize > 0) {
+                    declaredOutputs.add(stack);
+                }
+            }
+        }
+        return mergeProcessingOutputs(runtimeOutput, declaredOutputs);
+    }
+
+    static List<ItemStack> mergeProcessingOutputs(ItemStack runtimeOutput, List<ItemStack> declaredOutputs) {
+        List<ItemStack> result = new ArrayList<ItemStack>();
+        boolean matchedRuntimeOutput = false;
+        if (declaredOutputs != null) {
+            for (ItemStack declaredOutput : declaredOutputs) {
+                if (declaredOutput == null || declaredOutput.stackSize <= 0) {
+                    continue;
+                }
+                if (!matchedRuntimeOutput && runtimeOutput != null
+                    && TileCraftingWorker.sameStackType(runtimeOutput, declaredOutput)) {
+                    result.add(runtimeOutput.copy());
+                    matchedRuntimeOutput = true;
+                } else {
+                    result.add(declaredOutput.copy());
+                }
+            }
+        }
+        if (!matchedRuntimeOutput && runtimeOutput != null && runtimeOutput.stackSize > 0) {
+            // Preserve the legacy runtime result for dynamic processing patterns. Such patterns
+            // stay outside the batch fast path until their full output contract is verifiable.
+            result.clear();
+            result.add(runtimeOutput.copy());
         }
         return result;
     }

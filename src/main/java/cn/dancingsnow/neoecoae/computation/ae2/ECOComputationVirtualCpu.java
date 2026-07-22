@@ -32,7 +32,9 @@ import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathBatchPolicy;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathConfig;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchCoordinator;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
@@ -337,14 +339,16 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
 
     private ECOCraftingBatchTransaction doPrepareBatch(appeng.api.networking.crafting.ICraftingPatternDetails details,
         InventoryCrafting table, TileECOController controller) {
+        ECOFastPathPlan fastPathPlan = ECOFastPathPlannerHook.tryVerifiedPlan(controller, details, table, this.grid);
         if (TASK_PROGRESS_VALUE == null || this.batchEnergyGrid == null
             || details == null
             || table == null
             || controller == null
-            || !ECOFastPathPlannerHook.tryVerifiedPlan(controller, details, table)
-                .accepted()) {
+            || !fastPathPlan.accepted()) {
             return null;
         }
+        boolean processingMatrix = fastPathPlan.getPatternProfile() != null && !fastPathPlan.getPatternProfile()
+            .isCraftable();
         TaskProgress progress = this.tasks.get(details);
         long taskRemaining = taskProgressValue(progress);
         int batchTickLimit = ECOFastPathConfig.batchTickLimit();
@@ -359,6 +363,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
             power -> this.batchEnergyGrid.extractAEPower(power, Actionable.SIMULATE, PowerMultiplier.CONFIG));
         requested = controller.getCraftingCoolantCraftLimit(requested);
         requested = Math.min(requested, this.maxCraftsFromInventory(table, requested - 1) + 1);
+        requested = ECOFastPathBatchPolicy.normalizeRequested(requested, processingMatrix);
         if (requested <= 1) {
             return null;
         }

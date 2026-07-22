@@ -74,6 +74,10 @@ public class TileCraftingHatch extends TileCraftingMember implements IInventory,
         return stack == null ? null : stack.copy();
     }
 
+    public FluidTank getFluidTank() {
+        return this.tank;
+    }
+
     public int getFluidAmount() {
         return this.tank.getFluidAmount();
     }

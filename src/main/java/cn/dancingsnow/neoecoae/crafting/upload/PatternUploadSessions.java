@@ -19,8 +19,13 @@ public final class PatternUploadSessions {
 
     public static synchronized PatternUploadSession create(EntityPlayerMP player, IGrid grid, IGridNode sourceNode,
         ItemStack pattern, IInventory sourceInventory, int sourceSlot, boolean processing) {
+        return create(player, grid, sourceNode, pattern, sourceInventory, sourceSlot, processing, null);
+    }
+
+    public static synchronized PatternUploadSession create(EntityPlayerMP player, IGrid grid, IGridNode sourceNode,
+        ItemStack pattern, IInventory sourceInventory, int sourceSlot, boolean processing, PatternRouteKey routeKey) {
         PatternUploadSession session = PatternUploadSession
-            .create(player, grid, sourceNode, pattern, sourceInventory, sourceSlot, processing);
+            .create(player, grid, sourceNode, pattern, sourceInventory, sourceSlot, processing, routeKey);
         SESSIONS.put(session.getId(), session);
         return session;
     }
@@ -32,6 +37,18 @@ public final class PatternUploadSessions {
             return null;
         }
         return session;
+    }
+
+    public static synchronized PatternUploadSession findForSource(EntityPlayerMP player, IInventory sourceInventory,
+        int sourceSlot) {
+        PatternUploadSession latest = null;
+        for (PatternUploadSession session : SESSIONS.values()) {
+            if (session.getPlayer() != player || session.getSourceInventory() != sourceInventory
+                || session.getSourceSlot() != sourceSlot
+                || session.isExpired()) continue;
+            latest = session;
+        }
+        return latest;
     }
 
     public static synchronized void remove(UUID id) {

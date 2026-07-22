@@ -8,6 +8,8 @@
     "MixinContainerPatternTerm"
   ],
   "client": [
-    "MixinGuiPatternTerm"
+    "MixinGuiPatternTerm",
+    "MixinGuiScreenAccessor",
+    "MixinNEICraftingHandler"
   ]
 }

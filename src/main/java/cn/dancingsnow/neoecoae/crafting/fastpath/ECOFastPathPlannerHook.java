@@ -1,16 +1,21 @@
 package cn.dancingsnow.neoecoae.crafting.fastpath;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
 
+import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.me.cache.CraftingGridCache;
 import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -48,6 +53,9 @@ public final class ECOFastPathPlannerHook {
         }
         ECOFastPathPatternProfile cached = CACHE.getProfile(key);
         if (cached != null) {
+            if (!cached.isCraftable() && !ECOFastPathConfig.isProcessingPatternBatchEnabled()) {
+                return ECOFastPathPlan.rejected(ECOFastPathDecision.DISABLED, "processing planner disabled");
+            }
             return ECOFastPathPlan.accepted(cached);
         }
         try {
@@ -67,9 +75,19 @@ public final class ECOFastPathPlannerHook {
 
     public static ECOFastPathPlan tryVerifiedPlan(TileECOController controller, ICraftingPatternDetails patternDetails,
         InventoryCrafting table) {
+        return tryVerifiedPlan(controller, patternDetails, table, null);
+    }
+
+    public static ECOFastPathPlan tryVerifiedPlan(TileECOController controller, ICraftingPatternDetails patternDetails,
+        InventoryCrafting table, IGrid grid) {
         ECOFastPathPlan plan = tryPlan(controller, patternDetails, table);
         if (!plan.accepted()) {
             return plan;
+        }
+        ECOFastPathPatternProfile profile = plan.getPatternProfile();
+        if (profile != null && !profile.isCraftable() && !hasUniqueProcessingSource(grid, profile.getKey())) {
+            return ECOFastPathPlan
+                .rejected(ECOFastPathDecision.NON_UNIQUE_PROCESSING_SOURCE, "processing pattern source is not unique");
         }
         RuntimeVerificationKey key = RuntimeVerificationKey.of(patternDetails, table, controller.getWorldObj());
         long tick = currentTick(controller.getWorldObj());
@@ -98,10 +116,7 @@ public final class ECOFastPathPlannerHook {
         RuntimeVerificationKey key = RuntimeVerificationKey.of(details, table, world);
         appeng.api.storage.data.IAEItemStack actual = AEItemStack.create(output);
         appeng.api.storage.data.IAEItemStack[] expected = profile.getOutputs();
-        boolean matches = actual != null && expected.length == 1
-            && expected[0] != null
-            && expected[0].isSameType(actual)
-            && expected[0].getStackSize() == actual.getStackSize();
+        boolean matches = actual != null && matchesExpectedOutput(expected, actual);
         synchronized (VERIFIED) {
             VERIFIED.put(key, new RuntimeVerification(matches, currentTick(world)));
         }
@@ -120,6 +135,48 @@ public final class ECOFastPathPlannerHook {
 
     public static int negativeCacheSize() {
         return CACHE.negativeSize();
+    }
+
+    private static boolean matchesExpectedOutput(appeng.api.storage.data.IAEItemStack[] expected,
+        appeng.api.storage.data.IAEItemStack actual) {
+        if (expected == null || actual == null) {
+            return false;
+        }
+        for (appeng.api.storage.data.IAEItemStack candidate : expected) {
+            if (candidate != null && candidate.isSameType(actual)
+                && candidate.getStackSize() == actual.getStackSize()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean hasUniqueProcessingSource(IGrid grid, ECOFastPathPatternKey key) {
+        if (grid == null || key == null) {
+            return false;
+        }
+        try {
+            CraftingGridCache cache = grid.getCache(CraftingGridCache.class);
+            if (cache == null) {
+                return false;
+            }
+            Set<ICraftingPatternDetails> matches = Collections
+                .newSetFromMap(new IdentityHashMap<ICraftingPatternDetails, Boolean>());
+            for (List<ICraftingPatternDetails> patterns : cache.getCraftingMultiPatterns()
+                .values()) {
+                if (patterns == null) {
+                    continue;
+                }
+                for (ICraftingPatternDetails candidate : patterns) {
+                    if (candidate != null && key.equals(ECOFastPathPatternKey.of(candidate))) {
+                        matches.add(candidate);
+                    }
+                }
+            }
+            return matches.size() == 1;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private static boolean isEcoCraftingHost(TileECOController controller) {

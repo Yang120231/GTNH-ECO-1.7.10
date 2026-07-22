@@ -5,11 +5,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.energy.IEnergyGrid;
+import cn.dancingsnow.neoecoae.all.NEBlocks;
+import cn.dancingsnow.neoecoae.energy.ECOEnergyProfile;
 import cn.dancingsnow.neoecoae.multiblock.ECOFormationBlockPos;
+import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 import cn.dancingsnow.neoecoae.storage.domain.ECOStorageDomainData;
@@ -42,6 +48,9 @@ public final class StorageHostSnapshot {
         0L,
         0L,
         0L,
+        0D,
+        0D,
+        false,
         false,
         Collections.<TypeStat>emptyList(),
         Collections.<MatrixCell>emptyList(),
@@ -60,6 +69,9 @@ public final class StorageHostSnapshot {
     public final long totalBytes;
     public final long usedTypes;
     public final long totalTypes;
+    public final double energyStored;
+    public final double energyCapacity;
+    public final boolean energyAvailable;
     public final boolean canTakeInfiniteComponent;
     public final List<TypeStat> typeStats;
     public final List<MatrixCell> matrixCells;
@@ -67,8 +79,9 @@ public final class StorageHostSnapshot {
 
     private StorageHostSnapshot(boolean formed, String tier, String hostMode, int infiniteComponentCount,
         int formedDriveCount, int requiredDriveCount, int priority, boolean allDrivesL9, long usedBytes,
-        BigInteger preciseUsedBytes, long totalBytes, long usedTypes, long totalTypes, boolean canTakeInfiniteComponent,
-        List<TypeStat> typeStats, List<MatrixCell> matrixCells, List<HugeStack> hugeStacks) {
+        BigInteger preciseUsedBytes, long totalBytes, long usedTypes, long totalTypes, double energyStored,
+        double energyCapacity, boolean energyAvailable, boolean canTakeInfiniteComponent, List<TypeStat> typeStats,
+        List<MatrixCell> matrixCells, List<HugeStack> hugeStacks) {
         this.formed = formed;
         this.tier = tier;
         this.hostMode = hostMode;
@@ -82,6 +95,9 @@ public final class StorageHostSnapshot {
         this.totalBytes = totalBytes;
         this.usedTypes = usedTypes;
         this.totalTypes = totalTypes;
+        this.energyStored = safeEnergy(energyStored);
+        this.energyCapacity = safeEnergy(energyCapacity);
+        this.energyAvailable = energyAvailable;
         this.canTakeInfiniteComponent = canTakeInfiniteComponent;
         this.typeStats = Collections.unmodifiableList(typeStats);
         this.matrixCells = Collections.unmodifiableList(matrixCells);
@@ -102,6 +118,9 @@ public final class StorageHostSnapshot {
         long totalTypes = 0L;
         long usedTypes = 0L;
         ECOStorageBackend domainBackend = null;
+        double energyStored = 0D;
+        double energyCapacity = 0D;
+        boolean energyAvailable = false;
 
         boolean hostDomainStorage = controller.canUseHostDomainStorage();
         if (hostDomainStorage && controller.getWorldObj() != null) {
@@ -109,11 +128,18 @@ public final class StorageHostSnapshot {
                 .getDomain(controller.getHostDomainId());
             if (domain != null) {
                 domainBackend = domain;
-                preciseUsedBytes = domain.getUsed()
-                    .toBigInteger();
+                preciseUsedBytes = displayBytes(
+                    domain,
+                    controller.getTier()
+                        .name());
                 usedBytes = saturatedLong(preciseUsedBytes);
                 usedTypes = domain.getTypeCount();
-                addBackendStats(domain, itemStats, fluidStats);
+                addBackendStats(
+                    domain,
+                    itemStats,
+                    fluidStats,
+                    controller.getTier()
+                        .name());
             }
         }
 
@@ -143,6 +169,23 @@ public final class StorageHostSnapshot {
             cells.add(cell);
         }
 
+        IGridNode node = controller.getActionableNode();
+        if (node != null && node.isActive() && node.getGrid() != null) {
+            IEnergyGrid energyGrid = node.getGrid()
+                .getCache(IEnergyGrid.class);
+            if (energyGrid != null) {
+                double structureEnergyCapacity = structureEnergyCapacity(controller);
+                if (structureEnergyCapacity > 0D) {
+                    energyCapacity = structureEnergyCapacity;
+                    energyStored = Math.min(energyCapacity, Math.max(0D, energyGrid.getStoredPower()));
+                } else {
+                    energyStored = energyGrid.getStoredPower();
+                    energyCapacity = energyGrid.getMaxStoredPower();
+                }
+                energyAvailable = true;
+            }
+        }
+
         List<TypeStat> stats = new ArrayList<TypeStat>();
         addStat(stats, itemStats);
         addStat(stats, fluidStats);
@@ -162,10 +205,68 @@ public final class StorageHostSnapshot {
             totalBytes,
             usedTypes,
             totalTypes,
+            energyStored,
+            energyCapacity,
+            energyAvailable,
             controller.canTakeInfiniteStorageComponent(),
             stats,
             cells,
             hugeStacks(domainBackend));
+    }
+
+    private static double structureEnergyCapacity(TileECOController controller) {
+        if (controller == null || controller.getWorldObj() == null || !controller.isFormed()) {
+            return 0D;
+        }
+        ForgeDirection front = controller.getFacing()
+            .getDirection();
+        ForgeDirection left = rotateClockwise(front);
+        ForgeDirection expandSide = controller.isMirrored() ? left.getOpposite() : left;
+        ForgeDirection back = front.getOpposite();
+        double capacity = 0D;
+        for (ForgeDirection vertical : new ForgeDirection[] { ForgeDirection.UP, ForgeDirection.DOWN }) {
+            int x = controller.xCoord + back.offsetX + vertical.offsetX + expandSide.offsetX;
+            int y = controller.yCoord + back.offsetY + vertical.offsetY + expandSide.offsetY;
+            int z = controller.zCoord + back.offsetZ + vertical.offsetZ + expandSide.offsetZ;
+            while (true) {
+                Block block = controller.getWorldObj()
+                    .getBlock(x, y, z);
+                long cellCapacity = energyCellCapacity(block);
+                if (cellCapacity <= 0L) {
+                    break;
+                }
+                capacity += cellCapacity;
+                x += expandSide.offsetX;
+                y += expandSide.offsetY;
+                z += expandSide.offsetZ;
+            }
+        }
+        return capacity;
+    }
+
+    private static long energyCellCapacity(Block block) {
+        if (block == NEBlocks.energyCellL9)
+            return ECOEnergyProfile.powerStorageSize(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L9);
+        if (block == NEBlocks.energyCellL6)
+            return ECOEnergyProfile.powerStorageSize(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L6);
+        if (block == NEBlocks.energyCellL4)
+            return ECOEnergyProfile.powerStorageSize(cn.dancingsnow.neoecoae.tile.ECOControllerTier.L4);
+        return 0L;
+    }
+
+    private static ForgeDirection rotateClockwise(ForgeDirection direction) {
+        switch (direction) {
+            case NORTH:
+                return ForgeDirection.EAST;
+            case EAST:
+                return ForgeDirection.SOUTH;
+            case SOUTH:
+                return ForgeDirection.WEST;
+            case WEST:
+                return ForgeDirection.NORTH;
+            default:
+                return direction;
+        }
     }
 
     public void write(ByteBuf buf) {
@@ -182,6 +283,9 @@ public final class StorageHostSnapshot {
         buf.writeLong(this.totalBytes);
         buf.writeLong(this.usedTypes);
         buf.writeLong(this.totalTypes);
+        buf.writeDouble(this.energyStored);
+        buf.writeDouble(this.energyCapacity);
+        buf.writeBoolean(this.energyAvailable);
         buf.writeBoolean(this.canTakeInfiniteComponent);
         int typeCount = Math.min(this.typeStats.size(), MAX_TYPE_STATS);
         buf.writeInt(typeCount);
@@ -217,6 +321,9 @@ public final class StorageHostSnapshot {
         long totalBytes = safeLong(buf.readLong());
         long usedTypes = safeLong(buf.readLong());
         long totalTypes = safeLong(buf.readLong());
+        double energyStored = buf.readDouble();
+        double energyCapacity = buf.readDouble();
+        boolean energyAvailable = buf.readBoolean();
         boolean canTakeInfiniteComponent = buf.readBoolean();
         int typeCount = Math.min(Math.max(0, buf.readInt()), MAX_TYPE_STATS);
         List<TypeStat> typeStats = new ArrayList<TypeStat>(typeCount);
@@ -247,6 +354,9 @@ public final class StorageHostSnapshot {
             totalBytes,
             usedTypes,
             totalTypes,
+            energyStored,
+            energyCapacity,
+            energyAvailable,
             canTakeInfiniteComponent,
             typeStats,
             matrixCells,
@@ -315,6 +425,10 @@ public final class StorageHostSnapshot {
         return Math.max(0L, value);
     }
 
+    private static double safeEnergy(double value) {
+        return Double.isNaN(value) || Double.isInfinite(value) ? 0D : Math.max(0D, value);
+    }
+
     private static long saturatedLong(BigInteger value) {
         if (value == null || value.signum() <= 0) {
             return 0L;
@@ -327,11 +441,11 @@ public final class StorageHostSnapshot {
         if (matrix == null || !matrix.hasCell || matrix.nonPortable || matrix.backend == null) {
             return;
         }
-        addBackendStats(matrix.backend, itemStats, fluidStats);
+        addBackendStats(matrix.backend, itemStats, fluidStats, matrix.tier);
     }
 
     private static void addBackendStats(ECOStorageBackend backend, TypeAccumulator itemStats,
-        TypeAccumulator fluidStats) {
+        TypeAccumulator fluidStats, String tier) {
         for (java.util.Map.Entry<ECOStorageKey, cn.dancingsnow.neoecoae.storage.core.ECOAmount> entry : backend
             .getEntriesView()
             .entrySet()) {
@@ -342,10 +456,42 @@ public final class StorageHostSnapshot {
                 fluidStats);
             stats.usedBytes = saturatedAdd(
                 stats.usedBytes,
-                entry.getValue()
-                    .toLongSaturated());
+                saturatedLong(displayBytes(entry.getKey(), entry.getValue(), tier)));
             stats.usedTypes = saturatedAdd(stats.usedTypes, 1L);
         }
+    }
+
+    /** Matches GTNH/AE2 cell accounting while the backend continues storing real item/fluid amounts. */
+    private static BigInteger displayBytes(ECOStorageBackend backend, String tier) {
+        BigInteger total = BigInteger.ZERO;
+        for (java.util.Map.Entry<ECOStorageKey, ECOAmount> entry : backend.getEntriesView()
+            .entrySet()) {
+            total = total.add(displayBytes(entry.getKey(), entry.getValue(), tier));
+        }
+        return total;
+    }
+
+    private static BigInteger displayBytes(ECOStorageKey key, ECOAmount amount, String tier) {
+        if (key == null || amount == null || amount.isZero()) {
+            return BigInteger.ZERO;
+        }
+        BigInteger amountPerByte = BigInteger.valueOf("fluid".equals(key.getChannel()) ? 8000L : 8L);
+        BigInteger[] division = amount.toBigInteger()
+            .divideAndRemainder(amountPerByte);
+        BigInteger contentBytes = division[0].add(division[1].signum() == 0 ? BigInteger.ZERO : BigInteger.ONE);
+        return contentBytes.add(BigInteger.valueOf(typeBytes(tier)));
+    }
+
+    private static long typeBytes(String tier) {
+        int tierIndex;
+        if ("L9".equalsIgnoreCase(tier) || "256M".equalsIgnoreCase(tier)) {
+            tierIndex = 3;
+        } else if ("L6".equalsIgnoreCase(tier) || "64M".equalsIgnoreCase(tier)) {
+            tierIndex = 2;
+        } else {
+            tierIndex = 1;
+        }
+        return 1L << (12 + tierIndex);
     }
 
     private static TypeAccumulator accumulatorFor(String typeId, TypeAccumulator itemStats,

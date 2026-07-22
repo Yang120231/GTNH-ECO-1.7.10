@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.client;
 
+import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.event.world.WorldEvent;
 
@@ -25,5 +26,10 @@ public final class ClientEventHandler {
         if (event.world != null && event.world.isRemote) {
             ECOFormationVisibility.clearClient();
         }
+    }
+
+    @SubscribeEvent
+    public void onRenderWorldLast(RenderWorldLastEvent event) {
+        ClientPatternHighlight.render(event);
     }
 }

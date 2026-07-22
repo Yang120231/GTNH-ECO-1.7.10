@@ -16,7 +16,7 @@ public final class ECOFastPathPatternInspector {
         }
         boolean craftable = safeCraftable(patternDetails);
         boolean substitutionAllowed = safeCanSubstitute(patternDetails);
-        if (!craftable) {
+        if (!isPatternTypeAllowed(craftable)) {
             throw new ECOFastPathPatternException("processing pattern");
         }
         if (substitutionAllowed) {
@@ -27,8 +27,8 @@ public final class ECOFastPathPatternInspector {
         if (inputs.length == 0) {
             throw new ECOFastPathPatternException("missing inputs");
         }
-        if (outputs.length != 1) {
-            throw new ECOFastPathPatternException("non-single output");
+        if (outputs.length == 0) {
+            throw new ECOFastPathPatternException("missing outputs");
         }
         if (inputs.length > ECOFastPathConfig.MAX_PATTERN_INPUTS) {
             throw new ECOFastPathPatternException("too many inputs");
@@ -104,5 +104,9 @@ public final class ECOFastPathPatternInspector {
             && !item.isItemStackDamageable()
             && (!input || !item.getItem()
                 .hasContainerItem(item));
+    }
+
+    static boolean isPatternTypeAllowed(boolean craftable) {
+        return craftable || ECOFastPathConfig.isProcessingPatternBatchEnabled();
     }
 }
