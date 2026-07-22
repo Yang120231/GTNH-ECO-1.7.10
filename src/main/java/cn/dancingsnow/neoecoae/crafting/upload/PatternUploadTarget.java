@@ -215,14 +215,14 @@ public final class PatternUploadTarget {
         String selectedName = this.getDisplayName(routeKey, details);
         if (selectedName != null && selectedName.indexOf('.') < 0) return selectedName;
         if (selectedIcon != null) {
-            String displayName = selectedIcon.getDisplayName();
-            if (displayName != null && !displayName.isEmpty()) return displayName;
+            String translationKey = selectedIcon.getUnlocalizedName();
+            if (translationKey != null && !translationKey.isEmpty()) return translationKey;
         }
         if (selectedName != null && !selectedName.isEmpty()) return selectedName;
         String name = this.getName();
         if (name.indexOf('.') < 0 || this.icon == null) return name;
-        String displayName = this.icon.getDisplayName();
-        return displayName == null || displayName.isEmpty() ? name : displayName;
+        String translationKey = this.icon.getUnlocalizedName();
+        return translationKey == null || translationKey.isEmpty() ? name : translationKey;
     }
 
     public ItemStack getIcon() {
@@ -1012,10 +1012,10 @@ public final class PatternUploadTarget {
     }
 
     private static String iconName(ItemStack icon, IMetaTileEntity machine) {
-        if (icon != null && icon.getDisplayName() != null
-            && !icon.getDisplayName()
+        if (icon != null && icon.getUnlocalizedName() != null
+            && !icon.getUnlocalizedName()
                 .isEmpty()) {
-            return icon.getDisplayName();
+            return icon.getUnlocalizedName();
         }
         if (machine == null) return null;
         try {

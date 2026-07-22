@@ -43,6 +43,9 @@ public final class PatternUploadButton extends GuiImgButton {
             && !autoTargetName.isEmpty()) {
             String displayName = autoTargetName;
             if (StatCollector.canTranslate(displayName)) displayName = StatCollector.translateToLocal(displayName);
+            else if (StatCollector.canTranslate(displayName + ".name")) {
+                displayName = StatCollector.translateToLocal(displayName + ".name");
+            }
             message += "\n" + StatCollector.translateToLocalFormatted(
                 "gui.neoecoae.pattern_upload.button.auto.tooltip.target",
                 displayName,

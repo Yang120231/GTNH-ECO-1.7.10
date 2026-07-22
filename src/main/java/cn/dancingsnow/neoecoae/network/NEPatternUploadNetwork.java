@@ -23,7 +23,6 @@ public final class NEPatternUploadNetwork {
 
     private static final SimpleNetworkWrapper CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel(NeoECOAE.MODID);
     private static boolean registered;
-    private static boolean clientRegistered;
     private static String clientRouteMapId = "";
     private static net.minecraft.item.ItemStack clientRouteCircuit;
 
@@ -33,15 +32,10 @@ public final class NEPatternUploadNetwork {
         if (registered) return;
         CHANNEL.registerMessage(PrepareHandler.class, PrepareMessage.class, 0, Side.SERVER);
         CHANNEL.registerMessage(OpenHandler.class, OpenMessage.class, 1, Side.SERVER);
-        CHANNEL.registerMessage(RouteContextHandler.class, RouteContextMessage.class, 4, Side.SERVER);
-        registered = true;
-    }
-
-    public static void registerClient() {
-        if (clientRegistered) return;
         CHANNEL.registerMessage(ClientPatternHighlightHandler.class, HighlightMessage.class, 2, Side.CLIENT);
         CHANNEL.registerMessage(ClientPatternUploadTooltipHandler.class, AutoTargetMessage.class, 3, Side.CLIENT);
-        clientRegistered = true;
+        CHANNEL.registerMessage(RouteContextHandler.class, RouteContextMessage.class, 4, Side.SERVER);
+        registered = true;
     }
 
     public static void requestPrepare() {

@@ -15,7 +15,6 @@ import cn.dancingsnow.neoecoae.client.render.DriveModels;
 import cn.dancingsnow.neoecoae.client.render.DriveRenderHandler;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockModels;
 import cn.dancingsnow.neoecoae.client.render.ModernBlockRenderHandler;
-import cn.dancingsnow.neoecoae.network.NEPatternUploadNetwork;
 import cpw.mods.fml.client.registry.RenderingRegistry;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -25,7 +24,6 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
-        NEPatternUploadNetwork.registerClient();
         MinecraftForge.EVENT_BUS.register(ClientEventHandler.INSTANCE);
     }
 
