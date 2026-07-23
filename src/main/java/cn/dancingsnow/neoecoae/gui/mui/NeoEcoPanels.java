@@ -1095,15 +1095,15 @@ final class NeoEcoPanels {
                 () -> index < state.get().targets.size() ? targetKindDisplay(state.get().targets.get(index)) : "",
                 32,
                 13,
-                108).height(8)
-                    .scale(0.72F)
+                120).height(8)
+                    .scale(0.62F)
                     .color(0xFF514A5D));
         row.child(
             dynamic(
                 () -> index < state.get().targets.size() ? targetCapacity(state.get().targets.get(index)) : "",
-                139,
+                151,
                 13,
-                82).height(8)
+                70).height(8)
                     .scale(0.72F)
                     .color(
                         () -> index < state.get().targets.size()
@@ -1182,7 +1182,9 @@ final class NeoEcoPanels {
     private static String targetKindDisplay(UploadTargetSnapshot target) {
         String kind = targetKindName(target.kind);
         String circuit = target.circuit == null ? "" : " / " + circuitDisplayName(target.circuit);
-        return kind + circuit;
+        String programmingCover = target.programmingCover ? " / " + tr("gui.neoecoae.pattern_upload.programming_cover")
+            : "";
+        return kind + circuit + programmingCover;
     }
 
     private static String circuitDisplayName(ItemStack circuit) {
@@ -2248,7 +2250,8 @@ final class NeoEcoPanels {
                         pattern != null && target.firstEmptySlot(pattern) == -1,
                         pattern != null && target.hasPattern(pattern),
                         pattern != null && target
-                            .isExactMatch(session.isProcessing(), session.getPatternDetails(), session.getRouteKey())));
+                            .isExactMatch(session.isProcessing(), session.getPatternDetails(), session.getRouteKey()),
+                        target.hasProgrammingCover(session.getRouteKey(), session.getPatternDetails())));
             }
             return new UploadSnapshot(
                 session.getPattern(),
@@ -2281,6 +2284,7 @@ final class NeoEcoPanels {
                 buffer.writeBoolean(target.maxed);
                 buffer.writeBoolean(target.hasPattern);
                 buffer.writeBoolean(target.exact);
+                buffer.writeBoolean(target.programmingCover);
             }
         }
 
@@ -2307,6 +2311,7 @@ final class NeoEcoPanels {
                         buffer.readUnsignedShort(),
                         buffer.readBoolean(),
                         buffer.readBoolean(),
+                        buffer.readBoolean(),
                         buffer.readBoolean()));
             }
             return new UploadSnapshot(pattern, output, processing, uploaded, targets);
@@ -2329,9 +2334,11 @@ final class NeoEcoPanels {
         private final boolean maxed;
         private final boolean hasPattern;
         private final boolean exact;
+        private final boolean programmingCover;
 
         private UploadTargetSnapshot(String id, String name, ItemStack icon, ItemStack circuit, int kind, int dimension,
-            int x, int y, int z, int emptySlots, int capacity, boolean maxed, boolean hasPattern, boolean exact) {
+            int x, int y, int z, int emptySlots, int capacity, boolean maxed, boolean hasPattern, boolean exact,
+            boolean programmingCover) {
             this.id = id;
             this.name = name;
             this.icon = icon;
@@ -2346,6 +2353,7 @@ final class NeoEcoPanels {
             this.maxed = maxed;
             this.hasPattern = hasPattern;
             this.exact = exact;
+            this.programmingCover = programmingCover;
         }
     }
 

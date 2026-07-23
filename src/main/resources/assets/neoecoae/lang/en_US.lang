@@ -541,3 +541,4 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.description=Upload to the best t
 gui.neoecoae.pattern_upload.button.auto.tooltip.target=Target machine: %s (%s)
 gui.neoecoae.pattern_upload.button.auto.tooltip.circuit=Virtual circuit: %s
 gui.neoecoae.pattern_upload.circuit_short=Circuit
+gui.neoecoae.pattern_upload.programming_cover=Programming Cover

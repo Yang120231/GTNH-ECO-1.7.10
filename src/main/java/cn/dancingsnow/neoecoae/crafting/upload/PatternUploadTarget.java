@@ -57,6 +57,7 @@ public final class PatternUploadTarget {
         private final ItemStack icon;
         private final String name;
         private final boolean actualMachine;
+        private final boolean programmingCover;
 
         private Route(RecipeMap<?> recipeMap, ItemStack circuit, ForgeDirection side) {
             this(recipeMap, circuit, side, null, null);
@@ -68,12 +69,18 @@ public final class PatternUploadTarget {
 
         private Route(RecipeMap<?> recipeMap, ItemStack circuit, ForgeDirection side, ItemStack icon, String name,
             boolean actualMachine) {
+            this(recipeMap, circuit, side, icon, name, actualMachine, false);
+        }
+
+        private Route(RecipeMap<?> recipeMap, ItemStack circuit, ForgeDirection side, ItemStack icon, String name,
+            boolean actualMachine, boolean programmingCover) {
             this.recipeMap = recipeMap;
             this.circuit = circuit == null ? null : circuit.copy();
             this.side = side == null ? ForgeDirection.UNKNOWN : side;
             this.icon = icon == null ? null : icon.copy();
             this.name = name;
             this.actualMachine = actualMachine;
+            this.programmingCover = programmingCover;
         }
     }
 
@@ -275,6 +282,11 @@ public final class PatternUploadTarget {
         return this.effectiveRecipeMap(route, routeKey);
     }
 
+    public boolean hasProgrammingCover(PatternRouteKey routeKey, ICraftingPatternDetails details) {
+        Route route = this.selectRoute(routeKey, details);
+        return route != null && route.programmingCover;
+    }
+
     public int getSlotCount() {
         return this.slotCount;
     }
@@ -388,6 +400,7 @@ public final class PatternUploadTarget {
         ItemStack requiredCircuit = patternCircuit == null || !routeKeyHasCircuit(routeKey) ? patternCircuit
             : routeKey.getCircuit();
         if (requiredCircuit == null && routeKey != null) requiredCircuit = routeKey.getCircuit();
+        if (this.acceptsProgrammableCircuit(details, routeKey)) return baseRank * 10;
         if (requiredCircuit == null) {
             return baseRank * 10 + (this.hasKnownCircuit() && processing ? 1 : 0);
         }
@@ -425,7 +438,7 @@ public final class PatternUploadTarget {
             if (map != null && this.routeMatchesRecipe(route, map, details, routeKey)
                 && PatternCircuitCompat.same(route.circuit, requiredCircuit)) return true;
         }
-        return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details);
+        return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details, routeKey);
     }
 
     public boolean isExactMatch(boolean processing, ICraftingPatternDetails details) {
@@ -450,7 +463,7 @@ public final class PatternUploadTarget {
                 if (map != null && routeKey.matches(map.unlocalizedName)
                     && this.routeMatchesRecipeForExact(route, map, details, routeKey)) return true;
             }
-            return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details);
+            return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details, routeKey);
         }
         for (Route route : this.routes) {
             RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
@@ -458,7 +471,7 @@ public final class PatternUploadTarget {
             if (this.routeMatchesRecipe(route, map, details, routeKey)
                 && PatternCircuitCompat.same(route.circuit, requiredCircuit)) return true;
         }
-        return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details);
+        return this.kind == Kind.ECO_PATTERN_BUS || this.acceptsProgrammableCircuit(details, routeKey);
     }
 
     public boolean matchesRouteKey(PatternRouteKey routeKey, ICraftingPatternDetails details) {
@@ -575,8 +588,11 @@ public final class PatternUploadTarget {
         return false;
     }
 
-    private boolean acceptsProgrammableCircuit(ICraftingPatternDetails details) {
-        return this.kind == Kind.PROGRAMMABLE_HATCH && hasProgrammableCircuit(details);
+    private boolean acceptsProgrammableCircuit(ICraftingPatternDetails details, PatternRouteKey routeKey) {
+        if (!hasProgrammableCircuit(details)) return false;
+        if (this.kind == Kind.PROGRAMMABLE_HATCH) return true;
+        Route route = this.selectRoute(routeKey, details);
+        return route != null && route.programmingCover;
     }
 
     private static boolean hasProgrammableCircuit(ICraftingPatternDetails details) {
@@ -795,7 +811,15 @@ public final class PatternUploadTarget {
                         // hatch/bus while the structure is assembled. machineIcon therefore keeps
                         // the target display tied to the host, not to the hatch's block item.
                         ItemStack icon = machineIcon(machine);
-                        routes.add(new Route(map, circuit, direction, icon, iconName(icon, machine), true));
+                        routes.add(
+                            new Route(
+                                map,
+                                circuit,
+                                direction,
+                                icon,
+                                iconName(icon, machine),
+                                true,
+                                hasProgrammingCover((IGregTechTileEntity) adjacent)));
                     }
                 }
             }
@@ -804,6 +828,22 @@ public final class PatternUploadTarget {
         // to an output bus has no input recipe declaration, and the icon fallback made it appear
         // as a valid no-circuit target for an unrelated machine.
         return routes;
+    }
+
+    private static boolean hasProgrammingCover(IGregTechTileEntity tile) {
+        if (tile == null) return false;
+        try {
+            for (ForgeDirection side : ForgeDirection.VALID_DIRECTIONS) {
+                Object cover = tile.getCoverAtSide(side);
+                Class<?> type = cover == null ? null : cover.getClass();
+                for (; type != null; type = type.getSuperclass()) {
+                    if ("reobf.proghatches.gt.cover.ProgrammingCover".equals(type.getName())) return true;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // Covers may change while the network target list is being scanned.
+        }
+        return false;
     }
 
     /**
@@ -941,9 +981,7 @@ public final class PatternUploadTarget {
         Class<?> type = viewable == null ? null : viewable.getClass();
         while (type != null) {
             String name = type.getName();
-            if ("reobf.proghatches.gt.metatileentity.PatternDualInputHatch".equals(name)
-                || "reobf.proghatches.gt.metatileentity.BufferedDualInputHatch".equals(name)
-                || "reobf.proghatches.gt.metatileentity.DualInputHatch".equals(name)) return true;
+            if ("reobf.proghatches.gt.metatileentity.PatternDualInputHatch".equals(name)) return true;
             type = type.getSuperclass();
         }
         return false;

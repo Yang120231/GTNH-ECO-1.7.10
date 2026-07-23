@@ -544,3 +544,4 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.description=自动上传到最�
 gui.neoecoae.pattern_upload.button.auto.tooltip.target=目标机器：%s（%s）
 gui.neoecoae.pattern_upload.button.auto.tooltip.circuit=虚拟电路：%s
 gui.neoecoae.pattern_upload.circuit_short=编程电路
+gui.neoecoae.pattern_upload.programming_cover=可编程覆盖板

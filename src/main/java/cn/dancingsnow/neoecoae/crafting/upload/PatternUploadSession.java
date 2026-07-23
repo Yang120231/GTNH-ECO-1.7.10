@@ -123,13 +123,13 @@ public final class PatternUploadSession {
     }
 
     public ItemStack getAutoUploadCircuit() {
+        ItemStack patternCircuit = PatternUploadTarget.patternCircuit(this.patternDetails());
+        if (patternCircuit != null) return patternCircuit;
         PatternUploadTarget target = this.getAutoUploadTarget();
         if (target != null) {
             ItemStack circuit = target.getCircuit(this.routeKey, this.patternDetails());
             if (circuit != null) return circuit;
         }
-        ItemStack patternCircuit = PatternUploadTarget.patternCircuit(this.patternDetails());
-        if (patternCircuit != null) return patternCircuit;
         return this.routeKey == null ? null : this.routeKey.getCircuit();
     }
 
@@ -516,6 +516,9 @@ public final class PatternUploadSession {
         if (compatibility != 0) return compatibility;
         int availability = Integer.compare(left.availabilityRank, right.availabilityRank);
         if (availability != 0) return availability;
+        boolean leftProgrammable = left.target.getKind() == PatternUploadTarget.Kind.PROGRAMMABLE_HATCH;
+        boolean rightProgrammable = right.target.getKind() == PatternUploadTarget.Kind.PROGRAMMABLE_HATCH;
+        if (leftProgrammable != rightProgrammable) return leftProgrammable ? -1 : 1;
         int actualMachine = Boolean.compare(right.actualMachineMatch, left.actualMachineMatch);
         if (actualMachine != 0) return actualMachine;
         int kind = Integer.compare(priority(left.target), priority(right.target));
@@ -599,7 +602,7 @@ public final class PatternUploadSession {
             case ECO_PATTERN_BUS:
                 return 1;
             case PROGRAMMABLE_HATCH:
-                return 1;
+                return -1;
             case AE2_INTERFACE:
             case AE2_DUAL_INTERFACE:
                 return 2;
