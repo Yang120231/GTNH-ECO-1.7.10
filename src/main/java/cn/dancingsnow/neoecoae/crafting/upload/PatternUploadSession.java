@@ -493,8 +493,10 @@ public final class PatternUploadSession {
     private static void addRecipeCompatibleTarget(List<PatternUploadTarget> targets,
         IdentityHashMap<PatternUploadTarget, Integer> compatibilityRanks, PatternUploadTarget target,
         boolean processing, ICraftingPatternDetails details, PatternRouteKey routeKey) {
+        // Visibility only depends on the recipe type. Circuit compatibility remains part of
+        // the sort rank, while upload and auto-upload keep using the exact-match checks.
+        if (!target.isRecipeCompatible(processing, details, routeKey)) return;
         int recipeTypeRank = details == null ? 0 : target.recipeTypeRank(processing, details, routeKey);
-        if (details != null && recipeTypeRank != 0) return;
         targets.add(target);
         compatibilityRanks
             .put(target, target.compatibilityRankWithRecipeType(processing, details, routeKey, recipeTypeRank));
