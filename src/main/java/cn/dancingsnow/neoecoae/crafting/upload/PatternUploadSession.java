@@ -23,6 +23,7 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.util.IInterfaceViewable;
 import appeng.container.implementations.ContainerPatternTerm;
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
@@ -86,6 +87,15 @@ public final class PatternUploadSession {
 
     public boolean matchesPattern(ItemStack candidate) {
         return candidate == null ? this.pattern == null : matches(candidate, this.pattern);
+    }
+
+    public boolean matchesRouteKey(PatternRouteKey candidate) {
+        if (this.routeKey == null || this.routeKey.isEmpty()) return candidate == null || candidate.isEmpty();
+        if (candidate == null || !this.routeKey.matches(candidate.getRecipeMapId())) return false;
+        ItemStack expectedCircuit = this.routeKey.getCircuit();
+        ItemStack actualCircuit = candidate.getCircuit();
+        if (expectedCircuit == null || actualCircuit == null) return expectedCircuit == actualCircuit;
+        return PatternCircuitCompat.same(expectedCircuit, actualCircuit);
     }
 
     public ItemStack getPattern() {
@@ -167,10 +177,22 @@ public final class PatternUploadSession {
                 && target.isExactMatch(this.processing, this.patternDetails(), this.routeKey)
                 && target.isWritable(this.processing, this.patternDetails(), this.pattern, this.routeKey)) {
                 int slot = target.firstEmptySlot(this.pattern);
-                if (slot >= 0 && target.insertAt(slot, this.pattern)) {
+                if (slot >= 0) {
+                    ItemStack original = current.copy();
+                    // Clear the source first. This prevents a failed source mutation from leaving
+                    // two copies of a pattern in the network. The source is restored if the
+                    // destination disappears or rejects the write.
                     this.sourceInventory.setInventorySlotContents(this.sourceSlot, null);
                     if (this.sourceInventory.getStackInSlot(this.sourceSlot) != null) {
-                        target.removeExact(slot, this.pattern);
+                        if (!this.restoreSource(original)) {
+                            NeoECOAE.LOG.error("Failed to restore a pattern after source clearing was rejected");
+                        }
+                        return false;
+                    }
+                    if (!target.insertAt(slot, this.pattern)) {
+                        if (!this.restoreSource(original)) {
+                            NeoECOAE.LOG.error("Failed to restore a pattern after upload target rejection");
+                        }
                         return false;
                     }
                     this.uploadedTarget = target;
@@ -242,16 +264,27 @@ public final class PatternUploadSession {
         if (this.isExpired() || !this.isUploaded()) return false;
         ItemStack current = this.sourceInventory == null ? null : this.sourceInventory.getStackInSlot(this.sourceSlot);
         if (current != null) return false;
-        if (!this.uploadedTarget.removeExact(this.uploadedSlot, this.uploadedPattern)) return false;
         this.sourceInventory.setInventorySlotContents(this.sourceSlot, this.uploadedPattern.copy());
         if (!this.matches(this.sourceInventory.getStackInSlot(this.sourceSlot), this.uploadedPattern)) {
-            this.uploadedTarget.insertAt(this.uploadedSlot, this.uploadedPattern);
+            return false;
+        }
+        if (!this.uploadedTarget.removeExact(this.uploadedSlot, this.uploadedPattern)) {
+            this.sourceInventory.setInventorySlotContents(this.sourceSlot, null);
+            if (this.sourceInventory.getStackInSlot(this.sourceSlot) != null) {
+                NeoECOAE.LOG.error("Failed to roll back source pattern after undo target rejection");
+            }
             return false;
         }
         this.uploadedTarget = null;
         this.uploadedPattern = null;
         this.uploadedSlot = -1;
         return true;
+    }
+
+    private boolean restoreSource(ItemStack pattern) {
+        if (this.sourceInventory == null || pattern == null) return false;
+        this.sourceInventory.setInventorySlotContents(this.sourceSlot, pattern.copy());
+        return matches(this.sourceInventory.getStackInSlot(this.sourceSlot), pattern);
     }
 
     public static PatternUploadSession create(EntityPlayerMP player, IGrid grid, IGridNode sourceNode,

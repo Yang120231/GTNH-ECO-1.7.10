@@ -31,6 +31,11 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
     private String neoecoae$lastAutoTarget = "";
     private String neoecoae$routeMapId = "";
     private ItemStack neoecoae$routeCircuit;
+    private PatternUploadSession neoecoae$tooltipSession;
+    private long neoecoae$tooltipSessionCreatedAt;
+    private boolean neoecoae$prepareAfterEncode;
+
+    private static final long NEOECOAE_TOOLTIP_CACHE_MILLIS = 1_000L;
 
     @Shadow
     public abstract IPatternTerminal getPatternTerminal();
@@ -41,7 +46,9 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
     @Inject(method = "encode", at = @At("RETURN"))
     private void neoecoae$afterEncode(CallbackInfo ci) {
         this.neoecoae$lastAutoTarget = null;
+        this.neoecoae$tooltipSession = null;
         this.neoecoae$sendAutoTargetTooltip();
+        if (!this.neoecoae$prepareAfterEncode) this.neoecoae$clearRouteContext();
     }
 
     @Inject(method = "detectAndSendChanges", at = @At("HEAD"))
@@ -58,18 +65,27 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
         ItemStack pattern = patternInventory == null ? null : patternInventory.getStackInSlot(1);
         IGridNode node = this.getPatternTerminal()
             .getActionableNode();
-        PatternUploadSession session = pattern == null || node == null || !node.isActive() || node.getGrid() == null
-            ? null
-            : PatternUploadSession.create(
-                player,
-                node.getGrid(),
-                node,
-                pattern,
-                patternInventory,
-                1,
-                !this.getPatternTerminal()
-                    .isCraftingRecipe(),
-                this.neoecoae$routeKey());
+        PatternRouteKey routeKey = this.neoecoae$routeKey();
+        PatternUploadSession session = this.neoecoae$tooltipSession;
+        long now = System.currentTimeMillis();
+        if (session == null || now - this.neoecoae$tooltipSessionCreatedAt > NEOECOAE_TOOLTIP_CACHE_MILLIS
+            || session.isExpired()
+            || !session.matchesPattern(pattern)
+            || !session.matchesRouteKey(routeKey)) {
+            session = pattern == null || node == null || !node.isActive() || node.getGrid() == null ? null
+                : PatternUploadSession.create(
+                    player,
+                    node.getGrid(),
+                    node,
+                    pattern,
+                    patternInventory,
+                    1,
+                    !this.getPatternTerminal()
+                        .isCraftingRecipe(),
+                    routeKey);
+            this.neoecoae$tooltipSession = session;
+            this.neoecoae$tooltipSessionCreatedAt = now;
+        }
         PatternUploadTarget target = session == null ? null : session.getAutoUploadTarget();
         ItemStack autoCircuit = session == null ? null : session.getAutoUploadCircuit();
         ItemStack targetCircuit = session == null || target == null ? null
@@ -96,17 +112,23 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
         IInventory patternInventory = this.getPatternTerminal()
             .getInventoryByName(StorageName.CRAFTING_PATTERN.getName());
         ItemStack before = patternInventory == null ? null : patternInventory.getStackInSlot(1);
-        this.neoecoae$invokeEncode();
-        ItemStack pattern = patternInventory == null ? null : patternInventory.getStackInSlot(1);
-        IGridNode node = this.getPatternTerminal()
-            .getActionableNode();
-        boolean changed = before == null ? pattern != null
-            : pattern != null && (!before.isItemEqual(pattern) || !ItemStack.areItemStackTagsEqual(before, pattern)
-                || before.stackSize != pattern.stackSize);
-        // Right-click is an encode-and-prepare action. A failed encode must leave the stock AE2
-        // error state untouched and must not open an upload page for an older pattern.
-        if (changed && node != null && node.isActive() && node.getGrid() != null) {
-            openUpload(player, patternInventory, pattern, node, false, true);
+        this.neoecoae$prepareAfterEncode = true;
+        try {
+            this.neoecoae$invokeEncode();
+            ItemStack pattern = patternInventory == null ? null : patternInventory.getStackInSlot(1);
+            IGridNode node = this.getPatternTerminal()
+                .getActionableNode();
+            boolean changed = before == null ? pattern != null
+                : pattern != null && (!before.isItemEqual(pattern) || !ItemStack.areItemStackTagsEqual(before, pattern)
+                    || before.stackSize != pattern.stackSize);
+            // Right-click is an encode-and-prepare action. A failed encode must leave the stock AE2
+            // error state untouched and must not open an upload page for an older pattern.
+            if (changed && node != null && node.isActive() && node.getGrid() != null) {
+                openUpload(player, patternInventory, pattern, node, false, true);
+            }
+        } finally {
+            this.neoecoae$prepareAfterEncode = false;
+            this.neoecoae$clearRouteContext();
         }
     }
 
@@ -136,10 +158,16 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
 
     private void openUpload(EntityPlayerMP player, IInventory patternInventory, ItemStack pattern, IGridNode node,
         boolean autoUpload, boolean forceNew) {
-        if (patternInventory == null || node == null || !node.isActive() || node.getGrid() == null) return;
+        if (patternInventory == null || node == null || !node.isActive() || node.getGrid() == null) {
+            this.neoecoae$clearRouteContext();
+            return;
+        }
         PatternUploadSession session = forceNew ? null
             : PatternUploadSessions.findForSource(player, patternInventory, 1);
-        if (session != null && (session.isUploaded() || !session.matchesPattern(pattern))) session = null;
+        PatternRouteKey routeKey = this.neoecoae$routeKey();
+        if (session != null
+            && (session.isUploaded() || !session.matchesPattern(pattern) || !session.matchesRouteKey(routeKey)))
+            session = null;
         if (session == null) {
             session = PatternUploadSessions.create(
                 player,
@@ -150,15 +178,23 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
                 1,
                 !this.getPatternTerminal()
                     .isCraftingRecipe(),
-                this.neoecoae$routeKey());
+                routeKey);
         }
         if (autoUpload && !session.isUploaded()) {
             if (session.autoUpload()) {
                 player.addChatMessage(
                     new net.minecraft.util.ChatComponentTranslation("gui.neoecoae.pattern_upload.success"));
+                this.neoecoae$clearRouteContext();
                 return;
             }
         }
         NeoEcoUiFactory.openUpload(player, session.getId());
+        this.neoecoae$clearRouteContext();
+    }
+
+    private void neoecoae$clearRouteContext() {
+        this.neoecoae$routeMapId = "";
+        this.neoecoae$routeCircuit = null;
+        this.neoecoae$tooltipSession = null;
     }
 }

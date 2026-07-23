@@ -4,7 +4,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
@@ -22,6 +24,7 @@ import appeng.api.storage.data.IAEStack;
 import appeng.api.util.IInterfaceViewable;
 import appeng.helpers.IInterfaceHost;
 import appeng.me.helpers.IGridProxyable;
+import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.tile.TileCraftingPatternBus;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 import cpw.mods.fml.common.registry.GameRegistry;
@@ -39,6 +42,8 @@ import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
 
 /** A server-owned, short-lived upload destination. */
 public final class PatternUploadTarget {
+
+    private static final Set<String> LOGGED_COMPATIBILITY_FAILURES = Collections.synchronizedSet(new HashSet<String>());
 
     public enum Kind {
         AE2_INTERFACE,
@@ -726,7 +731,16 @@ public final class PatternUploadTarget {
             return false;
         }
         this.inventory.setInventorySlotContents(slot, pattern.copy());
-        return true;
+        ItemStack inserted = this.inventory.getStackInSlot(slot);
+        if (inserted != null && inserted.isItemEqual(pattern)
+            && ItemStack.areItemStackTagsEqual(inserted, pattern)
+            && inserted.stackSize == pattern.stackSize) {
+            return true;
+        }
+        // Some third-party inventories can reject setInventorySlotContents without throwing.
+        // Clear a partial write so the caller can safely restore the source pattern.
+        this.inventory.setInventorySlotContents(slot, null);
+        return false;
     }
 
     public boolean removeExact(ItemStack pattern) {
@@ -841,7 +855,7 @@ public final class PatternUploadTarget {
                 }
             }
         } catch (RuntimeException ignored) {
-            // Covers may change while the network target list is being scanned.
+            logCompatibilityFailure("programming cover inspection", ignored);
         }
         return false;
     }
@@ -863,7 +877,7 @@ public final class PatternUploadTarget {
                 routes.add(new Route(map, circuit, ForgeDirection.UNKNOWN, icon, name, true));
             }
         } catch (RuntimeException ignored) {
-            // GT may rebuild the weak ProcessingLogic set while a grid scan is in progress.
+            logCompatibilityFailure("GT processing logic inspection", ignored);
         }
     }
 
@@ -915,7 +929,7 @@ public final class PatternUploadTarget {
                         true));
             }
         } catch (RuntimeException ignored) {
-            // A multiblock can rebuild its hatch list while an AE grid scan is in progress.
+            logCompatibilityFailure("GT multiblock route inspection", ignored);
         }
     }
 
@@ -927,6 +941,7 @@ public final class PatternUploadTarget {
             field.setAccessible(true);
             return field.get(instance);
         } catch (ReflectiveOperationException | RuntimeException ignored) {
+            logCompatibilityFailure("field lookup: " + name, ignored);
             return null;
         }
     }
@@ -950,6 +965,7 @@ public final class PatternUploadTarget {
             method.setAccessible(true);
             return method.invoke(instance);
         } catch (ReflectiveOperationException | RuntimeException ignored) {
+            logCompatibilityFailure("method lookup: " + name, ignored);
             return null;
         }
     }
@@ -1021,9 +1037,19 @@ public final class PatternUploadTarget {
             if (machine instanceof MTEHatchInputBus) return ((MTEHatchInputBus) machine).mRecipeMap;
             if (machine instanceof RecipeMapWorkable) return ((RecipeMapWorkable) machine).getRecipeMap();
         } catch (RuntimeException ignored) {
-            // A GT machine may be rebuilding its recipe map while the AE grid is refreshing.
+            logCompatibilityFailure("GT recipe map read", ignored);
         }
         return null;
+    }
+
+    private static void logCompatibilityFailure(String operation, Throwable failure) {
+        String key = operation + "|"
+            + failure.getClass()
+                .getName();
+        if (LOGGED_COMPATIBILITY_FAILURES.add(key)) {
+            NeoECOAE.LOG
+                .debug("Pattern upload compatibility probe failed for " + operation + ": " + failure.getMessage());
+        }
     }
 
     private static boolean isRecipeMapRoute(IMetaTileEntity machine) {
