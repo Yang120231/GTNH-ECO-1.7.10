@@ -40,6 +40,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     private static final String TAG_PATTERN_COUNT = "PatternCount";
 
     private final ItemStack[] patterns = new ItemStack[PATTERN_SLOTS];
+    private final ItemStack[] patternDisplayStacks = new ItemStack[PATTERN_SLOTS];
+    private final boolean[] patternDisplayResolved = new boolean[PATTERN_SLOTS];
     private int cachedPatternCount;
     private ScheduledReason scheduledReason = ScheduledReason.UNDEFINED;
 
@@ -138,7 +140,15 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
      * Returns the first product represented by the pattern in a slot for GUI rendering.
      */
     public ItemStack getPatternDisplayStack(int slot) {
-        return this.getPatternDisplayStack(this.getStackInSlot(slot));
+        if (!this.isValidSlot(slot) || this.patterns[slot] == null) {
+            return null;
+        }
+        if (!this.patternDisplayResolved[slot]) {
+            this.patternDisplayStacks[slot] = this.getPatternDisplayStack(this.patterns[slot]);
+            this.patternDisplayResolved[slot] = true;
+        }
+        ItemStack displayStack = this.patternDisplayStacks[slot];
+        return displayStack == null ? null : displayStack.copy();
     }
 
     public ItemStack getPatternDisplayStack(ItemStack pattern) {
@@ -196,6 +206,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
                 this.patterns[slot] = null;
             }
         }
+        this.invalidatePatternDisplay(slot);
         this.onInventoryChanged();
         return removed;
     }
@@ -207,6 +218,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
         }
         ItemStack stack = this.patterns[slot];
         this.patterns[slot] = null;
+        this.invalidatePatternDisplay(slot);
         if (stack != null) {
             this.onInventoryChanged();
         }
@@ -219,6 +231,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             return;
         }
         this.patterns[slot] = stack;
+        this.invalidatePatternDisplay(slot);
         if (this.patterns[slot] != null && this.patterns[slot].stackSize > this.getInventoryStackLimit()) {
             this.patterns[slot].stackSize = this.getInventoryStackLimit();
         }
@@ -286,6 +299,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         Arrays.fill(this.patterns, null);
+        Arrays.fill(this.patternDisplayStacks, null);
+        Arrays.fill(this.patternDisplayResolved, false);
         NBTTagList list = tag.getTagList(TAG_PATTERNS, Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound slotTag = list.getCompoundTagAt(i);
@@ -324,6 +339,14 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             }
         }
         return count;
+    }
+
+    private void invalidatePatternDisplay(int slot) {
+        if (!this.isValidSlot(slot)) {
+            return;
+        }
+        this.patternDisplayStacks[slot] = null;
+        this.patternDisplayResolved[slot] = false;
     }
 
     private boolean isValidSlot(int slot) {

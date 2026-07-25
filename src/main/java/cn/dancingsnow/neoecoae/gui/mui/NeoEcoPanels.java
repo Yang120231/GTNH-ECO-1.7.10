@@ -915,7 +915,8 @@ final class NeoEcoPanels {
 
             @Override
             protected ItemStack getItemStackForRendering(ItemStack itemstack, boolean dragging) {
-                ItemStack displayStack = bus.getPatternDisplayStack(itemstack);
+                int actualSlot = page.get() * TileCraftingPatternBus.SLOTS_PER_PAGE + slot;
+                ItemStack displayStack = bus.getPatternDisplayStack(actualSlot);
                 return displayStack == null ? itemstack : displayStack;
             }
         };
