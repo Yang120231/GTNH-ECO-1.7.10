@@ -38,6 +38,7 @@ public class CommonProxy {
         NeoEcoUiFactory.register();
         NEAE2Storage.register();
         ECOCoolingRecipes.registerDefaults();
+        NEOreDictionary.registerSilicon();
         NERecipes.register();
     }
 

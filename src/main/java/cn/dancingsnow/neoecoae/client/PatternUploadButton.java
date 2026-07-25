@@ -13,6 +13,7 @@ public final class PatternUploadButton extends GuiImgButton {
     private static volatile String autoTargetName = "";
     private static volatile int autoTargetKind = -1;
     private static volatile ItemStack autoTargetCircuit;
+    private static volatile boolean autoTargetProgrammingCover;
 
     private final String titleKey;
     private final String descriptionKey;
@@ -23,16 +24,18 @@ public final class PatternUploadButton extends GuiImgButton {
         this.descriptionKey = descriptionKey;
     }
 
-    public static void setAutoTarget(String name, int kind, ItemStack circuit) {
+    public static void setAutoTarget(String name, int kind, ItemStack circuit, boolean programmingCover) {
         autoTargetName = name == null ? "" : name;
         autoTargetKind = kind;
         autoTargetCircuit = circuit == null ? null : circuit.copy();
+        autoTargetProgrammingCover = programmingCover;
     }
 
     public static void clearAutoTarget() {
         autoTargetName = "";
         autoTargetKind = -1;
         autoTargetCircuit = null;
+        autoTargetProgrammingCover = false;
     }
 
     @Override
@@ -50,7 +53,9 @@ public final class PatternUploadButton extends GuiImgButton {
                 "gui.neoecoae.pattern_upload.button.auto.tooltip.target",
                 displayName,
                 targetKindName(autoTargetKind));
-            if (autoTargetCircuit != null) {
+            if (autoTargetProgrammingCover) {
+                message += "\n" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programming_cover");
+            } else if (autoTargetCircuit != null) {
                 message += "\n" + StatCollector.translateToLocalFormatted(
                     "gui.neoecoae.pattern_upload.button.auto.tooltip.circuit",
                     StatCollector.translateToLocal("gui.neoecoae.pattern_upload.circuit_short") + " "

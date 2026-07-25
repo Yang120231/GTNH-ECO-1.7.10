@@ -1181,7 +1181,8 @@ final class NeoEcoPanels {
 
     private static String targetKindDisplay(UploadTargetSnapshot target) {
         String kind = targetKindName(target.kind);
-        String circuit = target.circuit == null ? "" : " / " + circuitDisplayName(target.circuit);
+        String circuit = target.circuit == null || target.programmingCover ? ""
+            : " / " + circuitDisplayName(target.circuit);
         String programmingCover = target.programmingCover ? " / " + tr("gui.neoecoae.pattern_upload.programming_cover")
             : "";
         return kind + circuit + programmingCover;

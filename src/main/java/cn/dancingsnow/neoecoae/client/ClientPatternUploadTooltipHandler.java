@@ -12,7 +12,11 @@ public final class ClientPatternUploadTooltipHandler
     public IMessage onMessage(NEPatternUploadNetwork.AutoTargetMessage message, MessageContext context) {
         if (message.getName()
             .isEmpty()) PatternUploadButton.clearAutoTarget();
-        else PatternUploadButton.setAutoTarget(message.getName(), message.getKind(), message.getCircuit());
+        else PatternUploadButton.setAutoTarget(
+            message.getName(),
+            message.getKind(),
+            message.getCircuit(),
+            message.hasProgrammingCover());
         return null;
     }
 }

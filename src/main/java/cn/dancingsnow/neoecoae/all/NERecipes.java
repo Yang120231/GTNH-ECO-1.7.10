@@ -176,7 +176,7 @@ public final class NERecipes {
             'B',
             "dustAluminum",
             'C',
-            NEAE2RecipeItems.silicon(),
+            NEOreDictionary.NEO_SILICON,
             'D',
             "ingotBlackTungstenAlloy");
         shapedIfComplete(

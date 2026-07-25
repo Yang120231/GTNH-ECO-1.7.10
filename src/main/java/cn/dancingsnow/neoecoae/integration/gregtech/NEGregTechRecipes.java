@@ -118,7 +118,6 @@ public final class NEGregTechRecipes {
         ItemStack fluixCrystal = NEAE2RecipeItems.fluixCrystal();
         ItemStack certusDust = NEAE2RecipeItems.certusQuartzDust();
         ItemStack fluixDust = NEAE2RecipeItems.fluixDust();
-        ItemStack silicon = NEAE2RecipeItems.silicon();
 
         mixer(
             new ItemStack[] { copy(chargedCertus, 8) },
@@ -150,7 +149,7 @@ public final class NEGregTechRecipes {
             TierEU.RECIPE_EV);
         mixer(
             new ItemStack[] { stack(NEItems.energizedFluixCrystalDust, 4), stack(NEItems.aluminumDust, 4),
-                copy(silicon, 4), stack(NEItems.blackTungstenAlloyIngot, 4) },
+                ore("dustSiliconSolarGrade", 4), stack(NEItems.blackTungstenAlloyIngot, 4) },
             FluidRegistry.getFluidStack("lava", 2 * BUCKETS),
             new ItemStack[] { stack(NEItems.energizedSuperconductiveIngot, 4) },
             null,

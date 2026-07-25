@@ -87,6 +87,11 @@ public final class NEPatternUploadNetwork {
 
     public static void sendAutoTarget(EntityPlayerMP player, PatternUploadTarget target,
         net.minecraft.item.ItemStack circuit, String displayName) {
+        sendAutoTarget(player, target, circuit, displayName, false);
+    }
+
+    public static void sendAutoTarget(EntityPlayerMP player, PatternUploadTarget target,
+        net.minecraft.item.ItemStack circuit, String displayName, boolean programmingCover) {
         if (player == null) return;
         CHANNEL.sendTo(
             new AutoTargetMessage(
@@ -94,7 +99,8 @@ public final class NEPatternUploadNetwork {
                 target == null ? -1
                     : target.getKind()
                         .ordinal(),
-                circuit),
+                circuit,
+                programmingCover),
             player);
     }
 
@@ -265,13 +271,16 @@ public final class NEPatternUploadNetwork {
         private String name = "";
         private int kind = -1;
         private net.minecraft.item.ItemStack circuit;
+        private boolean programmingCover;
 
         public AutoTargetMessage() {}
 
-        private AutoTargetMessage(String name, int kind, net.minecraft.item.ItemStack circuit) {
+        private AutoTargetMessage(String name, int kind, net.minecraft.item.ItemStack circuit,
+            boolean programmingCover) {
             this.name = name == null ? "" : name;
             this.kind = kind;
             this.circuit = circuit == null ? null : circuit.copy();
+            this.programmingCover = programmingCover;
         }
 
         public String getName() {
@@ -286,10 +295,15 @@ public final class NEPatternUploadNetwork {
             return this.circuit == null ? null : this.circuit.copy();
         }
 
+        public boolean hasProgrammingCover() {
+            return this.programmingCover;
+        }
+
         @Override
         public void fromBytes(ByteBuf buf) {
             this.name = ByteBufUtils.readUTF8String(buf);
             this.kind = buf.readInt();
+            this.programmingCover = buf.readBoolean();
             this.circuit = ByteBufUtils.readItemStack(buf);
         }
 
@@ -297,6 +311,7 @@ public final class NEPatternUploadNetwork {
         public void toBytes(ByteBuf buf) {
             ByteBufUtils.writeUTF8String(buf, this.name == null ? "" : this.name);
             buf.writeInt(this.kind);
+            buf.writeBoolean(this.programmingCover);
             ByteBufUtils.writeItemStack(buf, this.circuit);
         }
     }

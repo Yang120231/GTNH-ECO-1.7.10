@@ -90,10 +90,14 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
         ItemStack autoCircuit = session == null ? null : session.getAutoUploadCircuit();
         ItemStack targetCircuit = session == null || target == null ? null
             : target.getCircuit(session.getRouteKey(), session.getPatternDetails());
+        boolean programmingCover = session != null && target != null
+            && target.hasProgrammingCover(session.getRouteKey(), session.getPatternDetails());
         String key = (target == null ? "" : target.getName() + "|" + target.getKind()) + "|"
             + String.valueOf(targetCircuit)
             + "|"
             + String.valueOf(autoCircuit)
+            + "|"
+            + programmingCover
             + "|"
             + String.valueOf(pattern);
         if (!key.equals(this.neoecoae$lastAutoTarget)) {
@@ -102,7 +106,8 @@ public abstract class MixinContainerPatternTerm implements PatternTermUploadExte
                 player,
                 target,
                 autoCircuit,
-                target == null ? "" : target.getTooltipName(session.getRouteKey(), session.getPatternDetails()));
+                target == null ? "" : target.getTooltipName(session.getRouteKey(), session.getPatternDetails()),
+                programmingCover);
         }
     }
 
