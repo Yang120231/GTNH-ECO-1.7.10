@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -64,6 +65,7 @@ public class TileECOInterface extends TileEntity
     private final AENetworkProxy proxy;
     private IStorageGrid registeredStorageGrid;
     private ICellProvider registeredCellProvider;
+    private boolean storageRegistrationInProgress;
     private ECOStorageDriveProvider transferProvider;
     private int transferProviderRevision = -1;
     private TileECOController cachedController;
@@ -381,7 +383,18 @@ public class TileECOInterface extends TileEntity
     }
 
     @Override
-    public void securityBreak() {}
+    public void securityBreak() {
+        this.unregisterStorageProvider();
+        this.unregisterCraftingProvider();
+        this.unregisterComputationCpus();
+        this.proxy.invalidate();
+    }
+
+    public void setOwner(EntityPlayer player) {
+        if (player != null) {
+            this.proxy.setOwner(player);
+        }
+    }
 
     @Override
     public DimensionalCoord getLocation() {
@@ -557,6 +570,18 @@ public class TileECOInterface extends TileEntity
     }
 
     private void refreshBackendRegistration() {
+        if (this.storageRegistrationInProgress) {
+            return;
+        }
+        this.storageRegistrationInProgress = true;
+        try {
+            this.refreshBackendRegistrationInternal();
+        } finally {
+            this.storageRegistrationInProgress = false;
+        }
+    }
+
+    private void refreshBackendRegistrationInternal() {
         if (this.subsystem != ECOControllerSubsystem.STORAGE) {
             this.unregisterStorageProvider();
             return;

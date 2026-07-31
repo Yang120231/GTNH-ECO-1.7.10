@@ -10,7 +10,7 @@ public final class NEOreDictionary {
     public static final String NEO_TUNGSTEN_ORE = "neoecoaeTungstenOre";
     public static final String NEO_TUNGSTEN_RAW = "neoecoaeTungstenRaw";
     public static final String NEO_TUNGSTEN_INGOT = "neoecoaeTungstenIngot";
-    public static final String NEO_TUNGSTEN_DUST = "neoecoaeTungstenDust";
+    public static final String NEO_TUNGSTEN_DUST = "dustTungsten";
     public static final String NEO_TUNGSTEN_RAW_BLOCK = "neoecoaeTungstenRawBlock";
     public static final String NEO_TUNGSTEN_BLOCK = "neoecoaeTungstenBlock";
     public static final String NEO_SILICON = "neoecoaeSilicon";

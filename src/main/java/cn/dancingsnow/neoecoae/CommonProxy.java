@@ -11,12 +11,10 @@ import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook;
 import cn.dancingsnow.neoecoae.gui.mui.NeoEcoUiFactory;
 import cn.dancingsnow.neoecoae.network.NEPatternUploadNetwork;
 import cn.dancingsnow.neoecoae.storage.ae2.NEAE2Storage;
-import cn.dancingsnow.neoecoae.world.NEOreWorldGenerator;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
-import cpw.mods.fml.common.registry.GameRegistry;
 
 public class CommonProxy {
 
@@ -29,8 +27,6 @@ public class CommonProxy {
         NEFluids.registerContainers();
         NEOreDictionary.register();
         NEPatternUploadNetwork.register();
-        GameRegistry.registerWorldGenerator(NEOreWorldGenerator.INSTANCE, 0);
-
         NeoECOAE.LOG.info("I am Neo ECO AE Extension at version " + Tags.VERSION);
     }
 

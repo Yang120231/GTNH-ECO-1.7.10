@@ -55,14 +55,14 @@ public final class NEGregTechRecipes {
         ItemStack fluixDust = NEAE2RecipeItems.fluixDust();
 
         mixer(
-            new ItemStack[] { ore("dustIron", 1), stack(NEItems.aluminumDust), copy(certusDust, 2) },
+            new ItemStack[] { ore("dustIron", 1), ore("dustAluminium", 1), copy(certusDust, 2) },
             null,
             new ItemStack[] { stack(NEItems.aluminumAlloyDust) },
             null,
             10 * SECONDS,
             TierEU.RECIPE_LV);
         mixer(
-            new ItemStack[] { stack(NEItems.tungstenDust), stack(NEItems.aluminumAlloyDust), copy(fluixDust, 2) },
+            new ItemStack[] { ore("dustTungsten", 1), stack(NEItems.aluminumAlloyDust), copy(fluixDust, 2) },
             null,
             new ItemStack[] { stack(NEItems.blackTungstenAlloyDust) },
             null,
@@ -148,7 +148,7 @@ public final class NEGregTechRecipes {
             40 * SECONDS,
             TierEU.RECIPE_EV);
         mixer(
-            new ItemStack[] { stack(NEItems.energizedFluixCrystalDust, 4), stack(NEItems.aluminumDust, 4),
+            new ItemStack[] { stack(NEItems.energizedFluixCrystalDust, 4), ore("dustAluminium", 4),
                 ore("dustSiliconSolarGrade", 4), stack(NEItems.blackTungstenAlloyIngot, 4) },
             FluidRegistry.getFluidStack("lava", 2 * BUCKETS),
             new ItemStack[] { stack(NEItems.energizedSuperconductiveIngot, 4) },

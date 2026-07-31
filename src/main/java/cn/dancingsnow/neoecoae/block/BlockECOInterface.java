@@ -1,6 +1,8 @@
 package cn.dancingsnow.neoecoae.block;
 
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
@@ -30,6 +32,15 @@ public class BlockECOInterface extends BlockDirectionalModernModel {
     @Override
     public TileEntity createTileEntity(World world, int metadata) {
         return new TileECOInterface(this.subsystem);
+    }
+
+    @Override
+    public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase placer, ItemStack stack) {
+        super.onBlockPlacedBy(world, x, y, z, placer, stack);
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (tile instanceof TileECOInterface && placer instanceof EntityPlayer) {
+            ((TileECOInterface) tile).setOwner((EntityPlayer) placer);
+        }
     }
 
     @Override
