@@ -147,8 +147,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             this.patternDisplayStacks[slot] = this.getPatternDisplayStack(this.patterns[slot]);
             this.patternDisplayResolved[slot] = true;
         }
-        ItemStack displayStack = this.patternDisplayStacks[slot];
-        return displayStack == null ? null : displayStack.copy();
+        return this.patternDisplayStacks[slot];
     }
 
     public ItemStack getPatternDisplayStack(ItemStack pattern) {
@@ -230,11 +229,15 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
         if (!this.isValidSlot(slot)) {
             return;
         }
+        if (stack != null && stack.stackSize > this.getInventoryStackLimit()) {
+            stack = stack.copy();
+            stack.stackSize = this.getInventoryStackLimit();
+        }
+        if (ItemStack.areItemStacksEqual(this.patterns[slot], stack)) {
+            return;
+        }
         this.patterns[slot] = stack;
         this.invalidatePatternDisplay(slot);
-        if (this.patterns[slot] != null && this.patterns[slot].stackSize > this.getInventoryStackLimit()) {
-            this.patterns[slot].stackSize = this.getInventoryStackLimit();
-        }
         this.onInventoryChanged();
     }
 
@@ -326,9 +329,21 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     }
 
     private void onInventoryChanged() {
-        this.cachedPatternCount = this.countPatterns();
-        this.markDirty();
-        this.notifyCraftingPatternsChanged();
+        this.cachedPatternCount = this.countStoredPatterns();
+        if (this.worldObj == null || !this.worldObj.isRemote) {
+            this.markDirty();
+            this.notifyCraftingPatternsChanged();
+        }
+    }
+
+    private int countStoredPatterns() {
+        int count = 0;
+        for (ItemStack pattern : this.patterns) {
+            if (pattern != null) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private int countPatterns() {
