@@ -15,8 +15,7 @@ body:
       label: Affected Version / 受影响版本
       description: Please select the version where this issue occurs. / 请选择出现该问题的版本。
       options:
-        - "1.21.1"
-        - "1.20.1"
+        - "1.7.10"
     validations:
       required: true
 
