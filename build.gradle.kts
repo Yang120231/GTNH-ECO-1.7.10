@@ -3,7 +3,7 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
-version = "7.2.4"
+version = "7.3.0-beta1"
 
 fun gtnhDevJar(artifactId: String, version: String) =
     "com.github.GTNewHorizons:$artifactId:$version:dev"
