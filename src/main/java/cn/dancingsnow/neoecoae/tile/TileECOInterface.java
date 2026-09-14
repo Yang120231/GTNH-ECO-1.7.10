@@ -19,6 +19,8 @@ import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.GridFlags;
+import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
@@ -26,6 +28,7 @@ import appeng.api.networking.crafting.ICraftingProvider;
 import appeng.api.networking.crafting.ICraftingProviderHelper;
 import appeng.api.networking.events.MENetworkCellArrayUpdate;
 import appeng.api.networking.security.IActionHost;
+import appeng.api.networking.security.ISecurityGrid;
 import appeng.api.networking.security.MachineSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
@@ -56,6 +59,8 @@ import cn.dancingsnow.neoecoae.storage.domain.ECOStorageInterfaceMode;
 public class TileECOInterface extends TileEntity
     implements IGridProxyable, IActionHost, IPriorityHost, ICraftingProvider {
 
+    private static final long STORAGE_GRID_STABLE_TICKS = 5L;
+
     private static final String TAG_SUBSYSTEM = "Subsystem";
     private static final String TAG_COMPUTATION_CPU_POOL = "ComputationCpuPool";
     private static final String TAG_STORAGE_INTERFACE_MODE = "StorageInterfaceMode";
@@ -63,9 +68,15 @@ public class TileECOInterface extends TileEntity
     private static final String TAG_STORAGE_INTERFACE_TRANSFERRED_TOTAL = "StorageInterfaceTransferredTotal";
     private ECOControllerSubsystem subsystem = ECOControllerSubsystem.STORAGE;
     private final AENetworkProxy proxy;
+    private IGrid registeredGrid;
     private IStorageGrid registeredStorageGrid;
     private ICellProvider registeredCellProvider;
     private boolean storageRegistrationInProgress;
+    private IGrid pendingStorageGrid;
+    private IStorageGrid pendingStorageCache;
+    private long pendingStorageGridSince = -1L;
+    private boolean storageRegistrationQueued;
+    private long storageRegistrationQueuedTick = -1L;
     private ECOStorageDriveProvider transferProvider;
     private int transferProviderRevision = -1;
     private TileECOController cachedController;
@@ -384,6 +395,9 @@ public class TileECOInterface extends TileEntity
 
     @Override
     public void securityBreak() {
+        if (this.adoptLegacySecurityOwner()) {
+            return;
+        }
         this.unregisterStorageProvider();
         this.unregisterCraftingProvider();
         this.unregisterComputationCpus();
@@ -403,7 +417,11 @@ public class TileECOInterface extends TileEntity
 
     @Override
     public void gridChanged() {
-        this.refreshSubsystemRegistration(false);
+        if (this.subsystem == ECOControllerSubsystem.STORAGE) {
+            this.queueStorageRegistration();
+        } else {
+            this.refreshSubsystemRegistration(false);
+        }
     }
 
     @Override
@@ -444,6 +462,11 @@ public class TileECOInterface extends TileEntity
             this.proxy.onReady();
             this.networkReady = true;
         }
+        if (this.storageRegistrationQueued && this.worldObj.getTotalWorldTime() >= this.storageRegistrationQueuedTick) {
+            this.storageRegistrationQueued = false;
+            this.storageRegistrationQueuedTick = -1L;
+            this.refreshSubsystemRegistration(false);
+        }
         if (this.computationCpuRefreshQueued
             && this.worldObj.getTotalWorldTime() > this.computationCpuRefreshQueuedTick) {
             this.computationCpuRefreshQueued = false;
@@ -455,6 +478,7 @@ public class TileECOInterface extends TileEntity
             this.refreshSubsystemRegistration(true);
         }
         if (this.worldObj.getTotalWorldTime() % 20L == 0L) {
+            this.adoptLegacySecurityOwner();
             this.refreshSubsystemRegistration(false);
         }
     }
@@ -590,28 +614,56 @@ public class TileECOInterface extends TileEntity
         TileECOController previousController = this.cachedController;
         TileECOController controller = this.findController();
         if (controller == null || !controller.isFormed()) {
+            this.resetStorageGridCandidate();
             this.unregisterStorageProvider();
             this.refreshDriveOnlineStates(previousController);
             return;
         }
 
+        IGridNode node = this.proxy.getNode();
+        IGrid grid = node == null || !node.isActive() ? null : node.getGrid();
+        if (grid == null) {
+            this.resetStorageGridCandidate();
+            this.unregisterStorageProvider();
+            this.refreshDriveOnlineStates(controller);
+            return;
+        }
+
         IStorageGrid storageGrid = this.currentStorageGrid();
         if (storageGrid == null) {
+            this.resetStorageGridCandidate();
             this.unregisterStorageProvider();
             this.refreshDriveOnlineStates(controller);
             return;
         }
 
         int controllerRevision = controller.getStorageBackendRevision();
-        if (this.registeredStorageGrid == storageGrid && this.cachedController == controller
+        if (this.registeredGrid == grid && this.registeredStorageGrid == storageGrid
+            && this.cachedController == controller
             && this.registeredControllerRevision == controllerRevision
             && this.registeredCellProvider != null) {
+            this.resetStorageGridCandidate();
+            return;
+        }
+
+        long now = this.worldObj == null ? 0L : this.worldObj.getTotalWorldTime();
+        if (this.pendingStorageGrid != grid || this.pendingStorageCache != storageGrid) {
+            this.pendingStorageGrid = grid;
+            this.pendingStorageCache = storageGrid;
+            this.pendingStorageGridSince = now;
+        }
+        if ((this.registeredGrid != grid || this.registeredStorageGrid != storageGrid)
+            && now - this.pendingStorageGridSince < STORAGE_GRID_STABLE_TICKS) {
+            if (this.registeredCellProvider != null) {
+                this.unregisterStorageProvider();
+            }
             return;
         }
 
         this.unregisterStorageProvider();
         ICellProvider provider = controller.createStorageDriveProvider();
         storageGrid.registerCellProvider(provider);
+        this.registeredGrid = grid;
         this.registeredStorageGrid = storageGrid;
         this.registeredCellProvider = provider;
         this.cachedController = controller;
@@ -690,10 +742,28 @@ public class TileECOInterface extends TileEntity
             this.postCellArrayUpdate();
             this.refreshDriveOnlineStates(this.cachedController);
         }
+        this.registeredGrid = null;
         this.registeredStorageGrid = null;
         this.registeredCellProvider = null;
         this.cachedController = null;
         this.registeredControllerRevision = -1;
+    }
+
+    private void queueStorageRegistration() {
+        if (this.worldObj == null || this.worldObj.isRemote || this.subsystem != ECOControllerSubsystem.STORAGE) {
+            return;
+        }
+        long nextTick = this.worldObj.getTotalWorldTime() + 1L;
+        if (!this.storageRegistrationQueued || nextTick < this.storageRegistrationQueuedTick) {
+            this.storageRegistrationQueued = true;
+            this.storageRegistrationQueuedTick = nextTick;
+        }
+    }
+
+    private void resetStorageGridCandidate() {
+        this.pendingStorageGrid = null;
+        this.pendingStorageCache = null;
+        this.pendingStorageGridSince = -1L;
     }
 
     private IStorageGrid currentStorageGrid() {
@@ -710,6 +780,47 @@ public class TileECOInterface extends TileEntity
         } catch (GridAccessException ignored) {
             return null;
         }
+    }
+
+    /** Migrates ownerless interfaces built before structure placement assigned an AE owner. */
+    private boolean adoptLegacySecurityOwner() {
+        IGridNode node = this.proxy.getNode();
+        if (node == null || node.getPlayerID() >= 0 || this.worldObj == null) {
+            return false;
+        }
+        for (ForgeDirection direction : ForgeDirection.VALID_DIRECTIONS) {
+            TileEntity adjacentTile = this.worldObj.getTileEntity(
+                this.xCoord + direction.offsetX,
+                this.yCoord + direction.offsetY,
+                this.zCoord + direction.offsetZ);
+            if (!(adjacentTile instanceof IGridHost)) {
+                continue;
+            }
+            IGridNode adjacentNode = ((IGridHost) adjacentTile).getGridNode(direction.getOpposite());
+            if (adjacentNode == null || adjacentNode == node || adjacentNode.getGrid() == null) {
+                continue;
+            }
+            ISecurityGrid securityGrid = adjacentNode.getGrid()
+                .getCache(ISecurityGrid.class);
+            if (securityGrid == null || !securityGrid.isAvailable()) {
+                continue;
+            }
+            int ownerId = securityGrid.getOwner();
+            if (ownerId < 0) {
+                continue;
+            }
+            node.setPlayerID(ownerId);
+            this.markDirty();
+            node.updateState();
+            NeoECOAE.LOG.info(
+                "Adopted AE security owner {} for legacy ECO interface at {},{},{}",
+                ownerId,
+                this.xCoord,
+                this.yCoord,
+                this.zCoord);
+            return true;
+        }
+        return false;
     }
 
     private TileECOController findController() {

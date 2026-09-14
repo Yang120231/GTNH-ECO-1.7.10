@@ -21,6 +21,7 @@ import cn.dancingsnow.neoecoae.client.render.model.ModelFacing;
 import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
+import cn.dancingsnow.neoecoae.tile.TileECOInterface;
 
 /**
  * 1.7.10 placement-plan implementation for all three ECO structures.
@@ -356,6 +357,10 @@ public final class ECOStructureBuilder {
                     placement.metadata,
                     3);
                 if (changed) {
+                    TileEntity tile = this.world.getTileEntity(placement.pos.x, placement.pos.y, placement.pos.z);
+                    if (tile instanceof TileECOInterface) {
+                        ((TileECOInterface) tile).setOwner(player);
+                    }
                     placed++;
                 } else {
                     player.inventory.addItemStackToInventory(new ItemStack(item));
