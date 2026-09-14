@@ -9,18 +9,28 @@ import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 class ECOEnergyProfileTest {
 
     @Test
-    void highPerformanceParallelValuesStayExplicitlyTiered() {
+    void storageAndComputationSizesMatch1211() {
+        assertEquals(16L << 20, ECOEnergyProfile.storageBytes(ECOControllerTier.L4));
+        assertEquals(64L << 20, ECOEnergyProfile.storageBytes(ECOControllerTier.L6));
+        assertEquals(256L << 20, ECOEnergyProfile.storageBytes(ECOControllerTier.L9));
+        assertEquals(64L << 20, ECOEnergyProfile.computationBytes(ECOControllerTier.L4));
+        assertEquals(256L << 20, ECOEnergyProfile.computationBytes(ECOControllerTier.L6));
+        assertEquals(1L << 30, ECOEnergyProfile.computationBytes(ECOControllerTier.L9));
+    }
+
+    @Test
+    void parallelValuesMatch1211() {
         assertEquals(24, ECOEnergyProfile.craftingParallel(ECOControllerTier.L4));
         assertEquals(72, ECOEnergyProfile.craftingParallel(ECOControllerTier.L6));
         assertEquals(256, ECOEnergyProfile.craftingParallel(ECOControllerTier.L9));
 
-        assertEquals(512, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L4));
-        assertEquals(1536, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L6));
-        assertEquals(6144, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L9));
+        assertEquals(32, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L4));
+        assertEquals(96, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L6));
+        assertEquals(384, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L9));
 
-        assertEquals(1024, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L4));
-        assertEquals(3072, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L6));
-        assertEquals(9216, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L9));
+        assertEquals(64, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L4));
+        assertEquals(192, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L6));
+        assertEquals(576, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L9));
     }
 
     @Test

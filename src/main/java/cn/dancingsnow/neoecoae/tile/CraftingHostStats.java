@@ -95,7 +95,7 @@ public final class CraftingHostStats {
                 }
             }
         }
-        runningWorkerCount = controller.isVirtualCraftingRunning() ? workerCount : 0;
+        runningWorkerCount = Math.min(workerCount, controller.getOccupiedCraftingLanes());
         queuedWorkCount = controller.getVirtualCraftingOccupiedSlots();
 
         int inputCachedItems = 0;
@@ -145,7 +145,7 @@ public final class CraftingHostStats {
         for (TileCraftingWorker worker : cache.workers()) {
             workerCount++;
         }
-        int runningWorkerCount = controller.isVirtualCraftingRunning() ? workerCount : 0;
+        int runningWorkerCount = Math.min(workerCount, controller.getOccupiedCraftingLanes());
         int queuedWorkCount = controller.getVirtualCraftingOccupiedSlots();
 
         int parallelCount = 0;

@@ -31,7 +31,7 @@ final class ECOCraftingVirtualPool {
     private static final String TAG_PENDING = "Pending";
     private static final String TAG_STATE = "State";
     private static final String TAG_OCCUPIED_SLOTS = "OccupiedSlots";
-    private static final int MAX_PERSISTED_SLOTS = 65536;
+    private static final String TAG_PROGRESS_REMAINDER = "ProgressRemainder";
     private static final int OWNERSHIP_RESTORE_GRACE_TICKS = 200;
 
     private final List<WorkEntry> entries = new ArrayList<WorkEntry>();
@@ -91,16 +91,6 @@ final class ECOCraftingVirtualPool {
         this.recoverOrphans(controller);
         int bonusValue = controller.getCraftingWorkBonusValue();
         int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
-        double totalPowerRequest = 0D;
-        for (WorkEntry entry : this.entries) {
-            if (entry.state == WorkState.ACTIVE && entry.progress < entry.totalProgress) {
-                totalPowerRequest += powerRequest(entry, bonusValue, powerMultiplier);
-            }
-        }
-        double extractedPower = totalPowerRequest <= 0D ? 0D
-            : controller.extractCraftingEnergy(totalPowerRequest, false);
-        double powerRatio = totalPowerRequest <= 0D ? 0D
-            : Math.max(0D, Math.min(1D, extractedPower / totalPowerRequest));
         boolean changed = false;
         boolean progressDirty = false;
 
@@ -110,13 +100,19 @@ final class ECOCraftingVirtualPool {
             }
             if (entry.progress < entry.totalProgress) {
                 int previous = entry.progress;
-                int gained = ECOEnergyProfile.craftingWorkPowerFromExtracted(
-                    powerRequest(entry, bonusValue, powerMultiplier) * powerRatio,
-                    entry.occupiedSlots,
-                    powerMultiplier);
+                double previousRemainder = entry.progressRemainder;
+                int requestedProgress = Math.min(bonusValue, entry.totalProgress - entry.progress);
+                double powerPerProgress = (double) entry.occupiedSlots * powerMultiplier;
+                double requestedPower = Math.max(0D, requestedProgress - entry.progressRemainder) * powerPerProgress;
+                double extracted = controller.extractCraftingEnergy(requestedPower, false);
+                double poweredProgress = Math
+                    .min(requestedProgress, entry.progressRemainder + Math.max(0D, extracted) / powerPerProgress);
+                int gained = (int) poweredProgress;
+                entry.progressRemainder = poweredProgress - gained;
                 entry.progress = Math.min(entry.totalProgress, entry.progress + gained);
                 progressDirty |= progressBucket(previous, entry.totalProgress)
                     != progressBucket(entry.progress, entry.totalProgress);
+                progressDirty |= entry.progressRemainder != previousRemainder;
                 if (entry.progress < entry.totalProgress) {
                     continue;
                 }
@@ -142,6 +138,14 @@ final class ECOCraftingVirtualPool {
             total = Integer.MAX_VALUE - total < entry.occupiedSlots ? Integer.MAX_VALUE : total + entry.occupiedSlots;
         }
         return total;
+    }
+
+    int availableBatchCapacity(int physicalWorkers, int batchPerWorker) {
+        return this.entries.size() < Math.max(0, physicalWorkers) ? Math.max(0, batchPerWorker) : 0;
+    }
+
+    int occupiedLanes() {
+        return this.entries.size();
     }
 
     boolean isRunning() {
@@ -220,6 +224,7 @@ final class ECOCraftingVirtualPool {
         for (WorkEntry entry : this.entries) {
             NBTTagCompound data = new NBTTagCompound();
             data.setInteger(TAG_PROGRESS, entry.progress);
+            data.setDouble(TAG_PROGRESS_REMAINDER, entry.progressRemainder);
             data.setInteger(TAG_TOTAL_PROGRESS, entry.totalProgress);
             data.setInteger(TAG_OCCUPIED_SLOTS, entry.occupiedSlots);
             data.setString(TAG_STATE, entry.state.name());
@@ -242,13 +247,9 @@ final class ECOCraftingVirtualPool {
         this.entries.clear();
         this.ownershipGraceTicks = OWNERSHIP_RESTORE_GRACE_TICKS;
         NBTTagList list = tag.getTagList(TAG_ENTRIES, Constants.NBT.TAG_COMPOUND);
-        int occupied = 0;
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound data = list.getCompoundTagAt(i);
             int slots = Math.max(1, data.getInteger(TAG_OCCUPIED_SLOTS));
-            if (slots > MAX_PERSISTED_SLOTS - occupied) {
-                break;
-            }
             ItemStack output = data.hasKey(TAG_OUTPUT) ? ItemStack.loadItemStackFromNBT(data.getCompoundTag(TAG_OUTPUT))
                 : null;
             if (output == null) {
@@ -264,8 +265,9 @@ final class ECOCraftingVirtualPool {
                 TileCraftingWorker.readStacks(data.getTagList(TAG_PENDING, Constants.NBT.TAG_COMPOUND)),
                 WorkState.byName(data.getString(TAG_STATE)),
                 slots);
+            double remainder = data.getDouble(TAG_PROGRESS_REMAINDER);
+            entry.progressRemainder = Double.isFinite(remainder) ? Math.max(0D, Math.min(1D, remainder)) : 0D;
             this.entries.add(entry);
-            occupied += slots;
         }
     }
 
@@ -518,6 +520,7 @@ final class ECOCraftingVirtualPool {
     private static final class WorkEntry {
 
         private int progress;
+        private double progressRemainder;
         private final int totalProgress;
         private final ItemStack output;
         private final String jobId;

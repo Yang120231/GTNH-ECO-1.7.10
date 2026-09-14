@@ -19,23 +19,26 @@ class ECOCraftingCapacityTest {
     }
 
     @Test
-    void parallelCoresCanLimitWorkerSlots() {
-        assertEquals(640, ECOCraftingCapacity.maxInFlightCrafts(640, 11, 512));
+    void parallelCoresDoNotLimitPhysicalLaneBatchCapacity() {
+        assertEquals(5632, ECOCraftingCapacity.maxInFlightCrafts(640, 11, 512));
         assertEquals(288, ECOCraftingCapacity.availableCraftSlots(640, 352));
     }
 
     @Test
-    void hostWithoutParallelCoreCannotAcceptWork() {
+    void physicalLaneCapacityDoesNotDependOnParallelCoreContribution() {
         int slots = ECOCraftingCapacity.threadSlotsPerWorker(32, 16, true, false);
 
-        assertEquals(0, slots);
-        assertEquals(0, ECOCraftingCapacity.maxInFlightCrafts(0, 11, slots));
+        assertEquals(512, slots);
+        assertEquals(5632, ECOCraftingCapacity.maxInFlightCrafts(0, 11, slots));
     }
 
     @Test
     void overclockRequiresParallelOverflow() {
         assertEquals(0, ECOCraftingCapacity.overclockTimes(5632, 5632));
-        assertEquals(9, ECOCraftingCapacity.overclockTimes(5760, 5632));
+        assertEquals(0, ECOCraftingCapacity.overclockTimes(5760, 5632));
+        assertEquals(1, ECOCraftingCapacity.overclockTimes(100, 95));
+        assertEquals(4, ECOCraftingCapacity.overclockTimes(100, 80));
+        assertEquals(9, ECOCraftingCapacity.overclockTimes(100, 50));
     }
 
     @Test
@@ -50,6 +53,6 @@ class ECOCraftingCapacityTest {
 
         assertEquals(352, ECOCraftingCapacity.maxInFlightCrafts(baseParallel, workerCount, baseSlots));
         assertEquals(5632, ECOCraftingCapacity.maxInFlightCrafts(overclockedParallel, workerCount, overclockedSlots));
-        assertEquals(9, ECOCraftingCapacity.overclockTimes(overclockedParallel, workerCount * overclockedSlots));
+        assertEquals(9, ECOCraftingCapacity.overclockTimes(overclockedParallel, workerCount * baseSlots));
     }
 }

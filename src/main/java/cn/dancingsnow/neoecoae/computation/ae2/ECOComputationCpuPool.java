@@ -183,12 +183,7 @@ public final class ECOComputationCpuPool {
         if (required <= 0L || required > this.idleCpu.reservedStorage()) {
             return false;
         }
-        this.idleCpu.configureIdle(
-            required,
-            this.coProcessorsFor(this.idleCpu, this.runningCpuCount() + 1),
-            this.grid,
-            true,
-            this.cpuSelectionMode);
+        this.idleCpu.configureIdle(required, this.coProcessors, this.grid, true, this.cpuSelectionMode);
         this.idleCpu = null;
         return true;
     }
@@ -334,31 +329,12 @@ public final class ECOComputationCpuPool {
     }
 
     private void updateCpuResources(boolean active) {
-        int participants = this.runningCpuCount() + (this.idleCpu == null ? 0 : 1);
         for (ECOComputationVirtualCpu cpu : this.cpus) {
             if (this.isPendingRelease(cpu)) {
                 continue;
             }
-            cpu.updateResources(this.coProcessorsFor(cpu, participants), this.grid, active, this.cpuSelectionMode);
+            cpu.updateResources(this.coProcessors, this.grid, active, this.cpuSelectionMode);
         }
-    }
-
-    private int coProcessorsFor(ECOComputationVirtualCpu target, int participants) {
-        if (target == null || participants <= 0 || this.coProcessors <= 0) {
-            return 0;
-        }
-        int base = this.coProcessors / participants;
-        int remainder = this.coProcessors % participants;
-        int rank = 0;
-        for (ECOComputationVirtualCpu cpu : this.cpus) {
-            if (cpu == target) {
-                break;
-            }
-            if (cpu == this.idleCpu || this.isRunningCpu(cpu)) {
-                rank++;
-            }
-        }
-        return base + (rank < remainder ? 1 : 0);
     }
 
     private int runningCpuCount() {
