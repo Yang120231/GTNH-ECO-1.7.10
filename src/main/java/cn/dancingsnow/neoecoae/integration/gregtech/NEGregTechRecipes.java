@@ -125,7 +125,8 @@ public final class NEGregTechRecipes {
             new ItemStack[] { stack(NEItems.energizedCrystal, 8) },
             null,
             25 * SECONDS,
-            TierEU.RECIPE_HV);
+            TierEU.RECIPE_HV,
+            1);
         macerator(stack(NEItems.energizedCrystal), stack(NEItems.energizedCrystalDust), 10 * SECONDS, TierEU.RECIPE_HV);
         mixer(
             new ItemStack[] { stack(NEItems.energizedCrystalDust, 8), copy(fluixCrystal, 8) },
@@ -340,12 +341,20 @@ public final class NEGregTechRecipes {
 
     private static void mixer(ItemStack[] itemInputs, FluidStack fluidInput, ItemStack[] itemOutputs,
         FluidStack[] fluidOutputs, int duration, long eut) {
+        mixer(itemInputs, fluidInput, itemOutputs, fluidOutputs, duration, eut, 0);
+    }
+
+    private static void mixer(ItemStack[] itemInputs, FluidStack fluidInput, ItemStack[] itemOutputs,
+        FluidStack[] fluidOutputs, int duration, long eut, int circuit) {
         if (!complete(itemInputs) || !complete(itemOutputs) || !complete(fluidOutputs)) {
             return;
         }
         GTRecipeBuilder builder = GTRecipeBuilder.builder()
             .duration(duration)
             .eut((int) eut);
+        if (circuit > 0) {
+            builder.circuit(circuit);
+        }
         if (itemInputs != null) {
             builder.itemInputsUnsafe(itemInputs);
         }
