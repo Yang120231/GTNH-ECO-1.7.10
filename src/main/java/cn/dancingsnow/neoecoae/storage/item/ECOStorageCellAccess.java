@@ -7,6 +7,7 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
 import cn.dancingsnow.neoecoae.storage.core.ECOCapacityPolicy;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
+import cn.dancingsnow.neoecoae.storage.core.ECOStorageEngine;
 
 public final class ECOStorageCellAccess {
 
@@ -29,13 +30,16 @@ public final class ECOStorageCellAccess {
                     stack.getTagCompound()
                         .getCompoundTag(TAG_STORAGE));
             } catch (RuntimeException e) {
-                NeoECOAE.LOG.error("Ignoring unreadable ECO storage cell contents: {}", e.getMessage());
+                NBTTagCompound original = stack.getTagCompound()
+                    .getCompoundTag(TAG_STORAGE);
+                backend.quarantine(original, e.toString());
+                NeoECOAE.LOG.error("Quarantining unreadable ECO storage cell contents: {}", e.getMessage());
             }
         }
         return backend;
     }
 
-    public static void save(ItemStack stack, ECOStorageBackend backend) {
+    public static void save(ItemStack stack, ECOStorageEngine backend) {
         if (stack == null || backend == null) {
             return;
         }

@@ -1,6 +1,10 @@
 package cn.dancingsnow.neoecoae.storage.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigInteger;
 
 import net.minecraft.nbt.NBTTagCompound;
 
@@ -79,5 +83,66 @@ class ECOStorageBackendTest {
 
         assertEquals(ECOAmount.of(12L), restored.getUsed());
         assertEquals(ECOAmount.of(80L), restored.getAmount(ITEM));
+    }
+
+    @Test
+    void finiteCellsSharePartiallyUsedBytesAcrossKeysInTheSameChannel() {
+        ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(6L, 2L));
+
+        assertEquals(ECOAmount.of(1L), backend.insert(ITEM, ECOAmount.of(1L), false));
+        assertEquals(ECOAmount.of(15L), backend.insert(OTHER_ITEM, ECOAmount.of(20L), false));
+        assertEquals(ECOAmount.of(6L), backend.getUsed());
+    }
+
+    @Test
+    void finiteCellsCapEachKeyAtLongMaxValue() {
+        ECOStorageBackend backend = new ECOStorageBackend(
+            ECOCapacityPolicy.finite(
+                ECOAmount.of(
+                    BigInteger.valueOf(Long.MAX_VALUE)
+                        .add(BigInteger.TEN)),
+                0L));
+
+        assertEquals(ECOAmount.of(Long.MAX_VALUE), backend.insert(ITEM, ECOAmount.of(Long.MAX_VALUE), false));
+        assertEquals(ECOAmount.ZERO, backend.insert(ITEM, ECOAmount.of(1L), false));
+    }
+
+    @Test
+    void infiniteDomainsRetainAmountsBeyondLongMaxValue() {
+        ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.infinite());
+
+        backend.insert(ITEM, ECOAmount.of(Long.MAX_VALUE), false);
+        backend.insert(ITEM, ECOAmount.of(1L), false);
+
+        assertEquals(
+            ECOAmount.of(
+                BigInteger.valueOf(Long.MAX_VALUE)
+                    .add(BigInteger.ONE)),
+            backend.getAmount(ITEM));
+    }
+
+    @Test
+    void quarantinedSnapshotsRemainReadOnlyAndRoundTripTheirOriginalData() {
+        NBTTagCompound original = new NBTTagCompound();
+        original.setString("legacyPayload", "keep-me");
+        ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(64L, 2L));
+        backend.quarantine(original, "broken entry");
+
+        assertFalse(backend.isHealthy());
+        assertEquals(ECOAmount.ZERO, backend.insert(ITEM, ECOAmount.of(1L), false));
+
+        NBTTagCompound encoded = new NBTTagCompound();
+        backend.writeToNBT(encoded);
+        ECOStorageBackend restored = new ECOStorageBackend(ECOCapacityPolicy.finite(64L, 2L));
+        restored.readFromNBT(encoded);
+
+        assertFalse(restored.isHealthy());
+        assertTrue(
+            restored.getFailureReason()
+                .contains("broken entry"));
+        assertEquals(
+            "keep-me",
+            restored.getQuarantinedSnapshot()
+                .getString("legacyPayload"));
     }
 }

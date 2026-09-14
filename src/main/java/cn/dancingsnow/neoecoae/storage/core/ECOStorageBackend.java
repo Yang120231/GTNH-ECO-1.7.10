@@ -15,12 +15,18 @@ import net.minecraft.nbt.NBTTagCompound;
  * the server thread; asynchronous users must work on {@link #snapshot()} instead of the live
  * backend.
  */
-public final class ECOStorageBackend {
+public final class ECOStorageBackend implements ECOStorageEngine {
 
     private ECOCapacityPolicy capacityPolicy;
     private final Map<ECOStorageKey, ECOAmount> entries;
     private ECOAmount used;
+    private ECOAmount itemAmount;
+    private ECOAmount fluidAmount;
+    private ECOAmount customAmount;
     private long revision;
+    private NBTTagCompound quarantinedSnapshot;
+    private String failureReason;
+    private Runnable mutationListener;
 
     public ECOStorageBackend() {
         this(ECOCapacityPolicy.infinite());
@@ -30,12 +36,15 @@ public final class ECOStorageBackend {
         this.capacityPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
         this.entries = new LinkedHashMap<ECOStorageKey, ECOAmount>();
         this.used = ECOAmount.ZERO;
+        this.itemAmount = ECOAmount.ZERO;
+        this.fluidAmount = ECOAmount.ZERO;
+        this.customAmount = ECOAmount.ZERO;
         this.revision = 0L;
     }
 
     public ECOAmount insert(ECOStorageKey key, ECOAmount amount, boolean simulate) {
         requireKey(key);
-        if (amount == null || amount.isZero()) {
+        if (!this.isHealthy() || amount == null || amount.isZero()) {
             return ECOAmount.ZERO;
         }
         ECOAmount current = this.getAmount(key);
@@ -43,17 +52,28 @@ public final class ECOStorageBackend {
         if (accepted.isZero() || simulate) {
             return accepted;
         }
+        ECOAmount previousChannelAmount = this.getChannelAmount(key);
         ECOAmount next = current.add(accepted);
         this.entries.put(key, next);
-        this.used = this.used.add(
-            storageBytes(key, next, this.capacityPolicy).subtract(storageBytes(key, current, this.capacityPolicy)));
+        ECOAmount nextChannelAmount = previousChannelAmount.add(accepted);
+        this.setChannelAmount(key, nextChannelAmount);
+        if (this.capacityPolicy.isInfinite()) {
+            this.used = this.used.add(accepted);
+        } else {
+            ECOAmount contentDelta = contentBytesForAmount(nextChannelAmount, amountPerByte(key))
+                .subtract(contentBytesForAmount(previousChannelAmount, amountPerByte(key)));
+            this.used = this.used.add(contentDelta);
+            if (current.isZero()) {
+                this.used = this.used.add(ECOAmount.of(this.capacityPolicy.getBytesPerType()));
+            }
+        }
         this.markDirty();
         return accepted;
     }
 
     public ECOAmount extract(ECOStorageKey key, ECOAmount amount, boolean simulate) {
         requireKey(key);
-        if (amount == null || amount.isZero()) {
+        if (!this.isHealthy() || amount == null || amount.isZero()) {
             return ECOAmount.ZERO;
         }
         ECOAmount current = this.getAmount(key);
@@ -61,15 +81,25 @@ public final class ECOStorageBackend {
         if (extracted.isZero() || simulate) {
             return extracted;
         }
+        ECOAmount previousChannelAmount = this.getChannelAmount(key);
         ECOAmount remaining = current.subtract(extracted);
         if (remaining.isZero()) {
             this.entries.remove(key);
         } else {
             this.entries.put(key, remaining);
         }
-        this.used = this.used.subtract(
-            storageBytes(key, current, this.capacityPolicy)
-                .subtract(storageBytes(key, remaining, this.capacityPolicy)));
+        ECOAmount nextChannelAmount = previousChannelAmount.subtract(extracted);
+        this.setChannelAmount(key, nextChannelAmount);
+        if (this.capacityPolicy.isInfinite()) {
+            this.used = this.used.subtract(extracted);
+        } else {
+            ECOAmount contentDelta = contentBytesForAmount(previousChannelAmount, amountPerByte(key))
+                .subtract(contentBytesForAmount(nextChannelAmount, amountPerByte(key)));
+            this.used = this.used.subtract(contentDelta);
+            if (remaining.isZero()) {
+                this.used = this.used.subtract(ECOAmount.of(this.capacityPolicy.getBytesPerType()));
+            }
+        }
         this.markDirty();
         return extracted;
     }
@@ -109,6 +139,9 @@ public final class ECOStorageBackend {
     }
 
     public void setCapacityPolicy(ECOCapacityPolicy capacityPolicy) {
+        if (!this.isHealthy()) {
+            throw new IllegalStateException("Cannot change an unavailable storage backend");
+        }
         ECOCapacityPolicy nextPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
         ECOAmount nextUsed = calculateUsed(this.entries, nextPolicy);
         if (!nextPolicy.canHold(nextUsed)) {
@@ -120,9 +153,15 @@ public final class ECOStorageBackend {
     }
 
     public void clear() {
+        if (!this.isHealthy()) {
+            throw new IllegalStateException("Cannot clear an unavailable storage backend");
+        }
         if (!this.entries.isEmpty()) {
             this.entries.clear();
             this.used = ECOAmount.ZERO;
+            this.itemAmount = ECOAmount.ZERO;
+            this.fluidAmount = ECOAmount.ZERO;
+            this.customAmount = ECOAmount.ZERO;
             this.markDirty();
         }
     }
@@ -135,14 +174,45 @@ public final class ECOStorageBackend {
         ECOStorageCodec.write(tag, this);
     }
 
+    @Override
+    public boolean isHealthy() {
+        return this.quarantinedSnapshot == null;
+    }
+
+    @Override
+    public String getFailureReason() {
+        return this.failureReason == null ? "" : this.failureReason;
+    }
+
+    public void quarantine(NBTTagCompound original, String reason) {
+        this.entries.clear();
+        this.used = ECOAmount.ZERO;
+        this.itemAmount = ECOAmount.ZERO;
+        this.fluidAmount = ECOAmount.ZERO;
+        this.customAmount = ECOAmount.ZERO;
+        this.quarantinedSnapshot = original == null ? new NBTTagCompound() : (NBTTagCompound) original.copy();
+        this.failureReason = reason == null ? "Unreadable storage snapshot" : reason;
+    }
+
+    public void setMutationListener(Runnable mutationListener) {
+        this.mutationListener = mutationListener;
+    }
+
+    NBTTagCompound getQuarantinedSnapshot() {
+        return this.quarantinedSnapshot;
+    }
+
     void loadFromCodec(ECOCapacityPolicy capacityPolicy, Map<ECOStorageKey, ECOAmount> entries, ECOAmount used,
         long revision) {
         ECOCapacityPolicy nextPolicy = capacityPolicy == null ? ECOCapacityPolicy.infinite() : capacityPolicy;
         this.capacityPolicy = nextPolicy;
         this.entries.clear();
         this.entries.putAll(entries);
+        this.recalculateChannelAmounts();
         this.used = calculateUsed(this.entries, nextPolicy);
         this.revision = revision;
+        this.quarantinedSnapshot = null;
+        this.failureReason = null;
     }
 
     Map<ECOStorageKey, ECOAmount> getEntriesForCodec() {
@@ -150,11 +220,33 @@ public final class ECOStorageBackend {
     }
 
     static ECOAmount calculateUsed(Map<ECOStorageKey, ECOAmount> entries, ECOCapacityPolicy policy) {
-        ECOAmount total = ECOAmount.ZERO;
-        for (Map.Entry<ECOStorageKey, ECOAmount> entry : entries.entrySet()) {
-            total = total.add(storageBytes(entry.getKey(), entry.getValue(), policy));
+        if (policy == null || policy.isInfinite()) {
+            ECOAmount total = ECOAmount.ZERO;
+            for (ECOAmount amount : entries.values()) {
+                total = total.add(amount);
+            }
+            return total;
         }
-        return total;
+        ECOAmount itemAmount = ECOAmount.ZERO;
+        ECOAmount fluidAmount = ECOAmount.ZERO;
+        ECOAmount customAmount = ECOAmount.ZERO;
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : entries.entrySet()) {
+            if (entry.getKey()
+                .isItem()) {
+                itemAmount = itemAmount.add(entry.getValue());
+            } else if (entry.getKey()
+                .isFluid()) {
+                    fluidAmount = fluidAmount.add(entry.getValue());
+                } else {
+                    customAmount = customAmount.add(entry.getValue());
+                }
+        }
+        ECOAmount content = contentBytesForAmount(itemAmount, 8L).add(contentBytesForAmount(fluidAmount, 8000L))
+            .add(contentBytesForAmount(customAmount, 1L));
+        return content.add(
+            ECOAmount.of(
+                BigInteger.valueOf(policy.getBytesPerType())
+                    .multiply(BigInteger.valueOf(entries.size()))));
     }
 
     private ECOAmount limitInsert(ECOStorageKey key, ECOAmount current, ECOAmount requested) {
@@ -169,6 +261,11 @@ public final class ECOStorageBackend {
             return ECOAmount.ZERO;
         }
 
+        BigInteger keyHeadroom = BigInteger.valueOf(Long.MAX_VALUE)
+            .subtract(current.toBigInteger());
+        if (keyHeadroom.signum() <= 0) {
+            return ECOAmount.ZERO;
+        }
         BigInteger typeCost = current.isZero() ? BigInteger.valueOf(this.capacityPolicy.getBytesPerType())
             : BigInteger.ZERO;
         BigInteger writableBytes = remainingBytes.toBigInteger()
@@ -176,29 +273,47 @@ public final class ECOStorageBackend {
         if (writableBytes.signum() < 0) {
             return ECOAmount.ZERO;
         }
-        BigInteger maximumTotalAmount = contentBytes(key, current).toBigInteger()
+        ECOAmount channelAmount = this.getChannelAmount(key);
+        BigInteger maximumChannelAmount = contentBytesForAmount(channelAmount, amountPerByte(key)).toBigInteger()
             .add(writableBytes)
             .multiply(BigInteger.valueOf(amountPerByte(key)));
-        BigInteger accepted = maximumTotalAmount.subtract(current.toBigInteger())
-            .min(requested.toBigInteger());
+        BigInteger accepted = maximumChannelAmount.subtract(channelAmount.toBigInteger())
+            .min(requested.toBigInteger())
+            .min(keyHeadroom);
         return accepted.signum() <= 0 ? ECOAmount.ZERO : ECOAmount.of(accepted);
     }
 
-    private static ECOAmount storageBytes(ECOStorageKey key, ECOAmount amount, ECOCapacityPolicy policy) {
-        if (amount == null || amount.isZero()) {
-            return ECOAmount.ZERO;
-        }
-        if (policy == null || policy.isInfinite()) {
-            return amount;
-        }
-        return contentBytes(key, amount).add(ECOAmount.of(policy.getBytesPerType()));
+    private ECOAmount getChannelAmount(ECOStorageKey key) {
+        return key.isItem() ? this.itemAmount : key.isFluid() ? this.fluidAmount : this.customAmount;
     }
 
-    private static ECOAmount contentBytes(ECOStorageKey key, ECOAmount amount) {
+    private void setChannelAmount(ECOStorageKey key, ECOAmount amount) {
+        if (key.isItem()) {
+            this.itemAmount = amount;
+        } else if (key.isFluid()) {
+            this.fluidAmount = amount;
+        } else {
+            this.customAmount = amount;
+        }
+    }
+
+    private void recalculateChannelAmounts() {
+        this.itemAmount = ECOAmount.ZERO;
+        this.fluidAmount = ECOAmount.ZERO;
+        this.customAmount = ECOAmount.ZERO;
+        for (Map.Entry<ECOStorageKey, ECOAmount> entry : this.entries.entrySet()) {
+            this.setChannelAmount(
+                entry.getKey(),
+                this.getChannelAmount(entry.getKey())
+                    .add(entry.getValue()));
+        }
+    }
+
+    private static ECOAmount contentBytesForAmount(ECOAmount amount, long amountPerByte) {
         if (amount == null || amount.isZero()) {
             return ECOAmount.ZERO;
         }
-        BigInteger divisor = BigInteger.valueOf(amountPerByte(key));
+        BigInteger divisor = BigInteger.valueOf(amountPerByte);
         BigInteger[] quotient = amount.toBigInteger()
             .divideAndRemainder(divisor);
         return ECOAmount.of(quotient[0].add(quotient[1].signum() == 0 ? BigInteger.ZERO : BigInteger.ONE));
@@ -213,6 +328,9 @@ public final class ECOStorageBackend {
             this.revision = 0L;
         } else {
             this.revision++;
+        }
+        if (this.mutationListener != null) {
+            this.mutationListener.run();
         }
     }
 

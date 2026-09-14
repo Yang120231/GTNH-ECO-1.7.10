@@ -10,7 +10,7 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 
 public final class ECOStorageCodec {
 
-    public static final int CURRENT_VERSION = 2;
+    public static final int CURRENT_VERSION = 3;
 
     private ECOStorageCodec() {}
 
@@ -20,6 +20,16 @@ public final class ECOStorageCodec {
         }
         if (backend == null) {
             throw new IllegalArgumentException("Backend must not be null");
+        }
+        if (!backend.isHealthy()) {
+            tag.setInteger("version", CURRENT_VERSION);
+            tag.setBoolean("unavailable", true);
+            tag.setString("failure", backend.getFailureReason());
+            tag.setTag(
+                "original",
+                backend.getQuarantinedSnapshot()
+                    .copy());
+            return;
         }
         tag.setInteger("version", CURRENT_VERSION);
         tag.setTag(
@@ -63,6 +73,11 @@ public final class ECOStorageCodec {
                 new LinkedHashMap<ECOStorageKey, ECOAmount>(),
                 ECOAmount.ZERO,
                 0L);
+            return;
+        }
+        if (tag.getBoolean("unavailable")) {
+            NBTTagCompound original = tag.hasKey("original") ? tag.getCompoundTag("original") : tag;
+            backend.quarantine(original, tag.getString("failure"));
             return;
         }
         int version = tag.getInteger("version");

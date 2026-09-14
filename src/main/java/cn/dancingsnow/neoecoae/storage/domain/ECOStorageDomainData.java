@@ -12,8 +12,10 @@ import java.util.UUID;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldSavedData;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.util.Constants;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
@@ -26,7 +28,7 @@ import cn.dancingsnow.neoecoae.storage.core.ECOStorageSnapshot;
 public class ECOStorageDomainData extends WorldSavedData {
 
     private static final String DATA_NAME = NeoECOAE.MODID + "_storage_domains";
-    private static final int DATA_VERSION = 1;
+    private static final int DATA_VERSION = 2;
 
     private final Map<UUID, ECOStorageBackend> domains = new LinkedHashMap<UUID, ECOStorageBackend>();
     private final Map<UUID, Set<UUID>> committedSources = new LinkedHashMap<UUID, Set<UUID>>();
@@ -40,19 +42,35 @@ public class ECOStorageDomainData extends WorldSavedData {
     }
 
     public static ECOStorageDomainData get(World world) {
-        ECOStorageDomainData data = (ECOStorageDomainData) world.perWorldStorage
+        if (world == null) {
+            throw new IllegalArgumentException("World must not be null");
+        }
+        World storageWorld = storageWorld(world);
+        ECOStorageDomainData data = (ECOStorageDomainData) storageWorld.perWorldStorage
             .loadData(ECOStorageDomainData.class, DATA_NAME);
         if (data == null) {
             data = new ECOStorageDomainData();
-            world.perWorldStorage.setData(DATA_NAME, data);
+            storageWorld.perWorldStorage.setData(DATA_NAME, data);
         }
         return data;
+    }
+
+    private static World storageWorld(World world) {
+        MinecraftServer server = world instanceof WorldServer ? ((WorldServer) world).func_73046_m() : null;
+        if (server != null) {
+            WorldServer overworld = server.worldServerForDimension(0);
+            if (overworld != null) {
+                return overworld;
+            }
+        }
+        return world;
     }
 
     public ECOStorageBackend getOrCreateDomain(UUID domainId) {
         ECOStorageBackend backend = this.domains.get(domainId);
         if (backend == null) {
             backend = new ECOStorageBackend(ECOCapacityPolicy.infinite());
+            backend.setMutationListener(this::markDirty);
             this.domains.put(domainId, backend);
             this.markDirty();
         }
@@ -162,9 +180,15 @@ public class ECOStorageDomainData extends WorldSavedData {
             return;
         }
         ECOStorageBackend domain = this.getOrCreateDomain(domainId);
+        if (!source.isHealthy() || !domain.isHealthy()) {
+            throw new IllegalStateException("Cannot migrate an unavailable ECO storage snapshot");
+        }
         for (Map.Entry<ECOStorageKey, ECOAmount> entry : source.getEntriesView()
             .entrySet()) {
-            domain.insert(entry.getKey(), entry.getValue(), false);
+            ECOAmount inserted = domain.insert(entry.getKey(), entry.getValue(), false);
+            if (!inserted.equals(entry.getValue())) {
+                throw new IllegalStateException("Infinite storage domain rejected a migration entry");
+            }
         }
         committed.add(diskId);
         this.markDirty();
@@ -190,9 +214,10 @@ public class ECOStorageDomainData extends WorldSavedData {
             try {
                 backend.readFromNBT(domainTag.getCompoundTag("storage"));
             } catch (RuntimeException e) {
-                NeoECOAE.LOG.error("Skipping unreadable ECO storage domain {}: {}", domainId, e.getMessage());
-                continue;
+                backend.quarantine(domainTag.getCompoundTag("storage"), e.toString());
+                NeoECOAE.LOG.error("Quarantining unreadable ECO storage domain {}: {}", domainId, e.getMessage());
             }
+            backend.setMutationListener(this::markDirty);
             this.domains.put(domainId, backend);
             NBTTagList committedTag = domainTag.getTagList("committedSources", Constants.NBT.TAG_COMPOUND);
             Set<UUID> committed = new HashSet<UUID>();
@@ -215,10 +240,6 @@ public class ECOStorageDomainData extends WorldSavedData {
         tag.setInteger("dataVersion", DATA_VERSION);
         NBTTagList list = new NBTTagList();
         for (Map.Entry<UUID, ECOStorageBackend> entry : this.domains.entrySet()) {
-            if (entry.getValue()
-                .isEmpty()) {
-                continue;
-            }
             NBTTagCompound domainTag = new NBTTagCompound();
             domainTag.setString(
                 "id",

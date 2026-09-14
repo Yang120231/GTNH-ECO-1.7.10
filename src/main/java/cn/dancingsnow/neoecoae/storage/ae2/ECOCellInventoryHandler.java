@@ -12,7 +12,7 @@ import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
+import cn.dancingsnow.neoecoae.storage.core.ECOStorageEngine;
 import cn.dancingsnow.neoecoae.storage.item.ECOStorageCellAccess;
 import cn.dancingsnow.neoecoae.tile.TileECODrive;
 
@@ -23,7 +23,7 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
     private final StorageChannel channel;
     private final int priority;
     private final TileECODrive drive;
-    private ECOStorageBackend backend;
+    private ECOStorageEngine backend;
     private final ECOAvailableItemsCache<StackType> availableItemsCache = new ECOAvailableItemsCache<StackType>();
 
     public ECOCellInventoryHandler(ItemStack cellStack, ISaveProvider saveProvider, StorageChannel channel) {
@@ -131,7 +131,7 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
 
     @Override
     public boolean canAccept(StackType input) {
-        return input != null && input.getChannel() == this.channel;
+        return this.backend.isHealthy() && input != null && input.getChannel() == this.channel;
     }
 
     @Override
@@ -154,7 +154,7 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
         return this;
     }
 
-    public ECOStorageBackend getBackend() {
+    public ECOStorageEngine getBackend() {
         return this.backend;
     }
 

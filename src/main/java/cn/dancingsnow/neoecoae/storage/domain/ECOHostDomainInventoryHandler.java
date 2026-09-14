@@ -15,7 +15,7 @@ import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOAE2KeyConverter;
 import cn.dancingsnow.neoecoae.storage.ae2.ECOAvailableItemsCache;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
+import cn.dancingsnow.neoecoae.storage.core.ECOStorageEngine;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
 public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implements IMEInventoryHandler<StackType> {
@@ -24,7 +24,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
     private final StorageChannel channel;
     private final ECOAvailableItemsCache<StackType> availableItemsCache = new ECOAvailableItemsCache<StackType>();
     private UUID cachedDomainId;
-    private ECOStorageBackend cachedBackend;
+    private ECOStorageEngine cachedBackend;
 
     public ECOHostDomainInventoryHandler(TileECOController controller, StorageChannel channel) {
         this.controller = controller;
@@ -38,7 +38,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             || !this.controller.canUseHostDomainStorage()) {
             return input;
         }
-        ECOStorageBackend backend = this.getBackend();
+        ECOStorageEngine backend = this.getBackend();
         if (backend == null) {
             return input;
         }
@@ -68,7 +68,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
             || !this.controller.canUseHostDomainStorage()) {
             return null;
         }
-        ECOStorageBackend backend = this.getBackend();
+        ECOStorageEngine backend = this.getBackend();
         if (backend == null) {
             return null;
         }
@@ -110,7 +110,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
 
     @Override
     public boolean isPrioritized(StackType input) {
-        ECOStorageBackend backend = this.getBackend();
+        ECOStorageEngine backend = this.getBackend();
         return backend != null && input != null
             && input.getChannel() == this.channel
             && backend.getAmount(
@@ -123,7 +123,11 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
 
     @Override
     public boolean canAccept(StackType input) {
-        return input != null && input.getChannel() == this.channel && this.controller.canUseHostDomainStorage();
+        ECOStorageEngine backend = this.getBackend();
+        return backend != null && backend.isHealthy()
+            && input != null
+            && input.getChannel() == this.channel
+            && this.controller.canUseHostDomainStorage();
     }
 
     @Override
@@ -146,7 +150,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
         return this;
     }
 
-    private ECOStorageBackend getBackend() {
+    private ECOStorageEngine getBackend() {
         World world = this.controller.getWorldObj();
         UUID domainId = this.controller.getHostDomainId();
         if (world == null || domainId == null) {
@@ -162,7 +166,7 @@ public class ECOHostDomainInventoryHandler<StackType extends IAEStack> implement
     }
 
     private IItemList<StackType> getCachedAvailableItems() {
-        ECOStorageBackend backend = this.getBackend();
+        ECOStorageEngine backend = this.getBackend();
         return this.availableItemsCache.get(this.channel, backend);
     }
 

@@ -6,7 +6,7 @@ import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.storage.core.ECOAmount;
-import cn.dancingsnow.neoecoae.storage.core.ECOStorageBackend;
+import cn.dancingsnow.neoecoae.storage.core.ECOStorageEngine;
 import cn.dancingsnow.neoecoae.storage.core.ECOStorageKey;
 
 public final class ECOAvailableItemsCache<StackType extends IAEStack> {
@@ -14,7 +14,7 @@ public final class ECOAvailableItemsCache<StackType extends IAEStack> {
     private long cachedRevision = Long.MIN_VALUE;
     private IItemList<StackType> cachedAvailableItems;
 
-    public IItemList<StackType> get(StorageChannel channel, ECOStorageBackend backend) {
+    public IItemList<StackType> get(StorageChannel channel, ECOStorageEngine backend) {
         if (backend == null) {
             return channel.createList();
         }
