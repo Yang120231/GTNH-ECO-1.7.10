@@ -5,7 +5,10 @@
   "refmap": "mixins.neoecoae.refmap.json",
   "compatibilityLevel": "JAVA_8",
   "mixins": [
-    "MixinContainerPatternTerm"
+    "MixinContainerPatternTerm",
+    "MixinCraftingGridPlanner",
+    "MixinCraftingCPUExecution",
+    "MixinCraftingTaskProgress"
   ],
   "client": [
     "MixinGuiPatternTerm",

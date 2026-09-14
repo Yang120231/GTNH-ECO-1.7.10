@@ -9,21 +9,21 @@ import net.minecraft.item.ItemStack;
 import appeng.api.config.Actionable;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
+import appeng.me.cluster.implementations.CraftingCPUCluster;
 import appeng.util.item.AEItemStack;
-import cn.dancingsnow.neoecoae.computation.ae2.ECOComputationVirtualCpu;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
 /** Tracks loaded workers that own inputs extracted by a specific ECO CPU job. */
 public final class ECOCraftingOwnershipRegistry {
 
-    private static final Map<String, WeakReference<ECOComputationVirtualCpu>> ACTIVE_JOBS = new HashMap<String, WeakReference<ECOComputationVirtualCpu>>();
+    private static final Map<String, WeakReference<CraftingCPUCluster>> ACTIVE_JOBS = new HashMap<String, WeakReference<CraftingCPUCluster>>();
     private static final Map<String, WeakReference<TileECOController>> OWNERS = new HashMap<String, WeakReference<TileECOController>>();
 
     private ECOCraftingOwnershipRegistry() {}
 
-    public static synchronized void heartbeat(String jobId, ECOComputationVirtualCpu cpu) {
+    public static synchronized void heartbeat(String jobId, CraftingCPUCluster cpu) {
         if (valid(jobId) && cpu != null) {
-            ACTIVE_JOBS.put(jobId, new WeakReference<ECOComputationVirtualCpu>(cpu));
+            ACTIVE_JOBS.put(jobId, new WeakReference<CraftingCPUCluster>(cpu));
         }
     }
 
@@ -35,7 +35,7 @@ public final class ECOCraftingOwnershipRegistry {
         if (!valid(jobId) || prototype == null || amount <= 0L) {
             return 0L;
         }
-        ECOComputationVirtualCpu cpu;
+        CraftingCPUCluster cpu;
         synchronized (ECOCraftingOwnershipRegistry.class) {
             cpu = activeCpu(jobId);
         }
@@ -52,13 +52,17 @@ public final class ECOCraftingOwnershipRegistry {
         return amount - remaining;
     }
 
-    private static ECOComputationVirtualCpu activeCpu(String jobId) {
+    private static CraftingCPUCluster activeCpu(String jobId) {
         if (!valid(jobId)) {
             return null;
         }
-        WeakReference<ECOComputationVirtualCpu> reference = ACTIVE_JOBS.get(jobId);
-        ECOComputationVirtualCpu cpu = reference == null ? null : reference.get();
-        if (cpu == null || !cpu.ownsCraftingJob(jobId)) {
+        WeakReference<CraftingCPUCluster> reference = ACTIVE_JOBS.get(jobId);
+        CraftingCPUCluster cpu = reference == null ? null : reference.get();
+        if (cpu == null || (!cpu.isActive() || !cpu.isBusy()
+            || cpu.getLastCraftingLink() == null
+            || !jobId.equals(
+                cpu.getLastCraftingLink()
+                    .getCraftingID()))) {
             ACTIVE_JOBS.remove(jobId);
             return null;
         }

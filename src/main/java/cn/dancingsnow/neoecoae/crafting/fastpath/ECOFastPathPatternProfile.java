@@ -65,6 +65,8 @@ public final class ECOFastPathPatternProfile {
         if (stacks == null || stacks.length == 0) {
             return new IAEItemStack[0];
         }
-        return Arrays.copyOf(stacks, stacks.length);
+        IAEItemStack[] copy = Arrays.copyOf(stacks, stacks.length);
+        for (int i = 0; i < copy.length; i++) copy[i] = copy[i] == null ? null : copy[i].copy();
+        return copy;
     }
 }

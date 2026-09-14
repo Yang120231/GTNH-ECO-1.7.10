@@ -340,74 +340,83 @@ public final class PatternUploadSession {
         // GT does not register every build of the crafting input hatch with AE2's terminal
         // class index. Enumerate the concrete class explicitly as well; the identity set keeps
         // this from duplicating a target returned by the registry scan below.
-        for (IGridNode node : grid.getMachines(gregtech.common.tileentities.machines.MTEHatchCraftingInputME.class)) {
-            IGridHost machine = node.getMachine();
-            if (!(machine instanceof MTEHatchCraftingInputME) || !seenInterfaces.add(node)) continue;
-            try {
-                MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) machine;
-                if (!isDiscoverableInterface(viewable)) continue;
-                PatternUploadTarget target = PatternUploadTarget
-                    .interfaceTarget("interface-" + serial++, viewable, grid);
-                addRecipeCompatibleTarget(result, compatibilityRanks, target, processing, details, routeKey);
-            } catch (RuntimeException ignored) {
-                // A GT hatch can disappear while its proxy is rebuilding.
+        try {
+            for (IGridNode node : grid
+                .getMachines(gregtech.common.tileentities.machines.MTEHatchCraftingInputME.class)) {
+                IGridHost machine = node.getMachine();
+                if (!(machine instanceof MTEHatchCraftingInputME) || !seenInterfaces.add(node)) continue;
+                try {
+                    MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) machine;
+                    if (!isDiscoverableInterface(viewable)) continue;
+                    PatternUploadTarget target = PatternUploadTarget
+                        .interfaceTarget("interface-" + serial++, viewable, grid);
+                    addRecipeCompatibleTarget(result, compatibilityRanks, target, processing, details, routeKey);
+                } catch (RuntimeException ignored) {
+                    // A GT hatch can disappear while its proxy is rebuilding.
+                }
             }
+        } catch (LinkageError ignored) {
+            // GTNH builds without the optional crafting-input hatch must still be usable.
         }
         // Some GT builds expose the AENetworkProxy as the grid node machine, so the class-index
         // scan above cannot recover the actual MTEHatchCraftingInputME. The loaded tile list is
         // the authoritative local source for both the GT MetaTileEntity and ECO interfaces.
         if (world != null && world.loadedTileEntityList != null) {
-            for (Object loaded : world.loadedTileEntityList) {
-                if (loaded instanceof IGregTechTileEntity) {
-                    try {
-                        IGregTechTileEntity base = (IGregTechTileEntity) loaded;
-                        IMetaTileEntity meta = base.getMetaTileEntity();
-                        if (meta instanceof MTEHatchCraftingInputME) {
-                            MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) meta;
-                            IGridNode node = viewable.getGridNode(ForgeDirection.UNKNOWN);
-                            if (node != null && node.isActive()
-                                && node.getGrid() == grid
-                                && seenInterfaces.add(node)
-                                && isDiscoverableInterface(viewable)) {
-                                PatternUploadTarget target = PatternUploadTarget
-                                    .interfaceTarget("interface-" + serial++, viewable, grid);
-                                addRecipeCompatibleTarget(
-                                    result,
-                                    compatibilityRanks,
-                                    target,
-                                    processing,
-                                    details,
-                                    routeKey);
+            try {
+                for (Object loaded : world.loadedTileEntityList) {
+                    if (loaded instanceof IGregTechTileEntity) {
+                        try {
+                            IGregTechTileEntity base = (IGregTechTileEntity) loaded;
+                            IMetaTileEntity meta = base.getMetaTileEntity();
+                            if (meta instanceof MTEHatchCraftingInputME) {
+                                MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) meta;
+                                IGridNode node = viewable.getGridNode(ForgeDirection.UNKNOWN);
+                                if (node != null && node.isActive()
+                                    && node.getGrid() == grid
+                                    && seenInterfaces.add(node)
+                                    && isDiscoverableInterface(viewable)) {
+                                    PatternUploadTarget target = PatternUploadTarget
+                                        .interfaceTarget("interface-" + serial++, viewable, grid);
+                                    addRecipeCompatibleTarget(
+                                        result,
+                                        compatibilityRanks,
+                                        target,
+                                        processing,
+                                        details,
+                                        routeKey);
+                                }
                             }
+                        } catch (RuntimeException ignored) {
+                            // A GT hatch can be observed while its base tile or proxy is rebuilding.
+                        }
+                    }
+                    if (!(loaded instanceof TileECOInterface)) continue;
+                    try {
+                        TileECOInterface ecoInterface = (TileECOInterface) loaded;
+                        IGridNode node = ecoInterface.getGridNode(ForgeDirection.UNKNOWN);
+                        if (node == null || !node.isActive() || node.getGrid() != grid || !seenInterfaces.add(node))
+                            continue;
+                        if (ecoInterface.getSubsystem() != ECOControllerSubsystem.CRAFTING) continue;
+                        TileECOController controller = ecoInterface.getBoundController();
+                        if (controller == null || !controller.isFormed()) continue;
+                        for (TileCraftingPatternBus bus : controller.getCraftingPatternBuses()) {
+                            if (!seenEcoBuses.add(bus)) continue;
+                            PatternUploadTarget target = PatternUploadTarget
+                                .ecoTarget("eco-" + serial++, bus, ecoInterface, grid);
+                            addRecipeCompatibleTarget(
+                                ecoTargets,
+                                compatibilityRanks,
+                                target,
+                                processing,
+                                details,
+                                routeKey);
                         }
                     } catch (RuntimeException ignored) {
-                        // A GT hatch can be observed while its base tile or proxy is rebuilding.
+                        // An ECO interface can be observed while its controller or proxy is rebuilding.
                     }
                 }
-                if (!(loaded instanceof TileECOInterface)) continue;
-                try {
-                    TileECOInterface ecoInterface = (TileECOInterface) loaded;
-                    IGridNode node = ecoInterface.getGridNode(ForgeDirection.UNKNOWN);
-                    if (node == null || !node.isActive() || node.getGrid() != grid || !seenInterfaces.add(node))
-                        continue;
-                    if (ecoInterface.getSubsystem() != ECOControllerSubsystem.CRAFTING) continue;
-                    TileECOController controller = ecoInterface.getBoundController();
-                    if (controller == null || !controller.isFormed()) continue;
-                    for (TileCraftingPatternBus bus : controller.getCraftingPatternBuses()) {
-                        if (!seenEcoBuses.add(bus)) continue;
-                        PatternUploadTarget target = PatternUploadTarget
-                            .ecoTarget("eco-" + serial++, bus, ecoInterface, grid);
-                        addRecipeCompatibleTarget(
-                            ecoTargets,
-                            compatibilityRanks,
-                            target,
-                            processing,
-                            details,
-                            routeKey);
-                    }
-                } catch (RuntimeException ignored) {
-                    // An ECO interface can be observed while its controller or proxy is rebuilding.
-                }
+            } catch (LinkageError ignored) {
+                // Optional GregTech hatch class is absent in some installations.
             }
         }
         // The interface-terminal registry is the authoritative source for GT/AE2 addon

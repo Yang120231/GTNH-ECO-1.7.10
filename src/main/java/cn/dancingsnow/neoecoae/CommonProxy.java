@@ -44,6 +44,11 @@ public class CommonProxy {
 
     public void serverStarting(FMLServerStartingEvent event) {
         ECOFastPathPlannerHook.clearCaches();
+        if (Boolean.getBoolean("neoecoae.verifyCraftingIntegration")) {
+            cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingIntegrationChecks.run();
+            net.minecraft.server.MinecraftServer.getServer()
+                .initiateShutdown();
+        }
     }
 
 }

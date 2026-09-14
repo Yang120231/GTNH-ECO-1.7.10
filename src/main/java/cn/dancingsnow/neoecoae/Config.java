@@ -6,6 +6,8 @@ import net.minecraftforge.common.config.Configuration;
 
 public class Config {
 
+    public static boolean enableEcoPlanner = true;
+
     public static boolean enableEcoCraftingFastPath = true;
     public static boolean enableEcoAggressiveCraftingFastPath = true;
     public static boolean enableEcoProcessingPatternFastPath = true;
@@ -16,6 +18,12 @@ public class Config {
 
     public static void synchronizeConfiguration(File configFile) {
         configuration = new Configuration(configFile);
+
+        enableEcoPlanner = configuration.getBoolean(
+            "enableEcoPlanner",
+            Configuration.CATEGORY_GENERAL,
+            enableEcoPlanner,
+            "Use ECO exact planning and persistent ordered execution for compatible GTNH AE2 requests; retain native planning for special pattern semantics.");
 
         enableEcoCraftingFastPath = configuration.getBoolean(
             "enableEcoCraftingFastPath",
