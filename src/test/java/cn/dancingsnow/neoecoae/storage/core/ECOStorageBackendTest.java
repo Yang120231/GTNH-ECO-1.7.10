@@ -18,6 +18,37 @@ class ECOStorageBackendTest {
     private static final ECOStorageKey FLUID = ECOStorageKey.fluid("water", "");
 
     @Test
+    void oversizedLegacyCellPreservesContentsButRejectsInsertsUntilDrained() {
+        ECOStorageBackend legacy = new ECOStorageBackend(ECOCapacityPolicy.finite(100L, 2L));
+        legacy.insert(ITEM, ECOAmount.of(81L), false);
+        NBTTagCompound saved = new NBTTagCompound();
+        legacy.writeToNBT(saved);
+        ECOStorageBackend aligned = new ECOStorageBackend(ECOCapacityPolicy.finite(10L, 2L));
+        aligned.readFromNBT(saved);
+
+        assertEquals(ECOAmount.of(81L), aligned.getAmount(ITEM));
+        assertEquals(ECOAmount.ZERO, aligned.insert(ITEM, ECOAmount.of(1L), true));
+        assertEquals(ECOAmount.ZERO, aligned.insert(ITEM, ECOAmount.of(1L), false));
+        assertEquals(ECOAmount.of(25L), aligned.extract(ITEM, ECOAmount.of(25L), false));
+        assertEquals(ECOAmount.of(8L), aligned.insert(ITEM, ECOAmount.of(20L), false));
+
+        aligned.writeToNBT(saved);
+        ECOStorageBackend reloaded = new ECOStorageBackend(ECOCapacityPolicy.finite(10L, 2L));
+        reloaded.readFromNBT(saved);
+        assertEquals(ECOAmount.of(64L), reloaded.getAmount(ITEM));
+    }
+
+    @Test
+    void emptyNbtDoesNotTurnAFiniteCellIntoAnInfiniteCell() {
+        ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(10L, 2L));
+        backend.readFromNBT(new NBTTagCompound());
+        assertFalse(
+            backend.getCapacityPolicy()
+                .isInfinite());
+        assertEquals(ECOAmount.of(64L), backend.insert(ITEM, ECOAmount.of(100L), false));
+    }
+
+    @Test
     void itemAmountsUseAe2BytesAndChargeEachType() {
         ECOStorageBackend backend = new ECOStorageBackend(ECOCapacityPolicy.finite(10L, 2L));
 

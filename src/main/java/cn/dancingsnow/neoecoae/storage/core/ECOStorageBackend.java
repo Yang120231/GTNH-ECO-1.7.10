@@ -253,6 +253,11 @@ public final class ECOStorageBackend implements ECOStorageEngine {
         if (this.capacityPolicy.isInfinite()) {
             return requested;
         }
+        // Old releases had larger cells. Preserve their contents for extraction, but never
+        // let partially used bytes admit more resources while the cell exceeds its new limit.
+        if (!this.capacityPolicy.canHold(this.used)) {
+            return ECOAmount.ZERO;
+        }
         if (current.isZero() && (long) this.entries.size() >= this.capacityPolicy.getMaxTypes()) {
             return ECOAmount.ZERO;
         }

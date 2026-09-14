@@ -48,12 +48,10 @@ public class ECOStorageDriveProvider implements ICellProvider {
     }
 
     private List<IMEInventoryHandler> createCellArray(StorageChannel channel) {
-        if (this.controller != null && this.controller.canUseHostDomainStorage()) {
-            List<IMEInventoryHandler> domainHandlers = new ArrayList<IMEInventoryHandler>();
-            domainHandlers.add(new ECOHostDomainInventoryHandler(this.controller, channel));
-            return domainHandlers;
-        }
         List<IMEInventoryHandler> handlers = new ArrayList<IMEInventoryHandler>();
+        if (this.controller != null && this.controller.canUseHostDomainStorage()) {
+            handlers.add(new ECOHostDomainInventoryHandler(this.controller, channel));
+        }
         for (ECOFormationBlockPos pos : this.drivePositions) {
             net.minecraft.tileentity.TileEntity tile = this.world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (!(tile instanceof TileECODrive)) {

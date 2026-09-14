@@ -69,7 +69,7 @@ public final class ECOStorageCodec {
         }
         if (tag == null || tag.hasNoTags()) {
             backend.loadFromCodec(
-                ECOCapacityPolicy.infinite(),
+                backend.getCapacityPolicy(),
                 new LinkedHashMap<ECOStorageKey, ECOAmount>(),
                 ECOAmount.ZERO,
                 0L);

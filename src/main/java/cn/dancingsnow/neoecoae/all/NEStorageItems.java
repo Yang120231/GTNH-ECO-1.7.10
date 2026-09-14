@@ -37,9 +37,9 @@ public final class NEStorageItems {
     public static final Item ecoInfiniteCellComponent = simpleItem("eco_infinite_cell_component");
     public static final Item ecoStorageRecoveryTerminal = new ItemECOStorageRecoveryTerminal();
     public static final Item ecoItemCellHousing = simpleItem("eco_item_cell_housing");
-    public static final Item ecoItemStorageCell16M = storageCell("eco_item_storage_cell_16m", "1G");
-    public static final Item ecoItemStorageCell64M = storageCell("eco_item_storage_cell_64m", "16G");
-    public static final Item ecoItemStorageCell256M = storageCell("eco_item_storage_cell_256m", "64G");
+    public static final Item ecoItemStorageCell16M = storageCell("eco_item_storage_cell_16m", "16M");
+    public static final Item ecoItemStorageCell64M = storageCell("eco_item_storage_cell_64m", "64M");
+    public static final Item ecoItemStorageCell256M = storageCell("eco_item_storage_cell_256m", "256M");
     public static final Item ecoComputationCellL4 = computationCell(
         "eco_computation_cell_l4",
         "CE4",
@@ -136,10 +136,10 @@ public final class NEStorageItems {
 
         @Override
         public long getBytesPerType(ItemStack stack) {
-            if ("64G".equals(this.tier)) {
+            if ("64G".equals(this.tier) || "256M".equals(this.tier)) {
                 return 1L << 15;
             }
-            if ("16G".equals(this.tier)) {
+            if ("16G".equals(this.tier) || "64M".equals(this.tier)) {
                 return 1L << 14;
             }
             return 1L << 13;

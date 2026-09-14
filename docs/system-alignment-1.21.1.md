@@ -19,8 +19,12 @@ This is ongoing implementation, not a completed parity certification.
   settings/resources, topology refresh, balanced dispatch and eight-host modes.
 - Pending: planner graph/cycle/growth/exact-amount semantics, fast paths,
   transaction/ownership scheduling and compatible external providers.
-- Pending: normal storage sizes/types, legacy oversized-cell preservation,
-  12-source infinite admission and durable nonempty restore to normal cells.
+- Implemented: normal storage sizes 16/64/256 MiB, oversized legacy contents
+  remain extractable without allowing new inserts, corrected matrix tier labels
+  and localized capacity names. Resource-type separation remains pending.
+- Implemented: 12-source infinite admission permits non-L9/empty slots, rejects
+  foreign domain members and transfer mode, and keeps nonmember cells mounted.
+  Durable nonempty restore to normal cells and migration crash consistency remain pending.
 - Pending: tier-aware structure constraints and mixed component tiers,
   recipes, UI, localization, storage transfer and lifecycle parity audit.
 - Pending: cross-version contract fixtures, regression tests, complete build,
@@ -28,8 +32,11 @@ This is ongoing implementation, not a completed parity certification.
 
 ## Checks so far
 
-Initial numeric/overflow/CPU changes passed `spotlessApply test` through IDEA.
-Subsequent changes require fresh verification.
+Current changes passed `spotlessApply build` through IDEA, including tests,
+Checkstyle and Spotless. Mixed storage admission and physical lane behavior
+still need integration-level regression coverage and runtime validation.
+Fractional power progress now marks persistent state dirty; occupied FX display
+uses the actual number of occupied lanes instead of marking all workers busy.
 
 ## Reference anchors
 

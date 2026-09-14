@@ -87,7 +87,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private static final String TAG_DISK_ID = "DiskId";
     private static final String TAG_STEP = "Step";
     private static final int REQUIRED_INFINITE_COMPONENTS = 64;
-    private static final int REQUIRED_INFINITE_DRIVES = 16;
+    private static final int REQUIRED_INFINITE_DRIVES = 12;
     public static final int MAX_CRAFTING_COOLANT = 1000000;
     public static final int CRAFTING_ENERGY_GAUGE_REFERENCE = ECOEnergyProfile.CRAFTING_ENERGY_GAUGE_REFERENCE;
     private static final int MIGRATION_NOT_STARTED = 0;
@@ -538,6 +538,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return this.craftingVirtualPool.isRunning();
     }
 
+    int getOccupiedCraftingLanes() {
+        return this.craftingVirtualPool.occupiedLanes();
+    }
+
     public List<TileCraftingWorker.WorkSnapshot> getVirtualCraftingWorkSnapshots(int limit) {
         return this.craftingVirtualPool.snapshots(this.getCraftingMaxInFlightCrafts(), limit);
     }
@@ -816,8 +820,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingCurrentBatchSlots() {
-        return ECOCraftingCapacity
-            .availableCraftSlots(this.getCraftingMaxInFlightCrafts(), this.getCraftingWorkQueueDepth());
+        return this.craftingVirtualPool
+            .availableBatchCapacity(this.getCraftingWorkerCount(), this.getCraftingThreadCountPerWorker());
     }
 
     public boolean consumeCraftingCoolantForWork(int craftCount) {
@@ -890,8 +894,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
     private int calculateCraftingOverclockTimes() {
         int threadCount = this.getCraftingParallelCount();
-        int availableThreads = ECOEnergyProfile
-            .craftingThreadCapacity(this.getCraftingWorkerCount(), this.tier, this.craftingOverclocked);
+        int availableThreads = ECOEnergyProfile.craftingThreadCapacity(this.getCraftingWorkerCount(), this.tier, false);
         return ECOCraftingCapacity.overclockTimes(threadCount, availableThreads);
     }
 
@@ -1443,10 +1446,24 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private boolean isInfiniteUnlockConfigured() {
+        TileECOInterface storageInterface = this.getStorageInterfaceForTransfer();
         return this.subsystem == ECOControllerSubsystem.STORAGE && this.tier == ECOControllerTier.L9
             && this.getInfiniteStorageComponentCount() >= REQUIRED_INFINITE_COMPONENTS
-            && this.formedMemberBlocks.size() >= REQUIRED_INFINITE_DRIVES
-            && this.areAllFormedDrivesL9Matrices();
+            && this.countL9StorageDrives() >= REQUIRED_INFINITE_DRIVES
+            && (storageInterface == null || !storageInterface.isStorageTransferMode())
+            && !this.hasForeignStorageMembers();
+    }
+
+    private boolean hasForeignStorageMembers() {
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            TileECODrive drive = this.getDriveAt(pos);
+            ItemStack stack = drive == null ? null : drive.getCellStack();
+            if (ECOStorageCellMetadata.hasNonPortableState(stack) && (this.hostDomainId == null
+                || !this.hostDomainId.equals(ECOStorageCellMetadata.getHostDomainId(stack)))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean areAllFormedDrivesL9Matrices() {
@@ -1465,6 +1482,18 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         return true;
     }
 
+    private int countL9StorageDrives() {
+        if (this.worldObj == null) return 0;
+        int count = 0;
+        for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECODrive && !isNotL9StorageMatrix(((TileECODrive) tile).getCellStack())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private void startInfiniteMigration() {
         if (this.worldObj == null || this.worldObj.isRemote || !this.formed || !this.isInfiniteUnlockConfigured()) {
             return;
@@ -1475,11 +1504,11 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         for (ECOFormationBlockPos pos : this.formedMemberBlocks) {
             TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (!(tile instanceof TileECODrive)) {
-                return;
+                continue;
             }
             ItemStack stack = ((TileECODrive) tile).getCellStack();
             if (!this.isMigrationCandidate(stack, domainId)) {
-                return;
+                continue;
             }
             UUID diskId = ECOStorageCellMetadata.getOrCreateDiskId(stack);
             if (!seenDisks.add(diskId)) {
@@ -1487,7 +1516,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             }
             diskIds.add(diskId);
         }
-        if (diskIds.isEmpty()) {
+        if (diskIds.size() < REQUIRED_INFINITE_DRIVES) {
             return;
         }
         this.hostDomainId = domainId;
