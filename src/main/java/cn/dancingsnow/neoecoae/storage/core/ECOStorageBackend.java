@@ -27,6 +27,25 @@ public final class ECOStorageBackend implements ECOStorageEngine {
     private NBTTagCompound quarantinedSnapshot;
     private String failureReason;
     private Runnable mutationListener;
+    private String acceptedChannel;
+    private int maximumTypes = Integer.MAX_VALUE;
+
+    public void setMaximumTypes(int maximumTypes) {
+        this.maximumTypes = Math.max(0, maximumTypes);
+    }
+
+    public int getMaximumTypes() {
+        return this.maximumTypes;
+    }
+
+    /** Restricts new inserts without making legacy contents inaccessible. */
+    public void setAcceptedChannel(String channel) {
+        this.acceptedChannel = channel;
+    }
+
+    public String getAcceptedChannel() {
+        return this.acceptedChannel;
+    }
 
     public ECOStorageBackend() {
         this(ECOCapacityPolicy.infinite());
@@ -44,10 +63,14 @@ public final class ECOStorageBackend implements ECOStorageEngine {
 
     public ECOAmount insert(ECOStorageKey key, ECOAmount amount, boolean simulate) {
         requireKey(key);
+        if (this.acceptedChannel != null && !this.acceptedChannel.equals(key.getChannel())) {
+            return ECOAmount.ZERO;
+        }
         if (!this.isHealthy() || amount == null || amount.isZero()) {
             return ECOAmount.ZERO;
         }
         ECOAmount current = this.getAmount(key);
+        if (current.isZero() && this.entries.size() >= this.maximumTypes) return ECOAmount.ZERO;
         ECOAmount accepted = this.limitInsert(key, current, amount);
         if (accepted.isZero() || simulate) {
             return accepted;

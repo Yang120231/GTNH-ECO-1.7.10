@@ -19,6 +19,11 @@ public final class ECOStorageCellAccess {
 
     public static ECOStorageBackend load(ItemStack stack) {
         ECOStorageBackend backend = new ECOStorageBackend(capacityFor(stack));
+        if (stack != null && stack.getItem() instanceof IECOStorageMatrixItem) {
+            backend.setAcceptedChannel(((IECOStorageMatrixItem) stack.getItem()).getStorageChannel());
+            backend.setMaximumTypes(
+                "fluid".equals(((IECOStorageMatrixItem) stack.getItem()).getStorageChannel()) ? 25 : 315);
+        }
         if (ECOStorageCellMetadata.hasNonPortableState(stack)) {
             return backend;
         }

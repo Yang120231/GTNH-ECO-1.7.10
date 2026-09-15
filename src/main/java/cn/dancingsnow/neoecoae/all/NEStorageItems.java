@@ -37,6 +37,10 @@ public final class NEStorageItems {
     public static final Item ecoInfiniteCellComponent = simpleItem("eco_infinite_cell_component");
     public static final Item ecoStorageRecoveryTerminal = new ItemECOStorageRecoveryTerminal();
     public static final Item ecoItemCellHousing = simpleItem("eco_item_cell_housing");
+    public static final Item ecoFluidCellHousing = simpleItem("eco_fluid_cell_housing");
+    public static final Item ecoFluidStorageCell16M = storageCell("eco_fluid_storage_cell_16m", "16M");
+    public static final Item ecoFluidStorageCell64M = storageCell("eco_fluid_storage_cell_64m", "64M");
+    public static final Item ecoFluidStorageCell256M = storageCell("eco_fluid_storage_cell_256m", "256M");
     public static final Item ecoItemStorageCell16M = storageCell("eco_item_storage_cell_16m", "16M");
     public static final Item ecoItemStorageCell64M = storageCell("eco_item_storage_cell_64m", "64M");
     public static final Item ecoItemStorageCell256M = storageCell("eco_item_storage_cell_256m", "256M");
@@ -62,6 +66,10 @@ public final class NEStorageItems {
         register(ecoInfiniteCellComponent, "eco_infinite_cell_component");
         register(ecoStorageRecoveryTerminal, "eco_storage_recovery_terminal");
         register(ecoItemCellHousing, "eco_item_cell_housing");
+        register(ecoFluidCellHousing, "eco_fluid_cell_housing");
+        register(ecoFluidStorageCell16M, "eco_fluid_storage_cell_16m");
+        register(ecoFluidStorageCell64M, "eco_fluid_storage_cell_64m");
+        register(ecoFluidStorageCell256M, "eco_fluid_storage_cell_256m");
         register(ecoItemStorageCell16M, "eco_item_storage_cell_16m");
         register(ecoItemStorageCell64M, "eco_item_storage_cell_64m");
         register(ecoItemStorageCell256M, "eco_item_storage_cell_256m");
@@ -112,6 +120,7 @@ public final class NEStorageItems {
         private static final EnumChatFormatting TOTAL_COLOR = EnumChatFormatting.BLUE;
 
         private final String tier;
+        private final String storageChannel;
         private final long bytes;
         private final NumberFormat numberFormat;
         private IIcon baseIcon;
@@ -120,6 +129,7 @@ public final class NEStorageItems {
         ECOStorageCellItem(String id, String tier) {
             super(id);
             this.tier = tier;
+            this.storageChannel = id.startsWith("eco_fluid_") ? "fluid" : "item";
             this.bytes = bytesForTier(tier);
             this.numberFormat = NumberFormat.getIntegerInstance(Locale.US);
             setMaxStackSize(1);
@@ -127,6 +137,11 @@ public final class NEStorageItems {
 
         public String getTier() {
             return tier;
+        }
+
+        @Override
+        public String getStorageChannel() {
+            return this.storageChannel;
         }
 
         @Override
@@ -179,7 +194,7 @@ public final class NEStorageItems {
 
         @Override
         public void onCreated(ItemStack stack, net.minecraft.world.World world, EntityPlayer player) {
-            ECOStorageCellAccess.writeCellIdentity(stack, "universal", this.tier);
+            ECOStorageCellAccess.writeCellIdentity(stack, this.storageChannel, this.tier);
         }
 
         @SideOnly(Side.CLIENT)

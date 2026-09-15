@@ -50,6 +50,13 @@ public class TileECODrive extends TileEntity implements IInventory {
     }
 
     public ECOStorageBackend getOrLoadCellBackend() {
+        if (this.worldObj != null && !this.worldObj.isRemote
+            && this.cellStack != null
+            && cn.dancingsnow.neoecoae.storage.domain.ECOStorageDomainData.get(this.worldObj)
+                .recoverRestoredMember(this.cellStack)) {
+            this.discardCellBackend();
+            this.markDirty();
+        }
         if (this.cellStack == null) {
             this.cellBackend = null;
             this.cellBackendDirty = false;

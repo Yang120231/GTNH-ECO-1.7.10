@@ -32,6 +32,88 @@ public class ECOStorageDomainData extends WorldSavedData {
 
     private final Map<UUID, ECOStorageBackend> domains = new LinkedHashMap<UUID, ECOStorageBackend>();
     private final Map<UUID, Set<UUID>> committedSources = new LinkedHashMap<UUID, Set<UUID>>();
+    private final Map<UUID, NBTTagCompound> restorePlans = new LinkedHashMap<>();
+    private final Set<UUID> durableRestores = new HashSet<>();
+
+    public NBTTagCompound getRestorePlan(UUID domainId) {
+        NBTTagCompound plan = this.restorePlans.get(domainId);
+        return plan == null ? null : (NBTTagCompound) plan.copy();
+    }
+
+    public void beginRestore(UUID domainId, NBTTagCompound plan) {
+        if (!this.domains.containsKey(domainId) || this.restorePlans.containsKey(domainId)) {
+            throw new IllegalStateException("Invalid storage restore state");
+        }
+        this.restorePlans.put(domainId, (NBTTagCompound) plan.copy());
+        this.markDirty();
+    }
+
+    public void completeRestore(UUID domainId) {
+        NBTTagCompound plan = this.restorePlans.get(domainId);
+        if (plan == null) return;
+        plan.setBoolean("Completed", true);
+        ECOStorageBackend domain = this.domains.get(domainId);
+        if (domain != null) domain.clear();
+        this.markDirty();
+    }
+
+    /** A checked, fsynced barrier: vanilla MapStorage logs and swallows write failures. */
+    public void saveDurably(World world) {
+        java.io.File destination = storageWorld(world).getSaveHandler()
+            .getMapFileFromName(DATA_NAME);
+        if (destination == null) throw new IllegalStateException("Storage journal has no save path");
+        java.nio.file.Path temporary = null;
+        try {
+            java.nio.file.Path target = destination.toPath();
+            java.nio.file.Files.createDirectories(target.getParent());
+            temporary = java.nio.file.Files.createTempFile(target.getParent(), DATA_NAME, ".pending");
+            NBTTagCompound root = new NBTTagCompound();
+            NBTTagCompound payload = new NBTTagCompound();
+            this.writeToNBT(payload);
+            root.setTag("data", payload);
+            byte[] bytes = net.minecraft.nbt.CompressedStreamTools.compress(root);
+            try (java.io.FileOutputStream out = new java.io.FileOutputStream(temporary.toFile())) {
+                out.write(bytes);
+                out.getFD()
+                    .sync();
+            }
+            java.nio.file.Files.move(
+                temporary,
+                target,
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            this.setDirty(false);
+            for (Map.Entry<UUID, NBTTagCompound> entry : this.restorePlans.entrySet()) if (entry.getValue()
+                .getBoolean("Completed")) this.durableRestores.add(entry.getKey());
+        } catch (java.io.IOException failure) {
+            throw new IllegalStateException("Cannot durably commit ECO storage journal", failure);
+        } finally {
+            if (temporary != null) {
+                try {
+                    java.nio.file.Files.deleteIfExists(temporary);
+                } catch (java.io.IOException ignored) {}
+            }
+        }
+    }
+
+    /** Replay only a still-sealed member. A portable cell may already have been used. */
+    public boolean recoverRestoredMember(net.minecraft.item.ItemStack stack) {
+        if (!cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata.hasNonPortableState(stack)) return false;
+        UUID domainId = cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata.getHostDomainId(stack);
+        UUID diskId = cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata.getDiskId(stack);
+        NBTTagCompound plan = this.restorePlans.get(domainId);
+        if (plan == null || !this.durableRestores.contains(domainId)
+            || !plan.getBoolean("Completed")
+            || diskId == null
+            || !plan.hasKey(diskId.toString(), 10)) return false;
+        stack.getTagCompound()
+            .setTag(
+                "ECOStorage",
+                plan.getCompoundTag(diskId.toString())
+                    .copy());
+        cn.dancingsnow.neoecoae.storage.item.ECOStorageCellMetadata.clearDomainBinding(stack);
+        return true;
+    }
 
     public ECOStorageDomainData() {
         super(DATA_NAME);
@@ -107,6 +189,10 @@ public class ECOStorageDomainData extends WorldSavedData {
     }
 
     public void removeDomain(UUID domainId) {
+        // Keep completed target snapshots as recovery tombstones for stale chunks.
+        NBTTagCompound restore = this.restorePlans.get(domainId);
+        if (restore != null && restore.getBoolean("Completed")) return;
+        if (this.restorePlans.remove(domainId) != null) this.markDirty();
         if (this.domains.remove(domainId) != null) {
             this.markDirty();
         }
@@ -203,6 +289,8 @@ public class ECOStorageDomainData extends WorldSavedData {
     public void readFromNBT(NBTTagCompound tag) {
         this.domains.clear();
         this.committedSources.clear();
+        this.restorePlans.clear();
+        this.durableRestores.clear();
         NBTTagList list = tag.getTagList("domains", Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound domainTag = list.getCompoundTagAt(i);
@@ -219,6 +307,11 @@ public class ECOStorageDomainData extends WorldSavedData {
             }
             backend.setMutationListener(this::markDirty);
             this.domains.put(domainId, backend);
+            if (domainTag.hasKey("restorePlan")) {
+                this.restorePlans.put(domainId, domainTag.getCompoundTag("restorePlan"));
+                if (domainTag.getCompoundTag("restorePlan")
+                    .getBoolean("Completed")) this.durableRestores.add(domainId);
+            }
             NBTTagList committedTag = domainTag.getTagList("committedSources", Constants.NBT.TAG_COMPOUND);
             Set<UUID> committed = new HashSet<UUID>();
             for (int j = 0; j < committedTag.tagCount(); j++) {
@@ -249,6 +342,8 @@ public class ECOStorageDomainData extends WorldSavedData {
             entry.getValue()
                 .writeToNBT(storageTag);
             domainTag.setTag("storage", storageTag);
+            NBTTagCompound restore = this.restorePlans.get(entry.getKey());
+            if (restore != null) domainTag.setTag("restorePlan", restore.copy());
             NBTTagList committedTag = new NBTTagList();
             Set<UUID> committed = this.committedSources.get(entry.getKey());
             if (committed != null) {

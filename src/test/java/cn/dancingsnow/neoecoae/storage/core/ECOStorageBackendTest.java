@@ -18,6 +18,25 @@ class ECOStorageBackendTest {
     private static final ECOStorageKey FLUID = ECOStorageKey.fluid("water", "");
 
     @Test
+    void channelRestrictionPreservesLegacyContentsAcrossReload() {
+        ECOStorageBackend legacy = new ECOStorageBackend(ECOCapacityPolicy.finite(100L));
+        legacy.insert(FLUID, ECOAmount.of(1000L), false);
+        NBTTagCompound saved = new NBTTagCompound();
+        legacy.writeToNBT(saved);
+        ECOStorageBackend itemCell = new ECOStorageBackend(ECOCapacityPolicy.finite(100L));
+        itemCell.setAcceptedChannel("item");
+        itemCell.readFromNBT(saved);
+        assertEquals(ECOAmount.ZERO, itemCell.insert(FLUID, ECOAmount.of(1L), true));
+        assertEquals(ECOAmount.ZERO, itemCell.insert(FLUID, ECOAmount.of(1L), false));
+        assertEquals(ECOAmount.of(1000L), itemCell.extract(FLUID, ECOAmount.of(1000L), false));
+        assertEquals(ECOAmount.of(8L), itemCell.insert(ITEM, ECOAmount.of(8L), false));
+        ECOStorageBackend fluidCell = new ECOStorageBackend(ECOCapacityPolicy.finite(100L));
+        fluidCell.setAcceptedChannel("fluid");
+        assertEquals(ECOAmount.ZERO, fluidCell.insert(ITEM, ECOAmount.of(1L), false));
+        assertEquals(ECOAmount.of(1000L), fluidCell.insert(FLUID, ECOAmount.of(1000L), false));
+    }
+
+    @Test
     void oversizedLegacyCellPreservesContentsButRejectsInsertsUntilDrained() {
         ECOStorageBackend legacy = new ECOStorageBackend(ECOCapacityPolicy.finite(100L, 2L));
         legacy.insert(ITEM, ECOAmount.of(81L), false);

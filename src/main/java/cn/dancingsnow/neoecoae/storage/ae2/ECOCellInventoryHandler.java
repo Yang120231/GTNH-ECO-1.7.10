@@ -131,7 +131,10 @@ public class ECOCellInventoryHandler<StackType extends IAEStack> implements IMEI
 
     @Override
     public boolean canAccept(StackType input) {
-        return this.backend.isHealthy() && input != null && input.getChannel() == this.channel;
+        return this.backend.isHealthy() && input != null
+            && input.getChannel() == this.channel
+            && !this.backend.insert(ECOAE2KeyConverter.toKey(input), ECOAmount.of(1L), true)
+                .isZero();
     }
 
     @Override
