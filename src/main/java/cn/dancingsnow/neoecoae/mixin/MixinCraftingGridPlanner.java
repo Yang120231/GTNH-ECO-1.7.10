@@ -40,11 +40,15 @@ public abstract class MixinCraftingGridPlanner {
             || output.getStackSize() <= 0
             || mode != CraftingMode.STANDARD) return;
         try {
+            int options = cn.dancingsnow.neoecoae.tile.TileECOController.planningOptionsFor(world, grid);
+            if ((options & 1) == 0) return;
             IStorageGrid storage = grid.getCache(IStorageGrid.class);
             ECOCraftingSnapshot snapshot = new ECOCraftingSnapshot(
                 (CraftingGridCache) (Object) this,
                 new MECraftingInventory(storage, false, false, false),
-                new ECOResourceKey(output));
+                new ECOResourceKey(output),
+                (options & 4) != 0);
+            snapshot.cyclePlanningEnabled = (options & 2) != 0;
             cir.setReturnValue(new ECOCraftingJob(world, grid, source, output, callback, snapshot).schedule());
         } catch (UnsupportedOperationException | ArithmeticException ignored) {
             // Preserve native addon semantics whenever an exact snapshot cannot represent them.

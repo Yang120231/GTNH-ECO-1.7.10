@@ -25,8 +25,14 @@ public final class ECOCraftingSnapshot {
     public final List<ECORecipe<ECOResourceKey, ICraftingPatternDetails>> recipes = new ArrayList<>();
     public final Map<ECOResourceKey, Long> inventory = new LinkedHashMap<>();
     public final MECraftingInventory storage;
+    public boolean cyclePlanningEnabled = true;
 
     public ECOCraftingSnapshot(CraftingGridCache crafting, MECraftingInventory storage, ECOResourceKey goal) {
+        this(crafting, storage, goal, false);
+    }
+
+    public ECOCraftingSnapshot(CraftingGridCache crafting, MECraftingInventory storage, ECOResourceKey goal,
+        boolean ignoreSubstitutions) {
         this.storage = storage;
         Map<ECOResourceKey, List<ICraftingPatternDetails>> index = new LinkedHashMap<>();
         crafting.getCraftingMultiPatterns()
@@ -47,8 +53,9 @@ public final class ECOCraftingSnapshot {
             if (patterns == null) continue;
             for (ICraftingPatternDetails pattern : patterns) {
                 if (!captured.add(pattern)) continue;
-                if (pattern.canSubstitute() || pattern.isInputOnly()) throw new UnsupportedOperationException(
-                    "Substitution or input-only semantics require native planning");
+                if ((!ignoreSubstitutions && pattern.canSubstitute()) || pattern.isInputOnly())
+                    throw new UnsupportedOperationException(
+                        "Substitution or input-only semantics require native planning");
                 Map<ECOResourceKey, Long> inputs = amounts(pattern.getCondensedAEInputs());
                 Map<ECOResourceKey, Long> outputs = amounts(pattern.getCondensedAEOutputs());
                 if (pattern.isCraftable()) {

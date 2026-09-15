@@ -21,6 +21,18 @@ public final class ECOResourceKey {
             .setStackSize(amount);
     }
 
+    public String displayName() {
+        if (template instanceof appeng.api.storage.data.IAEItemStack) {
+            return ((appeng.api.storage.data.IAEItemStack) template).getItemStack()
+                .getDisplayName();
+        }
+        if (template instanceof appeng.api.storage.data.IAEFluidStack) {
+            return ((appeng.api.storage.data.IAEFluidStack) template).getFluidStack()
+                .getLocalizedName();
+        }
+        return template.toString();
+    }
+
     @Override
     public boolean equals(Object other) {
         if (!(other instanceof ECOResourceKey)) return false;

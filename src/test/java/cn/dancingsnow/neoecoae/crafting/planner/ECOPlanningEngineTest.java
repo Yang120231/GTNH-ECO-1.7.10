@@ -15,6 +15,31 @@ import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningResult.Status;
 class ECOPlanningEngineTest {
 
     @Test
+    void disablingCycleSolverKeepsAcyclicPlanningAvailable() {
+        ECOPlanningEngine<String, String> engine = new ECOPlanningEngine<>(
+            Arrays.asList(recipe("smelt", amounts("ore", 1), amounts("ingot", 1))),
+            () -> false,
+            1000);
+        ECOPlanningResult<String, String> result = engine.cyclePlanningEnabled(false)
+            .plan("ingot", 10, amounts("ore", 10));
+        assertEquals(Status.SUCCESS, result.status);
+        assertEquals(amounts("ore", 10), result.extracted);
+    }
+
+    @Test
+    void disablingCycleSolverDoesNotInventMissingStartupSeed() {
+        ECOPlanningEngine<String, String> engine = new ECOPlanningEngine<>(
+            Arrays
+                .asList(recipe("ab", amounts("a", 1), amounts("b", 1)), recipe("ba", amounts("b", 1), amounts("a", 2))),
+            () -> false,
+            1000);
+        ECOPlanningResult<String, String> result = engine.cyclePlanningEnabled(false)
+            .plan("a", 10, Collections.emptyMap());
+        assertEquals(Status.CYCLE_UNRESOLVED, result.status);
+        assertTrue(result.schedule.isEmpty());
+    }
+
+    @Test
     void separateSccsImportThroughAcyclicBoundary() {
         ECOPlanningResult<String, String> result = plan(
             "x",

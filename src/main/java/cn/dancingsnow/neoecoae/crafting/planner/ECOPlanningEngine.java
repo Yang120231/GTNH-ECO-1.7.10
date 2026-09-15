@@ -25,6 +25,12 @@ public final class ECOPlanningEngine<K, P> {
     private final long maxNanos;
     private long started;
     private ECOCyclePlannerBridge<K, P> cyclePlanner;
+    private boolean cyclePlanningEnabled = true;
+
+    public ECOPlanningEngine<K, P> cyclePlanningEnabled(boolean enabled) {
+        cyclePlanningEnabled = enabled;
+        return this;
+    }
 
     public ECOPlanningEngine(List<ECORecipe<K, P>> recipes, BooleanSupplier cancelled, int maxSteps) {
         this(recipes, cancelled, maxSteps, Long.MAX_VALUE);
@@ -68,14 +74,16 @@ public final class ECOPlanningEngine<K, P> {
         State state = new State(inventory);
         try {
             try {
-                cyclePlanner = new ECOCyclePlannerBridge<>(goal, relevantRecipes(goal), this::check);
+                cyclePlanner = cyclePlanningEnabled
+                    ? new ECOCyclePlannerBridge<>(goal, relevantRecipes(goal), this::check)
+                    : null;
                 ensure(goal, target, state, new HashSet<K>());
             } catch (InterruptedException interrupted) {
                 Thread.currentThread()
                     .interrupt();
                 throw new Failure(Status.CANCELLED, null, 0);
             } catch (Failure failure) {
-                if (failure.status != Status.CYCLE_UNRESOLVED) throw failure;
+                if (!cyclePlanningEnabled || failure.status != Status.CYCLE_UNRESOLVED) throw failure;
                 state = solveBounded(goal, target, new State(inventory));
             }
             consume(goal, amount, state);
@@ -271,6 +279,7 @@ public final class ECOPlanningEngine<K, P> {
     }
 
     private boolean solveComponent(K key, long amount, State state, Set<K> active) {
+        if (cyclePlanner == null) return false;
         cn.dancingsnow.neoecoae.crafting.planner.ported.cycle.CycleSolveResult result;
         try {
             result = cyclePlanner.solve(key, amount, state.stock, this::check);
