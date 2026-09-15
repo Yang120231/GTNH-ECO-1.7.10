@@ -46,6 +46,8 @@ public class CommonProxy {
         ECOFastPathPlannerHook.clearCaches();
         if (Boolean.getBoolean("neoecoae.verifyCraftingIntegration")) {
             cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingIntegrationChecks.run();
+            cn.dancingsnow.neoecoae.tile.ECONetworkIntegrationChecks.run();
+            cn.dancingsnow.neoecoae.storage.domain.ECOStorageCrashChecks.run();
             net.minecraft.server.MinecraftServer.getServer()
                 .initiateShutdown();
         }

@@ -611,6 +611,29 @@ public final class NERecipes {
 
     private static void registerStorageItemRecipes() {
         shapedIfComplete(
+            NEStorageItems.ecoFluidCellHousing,
+            "ABA",
+            "B B",
+            "CCC",
+            'A',
+            NEItems.crystalMatrix,
+            'B',
+            "dustRedstone",
+            'C',
+            "ingotAluminumAlloy");
+        shapeless(
+            NEStorageItems.ecoFluidStorageCell16M,
+            NEStorageItems.ecoFluidCellHousing,
+            NEStorageItems.ecoCellComponent16M);
+        shapeless(
+            NEStorageItems.ecoFluidStorageCell64M,
+            NEStorageItems.ecoFluidCellHousing,
+            NEStorageItems.ecoCellComponent64M);
+        shapeless(
+            NEStorageItems.ecoFluidStorageCell256M,
+            NEStorageItems.ecoFluidCellHousing,
+            NEStorageItems.ecoCellComponent256M);
+        shapedIfComplete(
             NEStorageItems.ecoItemCellHousing,
             "ABA",
             "B B",

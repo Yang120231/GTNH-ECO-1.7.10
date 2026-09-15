@@ -37,7 +37,7 @@ public final class ECOStructureBuilder {
 
     public static final int DEFAULT_LENGTH = 1;
     public static final int MIN_LENGTH = 1;
-    public static final int MAX_LENGTH = 15;
+    public static final int MAX_LENGTH = 11;
 
     private ECOStructureBuilder() {}
 

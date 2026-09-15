@@ -699,7 +699,7 @@ public class TileECOInterface extends TileEntity
         this.computationCpuPool.refresh(
             node == null ? null : node.getGrid(),
             craftingGrid,
-            controller.getComputationHostStats(),
+            controller.getPooledComputationStats(),
             node != null && node.isActive(),
             controller.getComputationCpuSelectionMode());
     }

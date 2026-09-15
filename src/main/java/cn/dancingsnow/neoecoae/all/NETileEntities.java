@@ -15,6 +15,9 @@ public final class NETileEntities {
     private NETileEntities() {}
 
     public static void register() {
+        GameRegistry.registerTileEntity(
+            cn.dancingsnow.neoecoae.tile.TileECONetworkSwitch.class,
+            NeoECOAE.MODID + ":network_switch");
         GameRegistry.registerTileEntity(TileECOController.class, NeoECOAE.MODID + ":eco_controller");
         GameRegistry.registerTileEntity(TileECODrive.class, NeoECOAE.MODID + ":eco_drive");
         GameRegistry.registerTileEntity(TileComputationDrive.class, NeoECOAE.MODID + ":computation_drive");

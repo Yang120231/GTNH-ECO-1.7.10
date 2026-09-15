@@ -24,8 +24,8 @@ final class ComputationFormationPattern implements ECOFormationPattern {
         Pos c = Pos.of(controller);
         ECOControllerTier tier = controller.getTier();
 
-        if (!validateCasing(
-            world,
+        if (!validateNetworkCasing(
+            controller,
             c.offset(directions.interfaceSide),
             directions.top,
             directions.down,

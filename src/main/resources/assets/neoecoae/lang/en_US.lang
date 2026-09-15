@@ -542,3 +542,14 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.target=Target machine: %s (%s)
 gui.neoecoae.pattern_upload.button.auto.tooltip.circuit=Virtual circuit: %s
 gui.neoecoae.pattern_upload.circuit_short=Circuit
 gui.neoecoae.pattern_upload.programming_cover=Programming Cover
+
+item.eco_fluid_cell_housing.name=ECO Storage Matrix Housing (Fluid)
+item.eco_fluid_storage_cell_16m.name=ECO - LE4 Storage Matrix (Fluid)
+item.eco_fluid_storage_cell_64m.name=ECO - LE6 Storage Matrix (Fluid)
+item.eco_fluid_storage_cell_256m.name=ECO - LE9 Storage Matrix (Fluid)
+
+tile.crafting_network_switch.name=ECO Crafting Subsystem Network Switch Module
+tile.crafting_high_energy_network_switch.name=ECO Crafting Subsystem High-Energy Network Switch Module
+tile.computation_network_switch.name=ECO Computation Subsystem Network Switch Module
+tile.computation_high_energy_network_switch.name=ECO Computation Subsystem High-Energy Network Switch Module
+chat.neoecoae.network_frequency=Network frequency: %s

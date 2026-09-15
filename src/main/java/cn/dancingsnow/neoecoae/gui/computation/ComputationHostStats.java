@@ -24,7 +24,7 @@ public final class ComputationHostStats {
     public final int parallelCores;
     public final long totalBytes;
 
-    private ComputationHostStats(int totalThreads, int parallelCount, int parallelCores, long totalBytes) {
+    public ComputationHostStats(int totalThreads, int parallelCount, int parallelCores, long totalBytes) {
         this.totalThreads = Math.max(0, totalThreads);
         this.parallelCount = Math.max(0, parallelCount);
         this.parallelCores = Math.max(0, parallelCores);

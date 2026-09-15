@@ -33,15 +33,33 @@ public final class ECOFormationScanner {
         ECOFormationResult normal = patternFor(controller)
             .verify(controller, new FormationDirections(front, back, top, down, left, right, false));
         if (normal.isFormed()) {
-            return normal;
+            return validateLengthAndTiers(controller, normal);
         }
 
         ECOFormationResult mirrored = patternFor(controller)
             .verify(controller, new FormationDirections(front, back, top, down, right, left, true));
         if (mirrored.isFormed()) {
-            return mirrored;
+            return validateLengthAndTiers(controller, mirrored);
         }
         return ECOFormationResult.failed(normal.getMessage());
+    }
+
+    private static ECOFormationResult validateLengthAndTiers(TileECOController controller, ECOFormationResult result) {
+        java.util.List<ECOFormationBlockPos> members = new java.util.ArrayList<>();
+        int repeated = 0;
+        for (ECOFormationBlockPos pos : result.getFormedMemberBlocks()) {
+            net.minecraft.block.Block block = controller.getWorldObj()
+                .getBlock(pos.getX(), pos.getY(), pos.getZ());
+            if (block == cn.dancingsnow.neoecoae.all.NEBlocks.craftingWorker
+                || block == cn.dancingsnow.neoecoae.all.NEBlocks.computationTransmitter
+                || block == cn.dancingsnow.neoecoae.all.NEBlocks.storageVent) repeated++;
+            members.add(
+                block instanceof cn.dancingsnow.neoecoae.block.BlockTieredModernModel tiered
+                    ? new ECOFormationBlockPos(pos.getX(), pos.getY(), pos.getZ(), tiered.getTier())
+                    : pos);
+        }
+        if (repeated > ECOStructureBuilder.MAX_LENGTH) return ECOFormationResult.failed("structure too long");
+        return ECOFormationResult.formed(result.isMirrored(), result.getHiddenBlocks(), members);
     }
 
     private static ECOFormationPattern patternFor(TileECOController controller) {

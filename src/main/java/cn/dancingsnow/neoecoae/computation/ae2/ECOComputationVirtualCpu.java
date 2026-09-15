@@ -32,6 +32,7 @@ import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.computation.ComputationTaskInfo;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ECOExternalCpuBatch;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathBatchPolicy;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathConfig;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlan;
@@ -41,6 +42,7 @@ import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingOutputFlushContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingOwnershipRegistry;
+import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOCraftingEnergyTransaction;
 import cn.dancingsnow.neoecoae.gui.computation.ComputationCpuSelectionMode;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 import cn.dancingsnow.neoecoae.tile.TileECOInterface;
@@ -401,16 +403,24 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
             }
             throw e;
         }
+        ECOCraftingEnergyTransaction.Reservation energy = ((ECOExternalCpuBatch.Accounting) this).energyTransactions()
+            .reserve(this.batchEnergyGrid, extraPower);
+        if (energy == null) {
+            rollbackInputs(extracted);
+            return null;
+        }
         if (!setTaskProgressValue(progress, taskRemaining - extraCrafts)) {
             RuntimeException failure = new IllegalStateException("ECO CPU could not reserve batch task progress");
             try {
                 rollbackInputs(extracted);
             } catch (RuntimeException rollbackFailure) {
                 failure.addSuppressed(rollbackFailure);
+            } finally {
+                energy.refund();
             }
             throw failure;
         }
-        return new BatchTransaction(details, table, progress, taskRemaining, requested, extraPower, extracted);
+        return new BatchTransaction(details, table, progress, taskRemaining, requested, energy, extracted);
     }
 
     @Override
@@ -595,39 +605,9 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
     }
 
     static int maxAffordableCrafts(double powerPerCraft, int requested, DoubleUnaryOperator simulatedExtraction) {
-        int boundedRequested = Math.min(ECOFastPathConfig.MAX_BATCH_SIZE, Math.max(0, requested));
-        if (boundedRequested <= 0 || !Double.isFinite(powerPerCraft)
-            || powerPerCraft < 0D
-            || simulatedExtraction == null) {
-            return 0;
-        }
-        if (powerPerCraft == 0D) {
-            return boundedRequested;
-        }
-        if (hasEnoughEnergy(powerPerCraft, boundedRequested, simulatedExtraction)) {
-            return boundedRequested;
-        }
-        int low = 0;
-        int high = boundedRequested - 1;
-        while (low < high) {
-            int candidate = low + (high - low + 1) / 2;
-            if (hasEnoughEnergy(powerPerCraft, candidate, simulatedExtraction)) {
-                low = candidate;
-            } else {
-                high = candidate - 1;
-            }
-        }
-        return low;
-    }
-
-    private static boolean hasEnoughEnergy(double powerPerCraft, int craftCount,
-        DoubleUnaryOperator simulatedExtraction) {
-        double requestedPower = powerPerCraft * craftCount;
-        if (!Double.isFinite(requestedPower)) {
-            return false;
-        }
-        double extractedPower = simulatedExtraction.applyAsDouble(requestedPower);
-        return !Double.isNaN(extractedPower) && extractedPower >= requestedPower - 0.01D;
+        if (simulatedExtraction == null) return 0;
+        return cn.dancingsnow.neoecoae.crafting.fastpath.ported.ECOBatchCraftingHelper
+            .maxAffordableCrafts(powerPerCraft, requested, simulatedExtraction);
     }
 
     private void rollbackInputs(List<IAEItemStack> inputs) {
@@ -780,19 +760,19 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
         private final TaskProgress progress;
         private final long originalTaskValue;
         private final int craftCount;
-        private final double extraPower;
+        private final ECOCraftingEnergyTransaction.Reservation energy;
         private final List<IAEItemStack> extracted;
         private boolean finished;
 
         private BatchTransaction(appeng.api.networking.crafting.ICraftingPatternDetails details,
-            InventoryCrafting table, TaskProgress progress, long originalTaskValue, int craftCount, double extraPower,
-            List<IAEItemStack> extracted) {
+            InventoryCrafting table, TaskProgress progress, long originalTaskValue, int craftCount,
+            ECOCraftingEnergyTransaction.Reservation energy, List<IAEItemStack> extracted) {
             this.details = details;
             this.table = table;
             this.progress = progress;
             this.originalTaskValue = originalTaskValue;
             this.craftCount = craftCount;
-            this.extraPower = extraPower;
+            this.energy = energy;
             this.extracted = extracted;
         }
 
@@ -808,19 +788,7 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
             }
             this.finished = true;
             int extraCrafts = this.craftCount - 1;
-            double charged = Double.NaN;
-            boolean energyFailure = false;
-            try {
-                charged = ECOComputationVirtualCpu.this.batchEnergyGrid
-                    .extractAEPower(this.extraPower, Actionable.MODULATE, PowerMultiplier.CONFIG);
-            } catch (RuntimeException e) {
-                energyFailure = true;
-                NeoECOAE.LOG.error("ECO batch accepted but its crafting energy could not be charged", e);
-            }
-            if (!energyFailure && (Double.isNaN(charged) || charged < this.extraPower - 0.01D)) {
-                NeoECOAE.LOG
-                    .error("ECO batch accepted but energy charge was incomplete: {} / {}", charged, this.extraPower);
-            }
+            this.energy.commit();
             try {
                 ECOComputationVirtualCpu.this.accountAdditionalOutputs(this.details, this.table, extraCrafts);
             } catch (RuntimeException e) {
@@ -853,6 +821,8 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
                 ECOComputationVirtualCpu.this.rollbackInputs(this.extracted);
             } catch (RuntimeException e) {
                 failure = appendFailure(failure, e);
+            } finally {
+                this.energy.refund();
             }
             if (failure != null) {
                 throw failure;

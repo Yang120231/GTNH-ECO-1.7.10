@@ -37,6 +37,28 @@ public final class NEBlocks {
 
     private static final List<BlockModernModel> MODERN_MODEL_BLOCKS = new ArrayList<BlockModernModel>();
 
+    public static final Block craftingNetworkSwitch = networkSwitch(
+        "crafting_network_switch",
+        ECOControllerSubsystem.CRAFTING,
+        false);
+    public static final Block craftingHighEnergyNetworkSwitch = networkSwitch(
+        "crafting_high_energy_network_switch",
+        ECOControllerSubsystem.CRAFTING,
+        true);
+    public static final Block computationNetworkSwitch = networkSwitch(
+        "computation_network_switch",
+        ECOControllerSubsystem.COMPUTATION,
+        false);
+    public static final Block computationHighEnergyNetworkSwitch = networkSwitch(
+        "computation_high_energy_network_switch",
+        ECOControllerSubsystem.COMPUTATION,
+        true);
+
+    private static Block networkSwitch(String id, ECOControllerSubsystem subsystem, boolean highEnergy) {
+        return registerModernModelBlock(
+            new cn.dancingsnow.neoecoae.block.BlockECONetworkSwitch(id, subsystem, highEnergy));
+    }
+
     public static final Block aluminumOre = ore("aluminum_ore", NEItems.rawAluminumOre, 3.0F, 5.0F, 2);
     public static final Block tungstenOre = ore("tungsten_ore", NEItems.rawTungstenOre, 4.0F, 8.0F, 3);
 
@@ -209,6 +231,16 @@ public final class NEBlocks {
     }
 
     public static void register() {
+        GameRegistry.registerBlock(craftingNetworkSwitch, ItemBlockModernModel.class, "crafting_network_switch");
+        GameRegistry.registerBlock(
+            craftingHighEnergyNetworkSwitch,
+            ItemBlockModernModel.class,
+            "crafting_high_energy_network_switch");
+        GameRegistry.registerBlock(computationNetworkSwitch, ItemBlockModernModel.class, "computation_network_switch");
+        GameRegistry.registerBlock(
+            computationHighEnergyNetworkSwitch,
+            ItemBlockModernModel.class,
+            "computation_high_energy_network_switch");
         register(aluminumOre, "aluminum_ore");
         register(tungstenOre, "tungsten_ore");
         register(rawAluminumBlock, "raw_aluminum_block");

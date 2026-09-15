@@ -129,6 +129,175 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private final Map<UUID, Integer> migrationSteps = new LinkedHashMap<>();
     private CraftingMemberCache craftingMemberCache = CraftingMemberCache.EMPTY;
     private final ECOCraftingVirtualPool craftingVirtualPool = new ECOCraftingVirtualPool();
+    private int networkFrequency = -1;
+    private long virtualPowerTick = Long.MIN_VALUE;
+    private boolean virtualPowerPaid;
+
+    public boolean isNetworkEndgameEligible() {
+        List<TileECOController> members = this.getNetworkMembers();
+        if (members.size() != 8) return false;
+        for (TileECOController member : members) {
+            if (member.tier != ECOControllerTier.L9 || member.getNetworkSwitch()
+                .getMultiplier() != 8) return false;
+            if (this.subsystem == ECOControllerSubsystem.CRAFTING) {
+                if (member.getCraftingWorkerCount() != 11) return false;
+            } else if (this.subsystem == ECOControllerSubsystem.COMPUTATION) {
+                int drives = 0;
+                for (ECOFormationBlockPos pos : member.formedMemberBlocks) {
+                    TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+                    if (tile instanceof TileComputationDrive drive) {
+                        if (drive.getCellStack() == null || !(drive.getCellStack()
+                            .getItem() instanceof NEStorageItems.ECOComputationCellItem)) return false;
+                        drives++;
+                    }
+                }
+                if (drives != 22) return false;
+            } else return false;
+        }
+        return true;
+    }
+
+    public boolean payVirtualCraftingPower() {
+        List<TileECOController> members = this.getNetworkMembers();
+        TileECOController leader = members.get(0);
+        long tick = this.worldObj.getTotalWorldTime();
+        if (leader.virtualPowerTick != tick) {
+            leader.virtualPowerTick = tick;
+            leader.virtualPowerPaid = leader.extractCraftingEnergy(10_000_000D, true) >= 10_000_000D
+                && leader.extractCraftingEnergy(10_000_000D, false) >= 10_000_000D;
+        }
+        return leader.virtualPowerPaid;
+    }
+
+    public int getNetworkFrequency() {
+        return this.networkFrequency < 1 ? 1 : this.networkFrequency;
+    }
+
+    public void setNetworkFrequency(int frequency) {
+        this.networkFrequency = cn.dancingsnow.neoecoae.multiblock.network.NEFrequencyAllocator.normalize(frequency);
+        this.markDirty();
+        this.refreshComputationInterfaces();
+        this.refreshCraftingInterfaces();
+    }
+
+    public cn.dancingsnow.neoecoae.block.BlockECONetworkSwitch getNetworkSwitch() {
+        if (!this.formed || this.worldObj == null || this.tier != ECOControllerTier.L9) return null;
+        net.minecraftforge.common.util.ForgeDirection front = this.getFacing()
+            .getDirection();
+        int dx = -front.offsetZ;
+        int dz = front.offsetX;
+        if (this.mirrored) {
+            dx = -dx;
+            dz = -dz;
+        }
+        net.minecraft.block.Block block = this.worldObj.getBlock(this.xCoord + dx, this.yCoord, this.zCoord + dz);
+        return block instanceof cn.dancingsnow.neoecoae.block.BlockECONetworkSwitch networkSwitch
+            && networkSwitch.getSubsystem() == this.subsystem ? networkSwitch : null;
+    }
+
+    public appeng.api.networking.IGrid getLogicalNetworkGrid() {
+        for (ECOFormationBlockPos pos : this.hiddenBlocks) {
+            TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+            if (tile instanceof TileECOInterface ecoInterface && ecoInterface.getSubsystem() == this.subsystem) {
+                appeng.api.networking.IGridNode node = ecoInterface
+                    .getGridNode(net.minecraftforge.common.util.ForgeDirection.UNKNOWN);
+                if (node != null && node.isActive()) return node.getGrid();
+            }
+        }
+        return null;
+    }
+
+    public List<TileECOController> getNetworkMembers() {
+        if (this.getNetworkSwitch() == null || this.getLogicalNetworkGrid() == null)
+            return Collections.singletonList(this);
+        appeng.api.networking.IGrid grid = this.getLogicalNetworkGrid();
+        List<TileECOController> eligible = new ArrayList<>();
+        List<Integer> frequencies = new ArrayList<>();
+        for (TileECOController controller : ECOControllerRegistry.controllers(this.worldObj)) {
+            if (controller.getSubsystem() == this.subsystem && controller.getNetworkSwitch() != null
+                && controller.getLogicalNetworkGrid() == grid) {
+                eligible.add(controller);
+                if (controller.networkFrequency > 0) frequencies.add(controller.networkFrequency);
+            }
+        }
+        eligible.sort(
+            java.util.Comparator.comparingInt((TileECOController controller) -> controller.xCoord)
+                .thenComparingInt(controller -> controller.yCoord)
+                .thenComparingInt(controller -> controller.zCoord));
+        for (TileECOController controller : eligible) {
+            if (controller.networkFrequency < 1) {
+                controller.networkFrequency = cn.dancingsnow.neoecoae.multiblock.network.NEFrequencyAllocator
+                    .allocate(frequencies);
+                frequencies.add(controller.networkFrequency);
+                controller.markDirty();
+            }
+        }
+        eligible.removeIf(controller -> controller.networkFrequency != this.networkFrequency);
+        int index = eligible.indexOf(this);
+        if (index < 0) return Collections.singletonList(this);
+        int start = index / 8 * 8;
+        List<TileECOController> members = new ArrayList<>(
+            eligible.subList(start, Math.min(start + 8, eligible.size())));
+        TileECOController leader = members.get(0);
+        for (TileECOController member : members) {
+            if (member.craftingOverclocked != leader.craftingOverclocked
+                || member.craftingActiveCooling != leader.craftingActiveCooling) {
+                member.craftingOverclocked = leader.craftingOverclocked;
+                member.craftingActiveCooling = leader.craftingActiveCooling;
+                member.markDirty();
+            }
+        }
+        return members;
+    }
+
+    public ComputationHostStats getPooledComputationStats() {
+        List<TileECOController> members = this.getNetworkMembers();
+        if (members.size() < 2) return this.getComputationHostStats();
+        if (this.isNetworkEndgameEligible())
+            return new ComputationHostStats(Integer.MAX_VALUE, Integer.MAX_VALUE, 0, Long.MAX_VALUE);
+        long threads = 0L, parallel = 0L, bytes = 0L;
+        for (TileECOController member : members) {
+            ComputationHostStats stats = member.getComputationHostStats();
+            int multiplier = member.getNetworkSwitch()
+                .getMultiplier();
+            threads = Math.min(Integer.MAX_VALUE, threads + (long) stats.totalThreads * multiplier);
+            parallel = Math.min(Integer.MAX_VALUE, parallel + (long) stats.parallelCount * multiplier);
+            long addition = stats.totalBytes > Long.MAX_VALUE / multiplier ? Long.MAX_VALUE
+                : stats.totalBytes * multiplier;
+            bytes = bytes > Long.MAX_VALUE - addition ? Long.MAX_VALUE : bytes + addition;
+        }
+        return new ComputationHostStats((int) threads, (int) parallel, 0, bytes);
+    }
+
+    public long getNetworkComputationUsedBytes() {
+        long used = 0L;
+        for (TileECOController member : this.getNetworkMembers()) {
+            for (ECOFormationBlockPos pos : member.hiddenBlocks) {
+                TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+                if (tile instanceof TileECOInterface ecoInterface
+                    && ecoInterface.getSubsystem() == ECOControllerSubsystem.COMPUTATION) {
+                    long addition = ecoInterface.getComputationUsedStorageBytes();
+                    used = used > Long.MAX_VALUE - addition ? Long.MAX_VALUE : used + addition;
+                }
+            }
+        }
+        return used;
+    }
+
+    public long getNetworkComputationActiveThreads() {
+        long count = 0L;
+        for (TileECOController member : this.getNetworkMembers()) {
+            for (ECOFormationBlockPos pos : member.hiddenBlocks) {
+                TileEntity tile = this.worldObj.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+                if (tile instanceof TileECOInterface ecoInterface
+                    && ecoInterface.getSubsystem() == ECOControllerSubsystem.COMPUTATION) {
+                    count += ecoInterface.getComputationActiveThreads();
+                }
+            }
+        }
+        return count;
+    }
+
     private boolean craftingMemberCacheDirty = true;
     private int craftingMemberCacheRevision = 0;
     private boolean hostDomainClientUpdatePending;
@@ -288,7 +457,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public boolean canUseHostDomainStorage() {
-        return this.formed && this.hostMode == ECOStorageHostMode.FORMED_INFINITE && this.hostDomainId != null;
+        return this.formed && this.hostMode == ECOStorageHostMode.FORMED_INFINITE
+            && this.hostDomainId != null
+            && ECOStorageDomainData.get(this.worldObj)
+                .getRestorePlan(this.hostDomainId) == null;
     }
 
     /**
@@ -509,15 +681,23 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     public boolean lacksVirtualCraftingCapacity() {
         return this.subsystem != ECOControllerSubsystem.CRAFTING || this.worldObj == null
             || !this.formed
-            || this.getCraftingMemberCache()
-                .workers()
-                .isEmpty()
             || this.getCraftingCurrentBatchSlots() <= 0;
     }
 
     public boolean acceptVirtualCraftingBatch(appeng.api.networking.crafting.ICraftingPatternDetails details,
         net.minecraft.inventory.InventoryCrafting table, int craftCount, String jobId) {
-        return this.craftingVirtualPool.accept(this, details, table, craftCount, jobId);
+        List<TileECOController> candidates = this.getNetworkMembers();
+        candidates = new ArrayList<>(candidates);
+        candidates.sort(
+            java.util.Comparator.comparingInt(TileECOController::getOccupiedCraftingLanes)
+                .thenComparingInt(host -> host.xCoord)
+                .thenComparingInt(host -> host.yCoord)
+                .thenComparingInt(host -> host.zCoord));
+        for (TileECOController candidate : candidates) {
+            if (candidate.getLocalCraftingBatchSlots() >= craftCount
+                && candidate.craftingVirtualPool.accept(candidate, details, table, craftCount, jobId)) return true;
+        }
+        return false;
     }
 
     public void recoverVirtualCraftingJob(String jobId) {
@@ -725,8 +905,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             || this.craftingOverclocked == overclocked) {
             return;
         }
-        this.craftingOverclocked = overclocked;
-        this.onCraftingHostStateChanged();
+        for (TileECOController member : this.getNetworkMembers()) {
+            member.craftingOverclocked = overclocked;
+            member.onCraftingHostStateChanged();
+        }
     }
 
     public void toggleCraftingOverclocked() {
@@ -742,8 +924,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             || this.craftingActiveCooling == activeCooling) {
             return;
         }
-        this.craftingActiveCooling = activeCooling;
-        this.onCraftingHostStateChanged();
+        for (TileECOController member : this.getNetworkMembers()) {
+            member.craftingActiveCooling = activeCooling;
+            member.onCraftingHostStateChanged();
+        }
     }
 
     public void toggleCraftingActiveCooling() {
@@ -805,6 +989,14 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingThreadCountPerWorker() {
+        if (this.isNetworkEndgameEligible()) return Integer.MAX_VALUE;
+        List<TileECOController> members = this.getNetworkMembers();
+        if (members.size() > 1) {
+            int multiplier = 0;
+            for (TileECOController member : members) multiplier += member.getNetworkSwitch()
+                .getMultiplier();
+            return 512 * multiplier;
+        }
         int multiplier = this.craftingOverclocked ? ECOEnergyProfile.overclockedCraftingQueueMultiplier(this.tier) : 1;
         return ECOCraftingCapacity.threadSlotsPerWorker(
             TileCraftingWorker.BASE_QUEUE_CAPACITY,
@@ -820,16 +1012,27 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     public int getCraftingCurrentBatchSlots() {
+        int available = 0;
+        for (TileECOController member : this.getNetworkMembers()) {
+            available = Math.max(available, member.getLocalCraftingBatchSlots());
+        }
+        return available;
+    }
+
+    public int getLocalCraftingBatchSlots() {
         return this.craftingVirtualPool
             .availableBatchCapacity(this.getCraftingWorkerCount(), this.getCraftingThreadCountPerWorker());
     }
 
     public boolean consumeCraftingCoolantForWork(int craftCount) {
+        if (this.isNetworkEndgameEligible()) return true;
         if (!this.craftingActiveCooling) {
             return true;
         }
         this.refillCraftingCoolant(true);
-        int amount = ECOEnergyProfile.CRAFTING_COOLANT_PER_CRAFT * Math.max(1, craftCount);
+        long requestedCoolant = (long) ECOEnergyProfile.CRAFTING_COOLANT_PER_CRAFT * Math.max(1, craftCount);
+        if (requestedCoolant > Integer.MAX_VALUE) return false;
+        int amount = (int) requestedCoolant;
         int requiredOverclock = this.getCraftingEffectiveOverclockTimes();
         if (amount <= 0) {
             return true;
@@ -854,6 +1057,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
 
     public int getCraftingCoolantCraftLimit(int requestedCrafts) {
         int normalized = Math.max(0, requestedCrafts);
+        if (this.isNetworkEndgameEligible()) return normalized;
         if (!this.craftingActiveCooling || normalized <= 0) {
             return normalized;
         }
@@ -893,8 +1097,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private int calculateCraftingOverclockTimes() {
-        int threadCount = this.getCraftingParallelCount();
-        int availableThreads = ECOEnergyProfile.craftingThreadCapacity(this.getCraftingWorkerCount(), this.tier, false);
+        long threads = 0L, slots = 0L;
+        for (TileECOController member : this.getNetworkMembers()) {
+            threads += member.getCraftingParallelCount();
+            slots += (long) member.getCraftingWorkerCount() * 32L;
+        }
+        int threadCount = (int) Math.min(Integer.MAX_VALUE, threads);
+        int availableThreads = (int) Math.min(Integer.MAX_VALUE, slots);
         return ECOCraftingCapacity.overclockTimes(threadCount, availableThreads);
     }
 
@@ -1014,7 +1223,8 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             if (this.cannotAcceptCraftingCoolantOutput(outputHatch, output)) {
                 continue;
             }
-            request.amount = availableRecipes * recipe.getInputAmount();
+            long requestedAmount = (long) availableRecipes * recipe.getInputAmount();
+            request.amount = requestedAmount >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) requestedAmount;
             FluidStack extracted = ecoInterface.extractCraftingFluid(request, false);
             if (extracted == null || extracted.amount < recipe.getInputAmount()) {
                 continue;
@@ -1039,10 +1249,13 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     }
 
     private FluidStack craftingCoolantOutput(ECOCoolingRecipe recipe, int recipes) {
-        FluidStack output = recipe.getOutput();
-        if (output != null) {
-            output.amount *= recipes;
+        FluidStack base = recipe == null ? null : recipe.getOutput();
+        if (base == null || recipes <= 0) {
+            return null;
         }
+        FluidStack output = base.copy();
+        long amount = (long) output.amount * recipes;
+        output.amount = amount >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) amount;
         return output;
     }
 
@@ -1118,9 +1331,12 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (this.worldObj != null && this.worldObj.isRemote) {
             return;
         }
-        this.computationCpuSelectionMode = this.computationCpuSelectionMode.next();
-        this.refreshComputationInterfaces();
-        this.markDirty();
+        ComputationCpuSelectionMode next = this.computationCpuSelectionMode.next();
+        for (TileECOController member : this.getNetworkMembers()) {
+            member.computationCpuSelectionMode = next;
+            member.refreshComputationInterfaces();
+            member.markDirty();
+        }
         if (this.worldObj != null) {
             this.worldObj.markBlockForUpdate(this.xCoord, this.yCoord, this.zCoord);
         }
@@ -1236,7 +1452,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (this.hasInfiniteModeState()) {
             this.exitInfiniteMode();
         }
-        return false;
+        return this.hasInfiniteModeState();
     }
 
     public boolean protectsWorldPosition(int x, int y, int z) {
@@ -1559,6 +1775,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
                         source = ECOStorageCellAccess.load(stack);
                     }
                     data.commitDiskToDomain(this.hostDomainId, diskId, source);
+                    net.minecraft.server.MinecraftServer server = net.minecraft.server.MinecraftServer.getServer();
+                    if (server != null && server.worldServerForDimension(0) != null) {
+                        server.worldServerForDimension(0).perWorldStorage.saveAllData();
+                    }
                     this.setMigrationStep(diskId, MIGRATION_SOURCE_CLEARED);
                     this.markDirty();
                     step = MIGRATION_SOURCE_CLEARED;
@@ -1634,14 +1854,85 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             || !this.formed) {
             return false;
         }
-        if (!ECOStorageDomainData.get(this.worldObj)
-            .isDomainEmpty(this.hostDomainId)) {
-            return false;
-        }
         for (UUID diskId : this.memberDiskIds) {
             if (this.findDriveByDiskId(diskId) == null) {
                 return false;
             }
+        }
+        ECOStorageDomainData data = ECOStorageDomainData.get(this.worldObj);
+        return data.isDomainEmpty(this.hostDomainId) || data.getRestorePlan(this.hostDomainId) != null
+            || this.createStorageRestorePlan() != null;
+    }
+
+    private NBTTagCompound createStorageRestorePlan() {
+        java.util.Map<UUID, ECOStorageBackend> targets = new java.util.LinkedHashMap<>();
+        for (UUID diskId : this.memberDiskIds) {
+            TileECODrive drive = this.findDriveByDiskId(diskId);
+            if (drive == null || isNotL9StorageMatrix(drive.getCellStack())) return null;
+            ItemStack copy = drive.getCellStack()
+                .copy();
+            ECOStorageCellMetadata.clearDomainBinding(copy);
+            targets.put(diskId, ECOStorageCellAccess.load(copy));
+        }
+        java.util.Map<UUID, ECOStorageBackend> result = cn.dancingsnow.neoecoae.storage.core.ECOStorageRestorePlan
+            .create(
+                ECOStorageDomainData.get(this.worldObj)
+                    .getDomain(this.hostDomainId),
+                targets);
+        if (result == null) return null;
+        NBTTagCompound plan = new NBTTagCompound();
+        for (java.util.Map.Entry<UUID, ECOStorageBackend> entry : result.entrySet()) {
+            NBTTagCompound contents = new NBTTagCompound();
+            entry.getValue()
+                .writeToNBT(contents);
+            plan.setTag(
+                entry.getKey()
+                    .toString(),
+                contents);
+        }
+        return plan;
+    }
+
+    private boolean restoreStorageContents() {
+        ECOStorageDomainData data = ECOStorageDomainData.get(this.worldObj);
+        NBTTagCompound plan = data.getRestorePlan(this.hostDomainId);
+        if (plan != null && plan.getBoolean("Completed")) return true;
+        if (plan == null) {
+            if (data.isDomainEmpty(this.hostDomainId)) return true;
+            plan = this.createStorageRestorePlan();
+            if (plan == null) return false;
+            data.beginRestore(this.hostDomainId, plan);
+        }
+        try {
+            data.saveDurably(this.worldObj);
+        } catch (IllegalStateException failure) {
+            NeoECOAE.LOG.error("Cannot persist storage restore journal", failure);
+            return false;
+        }
+        for (UUID diskId : this.memberDiskIds) {
+            TileECODrive drive = this.findDriveByDiskId(diskId);
+            if (drive == null || !plan.hasKey(diskId.toString())) return false;
+        }
+        for (UUID diskId : this.memberDiskIds) {
+            TileECODrive drive = this.findDriveByDiskId(diskId);
+            ItemStack stack = drive.getCellStack();
+            // Keep the member sealed until every target snapshot is durably written.
+            stack.getTagCompound()
+                .setTag(
+                    "ECOStorage",
+                    plan.getCompoundTag(diskId.toString())
+                        .copy());
+            drive.discardCellBackend();
+            drive.markDirty();
+        }
+        try {
+            if (this.worldObj instanceof net.minecraft.world.WorldServer) {
+                ((net.minecraft.world.WorldServer) this.worldObj).saveAllChunks(true, null);
+                ((net.minecraft.world.WorldServer) this.worldObj).saveChunkData();
+            }
+        } catch (net.minecraft.world.MinecraftException e) {
+            NeoECOAE.LOG.error("Cannot persist restored storage matrices", e);
+            return false;
         }
         return true;
     }
@@ -1675,23 +1966,46 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         if (!this.canExitInfiniteMode()) {
             return;
         }
+        if (!this.restoreStorageContents()) return;
         ECOStorageDomainData data = ECOStorageDomainData.get(this.worldObj);
         UUID exitingDomainId = this.hostDomainId;
+        // The domain stops owning the resources before the physical matrices become portable.
+        ECOStorageBackend domain = data.getDomain(exitingDomainId);
+        if (domain != null) domain.clear();
+        data.completeRestore(exitingDomainId);
+        try {
+            data.saveDurably(this.worldObj);
+        } catch (IllegalStateException failure) {
+            NeoECOAE.LOG.error("Cannot commit storage restore journal", failure);
+            return;
+        }
         for (UUID diskId : new ArrayList<>(this.memberDiskIds)) {
             TileECODrive drive = this.findDriveByDiskId(diskId);
             if (drive != null && drive.getCellStack() != null) {
+                data.recoverRestoredMember(drive.getCellStack());
                 data.forgetCommittedSource(exitingDomainId, diskId);
                 ECOStorageCellMetadata.clearDomainBinding(drive.getCellStack());
+                drive.discardCellBackend();
                 drive.markDirty();
             }
         }
-        data.removeDomain(exitingDomainId);
+        // Persist released controller ownership together with the unsealed cells.
         this.hostDomainId = null;
         this.memberDiskIds.clear();
         this.migrationSteps.clear();
         this.hostMode = this.formed ? ECOStorageHostMode.FORMED_NORMAL : ECOStorageHostMode.UNFORMED;
         this.storageBackendRevision++;
         this.markDirty();
+        try {
+            if (this.worldObj instanceof net.minecraft.world.WorldServer world) {
+                world.saveAllChunks(true, null);
+                world.saveChunkData();
+            }
+        } catch (net.minecraft.world.MinecraftException e) {
+            NeoECOAE.LOG.error("Cannot finalize restored storage matrices", e);
+            return;
+        }
+        data.removeDomain(exitingDomainId);
     }
 
     private void onInfiniteComponentChanged() {
@@ -1771,6 +2085,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         boolean shouldExitInfiniteMode = (this.worldObj == null || !this.worldObj.isRemote)
             && this.hasInfiniteModeState();
+        if (shouldExitInfiniteMode) {
+            this.exitInfiniteMode();
+            if (this.hasInfiniteModeState()) return null;
+        }
         ItemStack removed;
         if (this.infiniteStorageComponent.stackSize <= amount) {
             removed = this.infiniteStorageComponent.copy();
@@ -1798,6 +2116,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
         }
         boolean shouldExitInfiniteMode = (this.worldObj == null || !this.worldObj.isRemote)
             && this.hasInfiniteModeState();
+        if (shouldExitInfiniteMode) {
+            this.exitInfiniteMode();
+            if (this.hasInfiniteModeState()) return null;
+        }
         ItemStack stack = this.infiniteStorageComponent.copy();
         this.infiniteStorageComponent = null;
         if (shouldExitInfiniteMode) {
@@ -1816,6 +2138,10 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
             && this.hasInfiniteModeState();
         if (removingInfiniteComponent && !this.canExitInfiniteMode()) {
             return;
+        }
+        if (removingInfiniteComponent) {
+            this.exitInfiniteMode();
+            if (this.hasInfiniteModeState()) return;
         }
         this.infiniteStorageComponent = stack;
         if (this.infiniteStorageComponent != null
@@ -1864,6 +2190,11 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     public void updateEntity() {
         if (this.worldObj == null || this.worldObj.isRemote) {
             return;
+        }
+        if (this.hostDomainId != null && this.formed
+            && ECOStorageDomainData.get(this.worldObj)
+                .getRestorePlan(this.hostDomainId) != null) {
+            this.exitInfiniteMode();
         }
         if (this.hostDomainClientUpdatePending) {
             this.hostDomainClientUpdatePending = false;
@@ -1924,6 +2255,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     @Override
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
+        tag.setInteger("NetworkFrequency", this.networkFrequency);
         tag.setString(TAG_SUBSYSTEM, this.subsystem.getId());
         tag.setString(TAG_TIER, this.tier.getId());
         tag.setBoolean(TAG_FORMED, this.formed);
@@ -1992,6 +2324,7 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
+        this.networkFrequency = tag.hasKey("NetworkFrequency") ? tag.getInteger("NetworkFrequency") : -1;
         this.subsystem = ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM));
         this.tier = ECOControllerTier.fromId(tag.getString(TAG_TIER));
         this.formed = tag.getBoolean(TAG_FORMED);

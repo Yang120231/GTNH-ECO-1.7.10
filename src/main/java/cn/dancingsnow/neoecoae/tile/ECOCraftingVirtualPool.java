@@ -42,7 +42,7 @@ final class ECOCraftingVirtualPool {
         if (controller == null || details == null
             || table == null
             || craftCount <= 0
-            || craftCount > controller.getCraftingCurrentBatchSlots()) {
+            || craftCount > controller.getLocalCraftingBatchSlots()) {
             return false;
         }
         List<ItemStack> outputs = collectOutputs(details, table, controller.getWorldObj());
@@ -91,6 +91,8 @@ final class ECOCraftingVirtualPool {
         this.recoverOrphans(controller);
         int bonusValue = controller.getCraftingWorkBonusValue();
         int powerMultiplier = controller.getCraftingWorkPowerMultiplier();
+        boolean virtual = controller.isNetworkEndgameEligible();
+        if (virtual && !controller.payVirtualCraftingPower()) return;
         boolean changed = false;
         boolean progressDirty = false;
 
@@ -104,7 +106,7 @@ final class ECOCraftingVirtualPool {
                 int requestedProgress = Math.min(bonusValue, entry.totalProgress - entry.progress);
                 double powerPerProgress = (double) entry.occupiedSlots * powerMultiplier;
                 double requestedPower = Math.max(0D, requestedProgress - entry.progressRemainder) * powerPerProgress;
-                double extracted = controller.extractCraftingEnergy(requestedPower, false);
+                double extracted = virtual ? requestedPower : controller.extractCraftingEnergy(requestedPower, false);
                 double poweredProgress = Math
                     .min(requestedProgress, entry.progressRemainder + Math.max(0D, extracted) / powerPerProgress);
                 int gained = (int) poweredProgress;
@@ -320,6 +322,7 @@ final class ECOCraftingVirtualPool {
                 changed = true;
             }
         }
+        for (WorkEntry entry : this.entries) ECOCraftingOwnershipRegistry.register(entry.jobId, controller);
         return changed;
     }
 

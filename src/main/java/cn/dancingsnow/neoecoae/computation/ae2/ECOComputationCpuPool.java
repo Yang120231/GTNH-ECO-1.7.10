@@ -62,9 +62,7 @@ public final class ECOComputationCpuPool {
 
         this.restorePendingCpus(grid, active);
         this.removeFinishedCpus();
-        long idleStorage = active && this.runningCpuCount() < this.totalThreads
-            ? Math.max(0L, this.totalStorage - this.usedReservedStorage())
-            : 0L;
+        long idleStorage = active ? this.availableStorage() : 0L;
         this.ensureIdleCpu(idleStorage, active);
         this.updateCpuResources(active);
 
@@ -180,7 +178,7 @@ public final class ECOComputationCpuPool {
             return false;
         }
         long required = job.getByteTotal();
-        if (required <= 0L || required > this.idleCpu.reservedStorage()) {
+        if (required <= 0L || required > this.idleCpu.reservedStorage() || required > this.availableStorage()) {
             return false;
         }
         this.idleCpu.configureIdle(required, this.coProcessors, this.grid, true, this.cpuSelectionMode);
@@ -202,9 +200,7 @@ public final class ECOComputationCpuPool {
 
     void onCpuJobAccepted(ECOComputationVirtualCpu cpu) {
         boolean active = this.grid != null;
-        long idleStorage = active && this.runningCpuCount() < this.totalThreads
-            ? Math.max(0L, this.totalStorage - this.usedReservedStorage())
-            : 0L;
+        long idleStorage = active ? this.availableStorage() : 0L;
         this.ensureIdleCpu(idleStorage, active);
         this.updateCpuResources(active);
         this.syncCurrent();
@@ -257,8 +253,8 @@ public final class ECOComputationCpuPool {
         while (iterator.hasNext()) {
             NBTTagCompound cpuTag = iterator.next();
             ECOComputationVirtualCpu cpu = this.readCpu(cpuTag, grid, active);
-            iterator.remove();
             if (cpu != null) {
+                iterator.remove();
                 this.cpus.add(cpu);
                 this.nextSerial = Math.max(this.nextSerial, cpu.serial() + 1);
             }
@@ -345,6 +341,18 @@ public final class ECOComputationCpuPool {
             }
         }
         return count;
+    }
+
+    private long availableStorage() {
+        cn.dancingsnow.neoecoae.tile.TileECOController controller = this.host.getBoundController();
+        if (controller != null && controller.getNetworkMembers()
+            .size() > 1) {
+            ComputationHostStats stats = controller.getPooledComputationStats();
+            return controller.getNetworkComputationActiveThreads() >= stats.totalThreads ? 0L
+                : Math.max(0L, stats.totalBytes - controller.getNetworkComputationUsedBytes());
+        }
+        return this.runningCpuCount() >= this.totalThreads ? 0L
+            : Math.max(0L, this.totalStorage - this.usedReservedStorage());
     }
 
     private long usedReservedStorage() {

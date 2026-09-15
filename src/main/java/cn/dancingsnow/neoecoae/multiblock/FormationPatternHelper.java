@@ -92,6 +92,18 @@ final class FormationPatternHelper {
             && isBlock(world, center.offset(down), casing);
     }
 
+    static boolean validateNetworkCasing(cn.dancingsnow.neoecoae.tile.TileECOController controller, Pos center,
+        ForgeDirection top, ForgeDirection down, Block casing) {
+        World world = controller.getWorldObj();
+        Block block = world.getBlock(center.x, center.y, center.z);
+        if (block == casing) return validateCasing(world, center, top, down, casing);
+        return controller.getTier() == cn.dancingsnow.neoecoae.tile.ECOControllerTier.L9
+            && block instanceof cn.dancingsnow.neoecoae.block.BlockECONetworkSwitch networkSwitch
+            && networkSwitch.getSubsystem() == controller.getSubsystem()
+            && isBlock(world, center.offset(top), casing)
+            && isBlock(world, center.offset(down), casing);
+    }
+
     static boolean validateInterface(World world, Pos interfacePos, ForgeDirection top, ForgeDirection down,
         Block interfaceBlock, Block casing) {
         return isBlock(world, interfacePos, interfaceBlock) && isBlock(world, interfacePos.offset(top), casing)
