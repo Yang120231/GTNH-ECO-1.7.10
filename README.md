@@ -1,6 +1,18 @@
-<p align="center"><img src="/images/logo.png" alt="Logo"></p>
-<h1 align="center">Neo ECO AE Extension - GTNH 1.7.10</h1>
-<p align="center">ECO AE Extension for GT New Horizons on Minecraft 1.7.10.</p>
+<h1 align="center">Neo ECO AE Extension</h1>
+
+<p align="center">
+    High-performance AE2 storage, crafting, and computation multiblocks for GT New Horizons.
+</p>
+
+<p align="center">
+    <img src="https://img.shields.io/badge/Minecraft-1.7.10-62b47a?style=for-the-badge" alt="Minecraft 1.7.10">
+    <img src="https://img.shields.io/badge/Loader-Forge-e68c32?style=for-the-badge" alt="Forge">
+    <img src="https://img.shields.io/badge/Platform-GTNH-d4af37?style=for-the-badge" alt="GT New Horizons">
+    <a href="https://github.com/Yang120231/GTNH-ECO-1.7.10">
+        <img src="https://img.shields.io/badge/Source-GitHub-24292f?style=for-the-badge&amp;logo=github" alt="GitHub">
+    </a>
+</p>
+
 <h3 align="center">
 
 English | [简体中文](/README_ZH_CN.md) | [繁體中文](/README_ZH_HK.md) | [文言](/README_LZH.md)
