@@ -45,6 +45,29 @@ public final class ECOCraftingJob implements ICraftingJob, Future<ICraftingJob> 
     private ECOPlanningResult<ECOResourceKey, ICraftingPatternDetails> result;
     private CraftingJobV2 nativeJob;
 
+    public String createPlanningReport() {
+        if (result == null) return "";
+        com.google.gson.JsonObject report = new com.google.gson.JsonObject();
+        report.addProperty("status", result.status.name());
+        report.addProperty("fallback", nativeJob != null);
+        report.addProperty("bytes", getByteTotal());
+        report.addProperty("total", result.schedule.size());
+        com.google.gson.JsonArray steps = new com.google.gson.JsonArray();
+        int count = 0;
+        for (ECOPlanningResult.Step<ECOResourceKey, ICraftingPatternDetails> step : result.schedule) {
+            if (count++ >= 32) break;
+            com.google.gson.JsonObject row = new com.google.gson.JsonObject();
+            row.addProperty("crafts", step.crafts);
+            row.addProperty("cycle", step.sequential);
+            String output = step.recipe.outputs.keySet()
+                .toString();
+            row.addProperty("output", output.substring(0, Math.min(80, output.length())));
+            steps.add(row);
+        }
+        report.add("steps", steps);
+        return report.toString();
+    }
+
     public ECOCraftingJob(World world, IGrid grid, BaseActionSource source, IAEStack<?> output,
         ICraftingCallback callback, ECOCraftingSnapshot snapshot) {
         this.world = world;
@@ -70,6 +93,7 @@ public final class ECOCraftingJob implements ICraftingJob, Future<ICraftingJob> 
         if (result != null || nativeJob != null) return;
         Map<ECOResourceKey, Long> inventory = new LinkedHashMap<>(snapshot.inventory);
         result = new ECOPlanningEngine<>(snapshot.recipes, () -> cancelled, 32768, TimeUnit.MILLISECONDS.toNanos(50))
+            .cyclePlanningEnabled(snapshot.cyclePlanningEnabled)
             .planAdditional(new ECOResourceKey(output), output.getStackSize(), inventory);
         if (result.status != ECOPlanningResult.Status.SUCCESS
             && result.status != ECOPlanningResult.Status.AMOUNT_OVERFLOW
