@@ -151,6 +151,8 @@ final class NeoEcoPanels {
                 return storageInterface(data, syncManager);
             case CRAFTING_PATTERN_BUS:
                 return craftingPatternBus(data, syncManager);
+            case CRAFTING_INTERFACE:
+                return craftingInterface(data, syncManager);
             case CRAFTING_HATCH:
                 return craftingHatch(data, syncManager);
             case STRUCTURE_TERMINAL:
@@ -187,171 +189,86 @@ final class NeoEcoPanels {
         }.filter(stack -> controller.isItemValidForSlot(0, stack))
             .singletonSlotGroup(0);
 
-        ModularPanel panel = panel("storage_controller", 344, 232);
-        panel.child(hostTitle(() -> hostDisplayTitle("storage", state.get().tier), 8, 8, 242));
+        ModularPanel panel = panel("storage_controller", 272, 216).background(NeoEcoTextures.STORAGE_BACKGROUND);
+        panel.child(hostTitle(() -> hostDisplayTitle("storage", state.get().tier), 8, 6, 160));
         panel.child(
-            dynamic(() -> formedLabel(state.get().formed), 220, 8, 96)
-                .color(() -> state.get().formed ? 0xFF1A6A3A : 0xFF8A1A2A)
-                .textAlign(Alignment.CenterRight));
-
-        panel.child(section(6, 24, 176, 108));
-        panel.child(lang("gui.neoecoae.storage_ui.energy_monitor", 14, 32).color(TEXT));
-        ParentWidget<?> energyRow = new ParentWidget<>().pos(14, 45)
-            .size(166, 12);
-        energyRow.child(dynamic(() -> energyLabel, 0, 0, 90).color(MUTED));
-        energyRow.child(
-            dynamic(() -> energyUsage(state.get()).usedText, 0, 0, 24)
-                .left(() -> estimatedTextWidth(energyLabel) + 2, Unit.Measure.PIXEL)
-                .color(
-                    () -> storageValueColor(
-                        energyLong(state.get().energyStored),
-                        energyLong(state.get().energyCapacity))));
-        energyRow
-            .child(
-                dynamic(() -> "/", 0, 0, 8)
-                    .left(
-                        () -> estimatedTextWidth(energyLabel) + estimatedTextWidth(energyUsage(state.get()).usedText)
-                            + 4,
-                        Unit.Measure.PIXEL)
-                    .color(MUTED));
-        energyRow.child(
-            dynamic(() -> energyUsage(state.get()).maxText, 0, 0, 28)
-                .left(
-                    () -> estimatedTextWidth(energyLabel) + estimatedTextWidth(energyUsage(state.get()).usedText)
-                        + estimatedTextWidth("/")
-                        + 6,
-                    Unit.Measure.PIXEL)
-                .color(VALUE));
-        energyRow.child(
-            dynamic(() -> "AE", 0, 0, 16)
-                .left(
-                    () -> estimatedTextWidth(energyLabel) + estimatedTextWidth(energyUsage(state.get()).usedText)
-                        + estimatedTextWidth("/")
-                        + estimatedTextWidth(energyUsage(state.get()).maxText)
-                        + 8,
-                    Unit.Measure.PIXEL)
-                .color(MUTED));
-        panel.child(energyRow);
-        panel.child(lang("gui.neoecoae.storage_ui.item_storage", 14, 62).color(STORAGE_ITEM));
+            new StorageGaugeWidget(() -> storageProgress(state.get()), () -> storageGaugeColor(state.get())).pos(72, 22)
+                .size(32, 92));
         panel.child(
-            lang("gui.neoecoae.storage_ui.types", 14, 76).color(MUTED)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+            new StorageGraphLabel(() -> ae2Amount(energyLong(state.get().energyUsage)) + " AE/t", true).pos(18, 28)
+                .size(60, 16));
         panel.child(
-            new HostProgressWidget(() -> ratio(state.get().usedTypes, state.get().totalTypes), () -> STORAGE_PROGRESS)
-                .pos(44, 77)
-                .size(36, 9)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+            new StorageGraphLabel(
+                () -> percent(energyLong(state.get().energyStored), energyLong(state.get().energyCapacity)),
+                false).pos(95, 25)
+                    .size(59, 16));
         panel.child(
-            dynamic(() -> ae2Amount(state.get().usedTypes), 84, 76, 26)
-                .color(() -> storageValueColor(state.get().usedTypes, state.get().totalTypes))
-                .textAlign(Alignment.CenterRight)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+            new StorageGraphLabel(() -> fitStorageAmount(state.get().preciseUsedBytes, 96) + " B", true).pos(18, 47)
+                .size(60, 16));
         panel.child(
-            dynamic(() -> "/", 113, 76, 6).color(MUTED)
-                .textAlign(Alignment.Center)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            dynamic(() -> ae2Amount(state.get().totalTypes), 122, 76, 52).color(VALUE)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            infiniteStorageMetric(
-                () -> ae2Amount(state.get().usedTypes),
-                "gui.neoecoae.storage_ui.types",
-                76,
-                () -> storageValueColor(state.get().usedTypes, Long.MAX_VALUE))
-                    .setEnabledIf(widget -> isInfiniteStorage(state.get())));
-        panel.child(
-            lang("gui.neoecoae.storage_ui.bytes", 14, 89).color(MUTED)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            new HostProgressWidget(() -> ratio(state.get().usedBytes, state.get().totalBytes), () -> STORAGE_PROGRESS)
-                .pos(44, 90)
-                .size(36, 9)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            dynamic(() -> ae2Amount(state.get().preciseUsedBytes), 84, 89, 26)
-                .color(() -> storageValueColor(state.get().usedBytes, state.get().totalBytes))
-                .textAlign(Alignment.CenterRight)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            dynamic(() -> "/", 113, 89, 6).color(MUTED)
-                .textAlign(Alignment.Center)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            dynamic(() -> ae2Amount(state.get().totalBytes), 122, 89, 52).color(VALUE)
-                .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
-        panel.child(
-            infiniteStorageMetric(
-                () -> fitStorageAmount(state.get().preciseUsedBytes, 62),
-                "gui.neoecoae.storage_ui.bytes",
-                89,
-                () -> storageValueColor(state.get().usedBytes, Long.MAX_VALUE))
-                    .setEnabledIf(widget -> isInfiniteStorage(state.get())));
-
-        panel.child(section(186, 24, 156, 200));
-        panel.child(darkInset(194, 40, 141, 169));
-        panel.child(
-            lang("gui.neoecoae.storage_ui.system_load", 192, 28).color(TEXT)
-                .width(144)
-                .textAlign(Alignment.Center));
-        panel.child(
-            new StorageGaugeWidget(() -> storageProgress(state.get()), () -> storageGaugeColor(state.get()))
-                .pos(202, 52)
-                .size(32, 143));
-        panel.child(
-            dynamic(
+            new StorageGraphLabel(
                 () -> isInfiniteStorage(state.get()) ? "\u221e"
                     : percent(state.get().usedBytes, state.get().totalBytes),
-                202,
-                197,
-                32).color(() -> isInfiniteStorage(state.get()) ? INFINITE_TEXT : storageTextColor(state.get()))
-                    .textAlign(Alignment.Center));
+                false).pos(95, 44)
+                    .size(59, 16));
+        ListWidget<IWidget, ?> channels = new ListWidget<>().pos(178, 22)
+            .size(83, 172)
+            .padding(2);
+        for (int i = 0; i < 32; i++) {
+            final int index = i;
+            Supplier<StorageHostSnapshot.TypeStat> stat = () -> index < state.get().typeStats.size()
+                ? state.get().typeStats.get(index)
+                : new StorageHostSnapshot.TypeStat("", "", 0, 0, 0, 0);
+            ParentWidget<?> row = new ParentWidget<>().size(79, 57)
+                .setEnabledIf(widget -> index < state.get().typeStats.size());
+            row.child(
+                dynamic(
+                    () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.channel." + stat.get().typeId),
+                    0,
+                    0,
+                    79).color(STORAGE_ITEM));
+            row.child(
+                dynamic(
+                    () -> ae2Amount(stat.get().usedTypes)
+                        + (isInfiniteStorage(state.get()) ? "" : "/" + ae2Amount(stat.get().totalTypes)),
+                    0,
+                    13,
+                    79).color(0xFFFFFFFF));
+            row.child(
+                new HostProgressWidget(() -> ratio(stat.get().usedTypes, stat.get().totalTypes), () -> STORAGE_PROGRESS)
+                    .pos(0, 25)
+                    .size(79, 4)
+                    .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+            row.child(
+                dynamic(
+                    () -> ae2Amount(stat.get().usedBytes)
+                        + (isInfiniteStorage(state.get()) ? " B" : "/" + ae2Amount(stat.get().totalBytes) + " B"),
+                    0,
+                    33,
+                    79).color(0xFFFFFFFF));
+            row.child(
+                new HostProgressWidget(() -> ratio(stat.get().usedBytes, stat.get().totalBytes), () -> STORAGE_PROGRESS)
+                    .pos(0, 45)
+                    .size(79, 4)
+                    .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+            channels.child(row);
+        }
+        panel.child(channels);
         panel.child(
-            dynamic(
-                () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.current_load") + ": "
-                    + percent(state.get().usedBytes, state.get().totalBytes),
-                242,
-                57,
-                88).color(TEXT));
+            SlotGroupWidget.playerInventory((index, slot) -> slot.background(new Rectangle().color(0x00000000)))
+                .pos(7, 129));
         panel.child(
-            dynamic(
-                () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.max_load") + ": "
-                    + (isInfiniteStorage(state.get()) ? "MAX" : percent(maxMatrixLoad(state.get()))),
-                242,
-                72,
-                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : WARN));
-        panel.child(
-            dynamic(
-                () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.status") + ": "
-                    + storageStatus(state.get()),
-                242,
-                87,
-                88).color(() -> isInfiniteStorage(state.get()) ? INFINITE_STATUS : storageStatusColor(state.get())));
-        panel.child(
-            dynamic(
-                () -> StatCollector.translateToLocal("gui.neoecoae.storage_ui.idle_matrices") + ": "
-                    + idleMatrices(state.get()),
-                242,
-                102,
-                88).color(MUTED));
-        panel.child(lang("gui.neoecoae.common.inventory", 13, 136).color(HOST_TITLE));
-        panel.child(playerInventory(13, 147));
-        ParentWidget<?> infiniteComponentSlot = new ParentWidget<>().pos(306, 184)
-            .size(18, 18)
-            .background(NeoEcoTextures.SLOT);
-        infiniteComponentSlot.child(
             new ItemSlot().slot(componentSlot)
-                .pos(0, 0)
+                .pos(146, 100)
                 .size(18, 18)
-                .background(new Rectangle().color(0x00000000))
+                .background(NeoEcoTextures.SLOT)
                 .overlay(InfiniteSlotBorderDrawable.INSTANCE)
                 .addTooltipLine(IKey.lang("gui.neoecoae.storage_ui.infinite_component")));
-        panel.child(infiniteComponentSlot);
         panel.child(
             iconButton(
                 GuiTextures.GEAR,
                 () -> NeoEcoUiFactory.openTile(data.getPlayer(), NeoEcoGuiData.Kind.STORAGE_PRIORITY, controller),
-                () -> false).pos(319, 5)
+                () -> false).pos(250, 2)
                     .size(18, 18)
                     .addTooltipLine(IKey.dynamic(() -> "Priority: " + state.get().priority)));
         return panel;
@@ -538,15 +455,29 @@ final class NeoEcoPanels {
             5);
         bindPlayerInventory(syncManager, data.getPlayer());
         ModularPanel panel = panel("computation_controller", 344, 232);
+        addNetworkFrequencyButton(panel, syncManager, controller);
+        AtomicInteger planningOptions = new AtomicInteger(3);
+        syncManager
+            .syncValue("planning_options", new IntSyncValue(controller::getPlanningOptions, planningOptions::set));
+        for (int option = 0; option < 3; option++) {
+            final int bit = 1 << option;
+            panel.child(
+                iconButton(
+                    GuiTextures.FILTER,
+                    () -> controller.togglePlanningOption(bit),
+                    () -> (planningOptions.get() & bit) != 0).pos(-19, 70 + option * 22)
+                        .size(18, 18)
+                        .addTooltipLine(IKey.lang("gui.neoecoae.planner.option." + bit)));
+        }
         panel.child(hostTitle(() -> hostDisplayTitle("computation", state.get().tier), 5, 9, 225));
         panel.child(
             dynamic(() -> formedLabel(state.get().formed), 234, 8, 80)
                 .color(() -> state.get().formed ? 0xFF1A6A3A : 0xFF8A1A2A)
                 .textAlign(Alignment.CenterRight));
-        InteractionSyncHandler cpuModeHandler = new InteractionSyncHandler().setOnMousePressed(
-            mouse -> {
-                if (mouse.side.isServer() && mouse.mouseButton == 0) controller.cycleComputationCpuSelectionMode();
-            });
+        InteractionSyncHandler cpuModeHandler = new InteractionSyncHandler().setOnMousePressed(mouse -> {
+            if (mouse.side.isServer() && (mouse.mouseButton == 0 || mouse.mouseButton == 1))
+                controller.cycleComputationCpuSelectionMode(mouse.mouseButton == 0 ? 1 : -1);
+        });
         panel.child(
             new ButtonWidget<>().syncHandler(cpuModeHandler)
                 .background(NeoEcoTextures.RECT_RD)
@@ -675,6 +606,7 @@ final class NeoEcoPanels {
             5);
         bindPlayerInventory(syncManager, data.getPlayer());
         ModularPanel panel = panel("crafting_controller", 304, 196);
+        addNetworkFrequencyButton(panel, syncManager, controller);
         panel.child(hostTitle(() -> hostDisplayTitle("crafting", state.get().tier), 6, 9, 184));
         panel.child(
             dynamic(() -> formedLabel(state.get().formed), 190, 9, 66)
@@ -868,6 +800,48 @@ final class NeoEcoPanels {
             x += 80;
         }
         panel.child(dynamic(() -> "Mode: " + state.get().mode.name(), 8, 118, 234).textAlign(Alignment.Center));
+        return panel;
+    }
+
+    private static ModularPanel craftingInterface(NeoEcoGuiData data, PanelSyncManager syncManager) {
+        TileECOInterface owner = tile(data, TileECOInterface.class);
+        cn.dancingsnow.neoecoae.gui.crafting.NetworkPatternInventory inventory = new cn.dancingsnow.neoecoae.gui.crafting.NetworkPatternInventory(
+            owner);
+        PageState page = new PageState();
+        AtomicInteger pages = new AtomicInteger(1);
+        syncManager.syncValue("pattern_page", new IntSyncValue(page::get, page::set));
+        syncManager.syncValue(
+            "pattern_pages",
+            new IntSyncValue(() -> Math.max(1, (inventory.getSizeInventory() + 44) / 45), pages::set));
+        bindPlayerInventory(syncManager, data.getPlayer());
+        syncManager.registerSlotGroup("network_patterns", 9, 0);
+        PagedInventoryHandler slots = new PagedInventoryHandler(new InvWrapper(inventory), page, 45);
+        ModularPanel panel = panel("crafting_interface", 194, 286);
+        panel.child(title("gui.neoecoae.crafting_interface.title", 8, 8));
+        panel.child(
+            serverButton("<", () -> page.set(Math.max(0, page.get() - 1))).pos(12, 63)
+                .size(20, 16));
+        panel.child(dynamic(() -> (page.get() + 1) + "/" + pages.get(), 36, 65, 64));
+        panel.child(
+            serverButton(
+                ">",
+                () -> page.set(Math.min(Math.max(0, (inventory.getSizeInventory() - 1) / 45), page.get() + 1)))
+                    .pos(106, 63)
+                    .size(20, 16));
+        panel.child(
+            serverButton("=", inventory::organize).pos(166, 63)
+                .size(16, 16)
+                .addTooltipLine(IKey.lang("gui.neoecoae.crafting_interface.organize")));
+        panel.child(
+            SlotGroupWidget.builder()
+                .matrix("IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII", "IIIIIIIII")
+                .key(
+                    'I',
+                    index -> new ItemSlot().slot(new ModularSlot(slots, index).slotGroup("network_patterns"))
+                        .background(NeoEcoTextures.SLOT))
+                .build()
+                .pos(16, 83));
+        panel.child(playerInventory(16, 198));
         return panel;
     }
 
@@ -1425,6 +1399,26 @@ final class NeoEcoPanels {
                     () -> selected.getAsBoolean() ? NeoEcoTextures.RECT_RD_DARK : NeoEcoTextures.RECT_RD))
             .hoverBackground(NeoEcoTextures.RECT_RD_LIGHT)
             .overlay(icon);
+    }
+
+    private static void addNetworkFrequencyButton(ModularPanel panel, PanelSyncManager syncManager,
+        TileECOController controller) {
+        AtomicInteger frequency = new AtomicInteger(1);
+        syncManager.syncValue("network_frequency", new IntSyncValue(controller::getNetworkFrequency, frequency::set));
+        InteractionSyncHandler handler = new InteractionSyncHandler().setOnMousePressed(mouse -> {
+            if (mouse.side.isServer() && (mouse.mouseButton == 0 || mouse.mouseButton == 1)) {
+                controller.setNetworkFrequency(controller.getNetworkFrequency() + (mouse.mouseButton == 0 ? 1 : -1));
+            }
+        });
+        panel.child(
+            new ButtonWidget<>().syncHandler(handler)
+                .pos(-19, 48)
+                .size(18, 18)
+                .background(NeoEcoTextures.RECT_RD)
+                .hoverBackground(NeoEcoTextures.RECT_RD_LIGHT)
+                .overlay(GuiTextures.GEAR)
+                .addTooltipLine(IKey.dynamic(() -> tr("gui.neoecoae.network.frequency") + ": " + frequency.get()))
+                .addTooltipLine(IKey.lang("gui.neoecoae.network.frequency.click")));
     }
 
     private static IDrawable computationCpuIcon(
@@ -2028,6 +2022,36 @@ final class NeoEcoPanels {
                 if (recipe.getMaxOverclock() == maxOverclock) return recipe.getInputFluid();
             }
             return null;
+        }
+    }
+
+    private static final class StorageGraphLabel extends Widget<StorageGraphLabel> {
+
+        private final Supplier<String> text;
+        private final boolean left;
+
+        private StorageGraphLabel(Supplier<String> text, boolean left) {
+            this.text = text;
+            this.left = left;
+        }
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> entry) {
+            WidgetTheme theme = getActiveWidgetTheme(entry, isHovering());
+            UITexture texture = left ? NeoEcoTextures.STORAGE_GRAPH_LEFT : NeoEcoTextures.STORAGE_GRAPH_RIGHT;
+            texture.withColorOverride(isHovering() ? 0xFFFFFFFF : 0x66FFFFFF)
+                .draw(context, 0, 10, getArea().width, 6, theme);
+            net.minecraft.client.gui.FontRenderer font = Minecraft.getMinecraft().fontRenderer;
+            String label = text.get();
+            GL11.glPushMatrix();
+            try {
+                GL11.glTranslatef(0, 2, 0);
+                GL11.glScalef(0.6F, 0.6F, 1F);
+                int x = left ? 2 : Math.max(0, (int) (getArea().width / 0.6F) - font.getStringWidth(label) - 2);
+                font.drawString(label, x, 0, 0xFFFFFF);
+            } finally {
+                GL11.glPopMatrix();
+            }
         }
     }
 

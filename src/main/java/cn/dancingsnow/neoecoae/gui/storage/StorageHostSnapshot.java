@@ -71,6 +71,7 @@ public final class StorageHostSnapshot {
     public final long totalTypes;
     public final double energyStored;
     public final double energyCapacity;
+    public double energyUsage;
     public final boolean energyAvailable;
     public final boolean canTakeInfiniteComponent;
     public final List<TypeStat> typeStats;
@@ -118,6 +119,7 @@ public final class StorageHostSnapshot {
         long totalTypes = 0L;
         long usedTypes = 0L;
         ECOStorageBackend domainBackend = null;
+        double energyUsage = 0D;
         double energyStored = 0D;
         double energyCapacity = 0D;
         boolean energyAvailable = false;
@@ -174,6 +176,7 @@ public final class StorageHostSnapshot {
             IEnergyGrid energyGrid = node.getGrid()
                 .getCache(IEnergyGrid.class);
             if (energyGrid != null) {
+                energyUsage = energyGrid.getAvgPowerUsage();
                 double structureEnergyCapacity = structureEnergyCapacity(controller);
                 if (structureEnergyCapacity > 0D) {
                     energyCapacity = structureEnergyCapacity;
@@ -189,7 +192,7 @@ public final class StorageHostSnapshot {
         List<TypeStat> stats = new ArrayList<TypeStat>();
         addStat(stats, itemStats);
         addStat(stats, fluidStats);
-        return new StorageHostSnapshot(
+        StorageHostSnapshot snapshot = new StorageHostSnapshot(
             controller.isFormed(),
             controller.getTier()
                 .name(),
@@ -212,6 +215,8 @@ public final class StorageHostSnapshot {
             stats,
             cells,
             hugeStacks(domainBackend));
+        snapshot.energyUsage = safeEnergy(energyUsage);
+        return snapshot;
     }
 
     private static double structureEnergyCapacity(TileECOController controller) {
@@ -283,6 +288,7 @@ public final class StorageHostSnapshot {
         buf.writeLong(this.totalBytes);
         buf.writeLong(this.usedTypes);
         buf.writeLong(this.totalTypes);
+        buf.writeDouble(this.energyUsage);
         buf.writeDouble(this.energyStored);
         buf.writeDouble(this.energyCapacity);
         buf.writeBoolean(this.energyAvailable);
@@ -321,6 +327,7 @@ public final class StorageHostSnapshot {
         long totalBytes = safeLong(buf.readLong());
         long usedTypes = safeLong(buf.readLong());
         long totalTypes = safeLong(buf.readLong());
+        double energyUsage = buf.readDouble();
         double energyStored = buf.readDouble();
         double energyCapacity = buf.readDouble();
         boolean energyAvailable = buf.readBoolean();
@@ -340,7 +347,7 @@ public final class StorageHostSnapshot {
         for (int i = 0; i < hugeCount; i++) {
             hugeStacks.add(HugeStack.read(buf));
         }
-        return new StorageHostSnapshot(
+        StorageHostSnapshot snapshot = new StorageHostSnapshot(
             formed,
             tier,
             hostMode,
@@ -361,6 +368,8 @@ public final class StorageHostSnapshot {
             typeStats,
             matrixCells,
             hugeStacks);
+        snapshot.energyUsage = safeEnergy(energyUsage);
+        return snapshot;
     }
 
     private static List<HugeStack> hugeStacks(ECOStorageBackend backend) {

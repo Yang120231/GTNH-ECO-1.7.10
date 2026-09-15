@@ -553,3 +553,19 @@ tile.crafting_high_energy_network_switch.name=ECO Crafting Subsystem High-Energy
 tile.computation_network_switch.name=ECO Computation Subsystem Network Switch Module
 tile.computation_high_energy_network_switch.name=ECO Computation Subsystem High-Energy Network Switch Module
 chat.neoecoae.network_frequency=Network frequency: %s
+
+gui.neoecoae.storage_ui.channel.item=Items
+gui.neoecoae.storage_ui.channel.fluid=Fluids
+
+gui.neoecoae.network.frequency=Network frequency
+gui.neoecoae.network.frequency.click=Left click: next; right click: previous
+
+gui.neoecoae.planner.fallback=Using native AE2 planning
+gui.neoecoae.planner.unavailable=ECO report is not available for this job
+
+gui.neoecoae.planner.option.1=Fast task planning
+gui.neoecoae.planner.option.2=Cycle planning
+gui.neoecoae.planner.option.4=Ignore pattern substitutions
+
+gui.neoecoae.crafting_interface.title=ECO Crafting Interface
+gui.neoecoae.crafting_interface.organize=Organize network patterns

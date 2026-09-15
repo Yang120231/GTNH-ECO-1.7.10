@@ -121,6 +121,9 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
                     && ((TileECOInterface) tile).getSubsystem() == ECOControllerSubsystem.STORAGE;
             case CRAFTING_PATTERN_BUS:
                 return tile instanceof TileCraftingPatternBus;
+            case CRAFTING_INTERFACE:
+                return tile instanceof TileECOInterface
+                    && ((TileECOInterface) tile).getSubsystem() == ECOControllerSubsystem.CRAFTING;
             case CRAFTING_HATCH:
                 return tile instanceof TileCraftingHatch;
             default:

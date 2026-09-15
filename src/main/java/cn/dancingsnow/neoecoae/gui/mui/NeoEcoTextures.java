@@ -12,6 +12,16 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 /** Textures shared by the MUI2 implementation of the original host screens. */
 final class NeoEcoTextures {
 
+    static final UITexture STORAGE_BACKGROUND = texture("storage/estorage_infinite_controller", 288, 256)
+        .subAreaXYWH(0, 0, 272, 216)
+        .build();
+    static final UITexture STORAGE_GRAPH_LEFT = texture("storage/estorage_controller_elements", 256, 256)
+        .subAreaXYWH(6, 225, 60, 6)
+        .build();
+    static final UITexture STORAGE_GRAPH_RIGHT = texture("storage/estorage_controller_elements", 256, 256)
+        .subAreaXYWH(1, 197, 59, 6)
+        .build();
+
     static final UITexture BACKGROUND = texture("background", 16, 16).adaptable(2, 2, 2, 4)
         .build();
     static final UITexture SLOT = texture("slot", 18, 18).adaptable(1)

@@ -51,11 +51,15 @@ public class BlockECOInterface extends BlockDirectionalModernModel {
             return false;
         }
         TileECOInterface ecoInterface = (TileECOInterface) tile;
-        if (this.subsystem != ECOControllerSubsystem.STORAGE) {
+        if (this.subsystem == ECOControllerSubsystem.COMPUTATION) {
             return false;
         }
         if (!world.isRemote) {
-            NeoEcoUiFactory.openTile(player, NeoEcoGuiData.Kind.STORAGE_INTERFACE, ecoInterface);
+            NeoEcoUiFactory.openTile(
+                player,
+                this.subsystem == ECOControllerSubsystem.CRAFTING ? NeoEcoGuiData.Kind.CRAFTING_INTERFACE
+                    : NeoEcoGuiData.Kind.STORAGE_INTERFACE,
+                ecoInterface);
         }
         return true;
     }
