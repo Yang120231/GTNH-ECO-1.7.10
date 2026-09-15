@@ -9,13 +9,13 @@ import cn.dancingsnow.neoecoae.tile.ECOControllerTier;
 class ECOEnergyProfileTest {
 
     @Test
-    void storageAndComputationSizesMatch1211() {
-        assertEquals(16L << 20, ECOEnergyProfile.storageBytes(ECOControllerTier.L4));
-        assertEquals(64L << 20, ECOEnergyProfile.storageBytes(ECOControllerTier.L6));
-        assertEquals(256L << 20, ECOEnergyProfile.storageBytes(ECOControllerTier.L9));
-        assertEquals(64L << 20, ECOEnergyProfile.computationBytes(ECOControllerTier.L4));
-        assertEquals(256L << 20, ECOEnergyProfile.computationBytes(ECOControllerTier.L6));
-        assertEquals(1L << 30, ECOEnergyProfile.computationBytes(ECOControllerTier.L9));
+    void storageAndComputationSizesAreExpanded256Times() {
+        assertEquals(4L << 30, ECOEnergyProfile.storageBytes(ECOControllerTier.L4));
+        assertEquals(16L << 30, ECOEnergyProfile.storageBytes(ECOControllerTier.L6));
+        assertEquals(64L << 30, ECOEnergyProfile.storageBytes(ECOControllerTier.L9));
+        assertEquals(16L << 30, ECOEnergyProfile.computationBytes(ECOControllerTier.L4));
+        assertEquals(64L << 30, ECOEnergyProfile.computationBytes(ECOControllerTier.L6));
+        assertEquals(256L << 30, ECOEnergyProfile.computationBytes(ECOControllerTier.L9));
     }
 
     @Test
@@ -24,9 +24,9 @@ class ECOEnergyProfileTest {
         assertEquals(72, ECOEnergyProfile.craftingParallel(ECOControllerTier.L6));
         assertEquals(256, ECOEnergyProfile.craftingParallel(ECOControllerTier.L9));
 
-        assertEquals(32, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L4));
-        assertEquals(96, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L6));
-        assertEquals(384, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L9));
+        assertEquals(512, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L4));
+        assertEquals(1536, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L6));
+        assertEquals(6144, ECOEnergyProfile.overclockedCraftingParallel(ECOControllerTier.L9));
 
         assertEquals(64, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L4));
         assertEquals(192, ECOEnergyProfile.computationAccelerators(ECOControllerTier.L6));
@@ -36,7 +36,7 @@ class ECOEnergyProfileTest {
     @Test
     void effectiveOverclockChangesProgressFromTenTicksToOne() {
         assertEquals(1, ECOEnergyProfile.craftingBurstCraftsPerTick(false, 0));
-        assertEquals(37, ECOEnergyProfile.craftingBurstCraftsPerTick(true, 9));
+        assertEquals(592, ECOEnergyProfile.craftingBurstCraftsPerTick(true, 9));
         assertEquals(10, ECOEnergyProfile.craftingWorkPowerFromExtracted(10D, 1, 1));
         assertEquals(100, ECOEnergyProfile.craftingWorkPowerFromExtracted(100D, 1, 1));
     }

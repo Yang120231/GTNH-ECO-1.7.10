@@ -37,12 +37,12 @@ public final class ECOEnergyProfile {
 
     public static int overclockedCraftingParallel(ECOControllerTier tier) {
         if (tier == ECOControllerTier.L9) {
-            return 384;
+            return 6144;
         }
         if (tier == ECOControllerTier.L6) {
-            return 96;
+            return 1536;
         }
-        return 32;
+        return 512;
     }
 
     public static int computationAccelerators(ECOControllerTier tier) {
@@ -67,22 +67,22 @@ public final class ECOEnergyProfile {
 
     public static long computationBytes(ECOControllerTier tier) {
         if (tier == ECOControllerTier.L9) {
-            return 1L << 30;
+            return 1L << 38;
         }
         if (tier == ECOControllerTier.L6) {
-            return 1L << 28;
+            return 1L << 36;
         }
-        return 1L << 26;
+        return 1L << 34;
     }
 
     public static long storageBytes(ECOControllerTier tier) {
         if (tier == ECOControllerTier.L9) {
-            return 1L << 28;
+            return 1L << 36;
         }
         if (tier == ECOControllerTier.L6) {
-            return 1L << 26;
+            return 1L << 34;
         }
-        return 1L << 24;
+        return 1L << 32;
     }
 
     public static long powerStorageSize(ECOControllerTier tier) {
@@ -104,11 +104,11 @@ public final class ECOEnergyProfile {
     }
 
     public static int overclockedCraftingQueueMultiplier(ECOControllerTier tier) {
-        return 2 << tierIndex(tier);
+        return 32 << tierIndex(tier);
     }
 
     public static int overclockedCraftingPowerMultiplier(ECOControllerTier tier) {
-        return overclockedCraftingQueueMultiplier(tier);
+        return 2 << tierIndex(tier);
     }
 
     public static int craftingThreadCapacity(int workerCount, ECOControllerTier tier, boolean overclocked) {
@@ -173,6 +173,6 @@ public final class ECOEnergyProfile {
             return 1;
         }
         int clampedOverclock = Math.max(0, Math.min(9, effectiveOverclockTimes));
-        return 1 + clampedOverclock * 4;
+        return (1 + clampedOverclock * 4) * 16;
     }
 }
