@@ -5,19 +5,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting an issue. Please select the affected version from the list before submitting.
+        Thanks for reporting an issue for the Minecraft 1.7.10 / GTNH edition.
 
-        感谢反馈问题。提交前请先从列表中选择受影响版本。
-
-  - type: dropdown
-    id: affected_version
-    attributes:
-      label: Affected Version / 受影响版本
-      description: Please select the version where this issue occurs. / 请选择出现该问题的版本。
-      options:
-        - "1.7.10"
-    validations:
-      required: true
+        感谢反馈 Minecraft 1.7.10 / GTNH 版本的问题。
 
   - type: dropdown
     id: play_environment
