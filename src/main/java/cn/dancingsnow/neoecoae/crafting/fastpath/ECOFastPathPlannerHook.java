@@ -37,6 +37,60 @@ public final class ECOFastPathPlannerHook {
 
     private ECOFastPathPlannerHook() {}
 
+    public static void verifyIntegrationContract() {
+        appeng.api.storage.data.IAEItemStack output = AEItemStack
+            .create(new ItemStack(net.minecraft.init.Items.iron_ingot));
+        if (!matchesExpectedOutput(new appeng.api.storage.data.IAEItemStack[] { output }, output)
+            || matchesExpectedOutput(new appeng.api.storage.data.IAEItemStack[] { output, output }, output)
+            || matchesExpectedOutput(
+                new appeng.api.storage.data.IAEItemStack[] { output.copy()
+                    .setStackSize(2) },
+                output))
+            throw new IllegalStateException("Fastpath output contract");
+        ItemStack encoded = new ItemStack(net.minecraft.init.Items.paper);
+        ICraftingPatternDetails pattern = (ICraftingPatternDetails) java.lang.reflect.Proxy.newProxyInstance(
+            ICraftingPatternDetails.class.getClassLoader(),
+            new Class<?>[] { ICraftingPatternDetails.class },
+            (proxy, method, args) -> {
+                if (method.getName()
+                    .equals("getPattern")) return encoded;
+                if (method.getName()
+                    .equals("hashCode")) return System.identityHashCode(proxy);
+                if (method.getName()
+                    .equals("equals")) return proxy == args[0];
+                throw new UnsupportedOperationException(method.getName());
+            });
+        List<appeng.api.networking.crafting.ICraftingMedium> mediums = new ArrayList<>();
+        CraftingGridCache cache = new CraftingGridCache(null) {
+
+            @Override
+            public com.google.common.collect.ImmutableMap<appeng.api.storage.data.IAEStack<?>, com.google.common.collect.ImmutableList<ICraftingPatternDetails>> getCraftingMultiPatterns() {
+                return com.google.common.collect.ImmutableMap
+                    .of(output, com.google.common.collect.ImmutableList.of(pattern));
+            }
+
+            @Override
+            public List<appeng.api.networking.crafting.ICraftingMedium> getMediums(ICraftingPatternDetails details) {
+                return mediums;
+            }
+        };
+        IGrid grid = (IGrid) java.lang.reflect.Proxy.newProxyInstance(
+            IGrid.class.getClassLoader(),
+            new Class<?>[] { IGrid.class },
+            (proxy, method, args) -> cache);
+        for (int i = 0; i < 2; i++) {
+            mediums.add(
+                (appeng.api.networking.crafting.ICraftingMedium) java.lang.reflect.Proxy.newProxyInstance(
+                    appeng.api.networking.crafting.ICraftingMedium.class.getClassLoader(),
+                    new Class<?>[] { appeng.api.networking.crafting.ICraftingMedium.class },
+                    (proxy, method, args) -> false));
+            if (hasUniqueProcessingSource(grid, ECOFastPathPatternKey.of(pattern)) != (i == 0))
+                throw new IllegalStateException("Fastpath provider cardinality");
+        }
+        cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
+            "ECO fastpath integration checks PASSED: exact output, multi-output rejection, actual provider cardinality");
+    }
+
     public static ECOFastPathPlan tryPlan(TileECOController controller, ICraftingPatternDetails patternDetails,
         InventoryCrafting table) {
         if (!ECOFastPathConfig.isPlannerHookEnabled()) {
@@ -93,8 +147,7 @@ public final class ECOFastPathPlannerHook {
         long tick = currentTick(controller.getWorldObj());
         synchronized (VERIFIED) {
             RuntimeVerification verification = VERIFIED.get(key);
-            if (verification != null && !verification.accepted
-                && ECOFastPathCache.negativeExpired(verification.createdTick, tick)) {
+            if (verification != null && ECOFastPathCache.negativeExpired(verification.createdTick, tick)) {
                 VERIFIED.remove(key);
                 verification = null;
             }
@@ -137,9 +190,9 @@ public final class ECOFastPathPlannerHook {
         return CACHE.negativeSize();
     }
 
-    private static boolean matchesExpectedOutput(appeng.api.storage.data.IAEItemStack[] expected,
+    static boolean matchesExpectedOutput(appeng.api.storage.data.IAEItemStack[] expected,
         appeng.api.storage.data.IAEItemStack actual) {
-        if (expected == null || actual == null) {
+        if (expected == null || expected.length != 1 || actual == null) {
             return false;
         }
         for (appeng.api.storage.data.IAEItemStack candidate : expected) {
@@ -160,8 +213,8 @@ public final class ECOFastPathPlannerHook {
             if (cache == null) {
                 return false;
             }
-            Set<ICraftingPatternDetails> matches = Collections
-                .newSetFromMap(new IdentityHashMap<ICraftingPatternDetails, Boolean>());
+            Set<appeng.api.networking.crafting.ICraftingMedium> matches = Collections
+                .newSetFromMap(new IdentityHashMap<appeng.api.networking.crafting.ICraftingMedium, Boolean>());
             for (List<ICraftingPatternDetails> patterns : cache.getCraftingMultiPatterns()
                 .values()) {
                 if (patterns == null) {
@@ -169,7 +222,7 @@ public final class ECOFastPathPlannerHook {
                 }
                 for (ICraftingPatternDetails candidate : patterns) {
                     if (candidate != null && key.equals(ECOFastPathPatternKey.of(candidate))) {
-                        matches.add(candidate);
+                        matches.addAll(cache.getMediums(candidate));
                     }
                 }
             }
@@ -202,12 +255,15 @@ public final class ECOFastPathPlannerHook {
     private static final class RuntimeVerificationKey {
 
         private final ECOFastPathPatternKey pattern;
-        private final int dimension;
+        private final World world;
+        private final ICraftingPatternDetails providerPattern;
         private final List<StackSignature> inputs;
 
-        private RuntimeVerificationKey(ECOFastPathPatternKey pattern, int dimension, List<StackSignature> inputs) {
+        private RuntimeVerificationKey(ECOFastPathPatternKey pattern, World world,
+            ICraftingPatternDetails providerPattern, List<StackSignature> inputs) {
             this.pattern = pattern;
-            this.dimension = dimension;
+            this.world = world;
+            this.providerPattern = providerPattern;
             this.inputs = inputs;
         }
 
@@ -228,8 +284,7 @@ public final class ECOFastPathPlannerHook {
                         stack.stackSize,
                         tag == null ? null : (NBTTagCompound) tag.copy()));
             }
-            int dimension = world == null || world.provider == null ? 0 : world.provider.dimensionId;
-            return new RuntimeVerificationKey(ECOFastPathPatternKey.of(details), dimension, inputs);
+            return new RuntimeVerificationKey(ECOFastPathPatternKey.of(details), world, details, inputs);
         }
 
         @Override
@@ -241,14 +296,16 @@ public final class ECOFastPathPlannerHook {
                 return false;
             }
             RuntimeVerificationKey that = (RuntimeVerificationKey) other;
-            return this.dimension == that.dimension && this.inputs.equals(that.inputs)
+            return this.world == that.world && this.providerPattern == that.providerPattern
+                && this.inputs.equals(that.inputs)
                 && (this.pattern == null ? that.pattern == null : this.pattern.equals(that.pattern));
         }
 
         @Override
         public int hashCode() {
             int result = this.pattern == null ? 0 : this.pattern.hashCode();
-            result = 31 * result + this.dimension;
+            result = 31 * result + System.identityHashCode(this.world);
+            result = 31 * result + System.identityHashCode(this.providerPattern);
             result = 31 * result + this.inputs.hashCode();
             return result;
         }

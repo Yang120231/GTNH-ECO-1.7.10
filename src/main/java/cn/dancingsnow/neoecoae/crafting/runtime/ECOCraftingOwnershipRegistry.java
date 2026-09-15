@@ -17,7 +17,7 @@ import cn.dancingsnow.neoecoae.tile.TileECOController;
 public final class ECOCraftingOwnershipRegistry {
 
     private static final Map<String, WeakReference<CraftingCPUCluster>> ACTIVE_JOBS = new HashMap<String, WeakReference<CraftingCPUCluster>>();
-    private static final Map<String, WeakReference<TileECOController>> OWNERS = new HashMap<String, WeakReference<TileECOController>>();
+    private static final Map<String, java.util.Set<TileECOController>> OWNERS = new HashMap<>();
 
     private ECOCraftingOwnershipRegistry() {}
 
@@ -73,44 +73,47 @@ public final class ECOCraftingOwnershipRegistry {
         if (!valid(jobId) || controller == null) {
             return;
         }
-        OWNERS.put(jobId, new WeakReference<TileECOController>(controller));
+        OWNERS.computeIfAbsent(jobId, ignored -> java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()))
+            .add(controller);
     }
 
     public static synchronized void unregister(String jobId, TileECOController controller) {
         if (!valid(jobId) || controller == null) {
             return;
         }
-        WeakReference<TileECOController> reference = OWNERS.get(jobId);
-        TileECOController existing = reference == null ? null : reference.get();
-        if (existing == null || existing == controller) {
-            OWNERS.remove(jobId);
-        }
+        java.util.Set<TileECOController> owners = OWNERS.get(jobId);
+        if (owners == null) return;
+        owners.remove(controller);
+        if (owners.isEmpty()) OWNERS.remove(jobId);
     }
 
     public static void cancelAndRecover(String jobId) {
-        TileECOController controller = loadedOwner(jobId);
+        java.util.List<TileECOController> owners = loadedOwners(jobId);
         synchronized (ECOCraftingOwnershipRegistry.class) {
             ACTIVE_JOBS.remove(jobId);
         }
-        if (controller != null) {
+        for (TileECOController controller : owners) {
             controller.recoverVirtualCraftingJob(jobId);
         }
     }
 
     public static void completeAndRecoverUnfinished(String jobId) {
-        TileECOController controller = loadedOwner(jobId);
+        java.util.List<TileECOController> owners = loadedOwners(jobId);
         synchronized (ECOCraftingOwnershipRegistry.class) {
             ACTIVE_JOBS.remove(jobId);
         }
-        if (controller != null) {
+        for (TileECOController controller : owners) {
             controller.recoverVirtualCraftingUnfinishedInputs(jobId);
         }
     }
 
-    private static synchronized TileECOController loadedOwner(String jobId) {
-        WeakReference<TileECOController> reference = OWNERS.remove(jobId);
-        TileECOController controller = reference == null ? null : reference.get();
-        return controller == null || controller.isInvalid() ? null : controller;
+    private static synchronized java.util.List<TileECOController> loadedOwners(String jobId) {
+        java.util.Set<TileECOController> owners = OWNERS.remove(jobId);
+        java.util.List<TileECOController> result = new java.util.ArrayList<>();
+        if (owners != null) for (TileECOController owner : owners) {
+            if (owner != null && !owner.isInvalid()) result.add(owner);
+        }
+        return result;
     }
 
     private static boolean valid(String jobId) {

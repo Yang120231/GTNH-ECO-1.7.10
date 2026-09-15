@@ -10,13 +10,13 @@ public final class ECOFastPathPatternKey {
     private final int itemId;
     private final int itemDamage;
     private final int stackSize;
-    private final int tagHash;
+    private final NBTTagCompound tag;
 
-    private ECOFastPathPatternKey(int itemId, int itemDamage, int stackSize, int tagHash) {
+    private ECOFastPathPatternKey(int itemId, int itemDamage, int stackSize, NBTTagCompound tag) {
         this.itemId = itemId;
         this.itemDamage = itemDamage;
         this.stackSize = stackSize;
-        this.tagHash = tagHash;
+        this.tag = tag == null ? null : (NBTTagCompound) tag.copy();
     }
 
     public static ECOFastPathPatternKey of(ICraftingPatternDetails patternDetails) {
@@ -39,7 +39,7 @@ public final class ECOFastPathPatternKey {
             ItemStackId.itemId(patternStack),
             patternStack.getItemDamage(),
             Math.max(0, patternStack.stackSize),
-            tag == null ? 0 : tag.hashCode());
+            tag);
     }
 
     @Override
@@ -53,7 +53,7 @@ public final class ECOFastPathPatternKey {
         ECOFastPathPatternKey that = (ECOFastPathPatternKey) other;
         return this.itemId == that.itemId && this.itemDamage == that.itemDamage
             && this.stackSize == that.stackSize
-            && this.tagHash == that.tagHash;
+            && java.util.Objects.equals(this.tag, that.tag);
     }
 
     @Override
@@ -61,7 +61,7 @@ public final class ECOFastPathPatternKey {
         int result = this.itemId;
         result = 31 * result + this.itemDamage;
         result = 31 * result + this.stackSize;
-        result = 31 * result + this.tagHash;
+        result = 31 * result + (this.tag == null ? 0 : this.tag.hashCode());
         return result;
     }
 

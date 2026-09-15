@@ -69,9 +69,8 @@ public final class ECOCraftingJob implements ICraftingJob, Future<ICraftingJob> 
     private void calculatePlanIfNeeded() {
         if (result != null || nativeJob != null) return;
         Map<ECOResourceKey, Long> inventory = new LinkedHashMap<>(snapshot.inventory);
-        inventory.remove(new ECOResourceKey(output));
         result = new ECOPlanningEngine<>(snapshot.recipes, () -> cancelled, 32768, TimeUnit.MILLISECONDS.toNanos(50))
-            .plan(new ECOResourceKey(output), output.getStackSize(), inventory);
+            .planAdditional(new ECOResourceKey(output), output.getStackSize(), inventory);
         if (result.status != ECOPlanningResult.Status.SUCCESS
             && result.status != ECOPlanningResult.Status.AMOUNT_OVERFLOW
             && !cancelled)

@@ -14,6 +14,8 @@ public class Config {
     public static int ecoBatchCraftingTickLimit = 256;
     public static int ecoAggressiveCraftingTickLimit = 16384;
     public static int patternUploadPanelHeight;
+    public static int patternUploadButtonOffsetX = 51;
+    public static int patternUploadButtonOffsetY = 9;
     private static Configuration configuration;
 
     public static void synchronizeConfiguration(File configFile) {
@@ -61,6 +63,20 @@ public class Config {
             0,
             2,
             "Remembered upload panel height: 0 = short, 1 = medium, 2 = long.");
+        patternUploadButtonOffsetX = configuration.getInt(
+            "patternUploadButtonOffsetX",
+            Configuration.CATEGORY_GENERAL,
+            patternUploadButtonOffsetX,
+            -4096,
+            4096,
+            "Client upload buttons: horizontal offset from the AE2 encode button. Reopen the terminal after restarting with a changed setting.");
+        patternUploadButtonOffsetY = configuration.getInt(
+            "patternUploadButtonOffsetY",
+            Configuration.CATEGORY_GENERAL,
+            patternUploadButtonOffsetY,
+            -4096,
+            4096,
+            "Client upload buttons: vertical offset from the AE2 encode button. The auto-upload button is 20 pixels below.");
 
         if (configuration.hasChanged()) {
             configuration.save();

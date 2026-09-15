@@ -21,6 +21,7 @@ public final class ECOCraftingIntegrationChecks {
         require(access.neoecoae$getValue() == 4_000_000_000L, "64-bit task progress");
         require(((ECOExecutionHost) cpu).neoecoae$getExecution() == null, "Unmanaged CPU starts without a contract");
         verifyResourceIdentity();
+        cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook.verifyIntegrationContract();
         NeoECOAE.LOG.info(
             "ECO crafting integration checks PASSED: native CPU, execution host, fastpath coordinator, long task accessor");
     }

@@ -37,6 +37,7 @@ import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingOwnershipRegistry;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionHost;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionRuntime;
+import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOCraftingEnergyTransaction;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
 @Mixin(value = CraftingCPUCluster.class, remap = false)
@@ -56,6 +57,9 @@ public abstract class MixinCraftingCPUExecution
     protected int remainingOperations;
 
     @Shadow
+    protected abstract net.minecraft.world.World getWorld();
+
+    @Shadow
     protected abstract void postChange(IAEStack<?> stack, BaseActionSource source);
 
     @Shadow
@@ -63,6 +67,20 @@ public abstract class MixinCraftingCPUExecution
 
     @Unique
     private double neoecoae$energyDebt;
+
+    @Unique
+    private ECOCraftingEnergyTransaction neoecoae$energyTransactions;
+
+    @Override
+    public ECOCraftingEnergyTransaction energyTransactions() {
+        if (neoecoae$energyTransactions == null) {
+            neoecoae$energyTransactions = new ECOCraftingEnergyTransaction(
+                () -> ((CraftingCPUCluster) (Object) this).markDirty(),
+                () -> net.minecraft.server.MinecraftServer.getServer()
+                    .getTickCounter());
+        }
+        return neoecoae$energyTransactions;
+    }
 
     @Override
     public ECOCraftingBatchTransaction prepareBatch(ICraftingPatternDetails pattern, InventoryCrafting table,
@@ -121,6 +139,19 @@ public abstract class MixinCraftingCPUExecution
         neoecoae$execution = execution;
     }
 
+    @Override
+    public void neoecoae$installExecution(
+        cn.dancingsnow.neoecoae.crafting.planner.ported.result.ECOExecutionPlan plan) {
+        var codec = new cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOGtnhExecutionCodec(getWorld());
+        var binding = new cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOExecutionBinding(
+            plan,
+            tasks.keySet(),
+            pattern -> ((MixinCraftingTaskProgress) tasks.get(pattern)).neoecoae$getValue(),
+            true,
+            codec);
+        neoecoae$execution = new ECOExecutionRuntime(plan, binding, codec);
+    }
+
     @Redirect(
         method = "executeCrafting",
         at = @At(
@@ -141,7 +172,7 @@ public abstract class MixinCraftingCPUExecution
         }
         if (accepted && neoecoae$execution != null) {
             long extras = progress == null ? 0 : before - progress.neoecoae$getValue();
-            neoecoae$execution.dispatched(pattern, Math.addExact(1, extras));
+            neoecoae$execution.accepted(pattern, Math.addExact(1, extras), null);
         }
         return accepted;
     }
@@ -173,6 +204,9 @@ public abstract class MixinCraftingCPUExecution
 
     @Inject(method = "writeToNBT", at = @At("RETURN"))
     private void neoecoae$writeExecution(NBTTagCompound data, CallbackInfo ci) {
+        NBTTagCompound energy = new NBTTagCompound();
+        energyTransactions().writeToNBT(energy);
+        data.setTag("EcoEnergyTransaction", energy);
         data.setDouble("EcoBatchEnergyDebt", neoecoae$energyDebt);
         if (neoecoae$execution != null) data.setTag("EcoExecution", neoecoae$execution.write());
         else data.removeTag("EcoExecution");
@@ -180,6 +214,7 @@ public abstract class MixinCraftingCPUExecution
 
     @Inject(method = "readFromNBT", at = @At("RETURN"))
     private void neoecoae$readExecution(NBTTagCompound data, CallbackInfo ci) {
+        energyTransactions().readFromNBT(data.getCompoundTag("EcoEnergyTransaction"));
         neoecoae$energyDebt = Math.max(0, data.getDouble("EcoBatchEnergyDebt"));
         if (!Double.isFinite(neoecoae$energyDebt)) {
             neoecoae$energyDebt = Double.MAX_VALUE;
@@ -188,7 +223,11 @@ public abstract class MixinCraftingCPUExecution
         neoecoae$execution = null;
         if (!data.hasKey("EcoExecution", 10)) return;
         try {
-            neoecoae$execution = ECOExecutionRuntime.read(data.getCompoundTag("EcoExecution"));
+            neoecoae$execution = ECOExecutionRuntime.read(
+                data.getCompoundTag("EcoExecution"),
+                tasks.keySet(),
+                pattern -> ((MixinCraftingTaskProgress) tasks.get(pattern)).neoecoae$getValue(),
+                new cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOGtnhExecutionCodec(getWorld()));
         } catch (RuntimeException failure) {
             suspended = true;
             NeoECOAE.LOG.error("Invalid ECO execution schedule; CPU suspended to preserve its inventory", failure);
@@ -203,6 +242,7 @@ public abstract class MixinCraftingCPUExecution
             cpu.getLastCraftingLink()
                 .getCraftingID(),
             cpu);
+        energyTransactions().returnIdleCredit(energy);
         if (neoecoae$energyDebt <= 0.01) return;
         double paid = energy.extractAEPower(neoecoae$energyDebt, Actionable.MODULATE, PowerMultiplier.CONFIG);
         if (Double.isFinite(paid) && paid > 0) neoecoae$energyDebt = Math.max(0, neoecoae$energyDebt - paid);

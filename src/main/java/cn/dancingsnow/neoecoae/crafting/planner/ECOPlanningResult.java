@@ -37,11 +37,17 @@ public final class ECOPlanningResult<K, P> {
 
         public final ECORecipe<K, P> recipe;
         public final long crafts;
+        public final boolean sequential;
 
         public Step(ECORecipe<K, P> recipe, long crafts) {
+            this(recipe, crafts, false);
+        }
+
+        public Step(ECORecipe<K, P> recipe, long crafts, boolean sequential) {
             if (crafts <= 0) throw new IllegalArgumentException("Invalid craft count");
             this.recipe = recipe;
             this.crafts = crafts;
+            this.sequential = sequential;
         }
     }
 }

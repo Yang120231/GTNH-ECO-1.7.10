@@ -38,7 +38,7 @@ import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.common.items.ItemIntegratedCircuit;
-import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
+import gregtech.common.tileentities.machines.IDualInputHatch;
 
 /** A server-owned, short-lived upload destination. */
 public final class PatternUploadTarget {
@@ -148,7 +148,7 @@ public final class PatternUploadTarget {
             routingIcon,
             routes,
             viewable.getPatterns(),
-            viewable.numSlots(),
+            patternSlotCount(viewable),
             tile == null ? 0 : tile.xCoord,
             tile == null ? 0 : tile.yCoord,
             tile == null ? 0 : tile.zCoord,
@@ -343,7 +343,8 @@ public final class PatternUploadTarget {
             if (!route.actualMachine) continue;
             RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
             if (map == null || !this.routeMatchesRecipeForExact(route, map, details, routeKey)) continue;
-            if (requiredCircuit == null || PatternCircuitCompat.same(route.circuit, requiredCircuit)) return true;
+            if (requiredCircuit == null || PatternCircuitCompat.same(route.circuit, requiredCircuit)
+                || this.acceptsPatternCircuit(details, routeKey)) return true;
         }
         return false;
     }
@@ -405,7 +406,8 @@ public final class PatternUploadTarget {
         ItemStack requiredCircuit = patternCircuit == null || !routeKeyHasCircuit(routeKey) ? patternCircuit
             : routeKey.getCircuit();
         if (requiredCircuit == null && routeKey != null) requiredCircuit = routeKey.getCircuit();
-        if (this.acceptsProgrammableCircuit(details, routeKey)) return baseRank * 10;
+        if (this.acceptsProgrammableCircuit(details, routeKey) || this.acceptsPatternCircuit(details, routeKey))
+            return baseRank * 10;
         if (requiredCircuit == null) {
             return baseRank * 10 + (this.hasKnownCircuit() && processing ? 1 : 0);
         }
@@ -428,6 +430,7 @@ public final class PatternUploadTarget {
             && !routeKey.matchesCircuit(patternCircuit)) return false;
         ItemStack requiredCircuit = patternCircuit != null ? patternCircuit
             : routeKey == null ? null : routeKey.getCircuit();
+        if (this.acceptsPatternCircuit(details, routeKey)) return true;
         if (requiredCircuit == null) {
             for (Route route : this.routes) {
                 RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
@@ -462,6 +465,7 @@ public final class PatternUploadTarget {
         ItemStack patternCircuit = patternCircuit(details);
         if (patternCircuit != null && routeKey.hasCircuit() && !routeKey.matchesCircuit(patternCircuit)) return false;
         ItemStack requiredCircuit = patternCircuit != null ? patternCircuit : routeKey.getCircuit();
+        if (this.acceptsPatternCircuit(details, routeKey)) return true;
         if (requiredCircuit == null) {
             for (Route route : this.routes) {
                 RecipeMap<?> map = this.effectiveRecipeMap(route, routeKey);
@@ -598,6 +602,14 @@ public final class PatternUploadTarget {
         if (this.kind == Kind.PROGRAMMABLE_HATCH) return true;
         Route route = this.selectRoute(routeKey, details);
         return route != null && route.programmingCover;
+    }
+
+    private boolean acceptsPatternCircuit(ICraftingPatternDetails details, PatternRouteKey routeKey) {
+        // Dual-input hatches receive encoded item inputs in the pattern's own buffer. An encoded
+        // circuit does not also have to occupy the hatch's shared circuit slot.
+        return this.host instanceof IDualInputHatch && patternCircuit(details) != null
+            && this.hasMatchingRecipeMap(details, routeKey)
+            && (!hasProgrammableCircuit(details) || this.kind == Kind.PROGRAMMABLE_HATCH);
     }
 
     private static boolean hasProgrammableCircuit(ICraftingPatternDetails details) {
@@ -794,9 +806,9 @@ public final class PatternUploadTarget {
             if (map != null || circuit != null) {
                 routes.add(new Route(map, circuit, ForgeDirection.UNKNOWN, icon, name, true));
             }
-            if (machine instanceof MTEHatchCraftingInputME) {
-                addCraftingInputMachineRoutes(routes, (MTEHatchCraftingInputME) machine, circuit, icon, name);
-                addCraftingInputControllerRoutes(routes, (MTEHatchCraftingInputME) machine, circuit);
+            if (machine instanceof IDualInputHatch) {
+                addCraftingInputMachineRoutes(routes, machine, circuit, icon, name);
+                addCraftingInputControllerRoutes(routes, machine, circuit);
             }
         }
         if (viewable instanceof IInterfaceHost) {
@@ -866,8 +878,8 @@ public final class PatternUploadTarget {
      * back to the multiblock it currently serves. That implementation detail differs between
      * supported GT5U builds, so it is deliberately accessed as an optional capability.
      */
-    private static void addCraftingInputMachineRoutes(List<Route> routes, MTEHatchCraftingInputME hatch,
-        ItemStack circuit, ItemStack icon, String name) {
+    private static void addCraftingInputMachineRoutes(List<Route> routes, IMetaTileEntity hatch, ItemStack circuit,
+        ItemStack icon, String name) {
         Object processingLogics = reflectedFieldValue(hatch, "processingLogics");
         if (!(processingLogics instanceof Iterable)) return;
         try {
@@ -899,8 +911,7 @@ public final class PatternUploadTarget {
      * hatch. A formed multiblock does retain the same hatch in {@code mDualInputHatches}, though,
      * so its public RecipeMap is the authoritative route for that hatch.
      */
-    private static void addCraftingInputControllerRoutes(List<Route> routes, MTEHatchCraftingInputME hatch,
-        ItemStack circuit) {
+    private static void addCraftingInputControllerRoutes(List<Route> routes, IMetaTileEntity hatch, ItemStack circuit) {
         if (hatch == null || hatch.getBaseMetaTileEntity() == null
             || hatch.getBaseMetaTileEntity()
                 .getWorld() == null
@@ -983,7 +994,7 @@ public final class PatternUploadTarget {
 
     private static Kind interfaceKind(IInterfaceViewable viewable) {
         if (isProgrammableHatch(viewable)) return Kind.PROGRAMMABLE_HATCH;
-        if (viewable instanceof MTEHatchCraftingInputME) {
+        if (viewable instanceof IDualInputHatch) {
             Object supportsFluids = invokeNoArgMethod(viewable, "supportsFluids");
             return Boolean.TRUE.equals(supportsFluids) ? Kind.GT_CRAFTING_INPUT : Kind.GT_CRAFTING_INPUT_BUS;
         }
@@ -991,6 +1002,19 @@ public final class PatternUploadTarget {
             return Kind.AE2_DUAL_INTERFACE;
         }
         return Kind.AE2_INTERFACE;
+    }
+
+    private static int patternSlotCount(IInterfaceViewable viewable) {
+        // SNL 0.2.6 reports only occupied rows plus spare rows to the interface terminal.
+        // Its pattern inventory is followed by circuit/manual slots, so never use its total size.
+        for (Class<?> type = viewable.getClass(); type != null; type = type.getSuperclass()) {
+            if ("com.science.gtnl.common.machine.hatch.SuperCraftingInputHatchME".equals(type.getName())) {
+                Object capacity = reflectedFieldValue(viewable, "MAX_PATTERN_COUNT");
+                if (capacity instanceof Integer && (Integer) capacity > 0) return (Integer) capacity;
+                break;
+            }
+        }
+        return viewable.numSlots();
     }
 
     private static boolean isProgrammableHatch(IInterfaceViewable viewable) {

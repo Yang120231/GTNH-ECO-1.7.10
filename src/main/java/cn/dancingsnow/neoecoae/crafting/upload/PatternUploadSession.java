@@ -294,6 +294,10 @@ public final class PatternUploadSession {
 
     public static PatternUploadSession create(EntityPlayerMP player, IGrid grid, IGridNode sourceNode,
         ItemStack pattern, IInventory sourceInventory, int sourceSlot, boolean processing, PatternRouteKey routeKey) {
+        // The terminal can switch modes while an older encoded pattern remains in its output.
+        // Route that actual pattern, not the terminal's current editing mode.
+        ICraftingPatternDetails details = pattern == null ? null : safePatternDetails(pattern, player.worldObj);
+        if (details != null) processing = !details.isCraftable();
         List<PatternUploadTarget> targets = discover(grid, pattern, player.worldObj, processing, routeKey);
         PatternRouteKey effectiveRouteKey = routeKey;
         if (routeKey != null && !routeKey.isEmpty() && targets.isEmpty() && !isKnownRecipeMap(routeKey)) {
@@ -368,9 +372,14 @@ public final class PatternUploadSession {
                         try {
                             IGregTechTileEntity base = (IGregTechTileEntity) loaded;
                             IMetaTileEntity meta = base.getMetaTileEntity();
-                            if (meta instanceof MTEHatchCraftingInputME) {
-                                MTEHatchCraftingInputME viewable = (MTEHatchCraftingInputME) meta;
-                                IGridNode node = viewable.getGridNode(ForgeDirection.UNKNOWN);
+                            if (meta instanceof gregtech.common.tileentities.machines.IDualInputHatch
+                                && meta instanceof IInterfaceViewable) {
+                                IInterfaceViewable viewable = (IInterfaceViewable) meta;
+                                IGridNode node = meta instanceof IGridHost
+                                    ? ((IGridHost) meta).getGridNode(ForgeDirection.UNKNOWN)
+                                    : meta instanceof appeng.me.helpers.IGridProxyable
+                                        ? ((appeng.me.helpers.IGridProxyable) meta).getGridNode(ForgeDirection.UNKNOWN)
+                                        : null;
                                 if (node != null && node.isActive()
                                     && node.getGrid() == grid
                                     && seenInterfaces.add(node)
@@ -549,8 +558,7 @@ public final class PatternUploadSession {
         // GT's MTEHatchCraftingInputME uses showPattern only to control whether AE2 lists
         // its patterns in the normal crafting provider. It remains a valid upload inventory
         // even when that display flag is disabled, so do not hide the assembly/bus target.
-        return viewable.shouldDisplay()
-            || viewable instanceof gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
+        return viewable.shouldDisplay() || viewable instanceof gregtech.common.tileentities.machines.IDualInputHatch;
     }
 
     private static int compareTargetKeys(TargetSortKey left, TargetSortKey right) {

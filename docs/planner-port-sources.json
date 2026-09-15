@@ -1,0 +1,23 @@
+{
+  "impl\\crafting\\planner\\cycle\\BoundedCycleSolver.java": "b27762c43127b4d1e920f7744fbda6199dfb1a4fe01fc3e0311e654df74bacab",
+  "impl\\crafting\\planner\\cycle\\CycleFiring.java": "183ec1292d411a4ccd217b92deca321cf2b996029ebdbf3fdb409e8440b1a49e",
+  "impl\\crafting\\planner\\cycle\\CycleHeuristicBudget.java": "9614f2faf3fec22d7c06cfc55dc9c4935492fe490bad51fa13c148929912e0fa",
+  "impl\\crafting\\planner\\cycle\\CycleSolveDiagnostic.java": "7c4be04fbecac7f9e5a52023935230ba5d5a7ac28e51d4effc95a52e193642fe",
+  "impl\\crafting\\planner\\cycle\\CycleSolveLimits.java": "f128aad9202742a083edf1c2c78704bd117c8e28f488e1b141d17556ad0c44f2",
+  "impl\\crafting\\planner\\cycle\\CycleSolveMetrics.java": "dc1bdaea61c3b87130773214b636b9f04c9a24a14959d1a0ff28f62b37f22401",
+  "impl\\crafting\\planner\\cycle\\CycleSolver.java": "18ec576fa592dbe329be0cdc93fc13ed47c81f5a20aace6ea73494d74eb91242",
+  "impl\\crafting\\planner\\cycle\\CycleSolveRequest.java": "6868683e3e0f43896137b6b57ee3d56eebce0da9b0d19a02e3cd2f559cd445f9",
+  "impl\\crafting\\planner\\cycle\\CycleSolveResult.java": "074cb0ef7654b74e1d2ed4a9285fcf7fb02c9c75642c3b8c7c41e198a0b90fa6",
+  "impl\\crafting\\planner\\cycle\\CycleSolveStatus.java": "0b0de110410abc377eefd3aa3031d8da7b592aacf0dd61e8624d5a103e92ba98",
+  "impl\\crafting\\planner\\cycle\\PatternRun.java": "fad5af72286347d0fcea8ecf35bde9f17786cc468b323b7924e2ce6f47662786",
+  "impl\\crafting\\planner\\cycle\\UnsupportedCycleSolver.java": "c2ac86388da89fe54bbf53543d834ddda0717d9397ccd79625e5d32218eed9a6",
+  "impl\\crafting\\planner\\graph\\CondensationGraph.java": "46daeec0d83ac2e65aafef8f0ea75ca0c303fdc0697c856e554fc2b58f4521c5",
+  "impl\\crafting\\planner\\graph\\CraftingDependencyGraph.java": "43e1712fd15890be39a1a1bd1d1ba537357cbfd8db268410a1cdc79a16a74f21",
+  "impl\\crafting\\planner\\graph\\CraftingGraphBuilder.java": "b79eb68dd2c7d1990d797370e5d2a14bbfa8cc1eb7339be6e263c11e233802e0",
+  "impl\\crafting\\planner\\graph\\CraftingGraphEdge.java": "6ee7e71f7cbc0a5ebdf9cc16161463184487ce97fc294a3a4dadc11cc9efcc02",
+  "impl\\crafting\\planner\\graph\\CraftingGraphNode.java": "a4cf92b5b932236b4a54b68020ad3f17646e5cd2f2781e8d366e06826cadd6e0",
+  "impl\\crafting\\planner\\graph\\SccComponent.java": "c70947f9476c1cdc69423cbcc9caf054812cb7137e6718ed59aaf20b3b6bf38d",
+  "impl\\crafting\\planner\\graph\\TarjanSccAnalyzer.java": "2a48135d017bf1d1631efb368f7278c08fbb55c26f7059d1f2f86b0f0e75ab49",
+  "api\\me\\ECOExecutionRuntime.java": "51ff864057a434b5b12f084c67deb0813d28eee6c48882503513261489861b4c",
+  "impl\\crafting\\fastpath\\ECOBatchCraftingHelper.java": "65eeb8e86127b64a68ecc0fd18add1a32782c30ce550cebd03282bce1ba3d335"
+}

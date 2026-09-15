@@ -12,6 +12,7 @@ import appeng.api.config.ActionItems;
 import appeng.api.config.Settings;
 import appeng.client.gui.implementations.GuiPatternTerm;
 import appeng.client.gui.widgets.GuiImgButton;
+import cn.dancingsnow.neoecoae.Config;
 import cn.dancingsnow.neoecoae.network.NEPatternUploadNetwork;
 
 @Mixin(value = GuiPatternTerm.class, remap = false)
@@ -25,8 +26,8 @@ public abstract class MixinGuiPatternTerm {
 
     @Inject(method = "initGui", at = @At("TAIL"), remap = true)
     private void neoecoae$addUploadButtons(CallbackInfo ci) {
-        int x = this.encodeBtn == null ? 0 : this.encodeBtn.xPos() + 31;
-        int y = this.encodeBtn == null ? 0 : this.encodeBtn.yPos() + 9;
+        int x = this.encodeBtn == null ? 0 : this.encodeBtn.xPos() + Config.patternUploadButtonOffsetX;
+        int y = this.encodeBtn == null ? 0 : this.encodeBtn.yPos() + Config.patternUploadButtonOffsetY;
         this.neoecoae$openUploadButton = this.neoecoae$createUploadButton(
             x,
             y,

@@ -6,4 +6,6 @@ public interface ECOExecutionHost {
     ECOExecutionRuntime neoecoae$getExecution();
 
     void neoecoae$setExecution(ECOExecutionRuntime execution);
+
+    void neoecoae$installExecution(cn.dancingsnow.neoecoae.crafting.planner.ported.result.ECOExecutionPlan plan);
 }

@@ -13,10 +13,14 @@ import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.storage.data.IAEStack;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.crafting.ae2.ECOCraftingSnapshot;
+import cn.dancingsnow.neoecoae.crafting.fastpath.ported.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey;
+import cn.dancingsnow.neoecoae.crafting.planner.ported.compile.GenericStack;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionHost;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionRuntime;
+import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOCraftingEnergyTransaction;
+import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOProviderInputTransaction;
 import cn.dancingsnow.neoecoae.mixin.MixinCraftingTaskProgress;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
@@ -24,6 +28,8 @@ import cn.dancingsnow.neoecoae.tile.TileECOController;
 public final class ECOExternalCpuBatch {
 
     public interface Accounting {
+
+        ECOCraftingEnergyTransaction energyTransactions();
 
         void accepted(ICraftingPatternDetails pattern, int extraCrafts, double energyDebt);
     }
@@ -58,31 +64,43 @@ public final class ECOExternalCpuBatch {
             perCraft += (double) input.getValue() / stack.getAmountPerUnit();
         }
         if (!Double.isFinite(perCraft) || perCraft <= 0) return null;
-        double availableEnergy = power
-            .extractAEPower(perCraft * requested, Actionable.SIMULATE, PowerMultiplier.CONFIG);
-        requested = (int) Math.min(requested, Math.floor(availableEnergy / perCraft));
+        requested = ECOBatchCraftingHelper.maxAffordableCrafts(
+            perCraft,
+            requested,
+            value -> power.extractAEPower(value, Actionable.SIMULATE, PowerMultiplier.CONFIG));
         if (requested < 2) return null;
         final int crafts = requested;
         final double extraEnergy = perCraft * (crafts - 1);
         // Validate all multiplication/accounting BEFORE reserving anything.
         Map<ECOResourceKey, Long> outputs = ECOCraftingSnapshot.amounts(pattern.getCondensedAEOutputs());
         for (long output : outputs.values()) Math.multiplyExact(output, crafts);
-        List<IAEStack<?>> reserved = new ArrayList<>();
-        try {
-            for (Map.Entry<ECOResourceKey, Long> input : inputs.entrySet()) {
-                IAEStack request = input.getKey()
-                    .stack(Math.multiplyExact(input.getValue(), crafts - 1L));
-                IAEStack taken = cpu.getInventory()
-                    .extractItems(request, Actionable.MODULATE);
-                if (taken != null) reserved.add(taken);
-                if (taken == null || taken.getStackSize() != request.getStackSize()) {
-                    restore(cpu, reserved);
-                    return null;
-                }
+        ECOBatchCraftingHelper.BatchInventory inventory = new ECOBatchCraftingHelper.BatchInventory() {
+
+            public long available(Object key) {
+                return extract(key, Long.MAX_VALUE, Actionable.SIMULATE);
             }
-        } catch (RuntimeException failure) {
-            restore(cpu, reserved);
-            throw failure;
+
+            public long extract(Object key, long amount, Actionable mode) {
+                IAEStack taken = cpu.getInventory()
+                    .extractItems((IAEStack) ((ECOResourceKey) key).stack(amount), mode);
+                return taken == null ? 0L : taken.getStackSize();
+            }
+
+            public void insert(Object key, long amount, Actionable mode) {
+                cpu.getInventory()
+                    .injectItems(((ECOResourceKey) key).stack(amount), mode);
+            }
+        };
+        List<GenericStack> additionalInputs = new ArrayList<>();
+        inputs.forEach(
+            (key, amount) -> additionalInputs.add(new GenericStack(key, Math.multiplyExact(amount, crafts - 1L))));
+        ECOProviderInputTransaction inputTransaction = ECOProviderInputTransaction.begin(inventory, additionalInputs);
+        if (inputTransaction == null) return null;
+        ECOCraftingEnergyTransaction.Reservation energy = accounting.energyTransactions()
+            .reserve(power, extraEnergy);
+        if (energy == null) {
+            inputTransaction.rollback();
+            return null;
         }
         progress.neoecoae$setValue(remaining - crafts + 1);
         return new ECOCraftingBatchTransaction() {
@@ -98,16 +116,9 @@ public final class ECOExternalCpuBatch {
             public void commit() {
                 if (finished) return;
                 finished = true;
-                double charged = 0;
-                try {
-                    charged = power.extractAEPower(extraEnergy, Actionable.MODULATE, PowerMultiplier.CONFIG);
-                } catch (RuntimeException failure) {
-                    // The provider already accepted the work. Account it once and retain the unpaid energy.
-                    cn.dancingsnow.neoecoae.NeoECOAE.LOG.error("Accepted external batch has unpaid energy", failure);
-                } finally {
-                    double debt = Double.isFinite(charged) ? Math.max(0, extraEnergy - charged) : extraEnergy;
-                    accounting.accepted(pattern, crafts - 1, debt);
-                }
+                inputTransaction.transferOwnership();
+                energy.commit();
+                accounting.accepted(pattern, crafts - 1, 0.0D);
             }
 
             @Override
@@ -115,13 +126,13 @@ public final class ECOExternalCpuBatch {
                 if (finished) return;
                 finished = true;
                 progress.neoecoae$setValue(remaining);
-                restore(cpu, reserved);
+                try {
+                    inputTransaction.rollback();
+                } finally {
+                    energy.refund();
+                }
             }
         };
     }
 
-    private static void restore(CraftingCPUCluster cpu, List<IAEStack<?>> reserved) {
-        for (IAEStack<?> stack : reserved) cpu.getInventory()
-            .injectItems(stack, Actionable.MODULATE);
-    }
 }

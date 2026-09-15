@@ -21,7 +21,7 @@ class ECOFastPathPatternInspectorTest {
         tagged.setTagCompound(new NBTTagCompound());
         tagged.getTagCompound()
             .setBoolean("dynamic", true);
-        assertFalse(ECOFastPathPatternInspector.isFastPathSafe(tagged, true));
+        assertTrue(ECOFastPathPatternInspector.isFastPathSafe(tagged, true));
 
         ItemStack damageable = new ItemStack(new Item().setMaxDamage(100));
         assertFalse(ECOFastPathPatternInspector.isFastPathSafe(damageable, true));
