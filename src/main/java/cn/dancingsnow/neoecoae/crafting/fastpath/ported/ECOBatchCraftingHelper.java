@@ -8,7 +8,7 @@ import java.util.function.IntFunction;
 import java.util.function.LongFunction;
 
 import appeng.api.config.Actionable;
-import cn.dancingsnow.neoecoae.crafting.planner.ported.compile.GenericStack;
+import cn.dancingsnow.neoecoae.crafting.fastpath.GenericStack;
 
 public final class ECOBatchCraftingHelper {
 

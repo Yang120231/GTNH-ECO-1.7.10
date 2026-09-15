@@ -560,12 +560,31 @@ gui.neoecoae.storage_ui.channel.fluid=Fluids
 gui.neoecoae.network.frequency=Network frequency
 gui.neoecoae.network.frequency.click=Left click: next; right click: previous
 
-gui.neoecoae.planner.fallback=Using native AE2 planning
-gui.neoecoae.planner.unavailable=ECO report is not available for this job
 
-gui.neoecoae.planner.option.1=Fast task planning
-gui.neoecoae.planner.option.2=Cycle planning
-gui.neoecoae.planner.option.4=Ignore pattern substitutions
 
 gui.neoecoae.crafting_interface.title=ECO Crafting Interface
 gui.neoecoae.crafting_interface.organize=Organize network patterns
+
+gui.neoecoae.report.cycles=Cycles
+gui.neoecoae.report.missing=Missing
+gui.neoecoae.report.net=Net
+gui.neoecoae.report.craft=Craft
+gui.neoecoae.report.stored=Stored
+gui.neoecoae.report.cycle_material=Cycle participant
+gui.neoecoae.report.seed=Seed
+gui.neoecoae.report.truncated=Report truncated; open graph for diagnostics.
+gui.neoecoae.report.cpu=Crafting CPU
+gui.neoecoae.report.auto=Automatic
+
+gui.neoecoae.storage_ui.shared_capacity=Shared host capacity
+gui.neoecoae.host.guide=Host help
+gui.neoecoae.host.build=Build structure
+gui.neoecoae.host.priority=Storage priority
+gui.neoecoae.host.back=Back to host
+gui.neoecoae.host.length=Build length
+gui.neoecoae.host.mirror=Mirror structure
+gui.neoecoae.host.preview=Check materials
+gui.neoecoae.host.build_result=Blocks: %s, missing: %s, conflicts: %s %s
+gui.neoecoae.host.guide.storage=Storage hosts share capacity. Use the sidebar to check construction materials and set priority. Infinite components retain removal protection.
+gui.neoecoae.host.guide.crafting=GTNH plans and schedules crafting. ECO provides fastpath batches. Sidebar controls overclocking, cooling and frequency.
+gui.neoecoae.host.guide.computation=Computation hosts provide native AE2 crafting CPUs. Select player or machine jobs and adjust frequency in the sidebar.

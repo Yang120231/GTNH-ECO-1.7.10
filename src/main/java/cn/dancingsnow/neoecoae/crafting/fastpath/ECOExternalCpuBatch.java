@@ -12,13 +12,8 @@ import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.storage.data.IAEStack;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
-import cn.dancingsnow.neoecoae.crafting.ae2.ECOCraftingSnapshot;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ported.ECOBatchCraftingHelper;
-import cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey;
-import cn.dancingsnow.neoecoae.crafting.planner.ported.compile.GenericStack;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
-import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionHost;
-import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionRuntime;
 import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOCraftingEnergyTransaction;
 import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOProviderInputTransaction;
 import cn.dancingsnow.neoecoae.mixin.MixinCraftingTaskProgress;
@@ -46,11 +41,9 @@ public final class ECOExternalCpuBatch {
         int requested = (int) Math.min(
             Math.min(remaining, ECOFastPathConfig.batchTickLimit()),
             Math.min(cpu.getRemainingOperations(), controller.getCraftingCurrentBatchSlots()));
-        ECOExecutionRuntime execution = ((ECOExecutionHost) cpu).neoecoae$getExecution();
-        if (execution != null) requested = (int) Math.min(requested, execution.allowance(pattern));
         requested = controller.getCraftingCoolantCraftLimit(requested);
         if (requested < 2) return null;
-        Map<ECOResourceKey, Long> inputs = ECOCraftingSnapshot.amounts(pattern.getCondensedAEInputs());
+        Map<ECOResourceKey, Long> inputs = amounts(pattern.getCondensedAEInputs());
         IEnergyGrid power = cpu.getGrid()
             .getCache(IEnergyGrid.class);
         double perCraft = 0;
@@ -72,7 +65,7 @@ public final class ECOExternalCpuBatch {
         final int crafts = requested;
         final double extraEnergy = perCraft * (crafts - 1);
         // Validate all multiplication/accounting BEFORE reserving anything.
-        Map<ECOResourceKey, Long> outputs = ECOCraftingSnapshot.amounts(pattern.getCondensedAEOutputs());
+        Map<ECOResourceKey, Long> outputs = amounts(pattern.getCondensedAEOutputs());
         for (long output : outputs.values()) Math.multiplyExact(output, crafts);
         ECOBatchCraftingHelper.BatchInventory inventory = new ECOBatchCraftingHelper.BatchInventory() {
 
@@ -135,4 +128,15 @@ public final class ECOExternalCpuBatch {
         };
     }
 
+    private static Map<ECOResourceKey, Long> amounts(IAEStack<?>[] stacks) {
+        Map<ECOResourceKey, Long> amounts = new java.util.LinkedHashMap<>();
+        if (stacks == null) throw new UnsupportedOperationException("Pattern has no stack description");
+        for (IAEStack<?> stack : stacks) {
+            if (stack == null) continue;
+            if (stack.getStackSize() <= 0) throw new UnsupportedOperationException("Nonpositive pattern amount");
+            ECOResourceKey key = new ECOResourceKey(stack);
+            amounts.put(key, Math.addExact(amounts.getOrDefault(key, 0L), stack.getStackSize()));
+        }
+        return amounts;
+    }
 }

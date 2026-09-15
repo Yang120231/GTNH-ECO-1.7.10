@@ -12,18 +12,16 @@ public final class ECOCraftingIntegrationChecks {
 
     public static void run() {
         CraftingCPUCluster cpu = new CraftingCPUCluster(new WorldCoord(0, 0, 0), new WorldCoord(0, 0, 0));
-        require(cpu instanceof ECOExecutionHost, "GTNH CPU execution mixin");
         require(cpu instanceof ECOCraftingBatchCoordinator, "GTNH CPU fastpath mixin");
         CraftingCPUCluster.TaskProgress progress = new CraftingCPUCluster.TaskProgress();
         require(progress instanceof MixinCraftingTaskProgress, "GTNH task progress accessor");
         MixinCraftingTaskProgress access = (MixinCraftingTaskProgress) progress;
         access.neoecoae$setValue(4_000_000_000L);
         require(access.neoecoae$getValue() == 4_000_000_000L, "64-bit task progress");
-        require(((ECOExecutionHost) cpu).neoecoae$getExecution() == null, "Unmanaged CPU starts without a contract");
         verifyResourceIdentity();
         cn.dancingsnow.neoecoae.crafting.fastpath.ECOFastPathPlannerHook.verifyIntegrationContract();
-        NeoECOAE.LOG.info(
-            "ECO crafting integration checks PASSED: native CPU, execution host, fastpath coordinator, long task accessor");
+        NeoECOAE.LOG
+            .info("ECO crafting integration checks PASSED: native CPU, fastpath coordinator, long task accessor");
     }
 
     private static void verifyResourceIdentity() {
@@ -31,20 +29,22 @@ public final class ECOCraftingIntegrationChecks {
         item.setTagCompound(new net.minecraft.nbt.NBTTagCompound());
         item.getTagCompound()
             .setString("variant", "one");
-        cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey first = new cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey(
+        cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey first = new cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey(
             appeng.util.item.AEItemStack.create(item));
         item.stackSize = 32;
         require(
             first.equals(
-                new cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey(appeng.util.item.AEItemStack.create(item))),
+                new cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey(
+                    appeng.util.item.AEItemStack.create(item))),
             "Amount-independent item identity");
         item.getTagCompound()
             .setString("variant", "two");
         require(
             !first.equals(
-                new cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey(appeng.util.item.AEItemStack.create(item))),
+                new cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey(
+                    appeng.util.item.AEItemStack.create(item))),
             "Exact immutable NBT identity");
-        cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey fluid = new cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey(
+        cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey fluid = new cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey(
             appeng.util.item.AEFluidStack
                 .create(new net.minecraftforge.fluids.FluidStack(net.minecraftforge.fluids.FluidRegistry.WATER, 1000)));
         require(
@@ -52,7 +52,7 @@ public final class ECOCraftingIntegrationChecks {
                 .getStackSize() == 4_000_000_000L,
             "Native fluid long amount");
         require(
-            fluid.equals(new cn.dancingsnow.neoecoae.crafting.planner.ECOResourceKey(fluid.stack(1))),
+            fluid.equals(new cn.dancingsnow.neoecoae.crafting.fastpath.ECOResourceKey(fluid.stack(1))),
             "Amount-independent fluid identity");
     }
 

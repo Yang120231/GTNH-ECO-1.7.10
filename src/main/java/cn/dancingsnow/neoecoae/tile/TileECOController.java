@@ -130,33 +130,6 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     private CraftingMemberCache craftingMemberCache = CraftingMemberCache.EMPTY;
     private final ECOCraftingVirtualPool craftingVirtualPool = new ECOCraftingVirtualPool();
     private int networkFrequency = -1;
-    private int planningOptions = 3;
-
-    public int getPlanningOptions() {
-        return planningOptions;
-    }
-
-    public void togglePlanningOption(int bit) {
-        if (worldObj == null || worldObj.isRemote || (bit != 1 && bit != 2 && bit != 4)) return;
-        int next = planningOptions ^ bit;
-        appeng.api.networking.IGrid grid = getLogicalNetworkGrid();
-        for (TileECOController host : ECOControllerRegistry.controllers(worldObj)) {
-            if (host == this || (grid != null && host.subsystem == ECOControllerSubsystem.COMPUTATION
-                && host.getLogicalNetworkGrid() == grid)) {
-                host.planningOptions = next;
-                host.markDirty();
-            }
-        }
-    }
-
-    public static int planningOptionsFor(net.minecraft.world.World world, appeng.api.networking.IGrid grid) {
-        for (TileECOController host : ECOControllerRegistry.controllers(world)) {
-            if (host.subsystem == ECOControllerSubsystem.COMPUTATION && host.formed
-                && host.getLogicalNetworkGrid() == grid) return host.planningOptions;
-        }
-        return 3;
-    }
-
     private long virtualPowerTick = Long.MIN_VALUE;
     private boolean virtualPowerPaid;
 
@@ -2290,7 +2263,6 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     public void writeToNBT(NBTTagCompound tag) {
         super.writeToNBT(tag);
         tag.setInteger("NetworkFrequency", this.networkFrequency);
-        tag.setInteger("PlanningOptions", this.planningOptions);
         tag.setString(TAG_SUBSYSTEM, this.subsystem.getId());
         tag.setString(TAG_TIER, this.tier.getId());
         tag.setBoolean(TAG_FORMED, this.formed);
@@ -2360,7 +2332,6 @@ public class TileECOController extends TileEntity implements IInventory, IPriori
     public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         this.networkFrequency = tag.hasKey("NetworkFrequency") ? tag.getInteger("NetworkFrequency") : -1;
-        this.planningOptions = tag.hasKey("PlanningOptions") ? tag.getInteger("PlanningOptions") & 7 : 3;
         this.subsystem = ECOControllerSubsystem.fromId(tag.getString(TAG_SUBSYSTEM));
         this.tier = ECOControllerTier.fromId(tag.getString(TAG_TIER));
         this.formed = tag.getBoolean(TAG_FORMED);

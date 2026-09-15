@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import appeng.api.config.Actionable;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ported.ECOBatchCraftingHelper;
-import cn.dancingsnow.neoecoae.crafting.planner.ported.compile.GenericStack;
 
 class ECOBatchCraftingHelperPortTest {
 

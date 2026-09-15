@@ -358,11 +358,6 @@ public class ECOComputationVirtualCpu extends CraftingCPUCluster implements ECOC
             Math.min(Math.max(0L, taskRemaining), remainingTickBudget(batchTickLimit, this.craftsThisTick)),
             controller.getCraftingCurrentBatchSlots());
         requested = Math.min(requested, this.maxCraftsNeededForFinalOutput(details));
-        if (this instanceof cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionHost) {
-            cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionRuntime execution = ((cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionHost) this)
-                .neoecoae$getExecution();
-            if (execution != null) requested = (int) Math.min(requested, execution.allowance(details));
-        }
         double powerPerCraft = patternPower(table);
         requested = maxAffordableCrafts(
             powerPerCraft,

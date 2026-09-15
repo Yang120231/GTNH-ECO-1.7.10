@@ -21,7 +21,9 @@ public final class NeoEcoGuiData extends GuiData {
         STRUCTURE_TERMINAL,
         STORAGE_RECOVERY_TERMINAL,
         PATTERN_UPLOAD,
-        CRAFTING_INTERFACE
+        CRAFTING_INTERFACE,
+        HOST_BUILD,
+        HOST_GUIDE
     }
 
     private final Kind kind;

@@ -7,6 +7,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -17,6 +18,10 @@ import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 
+import appeng.container.PrimaryGui;
+import appeng.container.implementations.ContainerPriority;
+import appeng.core.sync.GuiBridge;
+import appeng.util.Platform;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSession;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSessions;
@@ -57,6 +62,31 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
         }
         GuiManager
             .open(INSTANCE, NeoEcoGuiData.item(player, kind, player.inventory.currentItem), (EntityPlayerMP) player);
+    }
+
+    public static void openStoragePriority(EntityPlayer player, TileECOController controller) {
+        if (!(player instanceof EntityPlayerMP) || controller.getSubsystem() != ECOControllerSubsystem.STORAGE) {
+            return;
+        }
+        Platform.openGUI(player, controller, ForgeDirection.UNKNOWN, GuiBridge.GUI_PRIORITY);
+        if (player.openContainer instanceof ContainerPriority) {
+            ((ContainerPriority) player.openContainer).setPrimaryGui(
+                new PrimaryGui(
+                    null,
+                    new ItemStack(controller.getBlockType(), 1, controller.getBlockMetadata()),
+                    controller,
+                    ForgeDirection.UNKNOWN) {
+
+                    @Override
+                    public void open(EntityPlayer returningPlayer) {
+                        NeoEcoGuiData data = NeoEcoGuiData
+                            .tile(returningPlayer, NeoEcoGuiData.Kind.STORAGE_CONTROLLER, controller);
+                        if (INSTANCE.canInteractWith(returningPlayer, data)) {
+                            openTile(returningPlayer, NeoEcoGuiData.Kind.STORAGE_CONTROLLER, controller);
+                        }
+                    }
+                });
+        }
     }
 
     public static void openUpload(EntityPlayer player, UUID session) {
@@ -106,6 +136,9 @@ public final class NeoEcoUiFactory implements UIFactory<NeoEcoGuiData> {
             return false;
         }
         switch (data.getKind()) {
+            case HOST_BUILD:
+            case HOST_GUIDE:
+                return tile instanceof TileECOController;
             case STORAGE_CONTROLLER:
             case STORAGE_PRIORITY:
                 return tile instanceof TileECOController

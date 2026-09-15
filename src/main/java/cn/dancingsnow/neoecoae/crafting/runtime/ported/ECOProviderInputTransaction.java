@@ -2,9 +2,9 @@ package cn.dancingsnow.neoecoae.crafting.runtime.ported;
 
 import java.util.List;
 
+import cn.dancingsnow.neoecoae.crafting.fastpath.GenericStack;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ported.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ported.ECOBatchCraftingHelper.BatchInventory;
-import cn.dancingsnow.neoecoae.crafting.planner.ported.compile.GenericStack;
 
 /** Exact CPU-input ownership transfer shared by non-Fastpath provider batches. */
 public final class ECOProviderInputTransaction {

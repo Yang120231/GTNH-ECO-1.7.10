@@ -1,6 +1,7 @@
 name: CI for Neo ECO AE Extension GTNH Port
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - .github/workflows/**
@@ -9,6 +10,8 @@ on:
       - '*.gradle'
       - '*.gradle.kts'
       - gradle.properties
+      - gradle/**
+      - gradlew*
       - settings.gradle.kts
       - README.md
   pull_request:
@@ -19,8 +22,13 @@ on:
       - '*.gradle'
       - '*.gradle.kts'
       - gradle.properties
+      - gradle/**
+      - gradlew*
       - settings.gradle.kts
       - README.md
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -42,7 +50,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build with Gradle
-        run: ./gradlew build
+        run: bash ./gradlew build --no-daemon --console=plain
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4

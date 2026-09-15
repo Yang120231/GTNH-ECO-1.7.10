@@ -208,22 +208,16 @@ public class DriveRenderHandler implements ISimpleBlockRenderingHandler {
         double rotatedX = x;
         double rotatedZ = z;
 
-        switch (facing) {
-            case EAST:
-                rotatedX = -z;
-                rotatedZ = x;
-                break;
-            case SOUTH:
-                rotatedX = -x;
-                rotatedZ = -z;
-                break;
-            case WEST:
-                rotatedX = z;
-                rotatedZ = -x;
-                break;
-            case NORTH:
-            default:
-                break;
+        // Keep this render path independent of javac's lazily loaded enum-switch helper.
+        if (facing == ModelFacing.EAST) {
+            rotatedX = -z;
+            rotatedZ = x;
+        } else if (facing == ModelFacing.SOUTH) {
+            rotatedX = -x;
+            rotatedZ = -z;
+        } else if (facing == ModelFacing.WEST) {
+            rotatedX = z;
+            rotatedZ = -x;
         }
 
         return new double[] { rotatedX + 0.5D, modelY, rotatedZ + 0.5D };

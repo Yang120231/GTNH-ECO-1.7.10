@@ -3,7 +3,7 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
-version = "7.3.0-beta1"
+version = providers.gradleProperty("releaseVersion").getOrElse("7.3.0-beta1")
 
 fun gtnhDevJar(artifactId: String, version: String) =
     "com.github.GTNewHorizons:$artifactId:$version:dev"
@@ -22,6 +22,7 @@ val wailaVersion: String by project
 dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
+    testRuntimeOnly("org.lwjgl.lwjgl:lwjgl:2.9.4-nightly-20150209")
     testCompileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     testRuntimeOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
 

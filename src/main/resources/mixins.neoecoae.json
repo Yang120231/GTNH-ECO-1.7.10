@@ -6,14 +6,11 @@
   "compatibilityLevel": "JAVA_8",
   "mixins": [
     "MixinContainerPatternTerm",
-    "MixinContainerCraftConfirmReport",
-    "MixinCraftingGridPlanner",
     "MixinCraftingCPUExecution",
     "MixinCraftingTaskProgress"
   ],
   "client": [
     "MixinGuiPatternTerm",
-    "MixinGuiCraftConfirmReport",
     "MixinGuiScreenAccessor",
     "MixinNEICraftingHandler"
   ]

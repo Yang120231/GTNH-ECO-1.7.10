@@ -1,3 +1,5 @@
+> Superseded for crafting planning: see native-gtnh-fastpath-host-ui.md. GTNH now owns planning and scheduling; ECO retains fastpath only.
+
 # Three-system alignment work log
 
 Target: sibling `NeoECOAEExtension-1.21.1`, reference commit
@@ -8,6 +10,25 @@ User requirement: strictly align crafting, computation and storage behavior.
 This is ongoing implementation, not a completed parity certification.
 
 ## Implementation and verification ledger
+
+### Planner and graph UI continuation (2026-09-15)
+
+- Production now uses the component planner, full execution plan and Version 2
+  runtime. The old linear planner sources and Version 1 runtime were removed
+  in the preceding interrupted continuation; earlier ledger entries describe
+  historical state rather than the current production wiring.
+- Verified the newly ported single-pattern growth solver with the full suite.
+  The seedless self-loop remains CYCLE_UNRESOLVED, matching the reference
+  ComponentPlanner, while retaining exact required seed and shortfall metadata.
+  Corrected the regression's incompatible MISSING_ITEMS expectation.
+- Replaced the obsolete JSON confirmation overlay with the structured report
+  interface and a graph entry button. Added English/Chinese graph labels and
+  fixed cross-package stack comparison and tooltip types. Opening the graph
+  preserves the confirmation container so returning can retain the job.
+- Full `spotlessApply build --offline` passed: 83 tests, Checkstyle, Spotless
+  and reobfuscated jar. `git diff --check` passed. No live client visual or
+  machine dispatch acceptance was performed; full parity is not certified.
+
 
 ### Execution-plan persistence and binding continuation (2026-09-15)
 

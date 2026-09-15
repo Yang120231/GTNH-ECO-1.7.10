@@ -1,8 +1,5 @@
 package cn.dancingsnow.neoecoae.gui.mui;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -10,7 +7,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -21,10 +17,7 @@ import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-import javax.imageio.ImageIO;
-
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -139,6 +132,10 @@ final class NeoEcoPanels {
     static ModularPanel build(NeoEcoGuiData data, PanelSyncManager syncManager, UISettings settings) {
         settings.canInteractWith(player -> NeoEcoUiFactory.INSTANCE.canInteractWith(player, data));
         switch (data.getKind()) {
+            case HOST_BUILD:
+                return hostBuild(data, syncManager);
+            case HOST_GUIDE:
+                return hostGuide(data);
             case STORAGE_CONTROLLER:
                 return storageController(data, syncManager);
             case STORAGE_PRIORITY:
@@ -190,7 +187,7 @@ final class NeoEcoPanels {
             .singletonSlotGroup(0);
 
         ModularPanel panel = panel("storage_controller", 272, 216).background(NeoEcoTextures.STORAGE_BACKGROUND);
-        panel.child(hostTitle(() -> hostDisplayTitle("storage", state.get().tier), 8, 6, 160));
+        panel.child(hostTitle(() -> hostDisplayTitle("storage", state.get().tier), 8, 4, 160));
         panel.child(
             new StorageGaugeWidget(() -> storageProgress(state.get()), () -> storageGaugeColor(state.get())).pos(72, 22)
                 .size(32, 92));
@@ -230,27 +227,36 @@ final class NeoEcoPanels {
             row.child(
                 dynamic(
                     () -> ae2Amount(stat.get().usedTypes)
-                        + (isInfiniteStorage(state.get()) ? "" : "/" + ae2Amount(stat.get().totalTypes)),
+                        + (isInfiniteStorage(state.get()) ? "" : " / " + ae2Amount(state.get().totalTypes)),
                     0,
                     13,
                     79).color(0xFFFFFFFF));
             row.child(
-                new HostProgressWidget(() -> ratio(stat.get().usedTypes, stat.get().totalTypes), () -> STORAGE_PROGRESS)
-                    .pos(0, 25)
-                    .size(79, 4)
-                    .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+                new HostProgressWidget(
+                    () -> ratio(state.get().usedTypes, state.get().totalTypes),
+                    () -> STORAGE_PROGRESS).pos(0, 25)
+                        .size(79, 4)
+                        .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
             row.child(
                 dynamic(
                     () -> ae2Amount(stat.get().usedBytes)
-                        + (isInfiniteStorage(state.get()) ? " B" : "/" + ae2Amount(stat.get().totalBytes) + " B"),
+                        + (isInfiniteStorage(state.get()) ? " B" : " / " + ae2Amount(state.get().totalBytes) + " B"),
                     0,
                     33,
                     79).color(0xFFFFFFFF));
             row.child(
-                new HostProgressWidget(() -> ratio(stat.get().usedBytes, stat.get().totalBytes), () -> STORAGE_PROGRESS)
-                    .pos(0, 45)
-                    .size(79, 4)
-                    .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+                new HostProgressWidget(
+                    () -> ratio(state.get().usedBytes, state.get().totalBytes),
+                    () -> STORAGE_PROGRESS).pos(0, 45)
+                        .size(79, 4)
+                        .setEnabledIf(widget -> !isInfiniteStorage(state.get())));
+            row.child(
+                dynamic(
+                    () -> isInfiniteStorage(state.get()) ? "" : tr("gui.neoecoae.storage_ui.shared_capacity"),
+                    0,
+                    50,
+                    79).scale(0.7F)
+                        .color(MUTED));
             channels.child(row);
         }
         panel.child(channels);
@@ -266,11 +272,11 @@ final class NeoEcoPanels {
                 .addTooltipLine(IKey.lang("gui.neoecoae.storage_ui.infinite_component")));
         panel.child(
             iconButton(
-                GuiTextures.GEAR,
-                () -> NeoEcoUiFactory.openTile(data.getPlayer(), NeoEcoGuiData.Kind.STORAGE_PRIORITY, controller),
-                () -> false).pos(250, 2)
-                    .size(18, 18)
-                    .addTooltipLine(IKey.dynamic(() -> "Priority: " + state.get().priority)));
+                NeoEcoTextures.HOST_PRIORITY,
+                () -> NeoEcoUiFactory.openStoragePriority(data.getPlayer(), controller),
+                () -> false).pos(250, 0)
+                    .size(22, 24)
+                    .addTooltipLine(IKey.lang("gui.neoecoae.host.priority")));
         return panel;
     }
 
@@ -455,21 +461,9 @@ final class NeoEcoPanels {
             5);
         bindPlayerInventory(syncManager, data.getPlayer());
         ModularPanel panel = panel("computation_controller", 344, 232);
+        addHostButtonRail(panel, data);
         addNetworkFrequencyButton(panel, syncManager, controller);
-        AtomicInteger planningOptions = new AtomicInteger(3);
-        syncManager
-            .syncValue("planning_options", new IntSyncValue(controller::getPlanningOptions, planningOptions::set));
-        for (int option = 0; option < 3; option++) {
-            final int bit = 1 << option;
-            panel.child(
-                iconButton(
-                    GuiTextures.FILTER,
-                    () -> controller.togglePlanningOption(bit),
-                    () -> (planningOptions.get() & bit) != 0).pos(-19, 70 + option * 22)
-                        .size(18, 18)
-                        .addTooltipLine(IKey.lang("gui.neoecoae.planner.option." + bit)));
-        }
-        panel.child(hostTitle(() -> hostDisplayTitle("computation", state.get().tier), 5, 9, 225));
+        panel.child(hostTitle(() -> hostDisplayTitle("computation", state.get().tier), 5, 7, 225));
         panel.child(
             dynamic(() -> formedLabel(state.get().formed), 234, 8, 80)
                 .color(() -> state.get().formed ? 0xFF1A6A3A : 0xFF8A1A2A)
@@ -479,12 +473,12 @@ final class NeoEcoPanels {
                 controller.cycleComputationCpuSelectionMode(mouse.mouseButton == 0 ? 1 : -1);
         });
         panel.child(
-            new ButtonWidget<>().syncHandler(cpuModeHandler)
-                .background(NeoEcoTextures.RECT_RD)
-                .hoverBackground(NeoEcoTextures.RECT_RD_LIGHT)
+            new HostButton().syncHandler(cpuModeHandler)
+                .background(NeoEcoTextures.HOST_BUTTON)
+                .hoverBackground(NeoEcoTextures.HOST_BUTTON_HOVER)
                 .overlay(new DynamicDrawable(() -> computationCpuIcon(state.get().cpuSelectionMode)))
-                .pos(321, 5)
-                .size(18, 18)
+                .pos(-17, 3)
+                .size(18, 20)
                 .addTooltipLine(IKey.lang("gui.neoecoae.computation.cpu_selection_mode"))
                 .addTooltipLine(
                     IKey.dynamic(
@@ -606,22 +600,25 @@ final class NeoEcoPanels {
             5);
         bindPlayerInventory(syncManager, data.getPlayer());
         ModularPanel panel = panel("crafting_controller", 304, 196);
+        addHostButtonRail(panel, data);
         addNetworkFrequencyButton(panel, syncManager, controller);
-        panel.child(hostTitle(() -> hostDisplayTitle("crafting", state.get().tier), 6, 9, 184));
+        panel.child(hostTitle(() -> hostDisplayTitle("crafting", state.get().tier), 6, 7, 184));
         panel.child(
             dynamic(() -> formedLabel(state.get().formed), 190, 9, 66)
                 .color(() -> state.get().formed ? 0xFF1A6A3A : 0xFF8A1A2A)
                 .textAlign(Alignment.CenterRight));
         panel.child(
             iconButton(NeoEcoTextures.POWER, controller::toggleCraftingOverclocked, () -> state.get().overclocked)
-                .pos(261, 7)
-                .size(16, 16)
+                .pos(-17, 3)
+                .size(18, 20)
                 .addTooltipLine(IKey.lang("gui.neoecoae.crafting.overclocked.tooltip")));
         panel.child(
-            iconButton(GuiTextures.FILTER, controller::toggleCraftingActiveCooling, () -> state.get().activeCooling)
-                .pos(281, 7)
-                .size(16, 16)
-                .addTooltipLine(IKey.lang("gui.neoecoae.crafting.active_cooling.tooltip")));
+            iconButton(
+                NeoEcoTextures.HOST_FILTER,
+                controller::toggleCraftingActiveCooling,
+                () -> state.get().activeCooling).pos(-17, 25)
+                    .size(18, 20)
+                    .addTooltipLine(IKey.lang("gui.neoecoae.crafting.active_cooling.tooltip")));
 
         panel.child(section(6, 27, 76, 70));
         panel.child(lang("gui.neoecoae.crafting.ui.status", 12, 33).color(TEXT));
@@ -1289,7 +1286,8 @@ final class NeoEcoPanels {
 
     private static ModularPanel panel(String name, int width, int height) {
         return ModularPanel.defaultPanel(name, width, height)
-            .background(NeoEcoTextures.BACKGROUND);
+            .background(NeoEcoTextures.BACKGROUND)
+            .disableHoverBackground();
     }
 
     private static ParentWidget<?> page() {
@@ -1326,7 +1324,8 @@ final class NeoEcoPanels {
     }
 
     private static TextWidget<?> hostTitle(Supplier<String> localizedName, int x, int y, int width) {
-        return dynamic(localizedName, x, y, width).color(HOST_TITLE);
+        return dynamic(localizedName, x, y, width).scale(0.85F + 2.0F / 9.0F)
+            .color(HOST_TITLE);
     }
 
     private static TextWidget<?> lang(String translationKey, int x, int y) {
@@ -1393,12 +1392,158 @@ final class NeoEcoPanels {
         BooleanSupplier selected) {
         InteractionSyncHandler handler = new InteractionSyncHandler()
             .setOnMousePressed(mouse -> { if (mouse.side.isServer() && mouse.mouseButton == 0) action.run(); });
-        return new ButtonWidget<>().syncHandler(handler)
+        return new HostButton().syncHandler(handler)
             .background(
                 new DynamicDrawable(
-                    () -> selected.getAsBoolean() ? NeoEcoTextures.RECT_RD_DARK : NeoEcoTextures.RECT_RD))
-            .hoverBackground(NeoEcoTextures.RECT_RD_LIGHT)
+                    () -> selected.getAsBoolean() ? NeoEcoTextures.HOST_BUTTON_SELECTED : NeoEcoTextures.HOST_BUTTON))
+            .hoverBackground(NeoEcoTextures.HOST_BUTTON_HOVER)
             .overlay(icon);
+    }
+
+    private static final class HostButton extends ButtonWidget<HostButton> {
+
+        private int pressedButton = -1;
+
+        @Override
+        public Result onMousePressed(int mouseButton) {
+            if (mouseButton == 0 || mouseButton == 1) this.pressedButton = mouseButton;
+            return super.onMousePressed(mouseButton);
+        }
+
+        @Override
+        public boolean onMouseRelease(int mouseButton) {
+            this.pressedButton = -1;
+            return super.onMouseRelease(mouseButton);
+        }
+
+        private int pressOffset() {
+            if (this.pressedButton >= 0 && !org.lwjgl.input.Mouse.isButtonDown(this.pressedButton)) {
+                this.pressedButton = -1;
+            }
+            return this.pressedButton >= 0 ? 1 : 0;
+        }
+
+        @Override
+        public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
+            GL11.glPushMatrix();
+            GL11.glTranslatef(0, pressOffset(), 0);
+            super.drawBackground(context, widgetTheme);
+            GL11.glPopMatrix();
+        }
+
+        @Override
+        public void drawOverlay(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
+            // Keep the icon at 80% of its original size, before the extra two pixels of button height.
+            float iconWidth = getArea().width * 0.8F;
+            float iconHeight = (getArea().height - 2) * 0.8F;
+            GL11.glPushMatrix();
+            GL11.glTranslatef(
+                (getArea().width - iconWidth) / 2,
+                (getArea().height - iconHeight) / 2 + pressOffset(),
+                0);
+            GL11.glScalef(iconWidth / getArea().width, iconHeight / getArea().height, 1);
+            super.drawOverlay(context, widgetTheme);
+            GL11.glPopMatrix();
+        }
+    }
+
+    private static void addHostButtonRail(ModularPanel panel, NeoEcoGuiData data) {
+        TileECOController controller = tile(data, TileECOController.class);
+        int count = controller.getSubsystem() == cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem.CRAFTING ? 3 : 2;
+        for (int i = 0; i < count; i++) {
+            int top = i == 0 ? 0 : 23 + (i - 1) * 22;
+            panel.child(
+                new ParentWidget<>().pos(-21, top)
+                    .size(23, i == 0 ? 30 : i == count - 1 ? 27 : 24)
+                    .background(
+                        i == 0 ? NeoEcoTextures.SIDE_TOP
+                            : i == count - 1 ? NeoEcoTextures.SIDE_BOTTOM : NeoEcoTextures.SIDE_MIDDLE));
+        }
+    }
+
+    private static NeoEcoGuiData.Kind hostKind(TileECOController controller) {
+        switch (controller.getSubsystem()) {
+            case STORAGE:
+                return NeoEcoGuiData.Kind.STORAGE_CONTROLLER;
+            case COMPUTATION:
+                return NeoEcoGuiData.Kind.COMPUTATION_CONTROLLER;
+            default:
+                return NeoEcoGuiData.Kind.CRAFTING_CONTROLLER;
+        }
+    }
+
+    private static ModularPanel hostGuide(NeoEcoGuiData data) {
+        TileECOController controller = tile(data, TileECOController.class);
+        ModularPanel panel = panel("host_guide", 304, 150);
+        panel.child(title("gui.neoecoae.host.guide", 8, 8));
+        panel.child(
+            lang(
+                "gui.neoecoae.host.guide." + controller.getSubsystem()
+                    .name()
+                    .toLowerCase(Locale.ROOT),
+                10,
+                35).width(284)
+                    .scale(0.85F));
+        panel.child(
+            serverButton(
+                tr("gui.neoecoae.host.back"),
+                () -> NeoEcoUiFactory.openTile(data.getPlayer(), hostKind(controller), controller)).pos(112, 119)
+                    .size(80, 20));
+        return panel;
+    }
+
+    private static ModularPanel hostBuild(NeoEcoGuiData data, PanelSyncManager syncManager) {
+        TileECOController controller = tile(data, TileECOController.class);
+        AtomicInteger length = new AtomicInteger(1);
+        AtomicInteger mirrored = new AtomicInteger();
+        syncManager.syncValue("build_length", new IntSyncValue(length::get, length::set));
+        syncManager.syncValue("build_mirrored", new IntSyncValue(mirrored::get, mirrored::set));
+        ModularPanel panel = panel("host_build", 304, 160);
+        panel.child(title("gui.neoecoae.host.build", 8, 8));
+        panel.child(
+            serverButton("-", () -> length.set(Math.max(1, length.get() - 1))).pos(20, 36)
+                .size(30, 20));
+        panel.child(dynamic(() -> tr("gui.neoecoae.host.length") + ": " + length.get(), 60, 41, 170));
+        panel.child(
+            serverButton("+", () -> length.set(Math.min(11, length.get() + 1))).pos(250, 36)
+                .size(30, 20));
+        panel.child(
+            dynamicServerButton(
+                () -> tr("gui.neoecoae.host.mirror") + ": " + onOff(mirrored.get() != 0),
+                () -> mirrored.set(1 - mirrored.get())).pos(20, 65)
+                    .size(260, 20));
+        panel.child(serverButton(tr("gui.neoecoae.host.preview"), () -> {
+            var result = cn.dancingsnow.neoecoae.multiblock.ECOStructureBuilder
+                .preview(controller, data.getPlayer(), length.get(), mirrored.get() != 0);
+            data.getPlayer()
+                .addChatMessage(
+                    new ChatComponentTranslation(
+                        "gui.neoecoae.host.build_result",
+                        result.getPlannedBlocks(),
+                        result.getMissingMaterials(),
+                        result.getConflicts(),
+                        result.getError() == null ? "" : result.getError()));
+        }).pos(20, 96)
+            .size(125, 20));
+        panel.child(serverButton(tr("gui.neoecoae.host.build"), () -> {
+            var result = cn.dancingsnow.neoecoae.multiblock.ECOStructureBuilder
+                .build(controller, data.getPlayer(), length.get(), mirrored.get() != 0);
+            data.getPlayer()
+                .addChatMessage(
+                    new ChatComponentTranslation(
+                        "gui.neoecoae.host.build_result",
+                        result.getPlacedBlocks(),
+                        result.getMissingMaterials(),
+                        result.getConflicts(),
+                        result.getError() == null ? "" : result.getError()));
+        }).pos(155, 96)
+            .size(125, 20));
+        panel.child(
+            serverButton(
+                tr("gui.neoecoae.host.back"),
+                () -> NeoEcoUiFactory.openTile(data.getPlayer(), hostKind(controller), controller)).pos(112, 129)
+                    .size(80, 20));
+        return panel;
     }
 
     private static void addNetworkFrequencyButton(ModularPanel panel, PanelSyncManager syncManager,
@@ -1411,12 +1556,14 @@ final class NeoEcoPanels {
             }
         });
         panel.child(
-            new ButtonWidget<>().syncHandler(handler)
-                .pos(-19, 48)
-                .size(18, 18)
-                .background(NeoEcoTextures.RECT_RD)
-                .hoverBackground(NeoEcoTextures.RECT_RD_LIGHT)
-                .overlay(GuiTextures.GEAR)
+            new HostButton().syncHandler(handler)
+                .pos(
+                    -17,
+                    controller.getSubsystem() == cn.dancingsnow.neoecoae.tile.ECOControllerSubsystem.CRAFTING ? 47 : 25)
+                .size(18, 20)
+                .background(NeoEcoTextures.HOST_BUTTON)
+                .hoverBackground(NeoEcoTextures.HOST_BUTTON_HOVER)
+                .overlay(NeoEcoTextures.HOST_FREQUENCY)
                 .addTooltipLine(IKey.dynamic(() -> tr("gui.neoecoae.network.frequency") + ": " + frequency.get()))
                 .addTooltipLine(IKey.lang("gui.neoecoae.network.frequency.click")));
     }
@@ -1850,9 +1997,10 @@ final class NeoEcoPanels {
     private static final class ExactPanelBorderDrawable implements IDrawable {
 
         private static final ExactPanelBorderDrawable INSTANCE = new ExactPanelBorderDrawable();
-        private static final String PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAACxIAAAsSAdLdfvwAAAB4SURBVDhPY2CAAl5ewf+kYJg+uObWxl6i8cVzVxCGgBjuzv7/E6LSwDQxGKQWbgjMAJDJ+lomGE5FxyA1MPUYBsDY+DC6etoYAPIjOh41gEQD8GF09SgGwBTgw1gTEsyZIEFiMEwt2ABYfkD2JzEYrhk5R5KCYfoArHmyRVtuUaoAAAAASUVORK5CYII=";
 
-        private ResourceLocation location;
+        private final ResourceLocation location = new ResourceLocation(
+            "neoecoae",
+            "textures/gui/storage_host_panel_border.png");
 
         @Override
         public void draw(GuiContext context, int x, int y, int width, int height, WidgetTheme widgetTheme) {
@@ -1874,21 +2022,7 @@ final class NeoEcoPanels {
         }
 
         private ResourceLocation location() {
-            if (this.location != null) return this.location;
-            try {
-                byte[] png = Base64.getDecoder()
-                    .decode(PNG_BASE64);
-                BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
-                if (image == null || image.getWidth() != 16 || image.getHeight() != 16) {
-                    throw new IOException("Invalid LDLib2 host panel border image");
-                }
-                this.location = Minecraft.getMinecraft()
-                    .getTextureManager()
-                    .getDynamicTextureLocation("neoecoae_host_panel_border", new DynamicTexture(image));
-                return this.location;
-            } catch (IOException | IllegalArgumentException exception) {
-                throw new IllegalStateException("Unable to load LDLib2 host panel border", exception);
-            }
+            return this.location;
         }
 
         private static void drawPart(ResourceLocation texture, int x, int y, int width, int height, int u, int v,
@@ -1923,13 +2057,15 @@ final class NeoEcoPanels {
             WidgetTheme theme = getActiveWidgetTheme(entry, isHovering());
             int width = getArea().width;
             int height = getArea().height;
-            ExactPanelBorderDrawable.INSTANCE.draw(context, 0, 0, width, height, theme);
+            // Four-pixel bars cannot use the three-pixel panel border: it gives a negative fill height.
+            new Rectangle().color(PANEL)
+                .draw(context, 0, 0, width, height, theme);
             new Rectangle().color(PANEL_ALT)
-                .draw(context, 2, 2, width - 4, height - 4, theme);
-            int filled = (int) Math.round(Math.max(0D, Math.min(1D, this.progress.getAsDouble())) * (width - 6));
+                .draw(context, 1, 1, Math.max(0, width - 2), Math.max(0, height - 2), theme);
+            int filled = (int) Math.round(Math.max(0D, Math.min(1D, this.progress.getAsDouble())) * (width - 2));
             if (filled > 0) {
                 new Rectangle().color(this.color.getAsInt())
-                    .draw(context, 3, 3, filled, height - 6, theme);
+                    .draw(context, 1, 1, filled, Math.max(0, height - 2), theme);
             }
         }
     }

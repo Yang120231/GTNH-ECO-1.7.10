@@ -88,6 +88,21 @@ final class NeoEcoTextures {
         .nonOpaque()
         .build();
 
+    static final UITexture HOST_STATES = texture("ae2_121/eco_states", 256, 256).build();
+    static final UITexture HOST_HELP = HOST_STATES.getSubArea(176f / 256f, 0f, 192f / 256f, 16f / 256f);
+    static final UITexture HOST_PRIORITY = HOST_STATES.getSubArea(144f / 256f, 64f / 256f, 160f / 256f, 80f / 256f);
+    static final UITexture HOST_FREQUENCY = HOST_STATES.getSubArea(16f / 256f, 240f / 256f, 32f / 256f, 1f);
+    static final UITexture HOST_FILTER = HOST_STATES.getSubArea(160f / 256f, 16f / 256f, 176f / 256f, 32f / 256f);
+    static final UITexture HOST_BUTTON = HOST_STATES.getSubArea(176f / 256f, 128f / 256f, 194f / 256f, 148f / 256f);
+    static final UITexture HOST_BUTTON_HOVER = HOST_STATES
+        .getSubArea(212f / 256f, 128f / 256f, 230f / 256f, 148f / 256f);
+    static final UITexture HOST_BUTTON_SELECTED = HOST_STATES
+        .getSubArea(194f / 256f, 128f / 256f, 212f / 256f, 148f / 256f);
+
+    static final UITexture SIDE_TOP = texture("button_slot_up", 23, 30).build();
+    static final UITexture SIDE_MIDDLE = texture("button_slot_middle", 23, 24).build();
+    static final UITexture SIDE_BOTTOM = texture("button_slot_down", 23, 27).build();
+
     private NeoEcoTextures() {}
 
     private static UITexture.Builder texture(String path, int width, int height) {

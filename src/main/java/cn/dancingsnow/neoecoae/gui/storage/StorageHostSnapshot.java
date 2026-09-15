@@ -160,7 +160,7 @@ public final class StorageHostSnapshot {
                 if (cell.hasCell) {
                     totalBytes = saturatedAdd(totalBytes, cell.totalBytes);
                     totalTypes = saturatedAdd(totalTypes, cell.totalTypes);
-                    addDriveStats(matrix, itemStats, fluidStats);
+                    if (!hostDomainStorage) addDriveStats(matrix, itemStats, fluidStats);
                     if (!hostDomainStorage) {
                         usedBytes = saturatedAdd(usedBytes, cell.usedBytes);
                         preciseUsedBytes = preciseUsedBytes.add(BigInteger.valueOf(cell.usedBytes));

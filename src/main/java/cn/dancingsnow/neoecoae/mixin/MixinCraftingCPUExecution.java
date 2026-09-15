@@ -13,44 +13,35 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.IGrid;
-import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.crafting.ae2.ECOCraftingJob;
 import cn.dancingsnow.neoecoae.crafting.fastpath.ECOExternalCpuBatch;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchCoordinator;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingBatchTransaction;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingExecutionContext;
 import cn.dancingsnow.neoecoae.crafting.runtime.ECOCraftingOwnershipRegistry;
-import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionHost;
-import cn.dancingsnow.neoecoae.crafting.runtime.ECOExecutionRuntime;
 import cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOCraftingEnergyTransaction;
 import cn.dancingsnow.neoecoae.tile.TileECOController;
 
 @Mixin(value = CraftingCPUCluster.class, remap = false)
-public abstract class MixinCraftingCPUExecution
-    implements ECOExecutionHost, ECOCraftingBatchCoordinator, ECOExternalCpuBatch.Accounting {
+public abstract class MixinCraftingCPUExecution implements ECOCraftingBatchCoordinator, ECOExternalCpuBatch.Accounting {
 
     @Shadow
     @Final
     protected Map<ICraftingPatternDetails, CraftingCPUCluster.TaskProgress> tasks;
     @Shadow
     protected boolean suspended;
-    @Unique
-    private ECOExecutionRuntime neoecoae$execution;
     @Shadow
     protected IItemList<IAEStack<?>> waitingFor;
     @Shadow
@@ -129,29 +120,6 @@ public abstract class MixinCraftingCPUExecution
         NeoECOAE.LOG.error("External CPU batch failed; CPU suspended", failure);
     }
 
-    @Override
-    public ECOExecutionRuntime neoecoae$getExecution() {
-        return neoecoae$execution;
-    }
-
-    @Override
-    public void neoecoae$setExecution(ECOExecutionRuntime execution) {
-        neoecoae$execution = execution;
-    }
-
-    @Override
-    public void neoecoae$installExecution(
-        cn.dancingsnow.neoecoae.crafting.planner.ported.result.ECOExecutionPlan plan) {
-        var codec = new cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOGtnhExecutionCodec(getWorld());
-        var binding = new cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOExecutionBinding(
-            plan,
-            tasks.keySet(),
-            pattern -> ((MixinCraftingTaskProgress) tasks.get(pattern)).neoecoae$getValue(),
-            true,
-            codec);
-        neoecoae$execution = new ECOExecutionRuntime(plan, binding, codec);
-    }
-
     @Redirect(
         method = "executeCrafting",
         at = @At(
@@ -159,9 +127,6 @@ public abstract class MixinCraftingCPUExecution
             target = "Lappeng/api/networking/crafting/ICraftingMedium;pushPattern(Lappeng/api/networking/crafting/ICraftingPatternDetails;Lnet/minecraft/inventory/InventoryCrafting;)Z"))
     private boolean neoecoae$dispatch(ICraftingMedium medium, ICraftingPatternDetails pattern,
         InventoryCrafting table) {
-        if (neoecoae$execution != null && neoecoae$execution.allowance(pattern) == 0) return false;
-        MixinCraftingTaskProgress progress = (MixinCraftingTaskProgress) tasks.get(pattern);
-        long before = progress == null ? 0 : progress.neoecoae$getValue();
         CraftingCPUCluster cpu = (CraftingCPUCluster) (Object) this;
         ICraftingLink link = cpu.getLastCraftingLink();
         if (link != null) ECOCraftingOwnershipRegistry.heartbeat(link.getCraftingID(), cpu);
@@ -170,36 +135,13 @@ public abstract class MixinCraftingCPUExecution
             .enter(link == null ? null : link.getCraftingID(), (ECOCraftingBatchCoordinator) (Object) this)) {
             accepted = medium.pushPattern(pattern, table);
         }
-        if (accepted && neoecoae$execution != null) {
-            long extras = progress == null ? 0 : before - progress.neoecoae$getValue();
-            neoecoae$execution.accepted(pattern, Math.addExact(1, extras), null);
-        }
         return accepted;
-    }
-
-    @Inject(method = "submitJob", at = @At("HEAD"), cancellable = true)
-    private void neoecoae$preventMerge(IGrid grid, ICraftingJob job, BaseActionSource source,
-        ICraftingRequester requester, CallbackInfoReturnable<ICraftingLink> cir) {
-        CraftingCPUCluster cpu = (CraftingCPUCluster) (Object) this;
-        if (cpu.isBusy() && (neoecoae$execution != null || job instanceof ECOCraftingJob)) cir.setReturnValue(null);
-    }
-
-    @Inject(method = "submitJob", at = @At("RETURN"))
-    private void neoecoae$submissionResult(IGrid grid, ICraftingJob job, BaseActionSource source,
-        ICraftingRequester requester, CallbackInfoReturnable<ICraftingLink> cir) {
-        if (cir.getReturnValue() == null && !((CraftingCPUCluster) (Object) this).isBusy()) neoecoae$execution = null;
     }
 
     @Inject(method = { "cancel", "destroy" }, at = @At("HEAD"))
     private void neoecoae$clearExecution(CallbackInfo ci) {
         ICraftingLink link = ((CraftingCPUCluster) (Object) this).getLastCraftingLink();
         if (link != null) ECOCraftingOwnershipRegistry.cancelAndRecover(link.getCraftingID());
-        neoecoae$execution = null;
-    }
-
-    @Inject(method = "completeJob", at = @At("RETURN"))
-    private void neoecoae$completeExecution(CallbackInfo ci) {
-        if (!((CraftingCPUCluster) (Object) this).isBusy()) neoecoae$execution = null;
     }
 
     @Inject(method = "writeToNBT", at = @At("RETURN"))
@@ -208,8 +150,6 @@ public abstract class MixinCraftingCPUExecution
         energyTransactions().writeToNBT(energy);
         data.setTag("EcoEnergyTransaction", energy);
         data.setDouble("EcoBatchEnergyDebt", neoecoae$energyDebt);
-        if (neoecoae$execution != null) data.setTag("EcoExecution", neoecoae$execution.write());
-        else data.removeTag("EcoExecution");
     }
 
     @Inject(method = "readFromNBT", at = @At("RETURN"))
@@ -219,18 +159,6 @@ public abstract class MixinCraftingCPUExecution
         if (!Double.isFinite(neoecoae$energyDebt)) {
             neoecoae$energyDebt = Double.MAX_VALUE;
             suspended = true;
-        }
-        neoecoae$execution = null;
-        if (!data.hasKey("EcoExecution", 10)) return;
-        try {
-            neoecoae$execution = ECOExecutionRuntime.read(
-                data.getCompoundTag("EcoExecution"),
-                tasks.keySet(),
-                pattern -> ((MixinCraftingTaskProgress) tasks.get(pattern)).neoecoae$getValue(),
-                new cn.dancingsnow.neoecoae.crafting.runtime.ported.ECOGtnhExecutionCodec(getWorld()));
-        } catch (RuntimeException failure) {
-            suspended = true;
-            NeoECOAE.LOG.error("Invalid ECO execution schedule; CPU suspended to preserve its inventory", failure);
         }
     }
 

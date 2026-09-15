@@ -563,12 +563,31 @@ gui.neoecoae.storage_ui.channel.fluid=流体
 gui.neoecoae.network.frequency=联网频率
 gui.neoecoae.network.frequency.click=左键增加，右键减少
 
-gui.neoecoae.planner.fallback=已回退到 AE2 原生规划
-gui.neoecoae.planner.unavailable=当前任务尚无 ECO 规划报告
 
-gui.neoecoae.planner.option.1=快速任务规划
-gui.neoecoae.planner.option.2=循环规划
-gui.neoecoae.planner.option.4=忽略样板替代
 
 gui.neoecoae.crafting_interface.title=ECO 合成接口
 gui.neoecoae.crafting_interface.organize=整理网络样板
+
+gui.neoecoae.report.cycles=循环材料
+gui.neoecoae.report.missing=缺少
+gui.neoecoae.report.net=净产出
+gui.neoecoae.report.craft=合成
+gui.neoecoae.report.stored=库存
+gui.neoecoae.report.cycle_material=参与循环的材料
+gui.neoecoae.report.seed=种子
+gui.neoecoae.report.truncated=报告已截断，请打开合成图查看诊断。
+gui.neoecoae.report.cpu=合成 CPU
+gui.neoecoae.report.auto=自动选择
+
+gui.neoecoae.storage_ui.shared_capacity=主机共享容量
+gui.neoecoae.host.guide=主机帮助
+gui.neoecoae.host.build=搭建结构
+gui.neoecoae.host.priority=存储优先级
+gui.neoecoae.host.back=返回主机
+gui.neoecoae.host.length=搭建长度
+gui.neoecoae.host.mirror=镜像搭建
+gui.neoecoae.host.preview=检查材料
+gui.neoecoae.host.build_result=方块：%s，缺少：%s，冲突：%s %s
+gui.neoecoae.host.guide.storage=存储主机管理共享容量。侧栏可检查搭建材料和设置存储优先级。无限组件受安全锁保护。
+gui.neoecoae.host.guide.crafting=合成规划与调度使用 GTNH。ECO 提供 fastpath 批量执行；侧栏可设置超频、主动冷却和网络频率。
+gui.neoecoae.host.guide.computation=运算主机提供原生 AE2 合成 CPU。侧栏可选择玩家或机器任务，并调整网络频率。
