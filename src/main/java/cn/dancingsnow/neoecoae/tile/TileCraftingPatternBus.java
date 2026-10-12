@@ -11,6 +11,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.NetworkManager;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
+import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
 
 import appeng.api.implementations.ICraftingPatternItem;
@@ -42,6 +43,9 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
     private final ItemStack[] patterns = new ItemStack[PATTERN_SLOTS];
     private final ItemStack[] patternDisplayStacks = new ItemStack[PATTERN_SLOTS];
     private final boolean[] patternDisplayResolved = new boolean[PATTERN_SLOTS];
+    private final ICraftingPatternDetails[] patternDetailsCache = new ICraftingPatternDetails[PATTERN_SLOTS];
+    private final ItemStack[] patternDetailsKeys = new ItemStack[PATTERN_SLOTS];
+    private final boolean[] patternDetailsResolved = new boolean[PATTERN_SLOTS];
     private int cachedPatternCount;
     private ScheduledReason scheduledReason = ScheduledReason.UNDEFINED;
 
@@ -54,8 +58,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
         if (helper == null || this.worldObj == null) {
             return;
         }
-        for (ItemStack pattern : this.patterns) {
-            ICraftingPatternDetails details = this.patternDetails(pattern);
+        for (int slot = 0; slot < this.patterns.length; slot++) {
+            ICraftingPatternDetails details = this.patternDetails(slot);
             if (details != null) {
                 helper.addCraftingOption(medium, details);
             }
@@ -144,14 +148,17 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
             return null;
         }
         if (!this.patternDisplayResolved[slot]) {
-            this.patternDisplayStacks[slot] = this.getPatternDisplayStack(this.patterns[slot]);
+            this.patternDisplayStacks[slot] = this.displayStackOf(this.patternDetails(slot));
             this.patternDisplayResolved[slot] = true;
         }
         return this.patternDisplayStacks[slot];
     }
 
     public ItemStack getPatternDisplayStack(ItemStack pattern) {
-        ICraftingPatternDetails details = this.patternDetails(pattern);
+        return this.displayStackOf(this.patternDetails(pattern));
+    }
+
+    private ItemStack displayStackOf(ICraftingPatternDetails details) {
         if (details == null) {
             return null;
         }
@@ -304,6 +311,7 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
         Arrays.fill(this.patterns, null);
         Arrays.fill(this.patternDisplayStacks, null);
         Arrays.fill(this.patternDisplayResolved, false);
+        this.clearPatternDetailsCache();
         NBTTagList list = tag.getTagList(TAG_PATTERNS, Constants.NBT.TAG_COMPOUND);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound slotTag = list.getCompoundTagAt(i);
@@ -348,8 +356,8 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
 
     private int countPatterns() {
         int count = 0;
-        for (ItemStack pattern : this.patterns) {
-            if (this.patternDetails(pattern) != null) {
+        for (int slot = 0; slot < this.patterns.length; slot++) {
+            if (this.patternDetails(slot) != null) {
                 count++;
             }
         }
@@ -362,10 +370,46 @@ public class TileCraftingPatternBus extends TileCraftingMember implements IInven
         }
         this.patternDisplayStacks[slot] = null;
         this.patternDisplayResolved[slot] = false;
+        this.patternDetailsCache[slot] = null;
+        this.patternDetailsKeys[slot] = null;
+        this.patternDetailsResolved[slot] = false;
+    }
+
+    private void clearPatternDetailsCache() {
+        Arrays.fill(this.patternDetailsCache, null);
+        Arrays.fill(this.patternDetailsKeys, null);
+        Arrays.fill(this.patternDetailsResolved, false);
+    }
+
+    @Override
+    public void setWorldObj(World world) {
+        if (this.worldObj != world) {
+            this.clearPatternDetailsCache();
+            Arrays.fill(this.patternDisplayStacks, null);
+            Arrays.fill(this.patternDisplayResolved, false);
+        }
+        super.setWorldObj(world);
     }
 
     private boolean isValidSlot(int slot) {
         return slot >= 0 && slot < this.patterns.length;
+    }
+
+    private ICraftingPatternDetails patternDetails(int slot) {
+        ItemStack stack = this.patterns[slot];
+        if (stack == null) {
+            return null;
+        }
+        if (this.patternDetailsResolved[slot] && this.patternDetailsKeys[slot] == stack) {
+            return this.patternDetailsCache[slot];
+        }
+        ICraftingPatternDetails details = this.patternDetails(stack);
+        if (this.worldObj != null) {
+            this.patternDetailsCache[slot] = details;
+            this.patternDetailsKeys[slot] = stack;
+            this.patternDetailsResolved[slot] = true;
+        }
+        return details;
     }
 
     private ICraftingPatternDetails patternDetails(ItemStack stack) {
