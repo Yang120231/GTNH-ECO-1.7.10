@@ -1,36 +1,96 @@
 {
   "schema_version": 1,
   "status": "business_import_in_progress",
-  "verified_at": "2026-10-25T07:08:23.917369+00:00",
+  "verified_at": "2026-10-25T12:08:25.187536+00:00",
   "source_lock": "source-lock.json",
   "branch": "codex/1710-port-foundation",
-  "target_base": "c420141d7604990e2989bd26b8af7d67bbadb6c7",
+  "target_base": "bfda33e3dec7b39a5e167836e3ce12a9ce3316ab",
   "primary_source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
   "selected_source_patches": [],
   "imported": {
-    "business": 158,
-    "test": 15,
-    "resource": 2066,
-    "platform_resource_alias": 592
+    "business": 292,
+    "test": 40,
+    "resource": 1320,
+    "platform_resource_alias": 432
   },
-  "pending_source_paths": 795,
-  "main_java": 235,
-  "test_java": 22,
+  "pending_source_paths": 494,
+  "main_java": 504,
+  "test_java": 54,
   "preserved_model_files": 11,
   "preserved_model_hash_changes": [],
   "tests": {
-    "tests": 118,
+    "tests": 248,
     "failures": 0,
     "errors": 0,
     "skipped": 0
   },
   "test_suites": [
     {
+      "name": "cn.dancingsnow.neoecoae.api.extension.ECOExtensionRegistryTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.storage.CombinedStorageAmountTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.storage.ECOInfiniteStorageAccessTest",
+      "tests": 6
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.storage.StorageDriveLayoutTest",
+      "tests": 2
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.client.render.model.ModelRenderLayerTest",
       "tests": 4
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.display.format.ExactAmountFormatterTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.display.terminal.StorageListingAccumulatorTest",
+      "tests": 6
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchExecutorTest",
+      "tests": 11
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.bigorder.ECOBigCraftingOrderTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOBatchInputLeaseTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingDispatchStrategyTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingEnergyTransactionTest",
+      "tests": 6
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBigBatchSafetyTest",
+      "tests": 8
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCacheTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECODurabilityBatchModelTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOExecutionContractGenerationTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOFastPathExpandedSupportTest",
       "tests": 4
     },
     {
@@ -58,8 +118,20 @@
       "tests": 12
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOBigOrderPlannerTest",
+      "tests": 4
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudgetTest",
       "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningServiceTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOProgressivePlanningTest",
+      "tests": 5
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.graph.TarjanSccAnalyzerTest",
@@ -86,47 +158,91 @@
       "tests": 5
     },
     {
+      "name": "cn.dancingsnow.neoecoae.gui.common.HostTextTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.gui.storage.StoragePanelStateTest",
+      "tests": 15
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageDurabilityTest",
       "tests": 9
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageHotPathTest",
+      "tests": 8
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMemberReadTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.impl.storage.StorageInterfaceFilterTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.impl.storage.transfer.ECOIOPortTransferTest",
+      "tests": 11
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.ComponentTransportTest",
+      "tests": 3
     },
     {
       "name": "cn.dancingsnow.neoecoae.platform.FiniteStorageContractTest",
       "tests": 8
     },
     {
+      "name": "cn.dancingsnow.neoecoae.platform.ManagedFieldsContractTest",
+      "tests": 3
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.platform.PlatformContractTest",
       "tests": 8
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.recipe.SourceShapelessRecipeTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.WorldViewContractTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.util.MultiBlockUtilTest",
+      "tests": 1
     }
   ],
   "build_log": "build/porting-build.log",
   "artifacts": [
     {
       "path": "build/libs/neoecoae-0.1.0-porting-dev.jar",
-      "bytes": 2841997,
-      "sha256": "0d03f1a232daccb91ab0e0a290efc0e98d01958cc576faae913655d52ad74345",
-      "classes": 436,
+      "bytes": 3184823,
+      "sha256": "608e081c67fd32daf7b4a7f6762da2b4eb28b35f897670cfe58ae36cd5601d0b",
+      "classes": 844,
       "classfile_major_counts": {
-        "52": 436
+        "52": 844
       },
-      "entries": 3363
+      "entries": 2912
     },
     {
       "path": "build/libs/neoecoae-0.1.0-porting-sources.jar",
-      "bytes": 2279678,
-      "sha256": "036c27ec9bfc291a437192059cf89573c8063844133e6afd0fe201af253f105c",
+      "bytes": 2187285,
+      "sha256": "e765fdf07251509c26e6f1c643fb1bb552057d8a57f68dbcee290d08da39875c",
       "classes": 0,
       "classfile_major_counts": {},
-      "entries": 3171
+      "entries": 2580
     },
     {
       "path": "build/libs/neoecoae-0.1.0-porting.jar",
-      "bytes": 2891475,
-      "sha256": "f5c4bac781693b91f3e8d6dddc3fd64d110548688d49d823c89813b73d278b7a",
-      "classes": 436,
+      "bytes": 3222987,
+      "sha256": "4f0d1aed2f95aa2bfc9f274a305b18a45a2ba480f8023b4ac7a5de39b33d523f",
+      "classes": 844,
       "classfile_major_counts": {
-        "52": 436
+        "52": 844
       },
-      "entries": 3363
+      "entries": 2912
     }
   ],
   "server_acceptance": [
@@ -165,12 +281,29 @@
       }
     },
     {
-      "kind": "final-storage-recipes-mui2",
+      "kind": "previous-storage-recipes-mui2",
       "source": "build/porting-server-current.log",
-      "source_sha256": "8760eea158734951e24bd191099397c901660d4d8b1a617c0e7341ba2d6f46a6",
+      "source_sha256": "0e1cf33458023f8e824640e5646775456841d1e0f56ccc1c3e1ff8d5f46c0459",
       "minecraft_source": "build/porting-server-current-minecraft.log",
-      "minecraft_source_sha256": "2080de48f08f4f31f9603d5bf95fd1880929e9de7ead1ad3079d094c9d2528d3",
-      "excerpt": "porting/acceptance/final-storage-recipes-mui2.log",
+      "minecraft_source_sha256": "04bcdae4f66070a304db33c9f4fd54c0952e645180caf573e651608a0960684c",
+      "excerpt": "porting/acceptance/previous-storage-recipes-mui2.log",
+      "resolved_runtime_versions": {
+        "Applied-Energistics-2-Unofficial": [
+          "rv3-beta-990-GTNH"
+        ],
+        "ModularUI2": [
+          "2.3.49-1.7.10"
+        ],
+        "GTNHLib": []
+      }
+    },
+    {
+      "kind": "material-execution",
+      "source": "build/server-material-execution.log",
+      "source_sha256": "bf2d38dd0af2e0c6655c20c80c62f5b2cb78aae5eac73d01b8ca488f797223a6",
+      "minecraft_source": "build/server-material-execution-minecraft.log",
+      "minecraft_source_sha256": "acd51bc80484f8dfa28bed298f1a4dea7d61924c5c18af680b8d3620c680d561",
+      "excerpt": "porting/acceptance/material-execution.log",
       "resolved_runtime_versions": {
         "Applied-Energistics-2-Unofficial": [
           "rv3-beta-990-GTNH"
@@ -182,11 +315,211 @@
       }
     }
   ],
+  "dependency_adapters": [
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/crafting/inv/ICraftingInventory.java",
+      "source_sha256": "941bcf88d463bd43d265cac9f03f398076ef4cf0810ca66d9c0d6232ee19a26f",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/inventory/ICraftingInventory.java",
+      "target_sha256": "5e363e7def844e4a559856f1ff5af264986dec905f3d204fc1c2f5409277946a",
+      "license": "LGPL-3.0-or-later; source license header preserved"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/crafting/inv/ListCraftingInventory.java",
+      "source_sha256": "4949bae879fffc781420410a3b91cfacdf0419fd8af93e9b644d843aa7cb6d82",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/inventory/ListCraftingInventory.java",
+      "target_sha256": "82bbe802b4466d334a532a86d2ad7492a175a59fbd8b58e6e0d6db1c3fbda27b",
+      "license": "LGPL-3.0-or-later; source license header preserved"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/api/networking/crafting/CalculationStrategy.java",
+      "source_sha256": "56d388809dcc845c888dc7abe75fe29b950a12943cfdf2b27825717e12c9e8c5",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CalculationStrategy.java",
+      "target_sha256": "c7429283b37d87e88ef1f887041e4fb503dc590b3f3e339da7d71fc0912a1a13",
+      "license": "LGPL-3.0-or-later; source license header preserved"
+    }
+  ],
+  "derived_resources": [
+    {
+      "target": "src/main/resources/data/neoecoae/recipe/eco_bulk_item_cell_16m.json",
+      "target_sha256": "acbfe4d17790c0d668faba18d1480c3836b956134f2e6752cb9070ba6bbe51c3",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "ECO_BULK_ITEM_CELL_16M",
+        "bulkItemCell"
+      ]
+    },
+    {
+      "target": "src/main/resources/data/neoecoae/recipe/disassembly/eco_bulk_item_cell_16m.json",
+      "target_sha256": "926500fb90528136f08d675fdbd81977b090942b1c1c86d2088431ee4c6c23d4",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "ECO_BULK_ITEM_CELL_16M",
+        "bulkItemCell"
+      ]
+    },
+    {
+      "target": "src/main/resources/data/neoecoae/recipe/eco_bulk_item_cell_64m.json",
+      "target_sha256": "f3c2df7e135a3ca09f3420082321b4a619ae226e6bbda296a257cb35b882872c",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "ECO_BULK_ITEM_CELL_64M",
+        "bulkItemCell"
+      ]
+    },
+    {
+      "target": "src/main/resources/data/neoecoae/recipe/disassembly/eco_bulk_item_cell_64m.json",
+      "target_sha256": "e6c21633ef439aed869cbc0feb8191f64021431d55b5040b7717524c38919f85",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "ECO_BULK_ITEM_CELL_64M",
+        "bulkItemCell"
+      ]
+    },
+    {
+      "target": "src/main/resources/data/neoecoae/recipe/eco_bulk_item_cell_256m.json",
+      "target_sha256": "63796014623605ed69e1578aa7bae3b8e509ba2e5970b66568cbed7489055189",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "ECO_BULK_ITEM_CELL_256M",
+        "bulkItemCell"
+      ]
+    },
+    {
+      "target": "src/main/resources/data/neoecoae/recipe/disassembly/eco_bulk_item_cell_256m.json",
+      "target_sha256": "cc7bad89ce7875ae84ef2728f172c00fe6ef1bf411a1c4f3e569a08a896d5b89",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "ECO_BULK_ITEM_CELL_256M",
+        "bulkItemCell"
+      ]
+    },
+    {
+      "target": "src/main/resources/neoecoae/core-content.json",
+      "target_sha256": "cca1b9b45ae65d9a4d376917e2ea73efc24efbc6b49aee26a98b99ef9fb72875",
+      "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
+      "members": [
+        "INTEGRATED_WORKING_STATION_MODULE_EMPTY",
+        "INTEGRATED_WORKING_STATION_MODULE_ADVANCED_AE",
+        "INTEGRATED_WORKING_STATION_MODULE_EXTENDEDAE",
+        "INTEGRATED_WORKING_STATION_MODULE_AE2CS",
+        "INTEGRATED_WORKING_STATION_MODULE_AELT",
+        "INTEGRATED_WORKING_STATION_MODULE_DATA_ENERGISTICS",
+        "INTEGRATED_WORKING_STATION_MODULE_APPGEN",
+        "ALUMINUM_AXE",
+        "ALUMINUM_HOE",
+        "ALUMINUM_SHOVEL",
+        "ALUMINUM_PICKAXE",
+        "ALUMINUM_SWORD",
+        "TUNGSTEN_AXE",
+        "TUNGSTEN_HOE",
+        "TUNGSTEN_SHOVEL",
+        "TUNGSTEN_PICKAXE",
+        "TUNGSTEN_SWORD",
+        "ALUMINUM_ALLOY_UPGRADE_SMITHING_TEMPLATE",
+        "ALUMINUM_ALLOY_AXE",
+        "ALUMINUM_ALLOY_HOE",
+        "ALUMINUM_ALLOY_SHOVEL",
+        "ALUMINUM_ALLOY_PICKAXE",
+        "ALUMINUM_ALLOY_SWORD",
+        "BLACK_TUNGSTEN_ALLOY_UPGRADE_SMITHING_TEMPLATE",
+        "BLACK_TUNGSTEN_ALLOY_AXE",
+        "BLACK_TUNGSTEN_ALLOY_HOE",
+        "BLACK_TUNGSTEN_ALLOY_SHOVEL",
+        "BLACK_TUNGSTEN_ALLOY_PICKAXE",
+        "BLACK_TUNGSTEN_ALLOY_SWORD",
+        "IRON_DUST",
+        "RAW_ALUMINUM_ORE",
+        "ALUMINUM_INGOT",
+        "ALUMINUM_DUST",
+        "RAW_TUNGSTEN_ORE",
+        "TUNGSTEN_INGOT",
+        "TUNGSTEN_DUST",
+        "ALUMINUM_ALLOY_INGOT",
+        "ALUMINUM_ALLOY_DUST",
+        "BLACK_TUNGSTEN_ALLOY_INGOT",
+        "BLACK_TUNGSTEN_ALLOY_DUST",
+        "ENERGIZED_CRYSTAL",
+        "ENERGIZED_CRYSTAL_DUST",
+        "ENERGIZED_FLUIX_CRYSTAL",
+        "ENERGIZED_FLUIX_CRYSTAL_DUST",
+        "CRYSTAL_INGOT",
+        "CRYSTAL_MATRIX",
+        "ENERGIZED_SUPERCONDUCTIVE_INGOT",
+        "CRYOTHEUM",
+        "CRYOTHEUM_CRYSTAL",
+        "SUPERCONDUCTING_PROCESSOR_PRESS",
+        "SUPERCONDUCTING_PROCESSOR_PRINT",
+        "SUPERCONDUCTING_PROCESSOR",
+        "ECO_CELL_COMPONENT_16M",
+        "ECO_CELL_COMPONENT_64M",
+        "ECO_CELL_COMPONENT_256M",
+        "ECO_INFINITE_CELL_COMPONENT",
+        "ECO_ITEM_CELL_HOUSING",
+        "ECO_BULK_ITEM_CELL_HOUSING",
+        "ECO_FLUID_CELL_HOUSING",
+        "ECO_ITEM_CELL_16M",
+        "ECO_ITEM_CELL_64M",
+        "ECO_ITEM_CELL_256M",
+        "ECO_BULK_ITEM_CELL_16M",
+        "ECO_BULK_ITEM_CELL_64M",
+        "ECO_BULK_ITEM_CELL_256M",
+        "ECO_INFINITE_ITEM_CELL",
+        "ECO_FLUID_CELL_16M",
+        "ECO_FLUID_CELL_64M",
+        "ECO_FLUID_CELL_256M",
+        "ECO_COMPUTATION_CELL_L4",
+        "ECO_COMPUTATION_CELL_L6",
+        "ECO_COMPUTATION_CELL_L9"
+      ]
+    },
+    {
+      "target": "src/main/resources/neoecoae/core-blocks.json",
+      "target_sha256": "f06c6ddf934c8ab465b5a4607d5cb2d1680096c13b54341aedbbb8714b4e1b5a"
+    },
+    {
+      "target": "src/main/resources/neoecoae/recipe-catalog.json",
+      "target_sha256": "6a9ab1378b89c0ceb88e3d98309447d0bfdc50f83719b505e368b3533717f4f9"
+    }
+  ],
+  "excluded_source_paths": 957,
+  "optional_mod_integrations": false,
+  "content": {
+    "core_items": 65,
+    "material_blocks": 13,
+    "storage_machine_blocks": 10,
+    "source_recipes": 161,
+    "installed_source_recipes": 92,
+    "native_crafting_recipes": 65,
+    "excluded_large_workstation_cards": 7
+  },
+  "client_acceptance": {
+    "source": "build/client-material-recipes-acceptance.log",
+    "sha256": "86428257c43c3d5e56288d5acc4e34efc45f27bef68949cdd40e81ead74faf0f",
+    "scope": "Storage main page, real MUI2 extraction/reinsertion packets, material atlas loading and recipe/NBT assertions; not manual mouse gestures or a full crafting order"
+  },
   "outstanding": [
-    "ECO host/drive multiblock state and native grid lifecycle",
-    "Native planner request/confirmation and CPU execution hooks",
+    "Remaining storage interfaces, priority/build/guide pages and gestures",
+    "Native planner request/confirmation and complete source CPU execution hooks",
     "Computation and workstation business modules",
     "Complete high-version MUI2 pages, native slot gestures and render-state binding",
-    "Full recipe chain, addon mapping, NEI, client visuals and ordinary installation"
+    "Remaining core source recipes",
+    "Actual ECO trio plus GT machines and pattern-provider order save; GT runtime is not enabled yet",
+    "NEI, remaining client visuals and ordinary installation"
   ]
 }

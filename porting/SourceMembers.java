@@ -40,7 +40,7 @@ public final class SourceMembers {
                     :member instanceof ClassTree?((ClassTree)member).getSimpleName().toString():member.getKind().name();
                 if(comma)System.out.print(",");comma=true;
                 System.out.print("{\"kind\":"+json(member.getKind().name())+",\"name\":"+json(name)
-                    +",\"line\":"+unit.getLineMap().getLineNumber(start)+",\"text\":"+json(source.substring((int)start,(int)end))+"}");
+                    +",\"line\":"+unit.getLineMap().getLineNumber(start)+",\"start\":"+start+",\"end\":"+end+",\"text\":"+json(source.substring((int)start,(int)end))+"}");
             }
             System.out.println("]");
         }

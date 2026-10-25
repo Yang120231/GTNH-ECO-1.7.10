@@ -38,7 +38,6 @@ def adapt_storage(text):
         "com.lowdragmc.lowdraglib2.gui.ui.UI;": ROOT + "ui.NativeUiThread;",
         "net.minecraft.world.entity.player.Player": "net.minecraft.entity.player.EntityPlayer",
         "net.minecraft.network.chat.MutableComponent": ROOT + "minecraft.Component",
-        "cn.dancingsnow.neoecoae.integration.biggerae2.BiggerAE2SingularityPowerService": ROOT + "ae2.storage.OptionalCellPower",
     }
     renames = {"ISyncPersistRPCBlockEntity": "ManagedHolder", "IManagedStorage": "FieldManagedStorage",
         "PowerUnit":"PowerUnits",
@@ -47,7 +46,7 @@ def adapt_storage(text):
         "ECOStorageVentBlock": "NativeVentBlock", "ECODriveBlock": "NativeDriveBlock",
         "ECOMachineInterface": "NativeInterfaceBlock", "NEBlocks": "StorageMachines", "NETags": "StorageTags",
         "NERegistries": "StorageRegistries", "TickHandler": "TickClock", "MutableComponent": "Component",
-        "GridPowerStorageStateChanged": "MENetworkPowerStorage", "BiggerAE2SingularityPowerService": "OptionalCellPower"}
+        "GridPowerStorageStateChanged": "MENetworkPowerStorage"}
     for old, new in replacements.items():
         text = text.replace(old, new)
     for old, new in renames.items():

@@ -1,4 +1,30 @@
 {
+  "test:crafting/planner/solve/CreativeSupplyPlanningTest.java": {
+    "scope": "All core ECO creative supply, exact unbounded reservation and segmentation cases. The optional ExtendedAE/AE2LT/Thunderbolt cell tests and their helpers are excluded by user instruction; native drive/chest behavior is exercised by PortingPlanningFixture.",
+    "header": "class CreativeSupplyPlanningTest",
+    "members": ["bootstrap", "onlyOnlineMountedEcoCreativeCellsConferUnlimitedSupply", "demandAboveLongMaxIsReservedExactlyAndStillRequiresSegmentation", "bigOrderSearchBuildsACompleteLongChildFromUnlimitedStock", "unboundedReservationsSurviveCopiesButGoalStockCanBeExcluded", "cycleBoundaryCanReserveCreativeStockAfterEarlierReservations", "counter", "snapshot", "solve"],
+    "excluded_optional_members": ["thirdPartyInfiniteCellsPlanAndExtractBeyondDisplayedStock", "thirdPartyInfiniteSupplyRequiresPoweredHostAndMountedCell", "ae2LtOuterCellIsFiniteAndCaptureNeverConsumesItsResult", "ae2LtInfiniteStorageCellStillConsumesFiniteStock", "extendedAeFluidCellPreservesUnlimitedUnitConversion", "infiniteCell", "extendedAeCell", "cellStack", "optionalMods", "thirdPartyInfiniteCellHosts", "cellGrid"],
+    "pending_core_members": ["finiteSaturatedStorageIsNotAnInfiniteSource"]
+  },
+  "test:crafting/planner/solve/ByproductReviewProbeTest.java": {
+    "scope": "All standalone source byproduct planner/replay cases. The direct modern AE2 CraftingCalculation comparison is pending replacement by a target-native runtime comparison.",
+    "header": "class ByproductReviewProbeTest",
+    "exclude_members": ["randomizedSmallNetworksContainVanillaSuccessesAndReplayJointSupply", "vanillaPlan"]
+  },
+  "test:crafting/execution/worker/ECOExactVirtualLedgerTest.java": {
+    "scope": "Complete pure exact-ledger custody, partial delivery and NBT reload regression. The separate exact-lane worker integration test is pending its real worker/controller runtime dependencies.",
+    "header": "class ECOExactVirtualLedgerTest",
+    "exclude_members": ["exactLaneUsesOneSlotAndRejectsBusyOrNonVirtualWorker"]
+  },
+  "api/me/ECOFastPathFacade.java": {
+    "scope": "Core provider submission/preparation, exact allocated batches and energy contracts. Optional mod provider resolution is excluded by user instruction and replaced by core native capability access. Worker cancellation follows real machine/persistence dependencies.",
+    "header": "public final class ECOFastPathFacade",
+    "exclude_members": [
+      "supports",
+      "resolveProvider",
+      "cancelJob"
+    ]
+  },
   "blocks/entity/ECOMachineInterfaceBlockEntity.java": {
     "scope": "Storage interface state, exact filter and mode policy. Pattern/computation interface members are still pending.",
     "header": "public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>> extends NEBlockEntity<C, ECOMachineInterfaceBlockEntity<C>> implements ISyncPersistRPCBlockEntity",
@@ -36,7 +62,7 @@
     ]
   },
   "blocks/entity/storage/ECOStorageSystemBlockEntity.java": {
-    "scope": "Storage host lifecycle, complete normal/infinite migration and restore state, domain membership, interface transfer, persistence and priority. Construction, optional MEGA filtering and interactive page members remain pending.",
+    "scope": "Storage lifecycle, normal/infinite migration/restore, membership, interface transfer, persistence and priority. MEGA members are excluded by user instruction; construction and interactive page members remain pending.",
     "header": "public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity> implements ISyncPersistRPCBlockEntity, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost",
     "exclude_members": [
       "selectedBuildLength",

@@ -53,7 +53,40 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty("planner.challenge.enabled", providers.gradleProperty("plannerChallenge").getOrElse("false"))
+    systemProperty("planner.challenge.profile", providers.gradleProperty("plannerChallengeProfile").getOrElse("default"))
 }
+
+val purgeExcludedImportedOutputs by tasks.registering {
+    group = "build"
+    description = "Remove stale generated outputs for source imports explicitly excluded by the user."
+    inputs.file("porting/source-lock.json")
+    doLast {
+        val lock = groovy.json.JsonSlurper().parse(file("porting/source-lock.json")) as Map<*, *>
+        for (value in (lock["removed_excluded_imports"] as? List<*> ?: emptyList<Any>())) {
+            val entry = value as Map<*, *>
+            val target = entry["target"] as String
+            if (file(target).exists()) continue
+            if (target.startsWith("src/main/resources/")) {
+                val base = layout.buildDirectory.dir("resources/main").get().asFile.canonicalFile
+                val output = base.resolve(target.removePrefix("src/main/resources/")).canonicalFile
+                check(output.toPath().startsWith(base.toPath())) { "Excluded resource escapes generated output" }
+                if (output.isFile) check(output.delete()) { "Unable to remove stale excluded resource $output" }
+            } else if (target.startsWith("src/main/java/")) {
+                val base = layout.buildDirectory.dir("classes/java/main").get().asFile.canonicalFile
+                val output = base.resolve(target.removePrefix("src/main/java/").removeSuffix(".java") + ".class").canonicalFile
+                check(output.toPath().startsWith(base.toPath())) { "Excluded class escapes generated output" }
+                for (candidate in output.parentFile.listFiles().orEmpty()) {
+                    if (candidate.name == output.name || (candidate.name.startsWith(output.nameWithoutExtension + '$') && candidate.extension == "class")) {
+                        check(candidate.delete()) { "Unable to remove stale excluded class $candidate" }
+                    }
+                }
+            }
+        }
+    }
+}
+tasks.named("compileJava") { dependsOn(purgeExcludedImportedOutputs) }
+tasks.named("processResources") { dependsOn(purgeExcludedImportedOutputs) }
 
 val verifyMigratedSourceCoverage by tasks.registering {
     group = "verification"

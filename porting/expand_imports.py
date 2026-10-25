@@ -16,9 +16,9 @@ def names(package):
         with zipfile.ZipFile(JMOD) as module:
             return {value[len(prefix):-6] for value in module.namelist() if value.startswith(prefix) and value.endswith(".class") and "/" not in value[len(prefix):] and "$" not in value}
     if package=="net.minecraft.command":return {"CommandBase","ICommandSender","CommandException","WrongUsageException"}
-    roots=SOURCES
-    if package.startswith("appeng."):roots=[MODS/"Applied-Energistics-2-Unofficial/src/main/java"]
-    if package.startswith("com.cleanroommc.modularui."):roots=[MODS/"ModularUI2/src/main/java"]
+    roots=SOURCES+[ROOT/"build/reference-1211/src/main/java",ROOT/"build/reference-1211/src/test/java"]
+    if package.startswith("appeng."):roots=[ROOT/"build/reference-ae2/src/main/java"]
+    if package.startswith("com.cleanroommc.modularui."):roots=[ROOT/"build/reference-mui2/src/main/java"]
     if package=="com.google.gson":return {"JsonArray","JsonObject","JsonElement","JsonParser","JsonPrimitive","JsonParseException"}
     result={p.stem for root in roots for p in (root/relative).glob("*.java")}
     if not result:raise ValueError("Cannot resolve wildcard package: "+package)

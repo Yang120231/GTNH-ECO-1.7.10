@@ -5,6 +5,37 @@
   "source_lock": "../../porting/source-lock.json",
   "business_import_state": "../../porting/business-import-state.json",
   "progress": "../../porting/PROGRESS_ZH_CN.md",
+  "pause_checkpoint": {
+    "date": "2026-10-25",
+    "state": "paused_by_user",
+    "instruction": "先停止。整理文档，记录进度",
+    "document": "../../porting/CHECKPOINT_20261025_ZH_CN.md",
+    "closeout_scope": "Documentation and read-only inspection only; no implementation, build, game launch, staging, commit or push.",
+    "imported_business_files": 318,
+    "imported_source_test_files": 79,
+    "source_resources": 1320,
+    "platform_resource_aliases": 432,
+    "main_java_files": 540,
+    "test_java_files": 93,
+    "pending_core_source_paths": 463,
+    "last_existing_test_report": {
+      "path": "../../build/test-results/test",
+      "profile": "-PplannerChallenge=true",
+      "suites": 85,
+      "tests": 523,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "source_challenge_cases": 26,
+      "rerun_during_closeout": false
+    },
+    "jar_audit_state": "stale_snapshot_requires_full_build_and_audit",
+    "last_jar_audit_at": "2026-10-25T12:08:25.187536+00:00",
+    "next_implementation": "Review planning task cancellation, callback generation and cache release across server stop and same-JVM world restart; inspected but not implemented.",
+    "final_order_test_world_created": false,
+    "gt_runtime_enabled": false,
+    "latest_remote_check": "Proxy fetch failed for six reference repositories; direct GitHub retry failed for the 1.21.1 repository. Pinned commits and global proxy settings were unchanged; latest remote state is unconfirmed."
+  },
   "observed_date": "2026-10-25",
   "primary_source": {
     "repository": "E:/Minecraft Project/NeoECOAEExtension-1.21.1",
@@ -61,53 +92,168 @@
   "business_modules": [
     {
       "name": "crafting_planning",
-      "source_paths": ["crafting/planner", "grid/PatternCatalog.java"],
-      "contracts": ["pattern normalization", "SCC and cyclic plans", "returned and reusable inputs", "route selection", "exact material amounts", "immutable planning snapshots"]
+      "source_paths": [
+        "crafting/planner",
+        "grid/PatternCatalog.java"
+      ],
+      "contracts": [
+        "pattern normalization",
+        "SCC and cyclic plans",
+        "returned and reusable inputs",
+        "route selection",
+        "exact material amounts",
+        "immutable planning snapshots"
+      ]
     },
     {
       "name": "crafting_execution",
-      "source_paths": ["crafting/execution", "blocks/entity/crafting", "compat/ae2"],
-      "contracts": ["item and fluid dispatch", "material leases", "partial batch results", "cancellation", "native CPU integration", "resource conservation"]
+      "source_paths": [
+        "crafting/execution",
+        "blocks/entity/crafting",
+        "compat/ae2"
+      ],
+      "contracts": [
+        "item and fluid dispatch",
+        "material leases",
+        "partial batch results",
+        "cancellation",
+        "native CPU integration",
+        "resource conservation"
+      ]
     },
     {
       "name": "storage",
-      "source_paths": ["impl/storage", "blocks/entity/storage"],
-      "contracts": ["finite and infinite quantities", "two native AE2 channels", "exact listing", "simulation", "filter and priority", "world persistence", "idempotent migration receipts"]
+      "source_paths": [
+        "impl/storage",
+        "blocks/entity/storage"
+      ],
+      "contracts": [
+        "finite and infinite quantities",
+        "two native AE2 channels",
+        "exact listing",
+        "simulation",
+        "filter and priority",
+        "world persistence",
+        "idempotent migration receipts"
+      ]
     },
     {
       "name": "computation",
-      "source_paths": ["blocks/entity/computation", "multiblock/cluster"],
-      "contracts": ["CPU exposure", "parallel capacity", "job ownership", "grid disconnect and reconnect", "cooling and state synchronization"]
+      "source_paths": [
+        "blocks/entity/computation",
+        "multiblock/cluster"
+      ],
+      "contracts": [
+        "CPU exposure",
+        "parallel capacity",
+        "job ownership",
+        "grid disconnect and reconnect",
+        "cooling and state synchronization"
+      ]
     },
     {
       "name": "workstations",
-      "source_paths": ["blocks/entity/ECOIntegratedWorkingStationBlockEntity.java", "blocks/entity/ECOLargeIntegratedWorkingStationBlockEntity.java", "recipe", "gui/workstation"],
-      "contracts": ["pattern mode", "queued work", "neighbor inventory boundaries", "all inputs and outputs", "pause and resume", "overclock cooling temperature responsibilities"]
+      "source_paths": [
+        "blocks/entity/ECOIntegratedWorkingStationBlockEntity.java",
+        "blocks/entity/ECOLargeIntegratedWorkingStationBlockEntity.java",
+        "recipe",
+        "gui/workstation"
+      ],
+      "contracts": [
+        "pattern mode",
+        "queued work",
+        "neighbor inventory boundaries",
+        "all inputs and outputs",
+        "pause and resume",
+        "overclock cooling temperature responsibilities"
+      ]
     },
     {
       "name": "multiblocks",
-      "source_paths": ["multiblock", "api/multiblock", "gui/multiblock"],
-      "contracts": ["size bounds", "facing and mirror", "part ownership", "formation and removal", "chunk unload", "construction"]
+      "source_paths": [
+        "multiblock",
+        "api/multiblock",
+        "gui/multiblock"
+      ],
+      "contracts": [
+        "size bounds",
+        "facing and mirror",
+        "part ownership",
+        "formation and removal",
+        "chunk unload",
+        "construction"
+      ]
     },
     {
       "name": "ui",
-      "source_paths": ["gui", "src/main/resources/assets/neoecoae/screens"],
-      "contracts": ["page structure and textures", "deterministic peer registration", "typed directional sync", "real and phantom slots", "scroll and paging", "tooltips", "drag and Shift gestures"]
+      "source_paths": [
+        "gui",
+        "src/main/resources/assets/neoecoae/screens"
+      ],
+      "contracts": [
+        "page structure and textures",
+        "deterministic peer registration",
+        "typed directional sync",
+        "real and phantom slots",
+        "scroll and paging",
+        "tooltips",
+        "drag and Shift gestures"
+      ]
     },
     {
       "name": "registration_and_recipes",
-      "source_paths": ["all", "registration", "recipe", "integration"],
-      "contracts": ["high-version identifiers", "assembly and disassembly", "conditional registration", "GTNH recipe inputs", "optional addon capability mapping", "NEI display"]
+      "source_paths": [
+        "all",
+        "registration",
+        "recipe",
+        "integration/recipe"
+      ],
+      "contracts": [
+        "high-version core identifiers",
+        "core assembly and disassembly",
+        "GTNH native registration and recipe inputs",
+        "NEI display",
+        "absence of excluded optional mod content"
+      ]
     }
   ],
   "source_path_note": "Business Java paths are relative to src/main/java/cn/dancingsnow/neoecoae unless explicitly prefixed with src/.",
   "phases": [
-    {"id": "P0", "deliverable": "Fixed input manifest, high-version business/resource/test import and legacy model allowlist", "state": "in_progress", "progress_detail": "Fixed source and resource manifest; 158 business files and 15 source tests imported; remaining source paths explicitly tracked."},
-    {"id": "P1", "deliverable": "Java 8, world/NBT/registry/key/grid/network and minimal MUI2 facade contracts", "state": "in_progress", "progress_detail": "Used storage/planning adapters compile; typed MUI2 values load on dedicated Java 8 server; complete world/UI facade remains pending."},
-    {"id": "P2", "deliverable": "Storage vertical path from cells and host through native AE2/UI to save and reload", "state": "in_progress", "progress_detail": "Six standard native cells and exact world-domain save/restart verified; ECO hosts, multiblock/grid lifecycle and pages remain pending."},
-    {"id": "P3", "deliverable": "Complete high-version crafting and computation with target submission/confirmation/CPU hooks", "state": "in_progress", "progress_detail": "115 planning files and algorithm regressions imported; native request/confirmation/CPU execution and computation remain pending."},
-    {"id": "P4", "deliverable": "Workstations, multiblocks, recipes, construction and associated pages", "state": "planned"},
-    {"id": "P5", "deliverable": "Addon compatibility table, NEI/information integration and complete runtime/package acceptance", "state": "planned"}
+    {
+      "id": "P0",
+      "deliverable": "Fixed input manifest, high-version business/resource/test import and legacy model allowlist",
+      "state": "in_progress",
+      "progress_detail": "Fixed source and hashes; 318 core business files, 79 source tests, 1320 source resources and 432 platform aliases; 463 pending core source paths. Explicit optional exclusions are recorded separately and do not count as pending core work. Work is paused by user; the aggregate JAR audit is an older snapshot."
+    },
+    {
+      "id": "P1",
+      "deliverable": "Java 8, world/NBT/registry/key/grid/network and minimal MUI2 facade contracts",
+      "state": "in_progress",
+      "progress_detail": "Used storage/planning/execution adapters compile; 12 dependency primitives and exact native NBT long-array representation are adapted. Typed MUI2 values and storage main-page extraction/reinsertion work. Full host/UI boundaries and planning server-stop lifecycle remain pending."
+    },
+    {
+      "id": "P2",
+      "deliverable": "Storage vertical path from cells and host through native AE2/UI to save and reload",
+      "state": "in_progress",
+      "progress_detail": "Six ordinary item/fluid cells, creative resource cells, exact world-domain persistence, normal/infinite ECO storage hosts, drives, shared multiblock foundations and storage main-page packet actions are connected. Remaining interfaces, priority/build/guide pages, gestures and full acceptance remain pending; hidden legacy bulk-cell source limitations are documented."
+    },
+    {
+      "id": "P3",
+      "deliverable": "Complete high-version crafting and computation with target submission/confirmation/CPU hooks",
+      "state": "in_progress",
+      "progress_detail": "Full planning entrypoints, frozen native patterns/creative-cell/emitter/provider bridges, execution runtime, exact ledger, task attachments/lifecycle, input caches and dispatch foundations are imported. Full source CPU/Job/worker hosts, crafting/computation clusters, native CPU publication and request/confirmation remain pending. Existing reports show 523 passing tests including 26 source planner challenges; this is not end-to-end order acceptance."
+    },
+    {
+      "id": "P4",
+      "deliverable": "Workstations, multiblocks, recipes, construction and associated pages",
+      "state": "in_progress",
+      "progress_detail": "65 core standalone items, 13 material blocks and 10 storage machine blocks are registered. Of 161 core source recipe definitions, 92 are installed and 69 remain. Complete workstations, crafting/computation structures, construction and associated pages remain pending."
+    },
+    {
+      "id": "P5",
+      "deliverable": "Native NEI presentation and complete core runtime/package acceptance; verify optional integrations remain absent.",
+      "state": "planned"
+    }
   ],
   "completed_investigation_proofs": {
     "legacy_test_build": "Passed 69 tests; this proves only the existing legacy baseline.",
@@ -122,7 +268,18 @@
     "real item/fluid operations, crafting jobs and cancellation",
     "save/reload/migration and network lifecycle",
     "UI layout, synchronization and actual gestures",
-    "optional addon availability and integration matrix",
-    "ordinary installation and runtime acceptance"
-  ]
+    "ordinary installation and runtime acceptance",
+    "explicit absence of excluded optional mod cells, recipes, resources and compatibility code"
+  ],
+  "user_scope_overrides": {
+    "file": "../../porting/content-overrides.json",
+    "optional_mod_integrations": false,
+    "large_workstation_upgrade_cards": false,
+    "required_platform": [
+      "Forge 1.7.10",
+      "GTNH AE2",
+      "GTNH MUI2"
+    ],
+    "requested_test_world": "ECO storage/crafting/computation trio plus GT machines and native pattern providers; real player order acceptance remains required."
+  }
 }

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "primary_source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "gaps": [
+    {
+      "id": "hidden_legacy_bulk_capacity",
+      "source": "all/NEItems.java:bulkItemCell; impl/storage/ECOStorageCell.java:canHoldNewItem",
+      "observation": "The three hidden eco_bulk_item_cell_* registrations set bytesPerType equal to totalBytes. Source canHoldNewItem rejects the first type when all bytes would be consumed by type overhead and unused item count is zero. No alternate inventory factory exists for these core IDs in the pinned source.",
+      "target_policy": "Preserve the hidden identifiers and exact source factory parameters. Do not claim them as working ordinary storage cells or change capacity rules to make a generic insertion test pass. Six ordinary item/fluid cells retain full insertion/extraction/persistence acceptance.",
+      "runtime_evidence": "run/porting-acceptance/logs/latest.log, 2026-10-25 18:27:28: generic positive insertion assertion exposed the source boundary"
+    },
+    {
+      "id": "missing_storage_infinity_sprite",
+      "source": "gui/storage/StoragePanelTextures.java:INFINITE_ANIMATION",
+      "observation": "The fixed tree declares neoecoae:storage/infinity but contains no matching GUI sprite PNG.",
+      "target_policy": "Keep animation completion explicitly pending until a traceable source asset is supplied. Do not count a missing texture as a successful animated view."
+    }
+  ]
+}

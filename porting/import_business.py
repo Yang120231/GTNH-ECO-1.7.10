@@ -11,6 +11,8 @@ import subprocess
 import io
 import tarfile
 from storage_adapters import adapt_storage
+from execution_adapters import adapt_execution, preserve_empty_stack_lists
+from import_scope import source_exclusion, resource_exclusion, adapt_resource, adapt_core_business, SHARED_CORE_ASSETS
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +21,44 @@ COMMIT = "f6003889a1352ea0d7e2e23a3868eb69943789ca"
 PACKAGE = "cn/dancingsnow/neoecoae/"
 PARTIAL_IMPORTS = json.loads((ROOT / "porting/partial-imports.json").read_text(encoding="utf8"))
 BUSINESS = [
+    "crafting/execution/ECOExecutionRuntime.java",
+    "api/me/menu/ECOCycleItemList.java", "multiblock/network/NEFrequencyAllocator.java", "crafting/execution/ECOCraftingDispatchResult.java", "blocks/entity/crafting/ECOCraftingPerformanceMeter.java",
+    "crafting/execution/worker/ECOExactVirtualLedger.java", "crafting/execution/worker/ECOCraftingThreadWork.java", "crafting/execution/worker/ECOCraftingStackCodec.java",
+    "api/me/attachment/ECOCraftingJobAttachment.java", "api/me/attachment/ECOCraftingJobAttachmentRegistry.java", "api/me/attachment/ECOCraftingJobAttachments.java",
+    "api/me/lifecycle/ECOCraftingDispatchEvent.java", "api/me/lifecycle/ECOCraftingJobContext.java", "api/me/lifecycle/ECOCraftingJobResult.java",
+    "api/me/lifecycle/ECOCraftingLifecycle.java", "api/me/lifecycle/ECOCraftingLifecycleListener.java",
+    "api/me/dispatch/ECOCraftingCpuContext.java", "api/me/dispatch/ECOCraftingDispatchPolicy.java", "api/me/dispatch/ECOCraftingDispatchPolicyRegistry.java",
+    "api/me/planning/ECOCraftingCalculationSettings.java",
+    "crafting/execution/ECOCraftingInputPreview.java", "crafting/execution/ECOCraftingInputResolver.java",
+    "crafting/execution/ECOCraftingInputTemplateCache.java", "crafting/execution/ECOCraftingRemainderCache.java", "crafting/execution/ECOProviderCursor.java",
+    "crafting/planner/ECOPlanningService.java", "crafting/planner/ECOBigOrderPlanner.java", "crafting/planner/ECOPlannerInventory.java",
+    "api/me/planning/ECOPlannerOptions.java", "api/me/network/ECOCraftingNetworkSettings.java", "grid/NEMachineLookup.java", "impl/storage/ECOCreativeCell.java",
+    "api/me/provider/ECOFastPathDispatchProvider.java", "api/me/provider/ECOBatchDispatchContext.java",
+    "api/me/provider/ECOParallelCraftingProvider.java", "api/me/provider/ECOParallelCraftingProviders.java",
+    "api/me/provider/ECOJobAwareCraftingProvider.java", "api/me/provider/ECOBatchCapacityProvider.java",
+    "crafting/execution/batch/ECOStatefulBatchPlanner.java", "crafting/execution/batch/ECOExactBatchPlanner.java",
+    "crafting/execution/batch/ECOParallelProviderAdapter.java",
+    "api/me/ECOFastPathFacade.java", "crafting/execution/ECOCraftingEnergyTransaction.java",
+    "crafting/execution/batch/ECOBatchDispatchRequest.java", "crafting/execution/batch/ECOBatchExecutionView.java",
+    "crafting/execution/batch/ECOBatchExecutor.java", "crafting/execution/batch/ECOBatchMaterialized.java",
+    "crafting/execution/batch/ECOBatchMaterializer.java", "crafting/execution/batch/ECOBatchProvider.java",
+    "crafting/execution/batch/ECOStatefulBatchProvider.java", "crafting/execution/batch/ECOLinearBatchExecutionView.java",
+    "crafting/execution/batch/ECOBatchInputLease.java",
+    "api/me/bigorder/ECOBigOrderAdmission.java", "api/me/bigorder/ECOBigOrderProgress.java", "api/me/bigorder/ECOBigOrderState.java",
+    "crafting/execution/bigorder/ECOBigCraftingOrder.java", "crafting/adapter/ae2/ECOExactCraftingPlan.java",
+    "crafting/execution/fastpath/ECOFastPathStacks.java",
+    "api/computation/ECOComputationCells.java",
+    "api/me/bigorder/ECOExactInventory.java",
+    "api/me/completion/ECOVirtualCraftingCompletionSink.java",
+    "api/me/progress/ECOCraftingProgressSink.java", "api/me/progress/ECOCraftingProgressSnapshot.java", "api/me/progress/ECOCraftingProgressView.java",
+    "api/me/output/ECOCraftingOutputClaimRequest.java", "api/me/output/ECOCraftingOutputClaimResult.java", "api/me/output/ECOCraftingOutputClaimSink.java",
+    "api/me/output/ECOCraftingOutputRouter.java", "api/me/output/ECOJobOutputReceiver.java",
+    "api/me/provider/ECOIndeterminateBatchException.java",
+    "crafting/execution/ElapsedTimeTracker.java", "crafting/execution/ECOCraftingDispatchStrategy.java", "crafting/execution/ECOCraftingDispatchBudget.java",
+    "crafting/execution/batch/ECOBatchAdmission.java", "crafting/execution/batch/ECOBatchLimits.java", "crafting/execution/batch/ECOBatchMode.java",
+    "crafting/execution/batch/ECOBatchPlan.java", "crafting/execution/batch/ECOBatchPlanRequest.java", "crafting/execution/batch/ECOBatchPlanner.java",
+    "crafting/execution/batch/ECOPatternIdentity.java", "crafting/execution/fastpath/ECOBatchCraftingHelper.java",
+    "blocks/CasingBlock.java",
     "crafting/amount/ExactAmount.java", "crafting/amount/PlannerAmount.java",
     "crafting/amount/NEMath.java", "crafting/display/format/BigNumberFormatter.java",
     "crafting/display/format/DisplayNumbers.java", "crafting/display/format/ExtendedDecimalUnits.java",
@@ -69,6 +109,18 @@ BUSINESS = [
     "gui/storage/StorageHostCharts.java", "gui/storage/StorageCellGrid.java", "gui/common/HostPanelTier.java",
 ]
 TESTS = [
+    "crafting/execution/ECOExecutionRuntimeStartupSeedTest.java",
+    "crafting/execution/worker/ECOExactVirtualLedgerTest.java",
+    "crafting/execution/ECOCraftingInputCachingTest.java",
+    "crafting/planner/ECOPlanningServiceTest.java", "crafting/planner/ECOBigOrderPlannerTest.java", "crafting/planner/ECOProgressivePlanningTest.java",
+    "crafting/execution/batch/ECOBatchExecutorTest.java",
+    "crafting/execution/fastpath/ECOFastPathExpandedSupportTest.java", "crafting/execution/fastpath/ECOExecutionContractGenerationTest.java",
+    "crafting/execution/fastpath/ECODurabilityBatchModelTest.java", "crafting/execution/fastpath/ECOCraftingFastPathCacheTest.java",
+    "crafting/execution/fastpath/ECOBigBatchSafetyTest.java",
+    "crafting/execution/ECOCraftingEnergyTransactionTest.java",
+    "crafting/execution/ECOBatchInputLeaseTest.java",
+    "crafting/execution/bigorder/ECOBigCraftingOrderTest.java",
+    "crafting/execution/ECOCraftingDispatchStrategyTest.java",
     "gui/storage/StoragePanelStateTest.java",
     "crafting/display/format/ExactAmountFormatterTest.java",
     "impl/storage/infinite/ECOInfiniteStorageDurabilityTest.java",
@@ -88,6 +140,20 @@ TESTS = [
     "impl/storage/StorageInterfaceFilterTest.java", "impl/storage/transfer/ECOIOPortTransferTest.java",
 ]
 REMAP = {
+    "appeng.api.storage.AEKeyFilter": "cn.dancingsnow.neoecoae.platform.ae2.crafting.AEKeyFilter",
+    "appeng.menu.me.crafting.CraftingPlanSummary": "cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlanSummary",
+    "appeng.api.networking.crafting.ICraftingCPU": "cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingCPU",
+    "appeng.api.networking.crafting.CraftingJobStatus": "cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingJobStatus",
+    "appeng.api.config.CpuSelectionMode": "cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode",
+    "appeng.crafting.execution.InputTemplate": "cn.dancingsnow.neoecoae.platform.ae2.crafting.InputTemplate",
+    "appeng.crafting.execution.CraftingCpuHelper": "cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper",
+    "appeng.me.service.CraftingService": "cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService",
+    "appeng.api.networking.crafting.CalculationStrategy": "cn.dancingsnow.neoecoae.platform.ae2.crafting.CalculationStrategy",
+    "appeng.api.implementations.blockentities.IChestOrDrive": "appeng.api.implementations.tiles.IChestOrDrive",
+    "appeng.items.storage.CreativeCellItem": "appeng.items.storage.ItemCreativeStorageCell",
+    "appeng.me.cells.CreativeCellHandler": "cn.dancingsnow.neoecoae.platform.ae2.storage.NativeCreativeCellHandler",
+    "appeng.api.networking.crafting.ICraftingProvider": "cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider",
+    "appeng.crafting.inv.": "cn.dancingsnow.neoecoae.platform.ae2.crafting.inventory.",
     "appeng.me.cluster.IAECluster": "cn.dancingsnow.neoecoae.platform.ae2.multiblock.IAECluster",
     "appeng.me.cluster.IAEMultiBlock": "cn.dancingsnow.neoecoae.platform.ae2.multiblock.IAEMultiBlock",
     "appeng.me.cluster.MBCalculator": "cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator",
@@ -168,30 +234,45 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
-def select_members(path, original):
-    relative=path.removeprefix("src/main/java/"+PACKAGE)
-    selection=PARTIAL_IMPORTS.get(relative)
-    if selection is None:return original
+def source_members(relative, original):
     parser=ROOT/"porting/SourceMembers.java"
     classes=ROOT/"build/porting-tools"
     classes.mkdir(parents=True,exist_ok=True)
     compiled=classes/"SourceMembers.class"
     if not compiled.exists() or compiled.stat().st_mtime<parser.stat().st_mtime:
         subprocess.check_call(["javac","-encoding","UTF-8","-d",str(classes),str(parser)])
-    temporary=ROOT/"build/porting-parse"/relative
+    temporary=ROOT/"build/porting-parse"/relative.replace(":", "/")
     temporary.parent.mkdir(parents=True,exist_ok=True)
     temporary.write_bytes(original)
-    members=json.loads(subprocess.check_output(["java","-Dfile.encoding=UTF-8","-cp",str(classes),"SourceMembers",str(temporary)],encoding="utf8"))
+    return json.loads(subprocess.check_output(["java","-Dfile.encoding=UTF-8","-cp",str(classes),"SourceMembers",str(temporary)],encoding="utf8"))
+
+
+def select_members(path, original):
+    relative=("test:"+path.removeprefix("src/test/java/"+PACKAGE)) if path.startswith("src/test/java/"+PACKAGE) else path.removeprefix("src/main/java/"+PACKAGE)
+    selection=PARTIAL_IMPORTS.get(relative)
+    if selection is None:return original
+    members=source_members(relative,original)
     known={entry["name"] for entry in members}
     included=selection.get("members",[entry["name"] for entry in members if entry["name"] not in selection.get("exclude_members",[])])
     missing=set(included)-known
     if missing:raise SystemExit("Unknown source member selection: "+repr(missing))
-    kept=[entry["text"] for entry in members if entry["name"] in included]
+    kept=[]
+    grouped=set()
+    for entry in members:
+        if entry["name"] not in included:continue
+        if entry["kind"]=="VARIABLE":
+            group=[member for member in members if member["kind"]=="VARIABLE" and member["start"]==entry["start"]]
+            if entry["start"] in grouped:continue
+            if any(member["name"] not in included for member in group):
+                raise SystemExit("Cannot partially select a shared variable declaration: "+path+":"+entry["name"])
+            grouped.add(entry["start"])
+            kept.append(max(group,key=lambda member:member["end"])["text"])
+        else:kept.append(entry["text"])
     content=selection["header"]+" {\n"+"\n\n".join(kept+selection.get("extra_members",[]))+"\n}\n"
     source=original.decode("utf8")
     package=re.search(r"(?m)^package [^;]+;",source)[0]
     imports=[line for line in re.findall(r"(?m)^import [^;]+;",source)
-             if re.search(r"\b"+re.escape(line.removesuffix(";").rsplit(".",1)[-1])+r"\b",content)]
+             if line.endswith(".*;") or re.search(r"\b"+re.escape(line.removesuffix(";").rsplit(".",1)[-1])+r"\b",content)]
     return (package+"\n\n"+"\n".join(imports)+"\n\n"+content).encode("utf8")
 
 
@@ -225,6 +306,14 @@ def receiver_calls(text, method, adapter):
 
 def adapt(data):
     text = data.decode("utf-8").replace("\r\n", "\n")
+    text = preserve_empty_stack_lists(text)
+    if "public class CasingBlock extends Block" in text:
+        text=text.replace("net.minecraft.world.level.block.Block", "cn.dancingsnow.neoecoae.platform.registry.NativeSimpleModelBlock")
+        text=text.replace("net.minecraft.world.level.BlockGetter", "cn.dancingsnow.neoecoae.platform.minecraft.WorldView")
+        text=text.replace("net.minecraft.world.phys.shapes.", "cn.dancingsnow.neoecoae.platform.minecraft.shape.")
+        text=text.replace("extends Block", "extends NativeSimpleModelBlock").replace("Block.box(", "Shapes.box(")
+        text=text.replace("CasingBlock(Properties properties)", "CasingBlock(cn.dancingsnow.neoecoae.platform.registry.NativeBlockProperties properties)")
+        text=text.replace("BlockGetter", "WorldView")
     world_facade=any("package cn.dancingsnow.neoecoae."+path in text for path in
         ["blocks.entity", "multiblock", "api.multiblock", "api.power"])
     if world_facade:
@@ -235,6 +324,7 @@ def adapt(data):
     for old, new in REMAP.items():
         text = text.replace(old, new)
     text = text.replace("LoggerFactory.", "LogManager.")
+    text = re.sub(r"@Deprecated\([^)]*\)", "@Deprecated", text)
     text=text.replace("AE2PatternIntrospection.","PatternRuntime.").replace("NEConfig.","PlanningSettings.")
     text=text.replace("DelegatingMEInventoryAccessor", "DelegatingStorage")
     for old,new in [("IGridNodeListener","NodeListener"),("IManagedGridNode","ManagedNode"),
@@ -282,7 +372,7 @@ def adapt(data):
         return expected.getBlock() instanceof cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock block
             ? block.partRole():null;
     }""",text,flags=re.S)
-    text=text.replace("details.getClass()", "details.implementationClass()")
+    text=text.replace("details.getClass()", "cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime.implementationClass(details)")
     if "import net.minecraft.world.World;" in text:text=re.sub(r"\bLevel\b","World",text)
     for old,new in [("IECOTier","StorageTierDescriptor"),("ECOStorageCellItem","NativeStorageCellItem"),("ServerLevel","WorldServer"),("AEComponents","CellComponents"),("DataComponents","CellComponents")]:
         text=re.sub(r"\b"+old+r"\b",new,text)
@@ -309,6 +399,7 @@ def adapt(data):
     text=text.replace("ItemStack.isSameItem(","cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isSameItem(")
     text=text.replace("ItemStack.isSameItemSameComponents(","cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isSameItemSameComponents(")
     text=text.replace(".isDamageableItem()",".isItemStackDamageable()").replace(".getDamageValue()",".getItemDamage()")
+    text=re.sub(r"\b(\w+)\.isComponentsPatchEmpty\(\)",r"cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isComponentsPatchEmpty(\1)",text)
     text=re.sub(r"\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.(getFirst|getLast|removeFirst|removeLast)\(\)",lambda m:"cn.dancingsnow.neoecoae.platform.jdk.JdkCompat."+{"getFirst":"first","getLast":"last","removeFirst":"removeFirst","removeLast":"removeLast"}[m[2]]+"("+m[1]+")",text)
     text=text.replace("cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.removeFirst(RESULTS)","RESULTS.removeFirst()")
     text=re.sub(r"\b(\w+\.\w+\(\))\.(getFirst|getLast)\(\)",lambda m:"cn.dancingsnow.neoecoae.platform.jdk.JdkCompat."+{"getFirst":"first","getLast":"last"}[m[2]]+"("+m[1]+")",text)
@@ -341,8 +432,9 @@ def adapt(data):
     text = text.replace("input.readNBytes(length)", "cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.readNBytes(input, length)")
     text = text.replace('Files.writeString(blockedParent, "occupied")', 'Files.write(blockedParent, "occupied".getBytes(java.nio.charset.StandardCharsets.UTF_8))')
     text = text.replace('"Q".repeat(group / PREFIXES.length)', 'cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.repeat("Q", group / PREFIXES.length)')
+    text = re.sub(r'("(?:[^"\\]|\\.)*")\.repeat\(([^()]*)\)', r'cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.repeat(\1, \2)', text)
     text = re.sub(r"\b(\w+\.(?:domainId|getIdentity)\([^;\n]*?\))\.isEmpty\(\)", r"!\1.isPresent()", text)
-    return adapt_storage(text).encode("utf-8")
+    return adapt_core_business(adapt_execution(adapt_storage(text))).encode("utf-8")
 
 
 def main():
@@ -351,6 +443,7 @@ def main():
     parser.add_argument("--import-missing", action="store_true", help="With explicit manifest refresh, create only newly selected missing targets")
     parser.add_argument("--reapply-adapters", action="store_true", help="Explicitly regenerate already recorded source adaptations")
     parser.add_argument("--reapply-path",action="append",default=[],help="Regenerate only this explicitly reviewed target")
+    parser.add_argument("--apply-core-scope", action="store_true", help="Remove only hash-matching prior imports excluded by the user; refresh adapted shared resources")
     args = parser.parse_args()
     lock_path = ROOT / "porting/source-lock.json"
     previous = json.loads(lock_path.read_text(encoding="utf-8")) if lock_path.exists() else {}
@@ -362,48 +455,85 @@ def main():
             current=digest(target.read_bytes())
             if (expected is not None and current!=expected) or (expected is None and target.read_bytes()!=content):
                 raise SystemExit("Refusing to overwrite unrecorded work: "+path+"; review it before refreshing the manifest")
-            if expected is not None and not args.reapply_adapters and path not in args.reapply_path:
+            if expected is not None and not args.reapply_adapters and path not in args.reapply_path and not (args.apply_core_scope and "/resources/" in path):
                 return
         target.parent.mkdir(parents=True,exist_ok=True)
         target.write_bytes(content)
     entries = []
     all_paths = git("ls-tree", "-r", "--name-only", COMMIT, "src").decode().splitlines()
+    prefix="src/main/java/"+PACKAGE
     for path in all_paths:
-        prefix="src/main/java/"+PACKAGE
+        if path.startswith(prefix+"crafting/execution/fastpath/") and Path(path).name != "ECOSingleCraftingExecutor.java" and path[len(prefix):] not in BUSINESS:
+            BUSINESS.append(path[len(prefix):])
         if path.startswith(prefix+"crafting/planner/") and Path(path).name not in {"ECOBigOrderPlanner.java","ECOPlanningService.java","ECOPlannerInventory.java"}:BUSINESS.append(path[len(prefix):])
         if path.startswith(prefix+"api/me/pattern/"):BUSINESS.append(path[len(prefix):])
+        test_prefix = "src/test/java/" + PACKAGE
+        if path.startswith(test_prefix + "crafting/planner/") and path[len(test_prefix):] not in TESTS:
+            if Path(path).name not in {"ECOConfirmationAvailabilityTest.java"}:
+                TESTS.append(path[len(test_prefix):])
     selected = ["src/main/java/" + PACKAGE + p for p in BUSINESS]
     selected += ["src/test/java/" + PACKAGE + p for p in TESTS]
     with tarfile.open(fileobj=io.BytesIO(git("archive", COMMIT, "src"))) as archive:
         blobs = {member.name: archive.extractfile(member).read() for member in archive if member.isfile()}
+    selected = [path for path in selected if not source_exclusion(path)]
+    excluded = [dict(source=path, source_sha256=digest(blobs[path]), reason=source_exclusion(path))
+                for path in all_paths if path.startswith(("src/main/java/", "src/test/java/")) and source_exclusion(path)]
     resources = [p for p in all_paths if p.startswith(("src/main/resources/assets/", "src/generated/resources/assets/", "src/generated/resources/data/", "src/main/resources/data/")) and "/.cache/" not in p]
     # Generated assets intentionally supersede a source template with the same resource path.
     targets = {}
     for source in resources:
-        target = source.replace("src/generated/resources/", "src/main/resources/", 1)
+        reason = resource_exclusion(source, blobs[source])
+        if reason:
+            excluded.append(dict(source=source, source_sha256=digest(blobs[source]), reason=reason))
+            continue
+        relative_resource = source.split("/resources/", 1)[-1]
+        target = "src/main/resources/" + SHARED_CORE_ASSETS.get(relative_resource, relative_resource)
         targets[target] = source
     for path in selected:
         original = blobs[path]
         target = ROOT / path
-        if not args.refresh_manifest or (args.import_missing and not target.exists()):
+        if not args.refresh_manifest or (args.import_missing and not target.exists()) or path in args.reapply_path:
             adapted=adapt(select_members(path,original))
             if "/test/" in path:
                 adapted=adapted.replace(b"cn.dancingsnow.neoecoae.platform.registry.BuiltInRegistries",b"cn.dancingsnow.neoecoae.platform.TestItemRegistry")
                 adapted=adapted.replace(b"cn.dancingsnow.neoecoae.platform.registry.Items",b"cn.dancingsnow.neoecoae.platform.TestItems")
                 adapted=re.sub(rb"\bBuiltInRegistries\b",b"TestItemRegistry",adapted)
                 adapted=re.sub(rb"\bItems\b",b"TestItems",adapted)
+                adapted=adapted.replace(b"cn.dancingsnow.neoecoae.platform.registry.Fluids",b"cn.dancingsnow.neoecoae.platform.TestFluids")
+                adapted=re.sub(rb"\bFluids\b",b"TestFluids",adapted)
             write_import(path,adapted)
         if not target.exists():
             raise SystemExit("Missing selected compiled source: " + path)
         entry=dict(source=path, target=path, source_sha256=digest(original), target_sha256=digest(target.read_bytes()), kind="test" if "/test/" in path else "business")
-        partial=PARTIAL_IMPORTS.get(path.removeprefix("src/main/java/"+PACKAGE))
+        partial_key=("test:"+path.removeprefix("src/test/java/"+PACKAGE)) if "/test/" in path else path.removeprefix("src/main/java/"+PACKAGE)
+        partial=PARTIAL_IMPORTS.get(partial_key)
         if partial is not None:entry["partial_source_scope"]=partial
         entries.append(entry)
+    # Keep the actual task-progress algorithm without importing the optional-mod legacy ABI owner.
+    progress_source = "src/main/java/"+PACKAGE+"crafting/execution/ExecutingCraftingJob.java"
+    progress_target = "src/main/java/"+PACKAGE+"crafting/execution/ECOExecutionTaskProgress.java"
+    progress_original = blobs[progress_source]
+    progress_member = next(member["text"] for member in source_members("task-progress/ExecutingCraftingJob.java", progress_original) if member["name"] == "TaskProgress")
+    progress_header = "static class TaskProgress extends cn.dancingsnow.neoecoae.api.me.ExecutingCraftingJob.TaskProgress"
+    assert progress_header in progress_member
+    field_source = "src/main/java/"+PACKAGE+"api/me/ExecutingCraftingJob.java"
+    assert b"public long value;" in blobs[field_source]
+    progress_text = progress_member.replace(progress_header, "public final class ECOExecutionTaskProgress", 1).replace("{", "{\npublic long value;", 1)
+    progress_content = ("package cn.dancingsnow.neoecoae.crafting.execution;\n" + progress_text + "\n").encode("utf8")
+    progress_path = ROOT / progress_target
+    if not args.refresh_manifest or (args.import_missing and not progress_path.exists()) or progress_target in args.reapply_path:
+        write_import(progress_target, adapt(progress_content))
+    if not progress_path.exists(): raise SystemExit("Missing source task progress model")
+    entries.append(dict(source=progress_source, target=progress_target, source_sha256=digest(progress_original),
+        target_sha256=digest(progress_path.read_bytes()), kind="business", selected_nested_class="TaskProgress",
+        inherited_field=dict(source=field_source, source_sha256=digest(blobs[field_source]), member="TaskProgress.value"),
+        partial_source_scope=dict(scope="Complete TaskProgress ledger algorithm extracted to its own business class; the source CPU/job owner remains separately pending. The inherited public long value field is retained; optional compatibility inheritance is excluded.")))
     for target_path, source_path in sorted(targets.items()):
         original = blobs[source_path]
+        resource_data = adapt_resource(source_path, original)
         target = ROOT / target_path
-        if not args.refresh_manifest or (args.import_missing and not target.exists()):
-            write_import(target_path,original)
+        if not args.refresh_manifest or (args.import_missing and not target.exists()) or args.apply_core_scope:
+            write_import(target_path,resource_data)
         entries.append(dict(source=source_path, target=target_path, source_sha256=digest(original), target_sha256=digest(target.read_bytes()), kind="resource"))
         aliases=[]
         if "/textures/item/" in target_path:
@@ -416,7 +546,7 @@ def main():
             if "_" in language:
                 region=language.split("_",1)
                 lang_path=str(Path(target_path).with_name(region[0]+"_"+region[1].upper()+".lang")).replace("\\","/")
-                strings=json.loads(original)
+                strings=json.loads(resource_data)
                 lines=[]
                 for key,value in sorted(strings.items()):
                     value=value.replace("\r", "").replace("\n","\\n")
@@ -425,14 +555,29 @@ def main():
                 aliases.append((lang_path,("\n".join(lines)+"\n").encode("utf8")))
         for alias_path,alias_data in aliases:
             alias=ROOT/alias_path
-            if not args.refresh_manifest or (args.import_missing and not alias.exists()):
+            if not args.refresh_manifest or (args.import_missing and not alias.exists()) or args.apply_core_scope:
                 write_import(alias_path,alias_data)
             if not alias.exists():raise SystemExit("Missing resource alias: "+alias_path)
             entries.append(dict(source=source_path,target=alias_path,source_sha256=digest(original),target_sha256=digest(alias.read_bytes()),kind="platform_resource_alias"))
-    partial_paths={"src/main/java/"+PACKAGE+p for p in PARTIAL_IMPORTS}
-    lock = dict(previous, schema_version=1, observed_date="2026-10-25", primary_source=dict(repository=str(SOURCE), commit=COMMIT, selected_patches=[], working_tree_status=git("status", "--porcelain").decode("utf-8"), unselected_patch_sha256=digest(git("diff", "--binary", "HEAD"))), reference_port=dict(previous.get("reference_port", {}), repository=str(ROOT.parent / "NeoECOAEExtension-1.20.1"), commit="36dada343abff7533f63cce0d5729950342488f5", purpose="Read-only platform organization reference; no reference business copied"), repositories=previous.get("repositories", []), imported=entries, pending_business=[p for p in all_paths if p.startswith("src/main/java/") and (p not in selected or p in partial_paths)])
+    partial_paths={"src/main/java/"+PACKAGE+p for p in PARTIAL_IMPORTS if not p.startswith("test:")}
+    partial_tests={"src/test/java/"+PACKAGE+p.removeprefix("test:") for p in PARTIAL_IMPORTS if p.startswith("test:")}
+    pruned = list(previous.get("removed_excluded_imports", []))
+    retained = {entry["target"] for entry in entries}
+    for entry in previous.get("imported", []):
+        if entry["target"] in retained:
+            continue
+        target = (ROOT / entry["target"]).resolve()
+        if not target.is_relative_to(ROOT.resolve()):
+            raise SystemExit("Import removal escapes workspace: " + str(target))
+        if target.exists():
+            if not args.apply_core_scope or digest(target.read_bytes()) != entry["target_sha256"]:
+                raise SystemExit("Excluded import has unreviewed changes: " + entry["target"])
+            target.unlink()
+        pruned.append(entry)
+    lock = dict(previous, schema_version=1, observed_date="2026-10-25", primary_source=dict(repository=str(SOURCE), commit=COMMIT, selected_patches=[], working_tree_status=git("status", "--porcelain").decode("utf-8"), unselected_patch_sha256=digest(git("diff", "--binary", "HEAD"))), reference_port=dict(previous.get("reference_port", {}), repository=str(ROOT.parent / "NeoECOAEExtension-1.20.1"), commit="36dada343abff7533f63cce0d5729950342488f5", purpose="Read-only platform organization reference; no reference business copied"), repositories=previous.get("repositories", []), imported=entries, excluded_sources=excluded, removed_excluded_imports=pruned, pending_business=[p for p in all_paths if p.startswith("src/main/java/") and not source_exclusion(p) and (p not in selected or p in partial_paths)])
+    lock["pending_test_members"] = sorted(partial_tests)
     lock_path.write_text(json.dumps(lock, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(dict(business=len(BUSINESS), tests=len(TESTS), resources=len(targets), pending_business=len(lock["pending_business"]))))
+    print(json.dumps(dict(business=sum(e["kind"]=="business" for e in entries), tests=len(TESTS), resources=len(targets), pending_business=len(lock["pending_business"]))))
 
 
 if __name__ == "__main__":

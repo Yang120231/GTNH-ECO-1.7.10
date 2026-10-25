@@ -8,6 +8,7 @@ import re
 import subprocess
 import xml.etree.ElementTree as ET
 import zipfile
+from import_scope import source_exclusion, resource_exclusion, condition_matches
 
 ROOT=Path(__file__).resolve().parent.parent
 
@@ -30,6 +31,11 @@ def main():
     lock=json.loads(lock_path.read_text(encoding="utf8"))
     for entry in lock["imported"]:
         assert sha((ROOT/entry["target"]).read_bytes())==entry["target_sha256"],entry["target"]
+        if entry["kind"] in ("business", "test"):
+            assert source_exclusion(entry["source"]) is None, entry["source"]
+        elif entry["kind"] == "resource":
+            assert resource_exclusion(entry["target"], (ROOT/entry["target"]).read_bytes()) is None, entry["target"]
+    assert all(source_exclusion(path) is None for path in lock["pending_business"])
     foundation=json.loads((ROOT/"porting/foundation-state.json").read_text(encoding="utf8"))
     for model in foundation["models"]:
         assert sha((ROOT/model["path"]).read_bytes())==model["sha256"],model["path"]
@@ -46,15 +52,33 @@ def main():
     lock["reference_port"]["selected_patches"]=[]
     lock["reference_port"]["unselected_patch_sha256"]=sha(subprocess.check_output(["git","-C",lock["reference_port"]["repository"],"diff","--binary","HEAD"]))
     lock["native_adapter_inputs"]=[]
-    for path in ["all/NEItems.java","all/NECellTypes.java","api/ECOTier.java","api/IECOTier.java",
+    for path in ["all/NEItems.java","all/NEBlocks.java","all/NEToolTier.java","all/NECellTypes.java","api/ECOTier.java","api/IECOTier.java",
                  "items/ECOStorageCellItem.java","config/NEConfig.java"]:
         source="src/main/java/cn/dancingsnow/neoecoae/"+path
         data=subprocess.check_output(["git","-C",lock["primary_source"]["repository"],"show",lock["primary_source"]["commit"]+":"+source])
         lock["native_adapter_inputs"].append(dict(source=source,source_sha256=sha(data),policy="Registration, item/world API and configuration adapters; business inventory and planning policy remain in imported sources"))
     lock["pinned_dependency_sources"]=[
+        dict(repository="Applied-Energistics-2",tag="neoforge/v19.2.18",commit=git(ROOT.parent/"Applied-Energistics-2","rev-parse","neoforge/v19.2.18^{commit}")),
+        dict(repository="ModularUI",tag="1.3.2",commit=git(ROOT.parent/"ModularUI","rev-parse","1.3.2^{commit}")),
         dict(repository="Applied-Energistics-2-Unofficial",tag="rv3-beta-990-GTNH",commit=git(ROOT.parent/"Applied-Energistics-2-Unofficial","rev-parse","rv3-beta-990-GTNH^{commit}")),
         dict(repository="ModularUI2",tag="2.3.49-1.7.10",commit=git(ROOT.parent/"ModularUI2","rev-parse","2.3.49-1.7.10^{commit}"))]
     lock_path.write_text(json.dumps(lock,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
+
+    dependency_adapters=json.loads((ROOT/"porting/dependency-adapters.json").read_text(encoding="utf8"))
+    for entry in dependency_adapters:
+        original=subprocess.check_output(["git","-C",entry["repository"],"show",entry["commit"]+":"+entry["source"]])
+        assert sha(original)==entry["source_sha256"],entry["source"]
+        assert sha((ROOT/entry["target"]).read_bytes())==entry["target_sha256"],entry["target"]
+    derived=json.loads((ROOT/"porting/core-content-derived.json").read_text(encoding="utf8"))["outputs"]
+    derived=list(derived)
+    derived.extend(json.loads((ROOT/"porting/dependency-licenses.json").read_text(encoding="utf8")))
+    for path in ["neoecoae/core-blocks.json","neoecoae/recipe-catalog.json"]:
+        target="src/main/resources/"+path
+        derived.append(dict(target=target,target_sha256=sha((ROOT/target).read_bytes())))
+    for entry in derived: assert sha((ROOT/entry["target"]).read_bytes())==entry["target_sha256"],entry["target"]
+    recipe_catalog=json.loads((ROOT/"src/main/resources/neoecoae/recipe-catalog.json").read_text(encoding="utf8"))
+    for entry in recipe_catalog["recipes"]+recipe_catalog["tags"]:
+        assert sha((ROOT/"src/main/resources"/entry["path"]).read_bytes())==entry["sha256"],entry["path"]
 
     test_counts=Counter()
     suites=[]
@@ -75,10 +99,22 @@ def main():
     for path in sorted((ROOT/"build/libs").glob("neoecoae-0.1.0-porting*.jar")):
         with zipfile.ZipFile(path) as jar:
             names=set(jar.namelist())
+            for removed in lock.get("removed_excluded_imports", []):
+                if (ROOT / removed["target"]).exists(): continue
+                if removed["target"].startswith("src/main/resources/"):
+                    assert removed["target"].removeprefix("src/main/resources/") not in names, removed["target"]
+                elif removed["target"].startswith("src/main/java/"):
+                    suffix = ".java" if path.name.endswith("-sources.jar") else ".class"
+                    assert removed["target"].removeprefix("src/main/java/").removesuffix(".java") + suffix not in names, removed["target"]
             classes=[name for name in names if name.endswith(".class")]
             majors=Counter(int.from_bytes(jar.read(name)[6:8],"big") for name in classes)
             assert not majors or set(majors)=={52},(path,majors)
             if not path.name.endswith("-sources.jar"):
+                for entry in dependency_adapters:
+                    assert entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class" in names,entry["target"]
+                for entry in derived:
+                    resource=entry["target"].removeprefix("src/main/resources/")
+                    assert resource in names and sha(jar.read(resource))==entry["target_sha256"],resource
                 for entry in business:
                     primary=entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class"
                     if not primary.endswith("/package-info.class"):assert primary in names,primary
@@ -103,7 +139,7 @@ def main():
     acceptance=[]
     evidence_dir=ROOT/"porting/acceptance"
     evidence_dir.mkdir(exist_ok=True)
-    for label,source in [("initial-storage","build/porting-server-first.log"),("restart-reload","build/porting-server-reload.log"),("final-storage-recipes-mui2","build/porting-server-current.log")]:
+    for label,source in [("initial-storage","build/porting-server-first.log"),("restart-reload","build/porting-server-reload.log"),("previous-storage-recipes-mui2","build/porting-server-current.log"),("material-execution","build/server-material-execution.log"),("core-planning","build/server-core-planning.log")]:
         path=ROOT/source
         # Forge routes its own mod/lifecycle log separately from the vanilla
         # server/command logger. Both original streams are required evidence.
@@ -124,6 +160,15 @@ def main():
     assert "mode=reload" in read_text(ROOT/"build/porting-server-reload-minecraft.log")
     assert "NEOECOAE_PORT_RECIPES_OK" in read_text(ROOT/"build/porting-server-current.log")
     assert "NEOECOAE_PORT_MUI2_BINDINGS_OK" in read_text(ROOT/"build/porting-server-current.log")
+    latest_server=read_text(ROOT/"build/server-material-execution.log")+read_text(ROOT/"build/server-material-execution-minecraft.log")
+    for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_PORT_LEGACY_BULK_BOUNDARY", "NEOECOAE_PORT_STORAGE_NORMAL_OK", "NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK", "NEOECOAE_PORT_FOUNDATION_OK"]:
+        assert marker in latest_server,marker
+    core_server=read_text(ROOT/"build/server-core-planning.log")+read_text(ROOT/"build/server-core-planning-minecraft.log")
+    for marker in ["NEOECOAE_PORT_PLANNING_OK", "emitter_only=true", "provider_dispatch=1", "NEOECOAE_PORT_STORAGE_NORMAL_OK", "NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK", "NEOECOAE_NATIVE_CONTENT_OK"]:
+        assert marker in core_server,marker
+    client_log=ROOT/"build/client-material-recipes-acceptance.log"
+    client_text=read_text(client_log)
+    for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_CLIENT_STORAGE_OK", "NEOECOAE_CLIENT_ACCEPTANCE_FINISHED success=true"]: assert marker in client_text,marker
 
     report=dict(schema_version=1,status="business_import_in_progress",verified_at=datetime.now(timezone.utc).isoformat(),
         source_lock="source-lock.json",branch=git(ROOT,"branch","--show-current"),target_base=git(ROOT,"rev-parse","HEAD"),
@@ -132,9 +177,15 @@ def main():
         main_java=len(main_sources),test_java=len(list((ROOT/"src/test/java").rglob("*.java"))),
         preserved_model_files=len(foundation["models"]),preserved_model_hash_changes=[],
         tests=dict(test_counts),test_suites=suites,build_log="build/porting-build.log",artifacts=artifacts,server_acceptance=acceptance,
-        outstanding=["ECO host/drive multiblock state and native grid lifecycle","Native planner request/confirmation and CPU execution hooks",
+        test_profile=dict(planner_challenge_enabled=True,challenge_cases=next(s["tests"] for s in suites if s["name"].endswith("TechModPlannerChallengeTest"))),
+        pending_test_members=lock.get("pending_test_members", []),
+        dependency_adapters=dependency_adapters,derived_resources=derived,
+        excluded_source_paths=len(lock.get("excluded_sources", [])),optional_mod_integrations=False,
+        content=dict(core_items=65,material_blocks=13,storage_machine_blocks=10,source_recipes=len(recipe_catalog["recipes"]),installed_source_recipes=92,native_crafting_recipes=65,excluded_large_workstation_cards=7),
+        client_acceptance=dict(source=client_log.relative_to(ROOT).as_posix(),sha256=sha(client_log.read_bytes()),scope="Storage main page, real MUI2 extraction/reinsertion packets, material atlas loading and recipe/NBT assertions; not manual mouse gestures or a full crafting order"),
+        outstanding=["Remaining storage interfaces, priority/build/guide pages and gestures","Native planner request/confirmation and complete source CPU execution hooks",
             "Computation and workstation business modules","Complete high-version MUI2 pages, native slot gestures and render-state binding",
-            "Full recipe chain, addon mapping, NEI, client visuals and ordinary installation"])
+            "Remaining core source recipes","Actual ECO trio plus GT machines and pattern-provider order save; GT runtime is not enabled yet","NEI, remaining client visuals and ordinary installation"])
     (ROOT/"porting/business-import-state.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
     print(json.dumps({key:report[key] for key in ["main_java","test_java","imported","pending_source_paths","tests","preserved_model_files"]}))
     print(json.dumps(artifacts))

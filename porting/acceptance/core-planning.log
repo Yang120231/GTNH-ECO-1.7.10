@@ -1,0 +1,17 @@
+# Existing server evidence collected during documentation-only pause closeout on 2026-10-25.
+# This excerpt is not a new runtime check or a refreshed JAR audit.
+# Log clock timezone was not inferred.
+# source: build/server-core-planning.log
+# sha256: 6d4ac62019000fb54714fca8df58aec35042b627a69afbca30295af1af890e1e
+[21:09:32] [Server thread/INFO] [neoecoae/]: NEOECOAE_NATIVE_CONTENT_OK core_items=65 material_blocks=13 source_shape_boxes=13 crafting=62 smithing_nbt=true processor_inscriber=true
+# source: build/server-core-planning-minecraft.log
+# sha256: ce94d991d0510afd5a7ee3804749504102d2d6f71f68468b1705e5d9e4d1d706
+[21:06:47] [Server thread/INFO]: NEOECOAE_PORT_PLANNING_OK source_async_plan=true native_creative_drive=true native_creative_chest=true original_recipe=true emitter_only=true provider_dispatch=1 revision_invalidated=true
+[21:06:47] [Server thread/INFO]: NEOECOAE_PORT_STORAGE_NORMAL_OK members=48 drives=12 mounted_items=504 extracted=17 priority=73 native_nbt=true ui_snapshot=true
+[21:06:55] [Server thread/INFO]: NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK members=12 migrated=487 extracted=23 host_domain_nbt=true
+[21:09:32] [Server thread/INFO]: NEOECOAE_PORT_ACCEPTANCE_OK mode=storage cells=9 channels=items,fluids exact=10000000000000000000000000000000000000048 receipt=240fc6ae-de38-39b6-8465-eba5daae240b
+[21:18:08] [Server thread/INFO]: Stopping server
+[21:18:08] [Server thread/INFO]: Saving worlds
+[21:18:08] [Server thread/INFO]: Saving chunks for level 'world'/Overworld
+[21:18:08] [Server thread/INFO]: Saving chunks for level 'world'/Nether
+[21:18:08] [Server thread/INFO]: Saving chunks for level 'world'/The End

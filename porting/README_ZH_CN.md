@@ -1,17 +1,26 @@
 # 当前移植状态与基础清理历史
 
-2026-10-25 已进入正式业务导入。最新阶段已有 213 个业务文件、27 个来源测试文件，189 项测试与真实存储客户端网络往返通过，详情见 [存储阶段记录](MILESTONE_STORAGE_20261025_ZH_CN.md)。核心物品按用户排除大型工作站专用升级卡后为 65 项。完整移植与三件套下单存档仍在进行，其他机器尚未全部接入。来源见 [source-lock.json](source-lock.json)；旧 `business-import-state.json` 在本批完整构建/JAR 审计刷新前仅代表此前批次。
+2026-10-25 按用户要求暂停正式移植。当前断点、实际规模、证据边界和恢复顺序统一见 [暂停交接记录](CHECKPOINT_20261025_ZH_CN.md)。本次暂停收尾只整理文档，没有继续改代码、构建、启动游戏或提交。
 
-导入流程：
+当前已迁入 318 个业务文件、79 个来源测试文件、1,320 个来源资源及 432 个平台资源别名；实际有 540 个主 Java 文件和 93 个测试 Java 文件。最后完整构建启用 `-PplannerChallenge=true`，523 项测试全部通过，其中来源复杂订单挑战 26 项。`source-lock.json` 仍列出 463 条核心待迁主源码路径，不能按文件数计算行为完成率。
 
-    python porting/import_business.py
-    python porting/expand_imports.py
+已注册 65 个核心独立物品、13 个材料方块和 10 个存储机器方块；161 条核心配方定义中 92 条已原生安装，69 条待对应业务。全部可选 Mod 联动已排除，大型工作站七张专用升级卡不注册、不设卡片门槛或槽位，详见 [范围说明](SCOPE_CORE_ONLY_20261025_ZH_CN.md)。
+
+完整 CPU／Job／工作线程、合成与计算主机及最终三件套＋GT＋样板供应器下单存档尚未完成。首个续接点为规划线程池、异步回调及缓存的服务器停止／重进存档生命周期；目前仅阅读，尚未修复。
+
+来源见 [source-lock.json](source-lock.json)。[JAR 审计状态](business-import-state.json) 仍为 `2026-10-25T12:08:25.187536+00:00` 的 292 个业务文件、40 个来源测试文件和 248 项测试快照，**不能作为当前全部源码与产物一致的证明**；恢复后须重新完整构建和审计。
+
+恢复后的验证流程（先审查改动并处理交接记录中的生命周期断点）：
+
     ./gradlew.bat spotlessApply --offline --console=plain
+    python porting/import_dependency_adapters.py --refresh-manifest
     python porting/import_business.py --refresh-manifest
-    ./gradlew.bat test build --offline --console=plain
+    ./gradlew.bat test build -PplannerChallenge=true --offline --console=plain
     python porting/audit_business_import.py
 
 默认编译覆盖全部已迁入源码。导入脚本拒绝覆盖与既有清单哈希不符的未记录工作；--refresh-manifest 只记录审查后的结果，不覆盖源码。来源采用固定 Git 提交，不读取工作区补丁作为默认输入。
+
+新增源码应先更新明确选入清单，使用 `--refresh-manifest --import-missing` 导入缺失目标；已有适配不得全局重建。定点重建按交接记录审查后使用 `--reapply-path`。
 
 专服复现使用独立的 run/porting-acceptance 目录，准备既有同版本 EULA 配置及仅监听本机的 server.properties 后执行：
 
