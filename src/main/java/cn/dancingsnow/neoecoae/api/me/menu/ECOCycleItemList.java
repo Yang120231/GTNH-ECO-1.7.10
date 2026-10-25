@@ -1,0 +1,182 @@
+package cn.dancingsnow.neoecoae.api.me.menu;
+
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+
+import cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleSolveStatus;
+import cn.dancingsnow.neoecoae.crafting.planner.result.ExecutionCountKnowledge;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.network.PacketWritable;
+import cn.dancingsnow.neoecoae.platform.network.RegistryFriendlyByteBuf;
+
+/** Cycle members synchronized with the crafting confirmation screen. */
+@com.github.bsideup.jabel.Desugar
+public record ECOCycleItemList(List<Entry> items) implements PacketWritable {
+
+    public static final ECOCycleItemList EMPTY = new ECOCycleItemList(
+        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
+
+    public ECOCycleItemList {
+
+    }
+
+    public ECOCycleItemList(RegistryFriendlyByteBuf data) {
+        this(readFromPacket(data));
+    }
+
+    private static List<Entry> readFromPacket(RegistryFriendlyByteBuf data) {
+        int size = data.readVarInt();
+        if (size < 0 || size > 100_000) throw new IllegalArgumentException("Invalid cycle item count");
+        List<Entry> items = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            items.add(
+                new Entry(
+                    AEKey.readKey(data),
+                    readBigInteger(data),
+                    readBigInteger(data),
+                    readBigInteger(data),
+                    readBigInteger(data),
+                    readBigInteger(data),
+                    data.readEnum(ExecutionCountKnowledge.class),
+                    data.readEnum(CycleSolveStatus.class),
+                    data.readVarInt(),
+                    data.readLong()));
+        }
+        return items;
+    }
+
+    @Override
+    public void writeToPacket(RegistryFriendlyByteBuf data) {
+        if (items.size() > 100_000) throw new IllegalArgumentException("Too many cycle items");
+        data.writeVarInt(items.size());
+        for (Entry item : items) {
+            AEKey.writeKey(data, item.what());
+            writeBigInteger(data, item.exactConsumed());
+            writeBigInteger(data, item.exactProduced());
+            writeBigInteger(data, item.exactSingleNetOutput());
+            writeBigInteger(data, item.exactTotalNetOutput());
+            writeBigInteger(data, item.exactMissing());
+            data.writeEnum(item.executionCountKnowledge());
+            data.writeEnum(item.solveStatus());
+            data.writeVarInt(item.componentId());
+            data.writeLong(item.seedParallelism());
+        }
+    }
+
+    @com.github.bsideup.jabel.Desugar
+    public record Entry(AEKey what, BigInteger exactConsumed, BigInteger exactProduced, BigInteger exactSingleNetOutput,
+        BigInteger exactTotalNetOutput, BigInteger exactMissing, ExecutionCountKnowledge executionCountKnowledge,
+        CycleSolveStatus solveStatus, int componentId, long seedParallelism) {
+
+        public Entry(AEKey what, BigInteger exactConsumed, BigInteger exactProduced, BigInteger exactSingleNetOutput,
+            BigInteger exactTotalNetOutput, BigInteger exactMissing, ExecutionCountKnowledge executionCountKnowledge,
+            CycleSolveStatus solveStatus, int componentId) {
+            this(
+                what,
+                exactConsumed,
+                exactProduced,
+                exactSingleNetOutput,
+                exactTotalNetOutput,
+                exactMissing,
+                executionCountKnowledge,
+                solveStatus,
+                componentId,
+                -1L);
+        }
+
+        public Entry(AEKey what, BigInteger exactConsumed, BigInteger exactProduced, BigInteger exactSingleNetOutput,
+            BigInteger exactTotalNetOutput, ExecutionCountKnowledge executionCountKnowledge,
+            CycleSolveStatus solveStatus, int componentId) {
+            this(
+                what,
+                exactConsumed,
+                exactProduced,
+                exactSingleNetOutput,
+                exactTotalNetOutput,
+                BigInteger.ZERO,
+                executionCountKnowledge,
+                solveStatus,
+                componentId);
+        }
+
+        public Entry(AEKey what, BigInteger exactSingleNetOutput, BigInteger exactTotalNetOutput,
+            ExecutionCountKnowledge executionCountKnowledge, CycleSolveStatus solveStatus, int componentId) {
+            this(
+                what,
+                BigInteger.ZERO,
+                BigInteger.ZERO,
+                exactSingleNetOutput,
+                exactTotalNetOutput,
+                executionCountKnowledge,
+                solveStatus,
+                componentId);
+        }
+
+        public Entry(AEKey what, long singleNetOutput, long totalNetOutput, int componentId) {
+            this(
+                what,
+                BigInteger.ZERO,
+                BigInteger.ZERO,
+                BigInteger.valueOf(singleNetOutput),
+                BigInteger.valueOf(totalNetOutput),
+                ExecutionCountKnowledge.EXACT,
+                CycleSolveStatus.SUCCESS,
+                componentId);
+        }
+
+        /** Compatibility constructor for callers that only have the old three numeric fields. */
+        public Entry(AEKey what, long singleNetOutput, long totalNetOutput) {
+            this(what, singleNetOutput, totalNetOutput, -1);
+        }
+
+        public Entry(AEKey what, long singleNetOutput, long totalNetOutput, boolean known, int componentId) {
+            this(
+                what,
+                BigInteger.valueOf(singleNetOutput),
+                BigInteger.valueOf(totalNetOutput),
+                known ? ExecutionCountKnowledge.EXACT : ExecutionCountKnowledge.UNKNOWN,
+                known ? CycleSolveStatus.SUCCESS : CycleSolveStatus.NOT_IMPLEMENTED,
+                componentId);
+        }
+
+        public long singleNetOutput() {
+            return exactSingleNetOutput.longValue();
+        }
+
+        public long totalNetOutput() {
+            return exactTotalNetOutput.longValue();
+        }
+
+        public boolean totalNetOutputKnown() {
+            return executionCountKnowledge == ExecutionCountKnowledge.EXACT;
+        }
+
+        /** An incomplete cycle search only certifies a local unblock amount, not the whole order's seed. */
+        public boolean seedShortfallIsEstimate() {
+            return exactMissing.signum() > 0 && solveStatus == CycleSolveStatus.INSUFFICIENT_EXTERNAL_INPUT
+                && !totalNetOutputKnown();
+        }
+
+        /** A positive net change makes this item an output of the cycle; all other members feed the cycle. */
+        public boolean isCycleProduct() {
+            return exactTotalNetOutput.signum() > 0;
+        }
+
+        public BigInteger displayedTotal() {
+            return isCycleProduct() ? exactProduced : exactConsumed;
+        }
+    }
+
+    private static void writeBigInteger(RegistryFriendlyByteBuf data, BigInteger value) {
+        byte[] bytes = value.toByteArray();
+        if (bytes.length > 4096) throw new IllegalArgumentException("Cycle diagnostic integer is too large");
+        data.writeByteArray(bytes);
+    }
+
+    private static BigInteger readBigInteger(RegistryFriendlyByteBuf data) {
+        byte[] bytes = data.readByteArray(4096);
+        if (bytes.length == 0) throw new IllegalArgumentException("Empty cycle diagnostic integer");
+        return new BigInteger(bytes);
+    }
+}

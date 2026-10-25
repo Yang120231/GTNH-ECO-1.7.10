@@ -82,6 +82,8 @@ public class NativePatternDetails implements IPatternDetails {
 
     public static NativePatternDetails capture(ICraftingPatternDetails pattern, World world,
         Collection<AEKey> candidates) {
+        if (pattern.isCraftable() && pattern.getClass() == appeng.helpers.PatternHelper.class)
+            return new NativeCraftingPattern(pattern, world, candidates);
         return !pattern.isCraftable() && pattern.getClass() == appeng.helpers.PatternHelper.class
             ? new AEProcessingPattern(pattern, world, candidates)
             : new NativePatternDetails(pattern, world, candidates);
@@ -96,6 +98,11 @@ public class NativePatternDetails implements IPatternDetails {
 
     public final ICraftingPatternDetails nativeDetails() {
         return nativePattern;
+    }
+
+    @Override
+    public boolean supportsPushInputsToExternalInventory() {
+        return !nativePattern.isCraftable() && nativePattern.getClass() == appeng.helpers.PatternHelper.class;
     }
 
     public final GenericStack[] getSparseInputs() {

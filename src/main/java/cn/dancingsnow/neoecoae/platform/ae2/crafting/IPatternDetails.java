@@ -23,6 +23,16 @@ public interface IPatternDetails {
         return getClass();
     }
 
+    default boolean supportsPushInputsToExternalInventory() {
+        return true;
+    }
+
+    default void pushInputsToExternalInventory(cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] inputHolder,
+        PatternInputSink inputSink) {
+        for (var counter : inputHolder)
+            for (var input : counter) inputSink.pushInput(input.getKey(), input.getLongValue());
+    }
+
     interface IInput {
 
         GenericStack[] getPossibleInputs();

@@ -9,7 +9,12 @@ public final class PlanningSettings {
 
     public static int ecoPlanningMaxMillis = 120_000, ecoPlanningMaxWork = 50_000_000, ecoPlanningMaxMemoryMiB = 64;
     public static boolean ecoPlanningStageDebug;
+    public static boolean ecoDispatchWatchdogDebug;
     public static int storageSystemMaxLength = 15;
+    public static final int MAX_ECO_CPU_PUSH_TICK_LIMIT = 393_216;
+    public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
+    public static int ecoFastPathCacheSize = 512;
+    public static boolean postCraftingEvent;
 
     private PlanningSettings() {}
 
@@ -40,6 +45,22 @@ public final class PlanningSettings {
             Integer.MAX_VALUE,
             "Retained cycle-solving memory budget in MiB");
         ecoPlanningStageDebug = config.getBoolean("ecoPlanningStageDebug", "crafting", false, "Log planning stages");
+        ecoDispatchWatchdogDebug = config
+            .getBoolean("ecoDispatchWatchdogDebug", "crafting", false, "Log source dispatch runtime diagnostics");
+        ecoCpuPushTickLimit = config.getInt(
+            "ecoCpuPushTickLimit",
+            "crafting",
+            200_000,
+            1,
+            MAX_ECO_CPU_PUSH_TICK_LIMIT,
+            "Ordinary CPU dispatch safety limit; source algorithm applies its per-tick budget");
+        ecoFastPathCacheSize = config
+            .getInt("ecoFastPathCacheSize", "crafting", 512, 16, 16_384, "Verified source recipe cache limit");
+        postCraftingEvent = config.getBoolean(
+            "postCraftingEvent",
+            "crafting",
+            false,
+            "Post native crafting events; source rules then disable FastPath batching");
         if (config.hasChanged()) config.save();
     }
 }
