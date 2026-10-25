@@ -21,3 +21,6 @@ parts["gui/common/HostPanelTier.java"] = {
     "header": "public final class HostPanelTier", "members": ["resolve", "name"], "extra_members": ["private HostPanelTier() {}"]
 }
 path.write_text(json.dumps(parts, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
+palette = parts["gui/storage/StoragePanelTextures.java"]
+palette["members"] = list(dict.fromkeys(palette["members"] + ["ATLAS", "id", "sprite", "swatch", "resourceIcon"]))
+path.write_text(json.dumps(parts, ensure_ascii=False, indent=2) + "\n", encoding="utf8")

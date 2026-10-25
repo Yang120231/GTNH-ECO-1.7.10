@@ -113,7 +113,12 @@
       "MATTER_SWATCH",
       "FALLBACK_SWATCH",
       "COLORS",
-      "swatchIndex"
+      "swatchIndex",
+      "ATLAS",
+      "id",
+      "sprite",
+      "swatch",
+      "resourceIcon"
     ],
     "extra_members": [
       "private StoragePanelTextures() {}"

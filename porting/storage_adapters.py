@@ -66,11 +66,17 @@ def adapt_storage(text):
         text=re.sub(r"(?m)^(\s*)static List<CapacitySegment>", r"\1public static List<CapacitySegment>", text)
         text=re.sub(r"(?m)^(\s*)static Component capacityValue", r"\1public static Component capacityValue", text)
     if "public final class StorageCellGrid" in text:
+        text=text.replace("cell.stack().getItem() instanceof IBasicECOCellItem item", "!" + ROOT + "minecraft.ItemStacks.isEmpty(cell.stack()) && cell.stack().getItem() instanceof IBasicECOCellItem item")
         text=text.replace("sync.state()", "snapshot.get()")
         text=re.sub(r"(?m)^(\s*)List<Component> tooltip", r"\1public List<Component> tooltip", text)
         text=re.sub(r"(?m)^(\s*)static Component pageText", r"\1public static Component pageText", text)
     if "public final class StoragePanelTextures" in text:
         text=re.sub(r"(?m)^(\s*)static final int VALUE_TEXT", r"\1public static final int VALUE_TEXT", text)
+        text=text.replace("import com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture;", "import " + ROOT + "ui.NativeSpriteTexture;")
+        text=re.sub(r"\bSpriteTexture\b", "NativeSpriteTexture", text)
+        text=text.replace("NETextures.panelSprite(ATLAS)", "NativeSpriteTexture.of(ATLAS)")
+        text=re.sub(r"(?m)^import cn\.dancingsnow\.neoecoae\.gui\.theme\.NETextures;\n", "", text)
+        text=re.sub(r"(?m)^(\s*)static NativeSpriteTexture (swatch|resourceIcon)", r"\1public static NativeSpriteTexture \2", text)
     text = text.replace('            stageRunner.run("construction", () -> buildController.tick(level));', '')
     if "class ECOEnergyCellBlockEntity" in text:
         text = text.replace("new TickingRequest(1, 20, !neighborChangePending)", "new TickingRequest(1, 20, !neighborChangePending, true)")
@@ -164,6 +170,14 @@ def adapt_storage(text):
     text = text.replace("ReadableNumberConverter.format(Math.max(0L, value), 4)", "ReadableNumberConverter.INSTANCE.toWideReadableForm(Math.max(0L, value))")
     if "@Test" in text:
         if "class StoragePanelStateTest" in text:
+            text=text.replace("ItemStack.matches(", "ItemStack.areItemStacksEqual(")
+            text=text.replace("cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.first(received.cells()).stack().isEmpty()", ROOT + "minecraft.ItemStacks.isEmpty(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.first(received.cells()).stack())")
+            text=text.replace("disk.set(CellComponents.CUSTOM_DATA, CustomData.of(data))", "CellComponents.writeCustomData(disk, CustomData.of(data))")
+            text=text.replace('disk.set(CellComponents.CUSTOM_NAME, Component.literal("My disk"))', 'disk.setStackDisplayName("My disk")')
+            text=text.replace('disk.set(CellComponents.CUSTOM_NAME, Component.literal("Changed after capture"))', 'disk.setStackDisplayName("Changed after capture")')
+            text=text.replace("entry.stack().get(CellComponents.CUSTOM_NAME)", "Component.literal(entry.stack().getDisplayName())")
+            text=text.replace("received.cells().getFirst().stack().isEmpty()", ROOT + "minecraft.ItemStacks.isEmpty(received.cells().getFirst().stack())")
+            text=text.replace("net.minecraft.network.chat.Style.EMPTY", ROOT + "minecraft.Component.TextStyle.EMPTY")
             text=text.replace(".toTag()", ".toTag(cn.dancingsnow.neoecoae.platform.TestItemRegistry.CONTEXT)")
             text=text.replace("StoragePanelState.fromTag(", "decode(")
             text=text.rsplit("}",1)[0]+"""
