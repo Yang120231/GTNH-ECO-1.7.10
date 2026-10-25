@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import net.minecraft.world.WorldServer;
 
@@ -72,9 +71,9 @@ public final class SnapshotCraftingService implements ICraftingService, ECOCraft
     }
 
     @Override
-    public Set<AEKey> getCraftables(Predicate<AEKey> filter) {
+    public Set<AEKey> getCraftables(AEKeyFilter filter) {
         Set<AEKey> keys = new LinkedHashSet<>();
-        for (AEKey key : recipes.keySet()) if (filter.test(key)) keys.add(key);
+        for (AEKey key : recipes.keySet()) if (filter.matches(key)) keys.add(key);
         return Collections.unmodifiableSet(keys);
     }
 

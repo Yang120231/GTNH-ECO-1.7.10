@@ -33,6 +33,7 @@ public final class StorageLifecycle {
             cn.dancingsnow.neoecoae.platform.network.ServerTasks.tick();
             PortingFoundationFixture.tick();
             PortingStorageHostFixture.tick();
+            PortingPlanningFixture.tick();
             ECOCellMutationBatch.retry();
             ECOCellMutationBatch.assertClean();
         }

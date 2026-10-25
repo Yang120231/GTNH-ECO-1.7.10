@@ -39,6 +39,10 @@ public final class StorageCells {
     public static StorageCell getCellInventory(ItemStack stack, ISaveProvider host) {
         StorageCell own = ECOStorageCells.getCellInventory(stack, host);
         if (own != null) return own;
+        return getNativeCellInventory(stack, host);
+    }
+
+    public static StorageCell getNativeCellInventory(ItemStack stack, ISaveProvider host) {
         for (StorageChannel channel : StorageChannel.values()) {
             IMEInventoryHandler inventory = AEApi.instance()
                 .registries()

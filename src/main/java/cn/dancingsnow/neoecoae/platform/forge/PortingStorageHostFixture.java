@@ -159,6 +159,17 @@ public final class PortingStorageHostFixture {
                     "native storage member online: " + tile.getBlockPos());
             }
             require(members == 48, "all physical members attached");
+            var gridView = host.getMainNode()
+                .getGrid();
+            require(
+                gridView.getMachines(cn.dancingsnow.neoecoae.blocks.entity.storage.ECODriveBlockEntity.class)
+                    .size() == 12,
+                "Source drive class resolves the twelve native registered tile classes");
+            require(
+                cn.dancingsnow.neoecoae.grid.NEMachineLookup
+                    .getMachines(gridView, cn.dancingsnow.neoecoae.blocks.entity.storage.ECODriveBlockEntity.class)
+                    .size() == 12,
+                "Subclass traversal does not duplicate native drive aliases");
             require(
                 host.storageFailures()
                     .isEmpty(),

@@ -167,7 +167,10 @@ public final class CraftingNetworkCompiler {
             AEItemKey definition = details.getDefinition();
             // Keep the first physical instance in AE2's priority order. Distinct wrappers may have different
             // execution contracts even when they expose the same encoded item.
-            return definition == null ? null : new PatternDefinition(details.implementationClass(), definition);
+            return definition == null ? null
+                : new PatternDefinition(
+                    cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime.implementationClass(details),
+                    definition);
         } catch (RuntimeException ignored) {
             // A missing/malformed definition is not evidence that two patterns are equivalent.
             return null;

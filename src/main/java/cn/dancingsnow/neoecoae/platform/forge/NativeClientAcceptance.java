@@ -60,6 +60,7 @@ public final class NativeClientAcceptance {
                             serverPlayer.sendPlayerAbilities();
                             serverPlayer.setPositionAndUpdate(12.5, 240, .5);
                             serverPlayer.setLocationAndAngles(12.5, 240, .5, 0, 0);
+                            PortingContentFixture.check(server.worldServerForDimension(0));
                             server.worldServerForDimension(0)
                                 .getGameRules()
                                 .setOrCreateGameRule("doDaylightCycle", "false");

@@ -52,7 +52,7 @@ public final class PortingAcceptanceCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "neoecoae_port_check storage|reload|foundation|storage-host";
+        return "neoecoae_port_check storage|reload|foundation|storage-host|planning";
     }
 
     @Override
@@ -64,9 +64,14 @@ public final class PortingAcceptanceCommand extends CommandBase {
     public void processCommand(ICommandSender sender, String[] arguments) {
         if (arguments.length != 1 || !("storage".equals(arguments[0]) || "reload".equals(arguments[0])
             || "foundation".equals(arguments[0])
+            || "planning".equals(arguments[0])
             || "storage-host".equals(arguments[0]))) throw new IllegalArgumentException(getCommandUsage(sender));
         WorldServer world = MinecraftServer.getServer()
             .worldServerForDimension(0);
+        if ("planning".equals(arguments[0])) {
+            PortingPlanningFixture.start(world, sender);
+            return;
+        }
         if ("foundation".equals(arguments[0])) {
             PortingFoundationFixture.start(world, sender);
             return;
@@ -76,6 +81,7 @@ public final class PortingAcceptanceCommand extends CommandBase {
             return;
         }
         if ("storage".equals(arguments[0])) {
+            PortingContentFixture.check(world);
             checkCells();
             checkInfiniteResourceCell();
             checkRecipes(world);
@@ -117,7 +123,12 @@ public final class PortingAcceptanceCommand extends CommandBase {
                 output != null && output.getItem() == cell && output.stackSize == 1,
                 "Native assembly recipe for " + NativeContent.id(cell));
         }
-        cn.dancingsnow.neoecoae.NeoECOAE.LOG.info("NEOECOAE_PORT_RECIPES_OK assembly=6 disassembly=6");
+        cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
+            "NEOECOAE_PORT_RECIPES_OK assembly={} disassembly={} standard=6 hidden_legacy_bulk=3",
+            NativeContent.cells()
+                .size(),
+            NativeContent.cells()
+                .size());
     }
 
     private static void checkMui2Bindings() {
@@ -161,6 +172,22 @@ public final class PortingAcceptanceCommand extends CommandBase {
                     key.getType()
                         .nativeChannel());
             require(inventory != null, "Native AE2 cell handler for " + NativeContent.id(item));
+            if (item.isLegacyBulk()) {
+                IAEStack rejected = inventory
+                    .injectItems(key.toNative(4096), Actionable.MODULATE, new BaseActionSource());
+                require(
+                    rejected != null && rejected.getStackSize() == 4096,
+                    "Hidden source bulk ID preserves its all-type-overhead rejection");
+                require(
+                    inventory.business()
+                        .getAvailableStacks()
+                        .isEmpty(),
+                    "Rejected hidden source bulk insertion does not consume resources");
+                cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
+                    "NEOECOAE_PORT_LEGACY_BULK_BOUNDARY id={} first_type_rejected=true source_gap=hidden_legacy_bulk_capacity",
+                    NativeContent.id(item));
+                continue;
+            }
             IAEStack inserted = inventory.injectItems(key.toNative(4096), Actionable.MODULATE, new BaseActionSource());
             require(inserted == null, "Complete native insertion");
             IAEStack simulated = inventory.extractItems(key.toNative(128), Actionable.SIMULATE, new BaseActionSource());
