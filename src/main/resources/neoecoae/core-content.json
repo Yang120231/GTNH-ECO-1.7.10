@@ -1,0 +1,750 @@
+{
+  "schema_version": 1,
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "inputs": [
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
+      "sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/all/NEToolTier.java",
+      "sha256": "ab3d69c120db2d451fd60b9ed2a5bdcffb3fcc7595fe2ec76b9e87cbb59884c4"
+    }
+  ],
+  "items": [
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_EMPTY",
+      "line": 58,
+      "factory": "Item",
+      "id": "integrated_working_station_module_empty",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_ADVANCED_AE",
+      "line": 60,
+      "factory": "Item",
+      "id": "integrated_working_station_module_advanced_ae",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_EXTENDEDAE",
+      "line": 62,
+      "factory": "Item",
+      "id": "integrated_working_station_module_extendedae",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_AE2CS",
+      "line": 64,
+      "factory": "Item",
+      "id": "integrated_working_station_module_ae2cs",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_AELT",
+      "line": 66,
+      "factory": "Item",
+      "id": "integrated_working_station_module_aelt",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_DATA_ENERGISTICS",
+      "line": 68,
+      "factory": "Item",
+      "id": "integrated_working_station_module_data_energistics",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "INTEGRATED_WORKING_STATION_MODULE_APPGEN",
+      "line": 70,
+      "factory": "Item",
+      "id": "integrated_working_station_module_appgen",
+      "kind": "workstation_module",
+      "creative": true,
+      "enabled": false,
+      "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
+    },
+    {
+      "field": "ALUMINUM_AXE",
+      "line": 81,
+      "factory": "AxeItem",
+      "id": "aluminum_axe",
+      "kind": "tool",
+      "tool": "axe",
+      "tier": "ALUMINUM",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_HOE",
+      "line": 97,
+      "factory": "HoeItem",
+      "id": "aluminum_hoe",
+      "kind": "tool",
+      "tool": "hoe",
+      "tier": "ALUMINUM",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_SHOVEL",
+      "line": 113,
+      "factory": "ShovelItem",
+      "id": "aluminum_shovel",
+      "kind": "tool",
+      "tool": "shovel",
+      "tier": "ALUMINUM",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_PICKAXE",
+      "line": 129,
+      "factory": "PickaxeItem",
+      "id": "aluminum_pickaxe",
+      "kind": "tool",
+      "tool": "pickaxe",
+      "tier": "ALUMINUM",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_SWORD",
+      "line": 145,
+      "factory": "SwordItem",
+      "id": "aluminum_sword",
+      "kind": "tool",
+      "tool": "sword",
+      "tier": "ALUMINUM",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_AXE",
+      "line": 161,
+      "factory": "AxeItem",
+      "id": "tungsten_axe",
+      "kind": "tool",
+      "tool": "axe",
+      "tier": "TUNGSTEN",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_HOE",
+      "line": 177,
+      "factory": "HoeItem",
+      "id": "tungsten_hoe",
+      "kind": "tool",
+      "tool": "hoe",
+      "tier": "TUNGSTEN",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_SHOVEL",
+      "line": 193,
+      "factory": "ShovelItem",
+      "id": "tungsten_shovel",
+      "kind": "tool",
+      "tool": "shovel",
+      "tier": "TUNGSTEN",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_PICKAXE",
+      "line": 209,
+      "factory": "PickaxeItem",
+      "id": "tungsten_pickaxe",
+      "kind": "tool",
+      "tool": "pickaxe",
+      "tier": "TUNGSTEN",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_SWORD",
+      "line": 225,
+      "factory": "SwordItem",
+      "id": "tungsten_sword",
+      "kind": "tool",
+      "tool": "sword",
+      "tier": "TUNGSTEN",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_UPGRADE_SMITHING_TEMPLATE",
+      "line": 241,
+      "factory": "SmithingTemplateItem",
+      "id": "aluminum_alloy_upgrade_smithing_template",
+      "kind": "smithing_template",
+      "tier": "ALUMINUM_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_AXE",
+      "line": 268,
+      "factory": "AxeItem",
+      "id": "aluminum_alloy_axe",
+      "kind": "tool",
+      "tool": "axe",
+      "tier": "ALUMINUM_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_HOE",
+      "line": 285,
+      "factory": "HoeItem",
+      "id": "aluminum_alloy_hoe",
+      "kind": "tool",
+      "tool": "hoe",
+      "tier": "ALUMINUM_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_SHOVEL",
+      "line": 302,
+      "factory": "ShovelItem",
+      "id": "aluminum_alloy_shovel",
+      "kind": "tool",
+      "tool": "shovel",
+      "tier": "ALUMINUM_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_PICKAXE",
+      "line": 319,
+      "factory": "PickaxeItem",
+      "id": "aluminum_alloy_pickaxe",
+      "kind": "tool",
+      "tool": "pickaxe",
+      "tier": "ALUMINUM_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_SWORD",
+      "line": 336,
+      "factory": "SwordItem",
+      "id": "aluminum_alloy_sword",
+      "kind": "tool",
+      "tool": "sword",
+      "tier": "ALUMINUM_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_UPGRADE_SMITHING_TEMPLATE",
+      "line": 353,
+      "factory": "SmithingTemplateItem",
+      "id": "black_tungsten_alloy_upgrade_smithing_template",
+      "kind": "smithing_template",
+      "tier": "BLACK_TUNGSTEN_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_AXE",
+      "line": 380,
+      "factory": "AxeItem",
+      "id": "black_tungsten_alloy_axe",
+      "kind": "tool",
+      "tool": "axe",
+      "tier": "BLACK_TUNGSTEN_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_HOE",
+      "line": 397,
+      "factory": "HoeItem",
+      "id": "black_tungsten_alloy_hoe",
+      "kind": "tool",
+      "tool": "hoe",
+      "tier": "BLACK_TUNGSTEN_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_SHOVEL",
+      "line": 414,
+      "factory": "ShovelItem",
+      "id": "black_tungsten_alloy_shovel",
+      "kind": "tool",
+      "tool": "shovel",
+      "tier": "BLACK_TUNGSTEN_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_PICKAXE",
+      "line": 431,
+      "factory": "PickaxeItem",
+      "id": "black_tungsten_alloy_pickaxe",
+      "kind": "tool",
+      "tool": "pickaxe",
+      "tier": "BLACK_TUNGSTEN_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_SWORD",
+      "line": 448,
+      "factory": "SwordItem",
+      "id": "black_tungsten_alloy_sword",
+      "kind": "tool",
+      "tool": "sword",
+      "tier": "BLACK_TUNGSTEN_ALLOY",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "IRON_DUST",
+      "line": 465,
+      "factory": "MaterialItem",
+      "id": "iron_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "RAW_ALUMINUM_ORE",
+      "line": 474,
+      "factory": "MaterialItem",
+      "id": "raw_aluminum_ore",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_INGOT",
+      "line": 485,
+      "factory": "MaterialItem",
+      "id": "aluminum_ingot",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_DUST",
+      "line": 503,
+      "factory": "MaterialItem",
+      "id": "aluminum_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "RAW_TUNGSTEN_ORE",
+      "line": 512,
+      "factory": "MaterialItem",
+      "id": "raw_tungsten_ore",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_INGOT",
+      "line": 523,
+      "factory": "MaterialItem",
+      "id": "tungsten_ingot",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "TUNGSTEN_DUST",
+      "line": 541,
+      "factory": "MaterialItem",
+      "id": "tungsten_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_INGOT",
+      "line": 550,
+      "factory": "MaterialItem",
+      "id": "aluminum_alloy_ingot",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ALUMINUM_ALLOY_DUST",
+      "line": 564,
+      "factory": "MaterialItem",
+      "id": "aluminum_alloy_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_INGOT",
+      "line": 583,
+      "factory": "MaterialItem",
+      "id": "black_tungsten_alloy_ingot",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "BLACK_TUNGSTEN_ALLOY_DUST",
+      "line": 597,
+      "factory": "MaterialItem",
+      "id": "black_tungsten_alloy_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ENERGIZED_CRYSTAL",
+      "line": 616,
+      "factory": "MaterialItem",
+      "id": "energized_crystal",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ENERGIZED_CRYSTAL_DUST",
+      "line": 627,
+      "factory": "MaterialItem",
+      "id": "energized_crystal_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ENERGIZED_FLUIX_CRYSTAL",
+      "line": 636,
+      "factory": "MaterialItem",
+      "id": "energized_fluix_crystal",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ENERGIZED_FLUIX_CRYSTAL_DUST",
+      "line": 657,
+      "factory": "MaterialItem",
+      "id": "energized_fluix_crystal_dust",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "CRYSTAL_INGOT",
+      "line": 666,
+      "factory": "MaterialItem",
+      "id": "crystal_ingot",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "CRYSTAL_MATRIX",
+      "line": 693,
+      "factory": "MaterialItem",
+      "id": "crystal_matrix",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ENERGIZED_SUPERCONDUCTIVE_INGOT",
+      "line": 706,
+      "factory": "MaterialItem",
+      "id": "energized_superconductive_ingot",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "CRYOTHEUM",
+      "line": 736,
+      "factory": "MaterialItem",
+      "id": "cryotheum",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "CRYOTHEUM_CRYSTAL",
+      "line": 750,
+      "factory": "MaterialItem",
+      "id": "cryotheum_crystal",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "SUPERCONDUCTING_PROCESSOR_PRESS",
+      "line": 764,
+      "factory": "MaterialItem",
+      "id": "superconducting_processor_press",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "SUPERCONDUCTING_PROCESSOR_PRINT",
+      "line": 785,
+      "factory": "MaterialItem",
+      "id": "superconducting_processor_print",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "SUPERCONDUCTING_PROCESSOR",
+      "line": 795,
+      "factory": "MaterialItem",
+      "id": "superconducting_processor",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_CELL_COMPONENT_16M",
+      "line": 806,
+      "factory": "MaterialItem",
+      "id": "eco_cell_component_16m",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_CELL_COMPONENT_64M",
+      "line": 821,
+      "factory": "MaterialItem",
+      "id": "eco_cell_component_64m",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_CELL_COMPONENT_256M",
+      "line": 836,
+      "factory": "MaterialItem",
+      "id": "eco_cell_component_256m",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_INFINITE_CELL_COMPONENT",
+      "line": 851,
+      "factory": "Item",
+      "id": "eco_infinite_cell_component",
+      "kind": "infinite_component",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_ITEM_CELL_HOUSING",
+      "line": 880,
+      "factory": "MaterialItem",
+      "id": "eco_item_cell_housing",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_BULK_ITEM_CELL_HOUSING",
+      "line": 899,
+      "factory": "MaterialItem",
+      "id": "eco_bulk_item_cell_housing",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_FLUID_CELL_HOUSING",
+      "line": 918,
+      "factory": "MaterialItem",
+      "id": "eco_fluid_cell_housing",
+      "kind": "material",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_ITEM_CELL_16M",
+      "line": 937,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_item_storage_cell_16m",
+      "kind": "ECOStorageCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_ITEM_CELL_64M",
+      "line": 957,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_item_storage_cell_64m",
+      "kind": "ECOStorageCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_ITEM_CELL_256M",
+      "line": 977,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_item_storage_cell_256m",
+      "kind": "ECOStorageCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_BULK_ITEM_CELL_16M",
+      "line": 997,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_bulk_item_cell_16m",
+      "component": "eco_cell_component_16m",
+      "kind": "ECOStorageCellItem",
+      "creative": false,
+      "enabled": true
+    },
+    {
+      "field": "ECO_BULK_ITEM_CELL_64M",
+      "line": 999,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_bulk_item_cell_64m",
+      "component": "eco_cell_component_64m",
+      "kind": "ECOStorageCellItem",
+      "creative": false,
+      "enabled": true
+    },
+    {
+      "field": "ECO_BULK_ITEM_CELL_256M",
+      "line": 1001,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_bulk_item_cell_256m",
+      "component": "eco_cell_component_256m",
+      "kind": "ECOStorageCellItem",
+      "creative": false,
+      "enabled": true
+    },
+    {
+      "field": "ECO_INFINITE_ITEM_CELL",
+      "line": 1034,
+      "factory": "ECOInfiniteResourceCellItem",
+      "id": "eco_infinite_item_cell",
+      "kind": "ECOInfiniteResourceCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_FLUID_CELL_16M",
+      "line": 1052,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_fluid_storage_cell_16m",
+      "kind": "ECOStorageCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_FLUID_CELL_64M",
+      "line": 1072,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_fluid_storage_cell_64m",
+      "kind": "ECOStorageCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_FLUID_CELL_256M",
+      "line": 1092,
+      "factory": "ECOStorageCellItem",
+      "id": "eco_fluid_storage_cell_256m",
+      "kind": "ECOStorageCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_COMPUTATION_CELL_L4",
+      "line": 1112,
+      "factory": "ECOComputationCellItem",
+      "id": "eco_computation_cell_l4",
+      "kind": "ECOComputationCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_COMPUTATION_CELL_L6",
+      "line": 1118,
+      "factory": "ECOComputationCellItem",
+      "id": "eco_computation_cell_l6",
+      "kind": "ECOComputationCellItem",
+      "creative": true,
+      "enabled": true
+    },
+    {
+      "field": "ECO_COMPUTATION_CELL_L9",
+      "line": 1123,
+      "factory": "ECOComputationCellItem",
+      "id": "eco_computation_cell_l9",
+      "kind": "ECOComputationCellItem",
+      "creative": true,
+      "enabled": true
+    }
+  ],
+  "tool_tiers": {
+    "ALUMINUM": {
+      "harvest_level": 2,
+      "uses": 250,
+      "speed": 6.0,
+      "attack": 2.0,
+      "enchantability": 14
+    },
+    "ALUMINUM_ALLOY": {
+      "harvest_level": 2,
+      "uses": 500,
+      "speed": 6.0,
+      "attack": 2.0,
+      "enchantability": 14
+    },
+    "TUNGSTEN": {
+      "harvest_level": 3,
+      "uses": 1700,
+      "speed": 8.0,
+      "attack": 3.0,
+      "enchantability": 10
+    },
+    "BLACK_TUNGSTEN_ALLOY": {
+      "harvest_level": 4,
+      "uses": 2500,
+      "speed": 9.9,
+      "attack": 4.0,
+      "enchantability": 15
+    }
+  },
+  "target_overrides": {
+    "path": "porting/content-overrides.json",
+    "sha256": "a447aa81e947004b7e6fccab3c5a47c800fb6fe0e27534e6cbf4c987c524d327"
+  }
+}
