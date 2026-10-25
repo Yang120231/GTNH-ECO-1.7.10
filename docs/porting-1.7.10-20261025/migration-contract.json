@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "status": "foundation_verified_business_import_not_started",
+  "foundation_state": "../../porting/foundation-state.json",
+  "observed_date": "2026-10-25",
+  "primary_source": {
+    "repository": "E:/Minecraft Project/NeoECOAEExtension-1.21.1",
+    "branch": "main",
+    "commit": "f7dce13c8de6b738a4d9d1471ebe5ecf11e1ab4d",
+    "version": "21.2.10",
+    "policy": "Use a fixed source commit and explicitly selected patches; existing dirty work is listed separately in investigation-evidence.json."
+  },
+  "reference_port": {
+    "repository": "E:/Minecraft Project/NeoECOAEExtension-1.20.1",
+    "commit": "311288ceffd63698e581e3241831927bb48e7749",
+    "purpose": "Platform organization and interface facade reference; its approved source lock and ongoing work are unchanged."
+  },
+  "legacy_source_policy": {
+    "preserve": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/*.java",
+    "preserved_files": 11,
+    "preserved_hashes": "investigation-evidence.json:preserved_model_chain",
+    "render_integration": "Replace legacy controller and formation queries with a read-only render state interface backed by high-version business logic.",
+    "replace_business_implementations": [
+      "legacy crafting planners and provider policy",
+      "legacy storage engine and persistence policy",
+      "legacy computation and virtual CPU policy",
+      "TileECOController and other legacy business TileEntities",
+      "NeoEcoPanels and legacy page/state logic",
+      "legacy multiblock recognition and builder policy",
+      "legacy recipes, configuration and network business"
+    ],
+    "native_bootstrap": "Implement required Forge 1.7.10 registration and lifecycle adapters without retaining legacy business behavior."
+  },
+  "initial_target_dependencies": {
+    "ae2": "com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-990-GTNH",
+    "ui": "com.github.GTNewHorizons:ModularUI2:2.3.49-1.7.10",
+    "jabel": "com.github.GTNewHorizons:jabel-javac-plugin:1.0.2-GTNH",
+    "javac": 17,
+    "release": 8,
+    "classfile_major": 52,
+    "policy": "First port uses verified pinned dependencies; updating reference repositories does not itself upgrade runtime dependencies."
+  },
+  "adapter_groups": [
+    "platform/jdk",
+    "platform/minecraft",
+    "platform/registry",
+    "platform/nbt",
+    "platform/network",
+    "platform/sync",
+    "platform/ae2/key",
+    "platform/ae2/grid",
+    "platform/ae2/storage",
+    "platform/ae2/crafting",
+    "platform/ui",
+    "platform/recipe",
+    "platform/render"
+  ],
+  "business_modules": [
+    {
+      "name": "crafting_planning",
+      "source_paths": ["crafting/planner", "grid/PatternCatalog.java"],
+      "contracts": ["pattern normalization", "SCC and cyclic plans", "returned and reusable inputs", "route selection", "exact material amounts", "immutable planning snapshots"]
+    },
+    {
+      "name": "crafting_execution",
+      "source_paths": ["crafting/execution", "blocks/entity/crafting", "compat/ae2"],
+      "contracts": ["item and fluid dispatch", "material leases", "partial batch results", "cancellation", "native CPU integration", "resource conservation"]
+    },
+    {
+      "name": "storage",
+      "source_paths": ["impl/storage", "blocks/entity/storage"],
+      "contracts": ["finite and infinite quantities", "two native AE2 channels", "exact listing", "simulation", "filter and priority", "world persistence", "idempotent migration receipts"]
+    },
+    {
+      "name": "computation",
+      "source_paths": ["blocks/entity/computation", "multiblock/cluster"],
+      "contracts": ["CPU exposure", "parallel capacity", "job ownership", "grid disconnect and reconnect", "cooling and state synchronization"]
+    },
+    {
+      "name": "workstations",
+      "source_paths": ["blocks/entity/ECOIntegratedWorkingStationBlockEntity.java", "blocks/entity/ECOLargeIntegratedWorkingStationBlockEntity.java", "recipe", "gui/workstation"],
+      "contracts": ["pattern mode", "queued work", "neighbor inventory boundaries", "all inputs and outputs", "pause and resume", "overclock cooling temperature responsibilities"]
+    },
+    {
+      "name": "multiblocks",
+      "source_paths": ["multiblock", "api/multiblock", "gui/multiblock"],
+      "contracts": ["size bounds", "facing and mirror", "part ownership", "formation and removal", "chunk unload", "construction"]
+    },
+    {
+      "name": "ui",
+      "source_paths": ["gui", "src/main/resources/assets/neoecoae/screens"],
+      "contracts": ["page structure and textures", "deterministic peer registration", "typed directional sync", "real and phantom slots", "scroll and paging", "tooltips", "drag and Shift gestures"]
+    },
+    {
+      "name": "registration_and_recipes",
+      "source_paths": ["all", "registration", "recipe", "integration"],
+      "contracts": ["high-version identifiers", "assembly and disassembly", "conditional registration", "GTNH recipe inputs", "optional addon capability mapping", "NEI display"]
+    }
+  ],
+  "source_path_note": "Business Java paths are relative to src/main/java/cn/dancingsnow/neoecoae unless explicitly prefixed with src/.",
+  "phases": [
+    {"id": "P0", "deliverable": "Fixed input manifest, high-version business/resource/test import and legacy model allowlist", "state": "planned"},
+    {"id": "P1", "deliverable": "Java 8, world/NBT/registry/key/grid/network and minimal MUI2 facade contracts", "state": "planned"},
+    {"id": "P2", "deliverable": "Storage vertical path from cells and host through native AE2/UI to save and reload", "state": "planned"},
+    {"id": "P3", "deliverable": "Complete high-version crafting and computation with target submission/confirmation/CPU hooks", "state": "planned"},
+    {"id": "P4", "deliverable": "Workstations, multiblocks, recipes, construction and associated pages", "state": "planned"},
+    {"id": "P5", "deliverable": "Addon compatibility table, NEI/information integration and complete runtime/package acceptance", "state": "planned"}
+  ],
+  "completed_investigation_proofs": {
+    "legacy_test_build": "Passed 69 tests; this proves only the existing legacy baseline.",
+    "java8_syntax": "Record, compact constructor, value semantics, instanceof, switch and BigInteger compiled to major 52 and ran on Java 8.",
+    "mui2_api": "Config record, native slots/inventory/button/value sync/BigInteger/server action compiled against pinned 2.3.49 to major 52.",
+    "model_audit": "Preserved chain read and hashed; composite children, render layers and full-bright parsing confirmed."
+  },
+  "outstanding_acceptance": [
+    "full migrated source build and meaningful business/platform tests",
+    "packaged resources and registration parity",
+    "dedicated server and development client startup",
+    "real item/fluid operations, crafting jobs and cancellation",
+    "save/reload/migration and network lifecycle",
+    "UI layout, synchronization and actual gestures",
+    "optional addon availability and integration matrix",
+    "ordinary installation and runtime acceptance"
+  ]
+}

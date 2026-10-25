@@ -1,0 +1,385 @@
+{
+  "observed_date": "2026-10-25",
+  "note": "Current worktree inventory; path overlap does not imply behavioral parity.",
+  "repositories": {
+    "1211": {
+      "path": "E:\\Minecraft Project\\NeoECOAEExtension-1.21.1",
+      "head": "f7dce13c8de6b738a4d9d1471ebe5ecf11e1ab4d",
+      "branch": "main",
+      "last_commit": "2026-10-25T00:32:45+08:00 feat: 发布 21.2.10 并完善循环材料复用与工作站显示",
+      "status_at_inventory": "M src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeSources.java\n?? src/test/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationOptionalIntegrationTest.java",
+      "src_file_count": 3873,
+      "sections": {
+        "src/bench/java": 3,
+        "src/bench/resources": 1,
+        "src/generated/resources": 732,
+        "src/main/java": 953,
+        "src/main/resources": 1887,
+        "src/main/templates": 1,
+        "src/test/java": 295,
+        "src/test/resources": 1
+      },
+      "main_java_packages": {
+        "NeoECOAE.java": 1,
+        "achievement": 1,
+        "all": 16,
+        "api": 111,
+        "blocks": 90,
+        "client": 41,
+        "command": 1,
+        "compat": 40,
+        "config": 1,
+        "crafting": 245,
+        "data": 17,
+        "event": 1,
+        "grid": 4,
+        "gui": 88,
+        "impl": 27,
+        "integration": 116,
+        "items": 4,
+        "menu": 2,
+        "mixins": 71,
+        "multiblock": 28,
+        "network": 12,
+        "recipe": 16,
+        "registration": 8,
+        "util": 12
+      },
+      "main_java_lines": 116759,
+      "main_java_top_12_by_lines": [
+        {
+          "lines": 2248,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/ECOLargeIntegratedWorkingStationBlockEntity.java"
+        },
+        {
+          "lines": 1917,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/ECOMachineInterfaceBlockEntity.java"
+        },
+        {
+          "lines": 1772,
+          "path": "cn/dancingsnow/neoecoae/crafting/planner/cycle/BoundedCycleSolver.java"
+        },
+        {
+          "lines": 1597,
+          "path": "cn/dancingsnow/neoecoae/all/NEBlocks.java"
+        },
+        {
+          "lines": 1532,
+          "path": "cn/dancingsnow/neoecoae/crafting/execution/worker/ECOCraftingThread.java"
+        },
+        {
+          "lines": 1433,
+          "path": "cn/dancingsnow/neoecoae/crafting/execution/ECOExecutionRuntime.java"
+        },
+        {
+          "lines": 1311,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingSystemBlockEntity.java"
+        },
+        {
+          "lines": 1306,
+          "path": "cn/dancingsnow/neoecoae/grid/PatternCatalog.java"
+        },
+        {
+          "lines": 1276,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternBusBlockEntity.java"
+        },
+        {
+          "lines": 1205,
+          "path": "cn/dancingsnow/neoecoae/crafting/planner/solve/ComponentPlanner.java"
+        },
+        {
+          "lines": 1148,
+          "path": "cn/dancingsnow/neoecoae/all/NEItems.java"
+        },
+        {
+          "lines": 1030,
+          "path": "cn/dancingsnow/neoecoae/mixins/ae2/menu/CraftConfirmMenuMixin.java"
+        }
+      ],
+      "import_statement_counts": {
+        "Minecraft": 1977,
+        "AE2": 1720,
+        "Registrate": 88,
+        "NeoForge": 302,
+        "LDLib2": 515
+      },
+      "lexical_stdlib_counts": {
+        "record_declarations": 359,
+        "sealed_declarations": 2,
+        "collection_getFirst": 54,
+        "collection_getLast": 9,
+        "Math_ceilDiv": 0,
+        "List_of": 429,
+        "Map_of": 189,
+        "Set_of": 96,
+        "Stream_toList": 112,
+        "BigInteger_references": 961
+      }
+    },
+    "1201": {
+      "path": "E:\\Minecraft Project\\NeoECOAEExtension-1.20.1",
+      "head": "88308bc1ca324e892034e73678637e1394324343",
+      "branch": "1.20.1",
+      "last_commit": "2026-10-25T11:10:48+08:00 fix: 兼容 Cosmolite 确认菜单与托管字段同步",
+      "status_at_inventory": "M build.gradle\n M src/generated/resources/assets/neoecoae/lang/en_us.json\n M src/main/java/cn/dancingsnow/neoecoae/client/NeoECOAEClient.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/crafting/ECOCraftConfirmScreen.java\n M src/main/java/cn/dancingsnow/neoecoae/data/lang/NELangGenerator.java\n M src/main/java/cn/dancingsnow/neoecoae/mixins/client/ae2/CellWorkbenchScreenMixin.java\n M src/main/resources/assets/neoecoae/lang/zh_cn.json\n?? src/main/java/cn/dancingsnow/neoecoae/integration/emi/EmiBookmarkAccess.java\n?? src/main/java/cn/dancingsnow/neoecoae/integration/xei/RecipeViewerBookmarkAccess.java\n?? src/test/java/cn/dancingsnow/neoecoae/integration/emi/\n?? src/test/java/cn/dancingsnow/neoecoae/integration/xei/RecipeViewerBookmarkAccessTest.java",
+      "src_file_count": 4200,
+      "sections": {
+        "src/generated/resources": 706,
+        "src/main/java": 1080,
+        "src/main/resources": 2114,
+        "src/test/java": 299,
+        "src/test/resources": 1
+      },
+      "main_java_packages": {
+        "NeoECOAE.java": 1,
+        "achievement": 1,
+        "all": 15,
+        "api": 98,
+        "blocks": 90,
+        "client": 60,
+        "command": 1,
+        "compat": 29,
+        "config": 2,
+        "crafting": 244,
+        "data": 17,
+        "event": 1,
+        "grid": 4,
+        "gui": 91,
+        "impl": 39,
+        "integration": 104,
+        "items": 5,
+        "menu": 2,
+        "mixins": 75,
+        "multiblock": 37,
+        "network": 14,
+        "platform": 111,
+        "recipe": 18,
+        "registration": 8,
+        "util": 13
+      },
+      "main_java_lines": 121725,
+      "main_java_top_12_by_lines": [
+        {
+          "lines": 2222,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/ECOLargeIntegratedWorkingStationBlockEntity.java"
+        },
+        {
+          "lines": 1921,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/ECOMachineInterfaceBlockEntity.java"
+        },
+        {
+          "lines": 1770,
+          "path": "cn/dancingsnow/neoecoae/crafting/planner/cycle/BoundedCycleSolver.java"
+        },
+        {
+          "lines": 1596,
+          "path": "cn/dancingsnow/neoecoae/all/NEBlocks.java"
+        },
+        {
+          "lines": 1532,
+          "path": "cn/dancingsnow/neoecoae/crafting/execution/worker/ECOCraftingThread.java"
+        },
+        {
+          "lines": 1430,
+          "path": "cn/dancingsnow/neoecoae/crafting/execution/ECOExecutionRuntime.java"
+        },
+        {
+          "lines": 1299,
+          "path": "cn/dancingsnow/neoecoae/grid/PatternCatalog.java"
+        },
+        {
+          "lines": 1281,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingSystemBlockEntity.java"
+        },
+        {
+          "lines": 1204,
+          "path": "cn/dancingsnow/neoecoae/crafting/planner/solve/ComponentPlanner.java"
+        },
+        {
+          "lines": 1130,
+          "path": "cn/dancingsnow/neoecoae/all/NEItems.java"
+        },
+        {
+          "lines": 1021,
+          "path": "cn/dancingsnow/neoecoae/mixins/ae2/menu/CraftConfirmMenuMixin.java"
+        },
+        {
+          "lines": 1009,
+          "path": "cn/dancingsnow/neoecoae/blocks/entity/storage/ECOStorageSystemBlockEntity.java"
+        }
+      ],
+      "import_statement_counts": {
+        "Minecraft": 2250,
+        "AE2": 1746,
+        "Registrate": 88,
+        "Forge": 274,
+        "Own platform layer": 683,
+        "LDLib1": 151
+      },
+      "lexical_stdlib_counts": {
+        "record_declarations": 369,
+        "sealed_declarations": 2,
+        "collection_getFirst": 3,
+        "collection_getLast": 1,
+        "Math_ceilDiv": 0,
+        "List_of": 425,
+        "Map_of": 202,
+        "Set_of": 102,
+        "Stream_toList": 128,
+        "BigInteger_references": 1108
+      }
+    },
+    "1710": {
+      "path": "E:\\Minecraft Project\\NeoECOAEExtension-1.7.10",
+      "head": "442305f9864623d54eb6bbb57139b2fb72dbbd0d",
+      "branch": "main",
+      "last_commit": "2026-10-12T17:59:15+08:00 合并样板总线解析缓存优化 (#4)",
+      "status_at_inventory": "?? docs/porting-1.7.10-20261025/\n?? pelican-bicycle.html",
+      "src_file_count": 711,
+      "sections": {
+        "src/main/java": 186,
+        "src/main/resources": 500,
+        "src/test/java": 25
+      },
+      "main_java_packages": {
+        "ClientProxy.java": 1,
+        "CommonProxy.java": 1,
+        "Config.java": 1,
+        "NeoECOAE.java": 1,
+        "all": 12,
+        "block": 25,
+        "client": 26,
+        "computation": 4,
+        "crafting": 38,
+        "energy": 1,
+        "gui": 11,
+        "integration": 1,
+        "item": 3,
+        "mixin": 6,
+        "multiblock": 14,
+        "network": 1,
+        "storage": 24,
+        "tile": 16
+      },
+      "main_java_lines": 31870,
+      "main_java_top_12_by_lines": [
+        {
+          "lines": 2645,
+          "path": "cn/dancingsnow/neoecoae/gui/mui/NeoEcoPanels.java"
+        },
+        {
+          "lines": 2495,
+          "path": "cn/dancingsnow/neoecoae/tile/TileECOController.java"
+        },
+        {
+          "lines": 1147,
+          "path": "cn/dancingsnow/neoecoae/crafting/upload/PatternUploadTarget.java"
+        },
+        {
+          "lines": 1089,
+          "path": "cn/dancingsnow/neoecoae/all/NERecipes.java"
+        },
+        {
+          "lines": 962,
+          "path": "cn/dancingsnow/neoecoae/computation/ae2/ECOComputationVirtualCpu.java"
+        },
+        {
+          "lines": 901,
+          "path": "cn/dancingsnow/neoecoae/tile/TileECOInterface.java"
+        },
+        {
+          "lines": 841,
+          "path": "cn/dancingsnow/neoecoae/gui/storage/StorageHostSnapshot.java"
+        },
+        {
+          "lines": 696,
+          "path": "cn/dancingsnow/neoecoae/multiblock/ECOStructureBuilder.java"
+        },
+        {
+          "lines": 663,
+          "path": "cn/dancingsnow/neoecoae/crafting/upload/PatternUploadSession.java"
+        },
+        {
+          "lines": 585,
+          "path": "cn/dancingsnow/neoecoae/tile/TileCraftingHatch.java"
+        },
+        {
+          "lines": 579,
+          "path": "cn/dancingsnow/neoecoae/tile/ECOCraftingVirtualPool.java"
+        },
+        {
+          "lines": 556,
+          "path": "cn/dancingsnow/neoecoae/all/NEBlocks.java"
+        }
+      ],
+      "import_statement_counts": {
+        "Minecraft": 378,
+        "AE2": 225,
+        "Forge": 69,
+        "MUI2": 48
+      },
+      "lexical_stdlib_counts": {
+        "record_declarations": 0,
+        "sealed_declarations": 0,
+        "collection_getFirst": 0,
+        "collection_getLast": 0,
+        "Math_ceilDiv": 0,
+        "List_of": 0,
+        "Map_of": 0,
+        "Set_of": 0,
+        "Stream_toList": 0,
+        "BigInteger_references": 105
+      }
+    }
+  },
+  "comparisons": {
+    "1211-1201": {
+      "all_src": {
+        "left_only": 742,
+        "identical": 1505,
+        "different": 909,
+        "line_endings_only": 717,
+        "right_only": 1069
+      },
+      "main_java": {
+        "different": 480,
+        "left_only": 63,
+        "right_only": 190,
+        "line_endings_only": 277,
+        "identical": 133
+      },
+      "union_paths": 4942
+    },
+    "1211-1710": {
+      "all_src": {
+        "left_only": 3727,
+        "right_only": 565,
+        "different": 59,
+        "identical": 40,
+        "line_endings_only": 47
+      },
+      "main_java": {
+        "right_only": 180,
+        "different": 6,
+        "left_only": 947
+      },
+      "union_paths": 4438
+    }
+  },
+  "reference_libraries": {
+    "Applied-Energistics-2-Unofficial": {
+      "path": "E:\\Minecraft Project\\Applied-Energistics-2-Unofficial",
+      "head": "1ee52dfda9892f0a881249fccc0c20c828c53996",
+      "remote_ref": "origin/master",
+      "remote_sha": "1ee52dfda9892f0a881249fccc0c20c828c53996",
+      "last_commit": "2026-10-24T03:20:55-04:00 add ignore mode (#1719)"
+    },
+    "ModularUI2": {
+      "path": "E:\\Minecraft Project\\ModularUI2",
+      "head": "5d76d93a355541cc369dbf352b6fb1a2c1079506",
+      "remote_ref": "origin/master",
+      "remote_sha": "5d76d93a355541cc369dbf352b6fb1a2c1079506",
+      "last_commit": "2026-10-24T20:43:26+02:00 Treat invalid (size <= 0) stacks as empty in slot clicks (#169)"
+    }
+  }
+}

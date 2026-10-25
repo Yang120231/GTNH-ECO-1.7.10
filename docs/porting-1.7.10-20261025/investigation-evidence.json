@@ -1,0 +1,406 @@
+{
+  "observed_at": "2026-10-25T11:35:18.939453+08:00",
+  "inventory_semantics": "Working-tree files, including existing unstaged changes; not a completion percentage.",
+  "source_repositories": {
+    "NeoECOAEExtension-1.21.1": {
+      "path": "E:\\Minecraft Project\\NeoECOAEExtension-1.21.1",
+      "head": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+      "branch": "main",
+      "upstream": "origin/main",
+      "upstream_sha": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-25T11:26:51+08:00 fix: 修复未安装闪电科技时大型工作站加载配方崩溃"
+    },
+    "NeoECOAEExtension-1.20.1": {
+      "path": "E:\\Minecraft Project\\NeoECOAEExtension-1.20.1",
+      "head": "88308bc1ca324e892034e73678637e1394324343",
+      "branch": "1.20.1",
+      "upstream": "origin/1.20.1",
+      "upstream_sha": "80cb03ed237da2bd13006ae0f229bb227e07e32a",
+      "head_upstream_delta": "7\t0",
+      "status": [
+        "M build.gradle",
+        " M src/generated/resources/assets/neoecoae/lang/en_us.json",
+        " M src/main/java/cn/dancingsnow/neoecoae/client/NeoECOAEClient.java",
+        " M src/main/java/cn/dancingsnow/neoecoae/client/gui/crafting/ECOCraftConfirmScreen.java",
+        " M src/main/java/cn/dancingsnow/neoecoae/data/lang/NELangGenerator.java",
+        " M src/main/java/cn/dancingsnow/neoecoae/mixins/client/ae2/CellWorkbenchScreenMixin.java",
+        " M src/main/resources/assets/neoecoae/lang/zh_cn.json",
+        "?? src/main/java/cn/dancingsnow/neoecoae/integration/emi/EmiBookmarkAccess.java",
+        "?? src/main/java/cn/dancingsnow/neoecoae/integration/xei/RecipeViewerBookmarkAccess.java",
+        "?? src/test/java/cn/dancingsnow/neoecoae/integration/emi/",
+        "?? src/test/java/cn/dancingsnow/neoecoae/integration/xei/RecipeViewerBookmarkAccessTest.java"
+      ],
+      "last_commit": "2026-10-25T11:10:48+08:00 fix: 兼容 Cosmolite 确认菜单与托管字段同步"
+    },
+    "NeoECOAEExtension-1.7.10": {
+      "path": "E:\\Minecraft Project\\NeoECOAEExtension-1.7.10",
+      "head": "442305f9864623d54eb6bbb57139b2fb72dbbd0d",
+      "branch": "main",
+      "upstream": "origin/main",
+      "upstream_sha": "442305f9864623d54eb6bbb57139b2fb72dbbd0d",
+      "head_upstream_delta": "0\t0",
+      "status": [
+        "?? docs/porting-1.7.10-20261025/",
+        "?? pelican-bicycle.html"
+      ],
+      "last_commit": "2026-10-12T17:59:15+08:00 合并样板总线解析缓存优化 (#4)"
+    },
+    "Applied-Energistics-2-Unofficial": {
+      "path": "E:\\Minecraft Project\\Applied-Energistics-2-Unofficial",
+      "head": "1ee52dfda9892f0a881249fccc0c20c828c53996",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "1ee52dfda9892f0a881249fccc0c20c828c53996",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-24T03:20:55-04:00 add ignore mode (#1719)"
+    },
+    "ModularUI2": {
+      "path": "E:\\Minecraft Project\\ModularUI2",
+      "head": "5d76d93a355541cc369dbf352b6fb1a2c1079506",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "5d76d93a355541cc369dbf352b6fb1a2c1079506",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-24T20:43:26+02:00 Treat invalid (size <= 0) stacks as empty in slot clicks (#169)"
+    },
+    "LDLib2": {
+      "path": "E:\\Minecraft Project\\LDLib2",
+      "head": "5dfd1caccfb8e416f67ee309f36dc2ee1f92249b",
+      "branch": "1.21",
+      "upstream": "origin/1.21",
+      "upstream_sha": "5dfd1caccfb8e416f67ee309f36dc2ee1f92249b",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-24T12:20:56+09:00 build: Changed ldlib2-compose's version to start with its Minecraft line, now 21.0.0.1"
+    },
+    "GT5-Unofficial": {
+      "path": "E:\\Minecraft Project\\GT5-Unofficial",
+      "head": "a40bacb54299a85cec67d32021cb3608ea074e0f",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "a40bacb54299a85cec67d32021cb3608ea074e0f",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-24T21:55:17Z Add Supermassive Black Hole Seed (#8504)"
+    },
+    "StructureLib": {
+      "path": "E:\\Minecraft Project\\StructureLib",
+      "head": "0b5f4aa433e52fc8338e7f26ab520044bbb69c27",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "0b5f4aa433e52fc8338e7f26ab520044bbb69c27",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-21T09:26:09+08:00 Add debug hologram projector (#79)"
+    },
+    "GTNHLib": {
+      "path": "E:\\Minecraft Project\\GTNHLib",
+      "head": "d6dbd83308fd72252c6033d59b0e1915e1a5977f",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "d6dbd83308fd72252c6033d59b0e1915e1a5977f",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-13T18:52:25Z Debug fluid unit (#483)"
+    },
+    "NotEnoughItems": {
+      "path": "E:\\Minecraft Project\\NotEnoughItems",
+      "head": "e9a3a494d5bffb0e43e3d3ec40424c0d3dec350f",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "e9a3a494d5bffb0e43e3d3ec40424c0d3dec350f",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-10-25T02:49:38+03:00 Add Mouse Binding (#1092)"
+    },
+    "GTNHGradle": {
+      "path": "E:\\Minecraft Project\\GTNHGradle",
+      "head": "04d5d0f931b569497b00e493a0c9a9f606bd2f60",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "04d5d0f931b569497b00e493a0c9a9f606bd2f60",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2026-09-29T21:59:22+01:00 Update RFG"
+    },
+    "jabel": {
+      "path": "E:\\Minecraft Project\\jabel",
+      "head": "2b9213e0543e2a8dbcf2268255ac27dcd647b1ef",
+      "branch": "master",
+      "upstream": "origin/master",
+      "upstream_sha": "2b9213e0543e2a8dbcf2268255ac27dcd647b1ef",
+      "head_upstream_delta": "0\t0",
+      "status": [],
+      "last_commit": "2025-12-23T22:23:20-08:00 Remove record from output bytecode (#1)"
+    }
+  },
+  "ui": {
+    "gui_java_files": 88,
+    "ldlib2_distinct_imports_in_gui": 49,
+    "ldlib2_imports_in_gui": {
+      "com.lowdragmc.lowdraglib2.gui.ui.UIElement": 41,
+      "com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture": 29,
+      "com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents": 28,
+      "com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips": 27,
+      "com.lowdragmc.lowdraglib2.gui.sync.bindings.impl.DataBindingBuilder": 25,
+      "com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext": 25,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.Button": 20,
+      "com.lowdragmc.lowdraglib2.gui.texture.SpriteTexture": 20,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.BindableValue": 19,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot": 13,
+      "com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap": 11,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.TextElement": 10,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots": 10,
+      "com.lowdragmc.lowdraglib2.gui.ui.ModularUI": 8,
+      "com.lowdragmc.lowdraglib2.gui.ui.event.UIEvent": 8,
+      "com.lowdragmc.lowdraglib2.gui.sync.bindings.IBindable": 6,
+      "com.lowdragmc.lowdraglib2.gui.sync.bindings.IDataSource": 6,
+      "com.lowdragmc.lowdraglib2.gui.util.DrawerHelper": 6,
+      "com.lowdragmc.lowdraglib2.gui.slot.ItemHandlerSlot": 6,
+      "com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEventBuilder": 5,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.Label": 4,
+      "com.lowdragmc.lowdraglib2.gui.factory.BlockUIMenuType": 3,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.FluidSlot": 3,
+      "com.lowdragmc.lowdraglib2.gui.sync.bindings.SyncStrategy": 3,
+      "com.lowdragmc.lowdraglib2.gui.sync.rpc.RPCEmitter": 3,
+      "com.lowdragmc.lowdraglib2.gui.slot.LocalSlot": 3,
+      "com.lowdragmc.lowdraglib2.gui.util.WindowDragHelper": 3,
+      "com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager": 2,
+      "com.lowdragmc.lowdraglib2.gui.ui.data.FillDirection": 2,
+      "com.lowdragmc.lowdraglib2.gui.texture.ItemStackTexture": 2,
+      "com.lowdragmc.lowdraglib2.gui.holder.ModularUIContainerMenu": 2,
+      "com.lowdragmc.lowdraglib2.editor.resource.BuiltinPath": 2,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView": 2,
+      "com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister": 2,
+      "com.lowdragmc.lowdraglib2.gui.ui.UI": 1,
+      "com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal": 1,
+      "com.lowdragmc.lowdraglib2.gui.texture.ColorBorderTexture": 1,
+      "com.lowdragmc.lowdraglib2.utils.ResourceHelper": 1,
+      "com.lowdragmc.lowdraglib2.gui.texture.VanillaSpriteTexture": 1,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.TextField": 1,
+      "com.lowdragmc.lowdraglib2.gui.texture.ColorRectTexture": 1,
+      "com.lowdragmc.lowdraglib2.editor.resource.BuiltinResourceProvider": 1,
+      "com.lowdragmc.lowdraglib2.editor.resource.ResourceInstance": 1,
+      "com.lowdragmc.lowdraglib2.gui.texture.UIResourceTexture": 1,
+      "com.lowdragmc.lowdraglib2.math.Size": 1,
+      "com.lowdragmc.lowdraglib2.gui.ui.data.ScrollDisplay": 1,
+      "com.lowdragmc.lowdraglib2.gui.ui.data.ScrollerMode": 1,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.Scroller": 1,
+      "com.lowdragmc.lowdraglib2.gui.ui.elements.Toggle": 1
+    },
+    "screen_files": [
+      "src/main/resources/assets/neoecoae/screens/computation/controller.json",
+      "src/main/resources/assets/neoecoae/screens/computation_interface.json",
+      "src/main/resources/assets/neoecoae/screens/crafting/crafting_controller.json",
+      "src/main/resources/assets/neoecoae/screens/crafting/crafting_interface.json",
+      "src/main/resources/assets/neoecoae/screens/crafting/crafting_pattern_bus.json",
+      "src/main/resources/assets/neoecoae/screens/fluid_hatch.json",
+      "src/main/resources/assets/neoecoae/screens/multiblock_builder.json",
+      "src/main/resources/assets/neoecoae/screens/storage/storage_controller.json",
+      "src/main/resources/assets/neoecoae/screens/storage/storage_interface.json",
+      "src/main/resources/assets/neoecoae/screens/storage/storage_priority.json",
+      "src/main/resources/assets/neoecoae/screens/workstation/integrated.json",
+      "src/main/resources/assets/neoecoae/screens/workstation/large.json",
+      "src/main/resources/assets/neoecoae/screens/workstation/network_toolbox.json",
+      "src/main/resources/assets/neoecoae/screens/workstation/output_panel.json"
+    ],
+    "screen_count": 14,
+    "element_types": {
+      "element": 10,
+      "custom": 90,
+      "player_inventory": 3,
+      "container": 2,
+      "label": 1,
+      "button": 1,
+      "texture": 2
+    },
+    "layout_property_counts": {
+      "position": 85,
+      "width": 94,
+      "height": 91,
+      "left": 80,
+      "top": 81,
+      "padding": 6,
+      "display": 2,
+      "paddingAll": 5,
+      "paddingBottom": 1,
+      "gapAll": 2,
+      "justifyContent": 3,
+      "gap": 1,
+      "alignItems": 2,
+      "marginTop": 1,
+      "marginBottom": 1,
+      "right": 1,
+      "paddingLeft": 1,
+      "paddingTop": 1
+    }
+  },
+  "reference_platform": {
+    "(root)": 4,
+    "diagnostics": 4,
+    "menu": 1,
+    "mixin": 7,
+    "nbt": 7,
+    "network": 3,
+    "recipe": 7,
+    "sync": 8,
+    "ui": 70
+  },
+  "models": {
+    "json_count": 777,
+    "flag_file_counts": {
+      "render_type": 194,
+      "loader": 19,
+      "neoforge_data": 167,
+      "display": 2
+    },
+    "loader_counts": {
+      "neoforge:fluid_container": 1,
+      "neoforge:composite": 18
+    },
+    "files_with_nonzero_element_rotation": [],
+    "note": "Lexical features of all model JSON; these counts alone do not prove that any particular rendered model is unsupported."
+  },
+  "preserved_model_chain": [
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/BakedEcoModel.java",
+      "sha256": "f9922fefd310878a07707b179244d8ecc7e30293f30ff69a30e0d39f9ccc2e08"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/BakedQuad.java",
+      "sha256": "f99cab9af31eb16f67774ffa296024b142c338b3d668c7908b122369af63c021"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/EcoModelRenderer.java",
+      "sha256": "6dea6f6068fbea0f4b28a849256ca922ef11f5085f113ee647f96f33da0453dd"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelElement.java",
+      "sha256": "41630812a09c37d7c99798971f4eb4c0786f9caf92f14d320908362e16dcf438"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelFace.java",
+      "sha256": "34cdad6620f75742b5a969b277d1ebbf6a204b9fd4efc3c1869dbb4f6396c05b"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelFacing.java",
+      "sha256": "5d9455a1a9e9584046ecd49ba3aa863817d9f46c31ce10a17ef7d1cd4818c9c1"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelLightSampler.java",
+      "sha256": "f4e1c97afc74f0a6442f3ce47535850829090cb676cc54dc72834b492e219ede"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelRenderLayer.java",
+      "sha256": "3efb934af5380a9f465360e8344ea29b4ed6dcce36412f122cbd6e3a78e59d6b"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModernIconRegistrar.java",
+      "sha256": "24ce6d373123d2b6efc60d20dccca4cffd1d7c3458bb161910882237f14a1671"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModernModel.java",
+      "sha256": "de4b46131f2bdc2be22dc17894223d636054d65085fcc9b41640a2d7f85d51a7"
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModernModelLoader.java",
+      "sha256": "6dc75f3651c97889f95533c976ca822e05cee3ea72a509f4735034632dfd6c18"
+    }
+  ],
+  "integration_module_names": [
+    "ae2lt",
+    "ae2omnicells",
+    "ae2pattern",
+    "appbot",
+    "appex",
+    "appflux",
+    "appliedcreate",
+    "appliedpneumatics",
+    "appliedsoul",
+    "appmek",
+    "apprep",
+    "arsenergistique",
+    "biggerae2",
+    "dataenergistics",
+    "emi",
+    "jade",
+    "jei",
+    "kubejs",
+    "ldlib",
+    "megacells",
+    "recipe",
+    "xei"
+  ],
+  "baseline_tests": {
+    "tests": 69,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "baseline_build": {
+    "log": "E:\\Minecraft Project\\_diagnostics\\neoecoae-1710-port-20261025\\baseline-build.log",
+    "successful": true,
+    "log_sha256": "3419d20ea3c974597c9d91adc335bdff75a5d07681d5eae9743055c7914e863a",
+    "scope": "Existing legacy implementation only; not validation of a migrated implementation."
+  },
+  "probes": {
+    "RecordSyntaxProbe": {
+      "source": "E:\\Minecraft Project\\_diagnostics\\neoecoae-1710-port-20261025\\RecordSyntaxProbe.java",
+      "source_sha256": "2d5e1e5365b85e6e4f81c4a8d2878392159083adde0ce4ca1aa3447c86bf0127",
+      "classes": [
+        {
+          "file": "RecordSyntaxProbe$Amount.class",
+          "major_version": 52,
+          "sha256": "8aeffcabb8a038df37708b740dde4dc12794626eebdc77759db796247a4a031c"
+        },
+        {
+          "file": "RecordSyntaxProbe.class",
+          "major_version": 52,
+          "sha256": "0d5404566366fdfea23dd78418b1200abdb0428a5ac323ca6e2190abd1d6e070"
+        }
+      ],
+      "scope": "Syntax executed on Java 8",
+      "runtime_java_home": "C:\\Users\\hnhjy\\.gradle\\jdks\\azul_systems__inc_-8-amd64-windows.2",
+      "runtime_release": "IMPLEMENTOR=\"Azul Systems, Inc.\"\nIMPLEMENTOR_VERSION=\"Zulu8.94.0.17-CA-win64\"\nJAVA_VERSION=\"1.8.0_492\"\nOS_NAME=\"Windows\"\nOS_VERSION=\"5.2\"\nOS_ARCH=\"amd64\"\nSOURCE=\".:git:b234213b9de0\"\n",
+      "run_log": "E:\\Minecraft Project\\_diagnostics\\neoecoae-1710-port-20261025\\syntax-probe-run.log",
+      "run_log_sha256": "04ed75e45e845bcdcb699e638f8d44606e6da48fe938a3c77f40f8da5f7db189",
+      "ran_successfully": true
+    },
+    "MUI2BridgeProbe": {
+      "source": "E:\\Minecraft Project\\_diagnostics\\neoecoae-1710-port-20261025\\MUI2BridgeProbe.java",
+      "source_sha256": "48cd392a95115c5e1a3dd98ffb6af5390a6ca42409a13f1a85d76af24dac4c1f",
+      "classes": [
+        {
+          "file": "MUI2BridgeProbe$Config.class",
+          "major_version": 52,
+          "sha256": "17038e27370078b7495b144af1b9f9431a8303a66c5fbfa1b2a0b4179949c12f"
+        },
+        {
+          "file": "MUI2BridgeProbe.class",
+          "major_version": 52,
+          "sha256": "0b05c4d45c0ce7beb56916b88b735531b3ab40422344e869f9cf48122b4c816a"
+        }
+      ],
+      "scope": "Compile-only pinned MUI2 API probe",
+      "actual_native_jars": [
+        {
+          "path": "C:\\Users\\hnhjy\\.gradle\\caches\\modules-2\\files-2.1\\com.github.GTNewHorizons\\ModularUI2\\2.3.49-1.7.10\\12d567a8b713afe469adaaffe18b571528cf5898\\ModularUI2-2.3.49-1.7.10-dev.jar",
+          "sha256": "0df643aafbecbc7b6e9d1b03e244bea9e988adbb2eadddc908ae6b0458a5cb90"
+        }
+      ]
+    }
+  },
+  "pinned_target_dependencies": {
+    "ae2": "rv3-beta-990-GTNH",
+    "mui2": "2.3.49-1.7.10",
+    "jabel": "1.0.2-GTNH",
+    "javac": "17",
+    "release": 8,
+    "classfile_major": 52
+  },
+  "model_chain_has_tracked_changes": false
+}

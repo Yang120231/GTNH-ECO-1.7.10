@@ -13,7 +13,7 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import org.lwjgl.opengl.GL11;
 
-import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
+import cn.dancingsnow.neoecoae.platform.render.ModelRenderBridge;
 
 public final class EcoModelRenderer {
 
@@ -89,7 +89,7 @@ public final class EcoModelRenderer {
         int neighborX = x + cullDirection.offsetX;
         int neighborY = y + cullDirection.offsetY;
         int neighborZ = z + cullDirection.offsetZ;
-        if (ECOFormationVisibility.isHidden(world, neighborX, neighborY, neighborZ)) {
+        if (ModelRenderBridge.isHidden(world, neighborX, neighborY, neighborZ)) {
             return false;
         }
 

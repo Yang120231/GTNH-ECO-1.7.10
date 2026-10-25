@@ -1,0 +1,1 @@
+PASS: @Desugar record, compact constructor, equality, hash, instanceof, switch, BigInteger=10000000000000000000000000000000000000017

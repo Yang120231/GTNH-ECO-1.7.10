@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "status": "foundation_verified_business_import_not_started",
+  "verified_at": "2026-10-25T12:44:54+08:00",
+  "branch": "codex/1710-port-foundation",
+  "legacy_backup_commit": "442305f9864623d54eb6bbb57139b2fb72dbbd0d",
+  "migration_contract": "../docs/porting-1.7.10-20261025/migration-contract.json",
+  "main_java": 16,
+  "test_java": 1,
+  "main_resources": [
+    "src/main/resources/LICENSE",
+    "src/main/resources/mcmod.info"
+  ],
+  "unexpected_sources": [],
+  "legacy_business_references": [],
+  "models": [
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/BakedEcoModel.java",
+      "sha256": "f9922fefd310878a07707b179244d8ecc7e30293f30ff69a30e0d39f9ccc2e08",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/BakedQuad.java",
+      "sha256": "f99cab9af31eb16f67774ffa296024b142c338b3d668c7908b122369af63c021",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/EcoModelRenderer.java",
+      "sha256": "0e3c0ec04d89c6e246d4e9aae260d8e5dc07febdb938bcc251f53f8a8bc2dd68",
+      "unchanged_from_git": false,
+      "unchanged_from_snapshot": false
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelElement.java",
+      "sha256": "41630812a09c37d7c99798971f4eb4c0786f9caf92f14d320908362e16dcf438",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelFace.java",
+      "sha256": "34cdad6620f75742b5a969b277d1ebbf6a204b9fd4efc3c1869dbb4f6396c05b",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelFacing.java",
+      "sha256": "5d9455a1a9e9584046ecd49ba3aa863817d9f46c31ce10a17ef7d1cd4818c9c1",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelLightSampler.java",
+      "sha256": "86b34b85a6809f9a4059b91eca97e0e2c27bee3fdb5fc35955a6d97140a3d128",
+      "unchanged_from_git": false,
+      "unchanged_from_snapshot": false
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModelRenderLayer.java",
+      "sha256": "3efb934af5380a9f465360e8344ea29b4ed6dcce36412f122cbd6e3a78e59d6b",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModernIconRegistrar.java",
+      "sha256": "24ce6d373123d2b6efc60d20dccca4cffd1d7c3458bb161910882237f14a1671",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModernModel.java",
+      "sha256": "de4b46131f2bdc2be22dc17894223d636054d65085fcc9b41640a2d7f85d51a7",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    },
+    {
+      "path": "src/main/java/cn/dancingsnow/neoecoae/client/render/model/ModernModelLoader.java",
+      "sha256": "6dc75f3651c97889f95533c976ca822e05cee3ea72a509f4735034632dfd6c18",
+      "unchanged_from_git": true,
+      "unchanged_from_snapshot": true
+    }
+  ],
+  "jars": [
+    {
+      "path": "build/libs/neoecoae-0.1.0-porting-dev.jar",
+      "kind": "development",
+      "bytes": 38549,
+      "sha256": "74c65b8ac484af7ba43698e7b12549b97b6a47a3a9918908b555371df4eb946b",
+      "class_count": 22,
+      "source_count": 0,
+      "classfile_majors": {
+        "52": 22
+      },
+      "resources": [
+        "LICENSE",
+        "META-INF/MANIFEST.MF",
+        "mcmod.info"
+      ],
+      "metadata_version": "0.1.0-porting",
+      "unexpected_classes": []
+    },
+    {
+      "path": "build/libs/neoecoae-0.1.0-porting-sources.jar",
+      "kind": "sources",
+      "bytes": 19795,
+      "sha256": "142a4bfb2bd27244886c9282d03c6cef3cdabe182f08a384a129e467d17b1230",
+      "class_count": 0,
+      "source_count": 16,
+      "classfile_majors": {},
+      "resources": [
+        "LICENSE",
+        "META-INF/MANIFEST.MF",
+        "mcmod.info"
+      ],
+      "metadata_version": "${modVersion}",
+      "unexpected_classes": []
+    },
+    {
+      "path": "build/libs/neoecoae-0.1.0-porting.jar",
+      "kind": "reobfuscated",
+      "bytes": 38925,
+      "sha256": "1f989e6af531ca4e3dca4e55b815633b5c65700d29313f656a6e763db3f05f9f",
+      "class_count": 22,
+      "source_count": 0,
+      "classfile_majors": {
+        "52": 22
+      },
+      "resources": [
+        "LICENSE",
+        "META-INF/MANIFEST.MF",
+        "mcmod.info"
+      ],
+      "metadata_version": "0.1.0-porting",
+      "unexpected_classes": []
+    }
+  ],
+  "tests": {
+    "tests": 4,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "test_report_timestamp_utc": "2026-10-25T04:16:52.108Z",
+  "build_validation": {
+    "clean_build": {
+      "command": "./gradlew.bat test build --stacktrace --console=plain",
+      "result": "passed; 29 tasks executed",
+      "log": "E:/Minecraft Project/_diagnostics/neoecoae-1710-foundation-20261025-01a1712e/foundation-build-online.log"
+    },
+    "resumed_offline_build": {
+      "command": "./gradlew.bat test build --offline --console=plain",
+      "result": "passed; 27 tasks up-to-date",
+      "log": "E:/Minecraft Project/_diagnostics/neoecoae-1710-foundation-20261025-01a1712e/foundation-build-resumed.log"
+    }
+  },
+  "local_archive": "E:/Minecraft Project/_diagnostics/neoecoae-1710-foundation-20261025-01a1712e",
+  "runtime_validation": "not performed; client and dedicated server startup are reserved for the business import",
+  "source_import_policy": "Before business import, fetch the source repositories, preserve existing work, and select a fixed commit and explicit patches. The investigation retains its original proposed baseline."
+}

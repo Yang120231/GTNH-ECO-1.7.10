@@ -4,9 +4,7 @@ import net.minecraft.block.Block;
 import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import cn.dancingsnow.neoecoae.block.BlockModelDrive;
-import cn.dancingsnow.neoecoae.block.BlockModernModel;
-import cn.dancingsnow.neoecoae.multiblock.ECOFormationVisibility;
+import cn.dancingsnow.neoecoae.platform.render.ModelRenderBridge;
 
 final class ModelLightSampler {
 
@@ -69,12 +67,12 @@ final class ModelLightSampler {
     }
 
     private static boolean isVisualSelfOrHidden(IBlockAccess world, int x, int y, int z) {
-        if (ECOFormationVisibility.isHidden(world, x, y, z)) {
+        if (ModelRenderBridge.isHidden(world, x, y, z)) {
             return true;
         }
 
         Block sampleBlock = world.getBlock(x, y, z);
-        return sampleBlock instanceof BlockModernModel || sampleBlock instanceof BlockModelDrive;
+        return ModelRenderBridge.isModelBlock(sampleBlock);
     }
 
     private static int floor(double value) {

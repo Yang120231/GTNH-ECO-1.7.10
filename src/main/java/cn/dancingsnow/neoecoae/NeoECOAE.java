@@ -3,12 +3,12 @@ package cn.dancingsnow.neoecoae;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import cn.dancingsnow.neoecoae.platform.forge.CommonProxy;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
 @Mod(
     modid = NeoECOAE.MODID,
@@ -24,7 +24,9 @@ public class NeoECOAE {
     @Mod.Instance(MODID)
     public static NeoECOAE instance;
 
-    @SidedProxy(clientSide = "cn.dancingsnow.neoecoae.ClientProxy", serverSide = "cn.dancingsnow.neoecoae.CommonProxy")
+    @SidedProxy(
+        clientSide = "cn.dancingsnow.neoecoae.platform.forge.ClientProxy",
+        serverSide = "cn.dancingsnow.neoecoae.platform.forge.CommonProxy")
     public static CommonProxy proxy;
 
     @Mod.EventHandler
@@ -40,10 +42,5 @@ public class NeoECOAE {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
-    }
-
-    @Mod.EventHandler
-    public void serverStarting(FMLServerStartingEvent event) {
-        proxy.serverStarting(event);
     }
 }
