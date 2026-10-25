@@ -54,3 +54,35 @@ dependencies {
 tasks.test {
     useJUnitPlatform()
 }
+
+val verifyMigratedSourceCoverage by tasks.registering {
+    group = "verification"
+    description = "Verify every imported business and test source is included in its real JavaCompile task."
+    dependsOn(tasks.named("compileJava"), tasks.named("compileTestJava"))
+    inputs.file("porting/source-lock.json")
+    doLast {
+        val lock = groovy.json.JsonSlurper().parse(file("porting/source-lock.json")) as Map<*, *>
+        val imported = lock["imported"] as List<*>
+        for (value in imported) {
+            val entry = value as Map<*, *>
+            val kind = entry["kind"] as String
+            if (kind != "business" && kind != "test") continue
+            val target = file(entry["target"] as String).canonicalFile
+            val taskName = if (kind == "test") "compileTestJava" else "compileJava"
+            val compilation = tasks.named<JavaCompile>(taskName).get()
+            check(compilation.source.files.any { it.canonicalFile == target }) {
+                "Imported source excluded from $taskName: $target"
+            }
+            check(target.isFile) { "Missing imported source: $target" }
+            if (target.name != "package-info.java") {
+                val base = if (kind == "test") "src/test/java/" else "src/main/java/"
+                val classPath = (entry["target"] as String).removePrefix(base).removeSuffix(".java") + ".class"
+                check(compilation.destinationDirectory.file(classPath).get().asFile.isFile) {
+                    "No compiled class for imported source: $target"
+                }
+            }
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyMigratedSourceCoverage) }

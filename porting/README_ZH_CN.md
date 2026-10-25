@@ -1,4 +1,27 @@
-# 当前骨架与后续接入
+# 当前移植状态与基础清理历史
+
+2026-10-25 已进入正式业务导入。最新阶段已有 213 个业务文件、27 个来源测试文件，189 项测试与真实存储客户端网络往返通过，详情见 [存储阶段记录](MILESTONE_STORAGE_20261025_ZH_CN.md)。核心物品按用户排除大型工作站专用升级卡后为 65 项。完整移植与三件套下单存档仍在进行，其他机器尚未全部接入。来源见 [source-lock.json](source-lock.json)；旧 `business-import-state.json` 在本批完整构建/JAR 审计刷新前仅代表此前批次。
+
+导入流程：
+
+    python porting/import_business.py
+    python porting/expand_imports.py
+    ./gradlew.bat spotlessApply --offline --console=plain
+    python porting/import_business.py --refresh-manifest
+    ./gradlew.bat test build --offline --console=plain
+    python porting/audit_business_import.py
+
+默认编译覆盖全部已迁入源码。导入脚本拒绝覆盖与既有清单哈希不符的未记录工作；--refresh-manifest 只记录审查后的结果，不覆盖源码。来源采用固定 Git 提交，不读取工作区补丁作为默认输入。
+
+专服复现使用独立的 run/porting-acceptance 目录，准备既有同版本 EULA 配置及仅监听本机的 server.properties 后执行：
+
+    ./gradlew.bat -I porting/run-acceptance.init.gradle runServer --mcArgs=nogui --mcJvmArgs=-Dneoecoae.portingAcceptance=true --offline --console=plain
+
+服务器进入世界后依次执行 neoecoae_port_check storage、save-all、stop；重启同一世界再执行 neoecoae_port_check reload、stop。验收命令仅在显式 JVM 属性启用时注册，权限等级 4。它验证真实盘 API、配方数据、同步值和保存重载，不代表完整主机页面或玩家手势已验收。
+
+## 以下为基础清理结束时的历史快照
+
+下文“业务尚未导入”、16 个源码及原始 JAR 数量均属于基础清理时的状态，不再代表当前工程规模。11 个模型文件继续按该快照哈希保留。
 
 清理日期：2026-10-25。当前目录只包含构建环境、Forge 启动入口和现代模型链路，主体业务与新资源尚未导入。
 

@@ -1,18 +1,21 @@
 {
   "schema_version": 1,
-  "status": "foundation_verified_business_import_not_started",
+  "status": "business_import_in_progress",
   "foundation_state": "../../porting/foundation-state.json",
+  "source_lock": "../../porting/source-lock.json",
+  "business_import_state": "../../porting/business-import-state.json",
+  "progress": "../../porting/PROGRESS_ZH_CN.md",
   "observed_date": "2026-10-25",
   "primary_source": {
     "repository": "E:/Minecraft Project/NeoECOAEExtension-1.21.1",
     "branch": "main",
-    "commit": "f7dce13c8de6b738a4d9d1471ebe5ecf11e1ab4d",
+    "commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
     "version": "21.2.10",
-    "policy": "Use a fixed source commit and explicitly selected patches; existing dirty work is listed separately in investigation-evidence.json."
+    "policy": "Current fixed input and unselected working-tree patches are recorded in ../../porting/source-lock.json. No source working-tree patches were selected in this batch."
   },
   "reference_port": {
     "repository": "E:/Minecraft Project/NeoECOAEExtension-1.20.1",
-    "commit": "311288ceffd63698e581e3241831927bb48e7749",
+    "commit": "36dada343abff7533f63cce0d5729950342488f5",
     "purpose": "Platform organization and interface facade reference; its approved source lock and ongoing work are unchanged."
   },
   "legacy_source_policy": {
@@ -99,10 +102,10 @@
   ],
   "source_path_note": "Business Java paths are relative to src/main/java/cn/dancingsnow/neoecoae unless explicitly prefixed with src/.",
   "phases": [
-    {"id": "P0", "deliverable": "Fixed input manifest, high-version business/resource/test import and legacy model allowlist", "state": "planned"},
-    {"id": "P1", "deliverable": "Java 8, world/NBT/registry/key/grid/network and minimal MUI2 facade contracts", "state": "planned"},
-    {"id": "P2", "deliverable": "Storage vertical path from cells and host through native AE2/UI to save and reload", "state": "planned"},
-    {"id": "P3", "deliverable": "Complete high-version crafting and computation with target submission/confirmation/CPU hooks", "state": "planned"},
+    {"id": "P0", "deliverable": "Fixed input manifest, high-version business/resource/test import and legacy model allowlist", "state": "in_progress", "progress_detail": "Fixed source and resource manifest; 158 business files and 15 source tests imported; remaining source paths explicitly tracked."},
+    {"id": "P1", "deliverable": "Java 8, world/NBT/registry/key/grid/network and minimal MUI2 facade contracts", "state": "in_progress", "progress_detail": "Used storage/planning adapters compile; typed MUI2 values load on dedicated Java 8 server; complete world/UI facade remains pending."},
+    {"id": "P2", "deliverable": "Storage vertical path from cells and host through native AE2/UI to save and reload", "state": "in_progress", "progress_detail": "Six standard native cells and exact world-domain save/restart verified; ECO hosts, multiblock/grid lifecycle and pages remain pending."},
+    {"id": "P3", "deliverable": "Complete high-version crafting and computation with target submission/confirmation/CPU hooks", "state": "in_progress", "progress_detail": "115 planning files and algorithm regressions imported; native request/confirmation/CPU execution and computation remain pending."},
     {"id": "P4", "deliverable": "Workstations, multiblocks, recipes, construction and associated pages", "state": "planned"},
     {"id": "P5", "deliverable": "Addon compatibility table, NEI/information integration and complete runtime/package acceptance", "state": "planned"}
   ],

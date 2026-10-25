@@ -1,0 +1,8 @@
+[14:28:22] [main/INFO] [FML/]: Java is OpenJDK 64-Bit Server VM, version 1.8.0_492, running on Windows 11:amd64:10.0, installed at C:\Users\hnhjy\.gradle\jdks\azul_systems__inc_-8-amd64-windows.2\jre
+[14:28:38] [Server thread/INFO] [FML/]: Forge Mod Loader has successfully loaded 24 mods
+[14:30:08] [Server thread/INFO] [FML/]: Unloading dimension 0
+[14:30:08] [Server thread/INFO] [FML/]: Unloading dimension -1
+[14:30:08] [Server thread/INFO] [FML/]: Unloading dimension 1
+[14:28:38] [Server thread/INFO]: Done (0.295s)! For help, type "help" or "?"
+[14:29:05] [Server thread/INFO]: NEOECOAE_PORT_ACCEPTANCE_OK mode=reload cells=6 channels=items,fluids exact=10000000000000000000000000000000000000048 receipt=240fc6ae-de38-39b6-8465-eba5daae240b
+[14:30:08] [Server thread/INFO]: Stopping server

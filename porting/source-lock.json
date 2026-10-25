@@ -5,7 +5,7 @@
     "repository": "E:\\Minecraft Project\\NeoECOAEExtension-1.21.1",
     "commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
     "selected_patches": [],
-    "working_tree_status": " M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/bridge/AE2CraftingPlanBridge.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/provenance/MaterialProvenance.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ComponentPlanner.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ExternalDemandPlanner.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteAvailabilityProof.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteSearch.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/trace/PlannerDiagnostic.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuSelector.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuStatusPanel.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/CpuSelectionState.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/crafting/CraftingPatternPreviewState.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/crafting/PatternPreviewRows.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ComponentExternalDemandCacheTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/CycleRouteCompletenessReviewTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ExternalDemandCacheTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ReachableRouteSearchTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteAvailabilityPruningTest.java\n M src/test/java/cn/dancingsnow/neoecoae/gui/computation/CpuSelectionStateTest.java\n M src/test/java/cn/dancingsnow/neoecoae/gui/crafting/CraftingPatternPreviewStateTest.java\n M src/test/java/cn/dancingsnow/neoecoae/gui/crafting/PatternPreviewRowsTest.java\n?? docs/PLANNER_PERFORMANCE_OPTIMIZATION_ZH_CN.md\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/OptimisticSupplyModel.java\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteQuantityProof.java\n?? src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationScrollPage.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/planner/provenance/MaterialProvenanceIndexTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteFallbackRepairTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteQuantityProofTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationScrollPageTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationScrollRenderingTest.java\n",
+    "working_tree_status": " M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/bridge/AE2CraftingPlanBridge.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/provenance/MaterialProvenance.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ComponentPlanner.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ExternalDemandPlanner.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteAvailabilityProof.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteSearch.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/planner/trace/PlannerDiagnostic.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuSelector.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuStatusPanel.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/CpuSelectionState.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/crafting/CraftingPatternPreviewState.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/crafting/PatternPreviewRows.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ComponentExternalDemandCacheTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/CycleRouteCompletenessReviewTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ExternalDemandCacheTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ReachableRouteSearchTest.java\n M src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteAvailabilityPruningTest.java\n M src/test/java/cn/dancingsnow/neoecoae/gui/computation/CpuSelectionStateTest.java\n M src/test/java/cn/dancingsnow/neoecoae/gui/crafting/CraftingPatternPreviewStateTest.java\n M src/test/java/cn/dancingsnow/neoecoae/gui/crafting/PatternPreviewRowsTest.java\n?? docs/PLANNER_PERFORMANCE_OPTIMIZATION_ZH_CN.md\n?? docs/PLANNER_ROUTE_FALLBACK_REPAIR_ZH_CN.md\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/OptimisticSupplyModel.java\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteQuantityProof.java\n?? src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationScrollPage.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/planner/provenance/MaterialProvenanceIndexTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteFallbackRepairTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/RouteQuantityProofTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationScrollPageTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationScrollRenderingTest.java\n",
     "unselected_patch_sha256": "0199c82e06110e6adbb321350296f973378641caf2edb61b73f1067127d62dfb"
   },
   "reference_port": {
@@ -776,7 +776,7 @@
       "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StoragePanelTextures.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StoragePanelTextures.java",
       "source_sha256": "0c4df7fe68e6ae5ce32c10cf6f2fe900d11e31fb26d17fba630644aca570feed",
-      "target_sha256": "cc6a51f77a63121f066fb4823ad6f5bf2df89177ee5d5b3789aa341bdc4aa81f",
+      "target_sha256": "ccf8bb60acce4a104cb84df99ab5add52a0256395cb3b0d401882fde585109e4",
       "kind": "business",
       "partial_source_scope": {
         "scope": "Source storage-channel palette and swatch identity used by page snapshots. Texture drawing remains a native MUI2 adapter.",
@@ -789,7 +789,12 @@
           "MATTER_SWATCH",
           "FALLBACK_SWATCH",
           "COLORS",
-          "swatchIndex"
+          "swatchIndex",
+          "ATLAS",
+          "id",
+          "sprite",
+          "swatch",
+          "resourceIcon"
         ],
         "extra_members": [
           "private StoragePanelTextures() {}"
@@ -807,14 +812,14 @@
       "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/storage/StorageCellUiExtraction.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/storage/StorageCellUiExtraction.java",
       "source_sha256": "e6426377a1af9f52295b97acfe0966721ddee0013b73a924a2e1a50201358f20",
-      "target_sha256": "ca380ff0acd5bdc86f52127ce3cbb91ef6e4558729309514750365744bda6b9f",
+      "target_sha256": "c705dd4f71a4af581f6b9388b4a8a7c2d0aa904133748b62c79ff3ea52b24207",
       "kind": "business"
     },
     {
       "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/storage/StorageCellUiInsertion.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/storage/StorageCellUiInsertion.java",
       "source_sha256": "173d4fe9b56f8562949aa0aaf15968b0f46cd2ab4da671a88cd7a5785e7be6e6",
-      "target_sha256": "b888804ca05f6b5cade9ebf09faef70476cc062cd87143c93463b63894e426b0",
+      "target_sha256": "ed0fb06a7c6191a8385fe136def18a21e674498682c34af962ea6499f71d0fbf",
       "kind": "business"
     },
     {
@@ -864,7 +869,7 @@
       "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageCellGrid.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageCellGrid.java",
       "source_sha256": "e37050e6a38c3f11d9eb412db4839f5d593b31f3b7eba7e9764f759aef987f10",
-      "target_sha256": "fd0c95cc88bf971ab6462c71c62ddf98d5422c54afbd6e30cb5d3f2b142fab3b",
+      "target_sha256": "330d5d5f62551b9d24d5c517adbe2400116fec3ef6cbcdaff3fafeb934e3d0dd",
       "kind": "business",
       "partial_source_scope": {
         "scope": "Source physical drive indexing and cell/page tooltips. Native display slots call the unchanged source extraction/insertion callbacks.",
@@ -1760,7 +1765,7 @@
       "source": "src/test/java/cn/dancingsnow/neoecoae/gui/storage/StoragePanelStateTest.java",
       "target": "src/test/java/cn/dancingsnow/neoecoae/gui/storage/StoragePanelStateTest.java",
       "source_sha256": "92bc1af43d6cc3aaa003071828ce98c88924e2759588ca32fe7a141409a735fb",
-      "target_sha256": "4a63fe55df44c6b2d4f819259f5564d970b694e537beffc4d69dab782ae9fa33",
+      "target_sha256": "1c0c748dfdce31163aeb18bf0427dc61b3d773c4a816ae81a494262ae214b860",
       "kind": "test"
     },
     {
@@ -1921,7 +1926,7 @@
       "source": "src/test/java/cn/dancingsnow/neoecoae/blocks/entity/storage/ECOInfiniteStorageAccessTest.java",
       "target": "src/test/java/cn/dancingsnow/neoecoae/blocks/entity/storage/ECOInfiniteStorageAccessTest.java",
       "source_sha256": "d1e05690231b758011ce7fb2cfbbb2a9c7a4a289debb017af5fd5b6045b42336",
-      "target_sha256": "fe3c1ee13e17abbe42a8af517e36edc22dcf1e5528281d38493df5eaf0d775b6",
+      "target_sha256": "5a55eb2e2f3ece656770c1faaf6e89e83d2e58ae97dc3b4dcc3ff07f5bc5cbf4",
       "kind": "test"
     },
     {

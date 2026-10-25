@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "status": "business_import_in_progress",
+  "verified_at": "2026-10-25T07:08:23.917369+00:00",
+  "source_lock": "source-lock.json",
+  "branch": "codex/1710-port-foundation",
+  "target_base": "c420141d7604990e2989bd26b8af7d67bbadb6c7",
+  "primary_source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "selected_source_patches": [],
+  "imported": {
+    "business": 158,
+    "test": 15,
+    "resource": 2066,
+    "platform_resource_alias": 592
+  },
+  "pending_source_paths": 795,
+  "main_java": 235,
+  "test_java": 22,
+  "preserved_model_files": 11,
+  "preserved_model_hash_changes": [],
+  "tests": {
+    "tests": 118,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "test_suites": [
+    {
+      "name": "cn.dancingsnow.neoecoae.client.render.model.ModelRenderLayerTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.display.format.ExactAmountFormatterTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleBoundaryImportCapTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleCompletenessReviewTest",
+      "tests": 7
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleResourceRegressionTest",
+      "tests": 10
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleStateEquationTest",
+      "tests": 12
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.ExactGrowthRingTest",
+      "tests": 10
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.RepeatableCycleGrowthTest",
+      "tests": 12
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudgetTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.graph.TarjanSccAnalyzerTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.provenance.MaterialProvenanceTest",
+      "tests": 7
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ComponentExternalDemandCacheTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CycleFailureCacheTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ExternalDemandCacheTest",
+      "tests": 9
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.JointOrderedProposalTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageDurabilityTest",
+      "tests": 9
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.FiniteStorageContractTest",
+      "tests": 8
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.PlatformContractTest",
+      "tests": 8
+    }
+  ],
+  "build_log": "build/porting-build.log",
+  "artifacts": [
+    {
+      "path": "build/libs/neoecoae-0.1.0-porting-dev.jar",
+      "bytes": 2841997,
+      "sha256": "0d03f1a232daccb91ab0e0a290efc0e98d01958cc576faae913655d52ad74345",
+      "classes": 436,
+      "classfile_major_counts": {
+        "52": 436
+      },
+      "entries": 3363
+    },
+    {
+      "path": "build/libs/neoecoae-0.1.0-porting-sources.jar",
+      "bytes": 2279678,
+      "sha256": "036c27ec9bfc291a437192059cf89573c8063844133e6afd0fe201af253f105c",
+      "classes": 0,
+      "classfile_major_counts": {},
+      "entries": 3171
+    },
+    {
+      "path": "build/libs/neoecoae-0.1.0-porting.jar",
+      "bytes": 2891475,
+      "sha256": "f5c4bac781693b91f3e8d6dddc3fd64d110548688d49d823c89813b73d278b7a",
+      "classes": 436,
+      "classfile_major_counts": {
+        "52": 436
+      },
+      "entries": 3363
+    }
+  ],
+  "server_acceptance": [
+    {
+      "kind": "initial-storage",
+      "source": "build/porting-server-first.log",
+      "source_sha256": "df2251c22221844588a2eb30fb924db9056190c97d09f8c3ddb7028f00fb7067",
+      "minecraft_source": "build/porting-server-first-minecraft.log",
+      "minecraft_source_sha256": "b6d902b590cf2cd72699ca4026c694f74c420aed38bb81d13ca8cf2a2b3bc830",
+      "excerpt": "porting/acceptance/initial-storage.log",
+      "resolved_runtime_versions": {
+        "Applied-Energistics-2-Unofficial": [
+          "rv3-beta-990-GTNH"
+        ],
+        "ModularUI2": [
+          "2.3.49-1.7.10"
+        ],
+        "GTNHLib": []
+      }
+    },
+    {
+      "kind": "restart-reload",
+      "source": "build/porting-server-reload.log",
+      "source_sha256": "3be0927a45e0e5be10702310b7fd7a1e443c289f21f0e6d9d567a2567add0feb",
+      "minecraft_source": "build/porting-server-reload-minecraft.log",
+      "minecraft_source_sha256": "6604795792f4df89286f73497aeec3734d7268ff026f78112ef963671c57969c",
+      "excerpt": "porting/acceptance/restart-reload.log",
+      "resolved_runtime_versions": {
+        "Applied-Energistics-2-Unofficial": [
+          "rv3-beta-990-GTNH"
+        ],
+        "ModularUI2": [
+          "2.3.49-1.7.10"
+        ],
+        "GTNHLib": []
+      }
+    },
+    {
+      "kind": "final-storage-recipes-mui2",
+      "source": "build/porting-server-current.log",
+      "source_sha256": "8760eea158734951e24bd191099397c901660d4d8b1a617c0e7341ba2d6f46a6",
+      "minecraft_source": "build/porting-server-current-minecraft.log",
+      "minecraft_source_sha256": "2080de48f08f4f31f9603d5bf95fd1880929e9de7ead1ad3079d094c9d2528d3",
+      "excerpt": "porting/acceptance/final-storage-recipes-mui2.log",
+      "resolved_runtime_versions": {
+        "Applied-Energistics-2-Unofficial": [
+          "rv3-beta-990-GTNH"
+        ],
+        "ModularUI2": [
+          "2.3.49-1.7.10"
+        ],
+        "GTNHLib": []
+      }
+    }
+  ],
+  "outstanding": [
+    "ECO host/drive multiblock state and native grid lifecycle",
+    "Native planner request/confirmation and CPU execution hooks",
+    "Computation and workstation business modules",
+    "Complete high-version MUI2 pages, native slot gestures and render-state binding",
+    "Full recipe chain, addon mapping, NEI, client visuals and ordinary installation"
+  ]
+}
