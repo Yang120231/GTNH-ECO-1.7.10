@@ -34,6 +34,11 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
     }
 
     @Override
+    public net.minecraft.item.EnumRarity getRarity(ItemStack stack) {
+        return CoreItemCatalog.rarity(this);
+    }
+
+    @Override
     public StorageTierDescriptor getTier() {
         return tier;
     }
@@ -46,6 +51,10 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
     @Override
     public long getBytes() {
         return tier.getStorageTotalBytes();
+    }
+
+    public boolean isLegacyBulk() {
+        return bulk;
     }
 
     @Override

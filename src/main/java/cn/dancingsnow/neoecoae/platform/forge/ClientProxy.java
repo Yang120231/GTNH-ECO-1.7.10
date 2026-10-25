@@ -10,6 +10,7 @@ public class ClientProxy extends CommonProxy {
         super.preInit(event);
         ModelRenderBridge.reset();
         cn.dancingsnow.neoecoae.platform.render.NativeMachineRendering.install();
+        cn.dancingsnow.neoecoae.platform.render.NativeMaterialBlockRendering.install();
         cn.dancingsnow.neoecoae.platform.render.NativeModelItems.install();
     }
 

@@ -50,7 +50,7 @@ public class NativeMaterialItem extends Item {
 
     @Override
     public net.minecraft.item.EnumRarity getRarity(net.minecraft.item.ItemStack stack) {
-        return "eco_infinite_cell_component".equals(id) ? net.minecraft.item.EnumRarity.epic : super.getRarity(stack);
+        return CoreItemCatalog.rarity(this);
     }
 
     @Override

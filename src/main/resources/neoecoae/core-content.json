@@ -18,6 +18,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_empty",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -28,6 +30,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_advanced_ae",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -38,6 +42,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_extendedae",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -48,6 +54,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_ae2cs",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -58,6 +66,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_aelt",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -68,6 +78,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_data_energistics",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -78,6 +90,8 @@
       "factory": "Item",
       "id": "integrated_working_station_module_appgen",
       "kind": "workstation_module",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": false,
       "exclusion": "User excludes upgrade card registration for the large integrated workstation; porting/content-overrides.json"
@@ -90,6 +104,10 @@
       "kind": "tool",
       "tool": "axe",
       "tier": "ALUMINUM",
+      "attack_base": 6.0,
+      "attack_speed": -3.2,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -101,6 +119,10 @@
       "kind": "tool",
       "tool": "hoe",
       "tier": "ALUMINUM",
+      "attack_base": 0.0,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -112,6 +134,10 @@
       "kind": "tool",
       "tool": "shovel",
       "tier": "ALUMINUM",
+      "attack_base": 1.5,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -123,6 +149,10 @@
       "kind": "tool",
       "tool": "pickaxe",
       "tier": "ALUMINUM",
+      "attack_base": 1.0,
+      "attack_speed": -2.8,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -134,6 +164,10 @@
       "kind": "tool",
       "tool": "sword",
       "tier": "ALUMINUM",
+      "attack_base": 3.0,
+      "attack_speed": -2.4,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -145,6 +179,10 @@
       "kind": "tool",
       "tool": "axe",
       "tier": "TUNGSTEN",
+      "attack_base": 6.0,
+      "attack_speed": -3.2,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -156,6 +194,10 @@
       "kind": "tool",
       "tool": "hoe",
       "tier": "TUNGSTEN",
+      "attack_base": 0.0,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -167,6 +209,10 @@
       "kind": "tool",
       "tool": "shovel",
       "tier": "TUNGSTEN",
+      "attack_base": 1.5,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -178,6 +224,10 @@
       "kind": "tool",
       "tool": "pickaxe",
       "tier": "TUNGSTEN",
+      "attack_base": 1.0,
+      "attack_speed": -2.8,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -189,6 +239,10 @@
       "kind": "tool",
       "tool": "sword",
       "tier": "TUNGSTEN",
+      "attack_base": 3.0,
+      "attack_speed": -2.4,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -199,6 +253,8 @@
       "id": "aluminum_alloy_upgrade_smithing_template",
       "kind": "smithing_template",
       "tier": "ALUMINUM_ALLOY",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -210,6 +266,10 @@
       "kind": "tool",
       "tool": "axe",
       "tier": "ALUMINUM_ALLOY",
+      "attack_base": 6.0,
+      "attack_speed": -3.2,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -221,6 +281,10 @@
       "kind": "tool",
       "tool": "hoe",
       "tier": "ALUMINUM_ALLOY",
+      "attack_base": 0.0,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -232,6 +296,10 @@
       "kind": "tool",
       "tool": "shovel",
       "tier": "ALUMINUM_ALLOY",
+      "attack_base": 1.5,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -243,6 +311,10 @@
       "kind": "tool",
       "tool": "pickaxe",
       "tier": "ALUMINUM_ALLOY",
+      "attack_base": 1.0,
+      "attack_speed": -2.8,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -254,6 +326,10 @@
       "kind": "tool",
       "tool": "sword",
       "tier": "ALUMINUM_ALLOY",
+      "attack_base": 3.0,
+      "attack_speed": -2.4,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -264,6 +340,8 @@
       "id": "black_tungsten_alloy_upgrade_smithing_template",
       "kind": "smithing_template",
       "tier": "BLACK_TUNGSTEN_ALLOY",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -275,6 +353,10 @@
       "kind": "tool",
       "tool": "axe",
       "tier": "BLACK_TUNGSTEN_ALLOY",
+      "attack_base": 6.0,
+      "attack_speed": -3.2,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -286,6 +368,10 @@
       "kind": "tool",
       "tool": "hoe",
       "tier": "BLACK_TUNGSTEN_ALLOY",
+      "attack_base": 0.0,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -297,6 +383,10 @@
       "kind": "tool",
       "tool": "shovel",
       "tier": "BLACK_TUNGSTEN_ALLOY",
+      "attack_base": 1.5,
+      "attack_speed": -3.0,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -308,6 +398,10 @@
       "kind": "tool",
       "tool": "pickaxe",
       "tier": "BLACK_TUNGSTEN_ALLOY",
+      "attack_base": 1.0,
+      "attack_speed": -2.8,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -319,6 +413,10 @@
       "kind": "tool",
       "tool": "sword",
       "tier": "BLACK_TUNGSTEN_ALLOY",
+      "attack_base": 3.0,
+      "attack_speed": -2.4,
+      "rarity": "COMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -328,6 +426,8 @@
       "factory": "MaterialItem",
       "id": "iron_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -337,6 +437,8 @@
       "factory": "MaterialItem",
       "id": "raw_aluminum_ore",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -346,6 +448,8 @@
       "factory": "MaterialItem",
       "id": "aluminum_ingot",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -355,6 +459,8 @@
       "factory": "MaterialItem",
       "id": "aluminum_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -364,6 +470,8 @@
       "factory": "MaterialItem",
       "id": "raw_tungsten_ore",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -373,6 +481,8 @@
       "factory": "MaterialItem",
       "id": "tungsten_ingot",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -382,6 +492,8 @@
       "factory": "MaterialItem",
       "id": "tungsten_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -391,6 +503,8 @@
       "factory": "MaterialItem",
       "id": "aluminum_alloy_ingot",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -400,6 +514,8 @@
       "factory": "MaterialItem",
       "id": "aluminum_alloy_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -409,6 +525,8 @@
       "factory": "MaterialItem",
       "id": "black_tungsten_alloy_ingot",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -418,6 +536,8 @@
       "factory": "MaterialItem",
       "id": "black_tungsten_alloy_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -427,6 +547,8 @@
       "factory": "MaterialItem",
       "id": "energized_crystal",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -436,6 +558,8 @@
       "factory": "MaterialItem",
       "id": "energized_crystal_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -445,6 +569,8 @@
       "factory": "MaterialItem",
       "id": "energized_fluix_crystal",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -454,6 +580,8 @@
       "factory": "MaterialItem",
       "id": "energized_fluix_crystal_dust",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -463,6 +591,8 @@
       "factory": "MaterialItem",
       "id": "crystal_ingot",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -472,6 +602,8 @@
       "factory": "MaterialItem",
       "id": "crystal_matrix",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -481,6 +613,8 @@
       "factory": "MaterialItem",
       "id": "energized_superconductive_ingot",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -490,6 +624,8 @@
       "factory": "MaterialItem",
       "id": "cryotheum",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -499,6 +635,8 @@
       "factory": "MaterialItem",
       "id": "cryotheum_crystal",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -508,6 +646,8 @@
       "factory": "MaterialItem",
       "id": "superconducting_processor_press",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -517,6 +657,8 @@
       "factory": "MaterialItem",
       "id": "superconducting_processor_print",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -526,6 +668,8 @@
       "factory": "MaterialItem",
       "id": "superconducting_processor",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -535,6 +679,8 @@
       "factory": "MaterialItem",
       "id": "eco_cell_component_16m",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -544,6 +690,8 @@
       "factory": "MaterialItem",
       "id": "eco_cell_component_64m",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -553,6 +701,8 @@
       "factory": "MaterialItem",
       "id": "eco_cell_component_256m",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -562,6 +712,8 @@
       "factory": "Item",
       "id": "eco_infinite_cell_component",
       "kind": "infinite_component",
+      "rarity": "EPIC",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -571,6 +723,8 @@
       "factory": "MaterialItem",
       "id": "eco_item_cell_housing",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -580,6 +734,8 @@
       "factory": "MaterialItem",
       "id": "eco_bulk_item_cell_housing",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -589,6 +745,8 @@
       "factory": "MaterialItem",
       "id": "eco_fluid_cell_housing",
       "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
       "creative": true,
       "enabled": true
     },
@@ -598,6 +756,8 @@
       "factory": "ECOStorageCellItem",
       "id": "eco_item_storage_cell_16m",
       "kind": "ECOStorageCellItem",
+      "rarity": "UNCOMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -607,6 +767,8 @@
       "factory": "ECOStorageCellItem",
       "id": "eco_item_storage_cell_64m",
       "kind": "ECOStorageCellItem",
+      "rarity": "RARE",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -616,6 +778,8 @@
       "factory": "ECOStorageCellItem",
       "id": "eco_item_storage_cell_256m",
       "kind": "ECOStorageCellItem",
+      "rarity": "EPIC",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -626,6 +790,8 @@
       "id": "eco_bulk_item_cell_16m",
       "component": "eco_cell_component_16m",
       "kind": "ECOStorageCellItem",
+      "rarity": "UNCOMMON",
+      "stack_limit": 1,
       "creative": false,
       "enabled": true
     },
@@ -636,6 +802,8 @@
       "id": "eco_bulk_item_cell_64m",
       "component": "eco_cell_component_64m",
       "kind": "ECOStorageCellItem",
+      "rarity": "RARE",
+      "stack_limit": 1,
       "creative": false,
       "enabled": true
     },
@@ -646,6 +814,8 @@
       "id": "eco_bulk_item_cell_256m",
       "component": "eco_cell_component_256m",
       "kind": "ECOStorageCellItem",
+      "rarity": "EPIC",
+      "stack_limit": 1,
       "creative": false,
       "enabled": true
     },
@@ -655,6 +825,8 @@
       "factory": "ECOInfiniteResourceCellItem",
       "id": "eco_infinite_item_cell",
       "kind": "ECOInfiniteResourceCellItem",
+      "rarity": "EPIC",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -664,6 +836,8 @@
       "factory": "ECOStorageCellItem",
       "id": "eco_fluid_storage_cell_16m",
       "kind": "ECOStorageCellItem",
+      "rarity": "UNCOMMON",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -673,6 +847,8 @@
       "factory": "ECOStorageCellItem",
       "id": "eco_fluid_storage_cell_64m",
       "kind": "ECOStorageCellItem",
+      "rarity": "RARE",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -682,6 +858,8 @@
       "factory": "ECOStorageCellItem",
       "id": "eco_fluid_storage_cell_256m",
       "kind": "ECOStorageCellItem",
+      "rarity": "EPIC",
+      "stack_limit": 1,
       "creative": true,
       "enabled": true
     },
@@ -691,6 +869,8 @@
       "factory": "ECOComputationCellItem",
       "id": "eco_computation_cell_l4",
       "kind": "ECOComputationCellItem",
+      "rarity": "UNCOMMON",
+      "stack_limit": 8,
       "creative": true,
       "enabled": true
     },
@@ -700,6 +880,8 @@
       "factory": "ECOComputationCellItem",
       "id": "eco_computation_cell_l6",
       "kind": "ECOComputationCellItem",
+      "rarity": "RARE",
+      "stack_limit": 8,
       "creative": true,
       "enabled": true
     },
@@ -709,6 +891,8 @@
       "factory": "ECOComputationCellItem",
       "id": "eco_computation_cell_l9",
       "kind": "ECOComputationCellItem",
+      "rarity": "EPIC",
+      "stack_limit": 8,
       "creative": true,
       "enabled": true
     }
@@ -745,6 +929,6 @@
   },
   "target_overrides": {
     "path": "porting/content-overrides.json",
-    "sha256": "a447aa81e947004b7e6fccab3c5a47c800fb6fe0e27534e6cbf4c987c524d327"
+    "sha256": "970731a7a5f96b32dc57d390690ab96dfc6ef5ca3666f783fe40ec2b87190818"
   }
 }

@@ -63,7 +63,7 @@
     },
     {
       "target": "src/main/resources/neoecoae/core-content.json",
-      "target_sha256": "1ccf2aabe206328ecf4b7a3213803e3fd6008dc25262ab13c8764519e474ec9a",
+      "target_sha256": "bb8549c10c50988c668301c54bfe0b6eb75f13d8b671d51c82e8600f5c56e8ad",
       "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
       "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
       "members": [

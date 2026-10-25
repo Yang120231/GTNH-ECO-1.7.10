@@ -37,21 +37,6 @@ public final class StorageRecipes {
                 assembly.get("type")
                     .getAsString()))
                 throw new IllegalStateException("Unexpected assembly recipe for " + id);
-            List<Object> inputs = new ArrayList<>();
-            for (JsonElement ingredient : assembly.getAsJsonArray("ingredients")) inputs.add(
-                stack(
-                    ingredient.getAsJsonObject()
-                        .get("item")
-                        .getAsString(),
-                    1));
-            JsonObject result = assembly.getAsJsonObject("result");
-            GameRegistry.addShapelessRecipe(
-                stack(
-                    result.get("id")
-                        .getAsString(),
-                    result.get("count")
-                        .getAsInt()),
-                inputs.toArray());
             JsonObject disassembly = read("disassembly/" + id);
             if (!"ae2:storage_cell_disassembly".equals(
                 disassembly.get("type")
@@ -81,6 +66,10 @@ public final class StorageRecipes {
         List<ItemStack> copies = new ArrayList<>();
         for (ItemStack stack : values) copies.add(stack.copy());
         return copies;
+    }
+
+    public static boolean hasDisassembly(String id) {
+        return id.startsWith("neoecoae:") && DISASSEMBLY.containsKey(NativeContent.item(id.substring(9)));
     }
 
     private static ItemStack stack(String id, int count) {

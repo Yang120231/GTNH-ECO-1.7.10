@@ -21,8 +21,13 @@ import com.google.gson.JsonParser;
 public final class CoreItemCatalog {
 
     private static final JsonObject DATA = load();
+    private static final Map<Item, net.minecraft.item.EnumRarity> RARITY = new java.util.IdentityHashMap<>();
 
     private CoreItemCatalog() {}
+
+    public static net.minecraft.item.EnumRarity rarity(Item item) {
+        return RARITY.getOrDefault(item, net.minecraft.item.EnumRarity.common);
+    }
 
     private static JsonObject load() {
         var stream = CoreItemCatalog.class.getResourceAsStream("/neoecoae/core-content.json");
@@ -97,22 +102,54 @@ public final class CoreItemCatalog {
                 entry.get("tier")
                     .getAsString()));
         Item item;
+        double attack = material.getDamageVsEntity() + entry.get("attack_base")
+            .getAsDouble();
         switch (entry.get("tool")
             .getAsString()) {
             case "axe":
-                item = new ItemAxe(material) {};
+                item = new ItemAxe(material) {
+
+                    @Override
+                    public com.google.common.collect.Multimap getItemAttributeModifiers() {
+                        return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
+                    }
+                };
                 break;
             case "hoe":
-                item = new ItemHoe(material);
+                item = new ItemHoe(material) {
+
+                    @Override
+                    public com.google.common.collect.Multimap getItemAttributeModifiers() {
+                        return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
+                    }
+                };
                 break;
             case "pickaxe":
-                item = new ItemPickaxe(material) {};
+                item = new ItemPickaxe(material) {
+
+                    @Override
+                    public com.google.common.collect.Multimap getItemAttributeModifiers() {
+                        return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
+                    }
+                };
                 break;
             case "shovel":
-                item = new ItemSpade(material);
+                item = new ItemSpade(material) {
+
+                    @Override
+                    public com.google.common.collect.Multimap getItemAttributeModifiers() {
+                        return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
+                    }
+                };
                 break;
             case "sword":
-                item = new ItemSword(material);
+                item = new ItemSword(material) {
+
+                    @Override
+                    public com.google.common.collect.Multimap getItemAttributeModifiers() {
+                        return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
+                    }
+                };
                 break;
             default:
                 throw new IllegalStateException("Unknown source tool: " + entry);
@@ -134,6 +171,15 @@ public final class CoreItemCatalog {
             Item item = NativeContent.item(id);
             if (item == null || cpw.mods.fml.common.registry.GameRegistry.findItem("neoecoae", id) != item)
                 throw new IllegalStateException("Missing native source item registration: " + id);
+            item.setMaxStackSize(
+                entry.get("stack_limit")
+                    .getAsInt());
+            RARITY.put(
+                item,
+                net.minecraft.item.EnumRarity.valueOf(
+                    entry.get("rarity")
+                        .getAsString()
+                        .toLowerCase(java.util.Locale.ROOT)));
             if (!entry.get("creative")
                 .getAsBoolean()) item.setCreativeTab(null);
         }

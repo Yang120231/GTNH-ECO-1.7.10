@@ -55,6 +55,11 @@ def main():
             entry["kind"] = "tool"
             entry["tool"] = factory.removesuffix("Item").lower()
             entry["tier"] = re.search(r"NEToolTier\.(\w+)", text)[1]
+            attributes = re.search(r"createAttributes\(NEToolTier\.\w+,\s*([\d.]+)[fF]?,\s*(-?[\d.]+)[fF]?\)", text)
+            if not attributes:
+                raise ValueError("Missing explicit tool attributes: " + member["name"])
+            entry["attack_base"] = float(attributes[1])
+            entry["attack_speed"] = float(attributes[2])
         elif factory == "SmithingTemplateItem":
             entry["kind"] = "smithing_template"
             entry["tier"] = member["name"].removesuffix("_UPGRADE_SMITHING_TEMPLATE")
@@ -66,6 +71,10 @@ def main():
             entry["kind"] = factory
         else:
             raise ValueError("Unclassified item factory: " + factory)
+        rarity = re.search(r"Rarity\.(\w+)", text)
+        entry["rarity"] = rarity[1] if rarity else "COMMON"
+        stack_limit = re.search(r"\.stacksTo\((\d+)\)", text)
+        entry["stack_limit"] = int(stack_limit[1]) if stack_limit else 8 if factory == "ECOComputationCellItem" else 1 if entry["kind"] == "tool" or "bulkItemCell(" in text else 64
         entry["creative"] = "bulkItemCell(" not in text
         entry["enabled"] = entry["kind"] != "workstation_module" or overrides["large_integrated_workstation"]["register_upgrade_cards"]
         if not entry["enabled"]:

@@ -8,6 +8,6 @@ public final class NativeMachineItemBlock extends net.minecraft.item.ItemBlock {
 
     @Override
     public String getUnlocalizedName(net.minecraft.item.ItemStack stack) {
-        return "block.neoecoae." + ((NativeMachineBlock) field_150939_a).model();
+        return "block.neoecoae." + ((NativeModelIdentity) field_150939_a).model();
     }
 }

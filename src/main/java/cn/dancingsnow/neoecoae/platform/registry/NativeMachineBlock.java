@@ -23,7 +23,7 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Property;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 
 /** Forge block identity, orientation metadata and tile factory. Formation stays in imported entities/calculators. */
-public class NativeMachineBlock extends BlockContainer implements NativeStateBlock {
+public class NativeMachineBlock extends BlockContainer implements NativeStateBlock, NativeModelIdentity {
 
     public static int renderId;
     public static final Property<Boolean> FORMED = Property.bool("formed"), INVISIBLE = Property.bool("invisible"),

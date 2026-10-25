@@ -183,7 +183,8 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
 
     @Override
     public boolean isModelBlock(Block block) {
-        return block instanceof NativeMachineBlock;
+        return block instanceof NativeMachineBlock
+            || block instanceof cn.dancingsnow.neoecoae.platform.registry.NativeSimpleModelBlock;
     }
 
     private static final class BlockModels {
