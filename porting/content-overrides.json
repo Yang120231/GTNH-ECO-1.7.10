@@ -1,5 +1,12 @@
 {
   "schema_version": 1,
+  "optional_integrations": {
+    "enabled": false,
+    "source": "User instruction on 2026-10-25: 不需要迁移联动盘，所有联动的部分都不用。因为1.7.10没有任何联动内容",
+    "scope": "Exclude all optional mod cells, machines, recipes, assets, compatibility code and mixins. Forge, GTNH AE2 and MUI2 are required platform dependencies. GT machines and native AE2 pattern providers remain part of the requested test world. Native NEI presentation is a platform adaptation.",
+    "rules": "import_scope.py",
+    "retain_core_fallback_recipes": true
+  },
   "large_integrated_workstation": {
     "register_upgrade_cards": false,
     "require_upgrade_cards": false,

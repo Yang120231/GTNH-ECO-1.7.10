@@ -19,8 +19,6 @@ import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageEngine;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyTypes;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.CellState;
-import cn.dancingsnow.neoecoae.platform.ae2.storage.OptionalCellPower;
-import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 import cn.dancingsnow.neoecoae.platform.registry.Registry;
 import cn.dancingsnow.neoecoae.platform.registry.StorageRegistries;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTiers;
@@ -204,7 +202,7 @@ final class ECOStorageHostStatistics {
         }
         Map<Integer, StorageTypeTotals> storageTypes = new HashMap<>();
         List<StorageHostUI.CellEntry> cellEntries = new ArrayList<>();
-        boolean hasSingularity = false;
+
         driveUiSnapshots.keySet()
             .retainAll(
                 host.getCluster()
@@ -236,7 +234,7 @@ final class ECOStorageHostStatistics {
                         .getTier())
                 >= 0;
             if (supported) {
-                hasSingularity |= OptionalCellPower.isSingularity(stack);
+
                 if (appliedDrivePower < 0) energyConsumePerTick = NEMath.saturatingAdd(
                     energyConsumePerTick,
                     Math.max(
@@ -284,16 +282,6 @@ final class ECOStorageHostStatistics {
         }
         if (host.isFormedInfiniteMode()) {
             addInfiniteStorageTypes(storageTypes);
-        }
-
-        if (hasSingularity) {
-            var grid = host.getMainNode()
-                .getGrid();
-            if (grid != null) {
-                double surcharge = grid.getService(OptionalCellPower.class)
-                    .getAdditionalIdleDrain(host);
-                energyConsumePerTick = NEMath.saturatingAdd(energyConsumePerTick, Math.round(surcharge));
-            }
         }
 
         return new StorageUiSnapshot(storedEnergy, maxEnergy, energyConsumePerTick, storageTypes, cellEntries);
@@ -360,28 +348,7 @@ final class ECOStorageHostStatistics {
     }
 
     private int normalUiTypeId(int cellTypeId) {
-        ResourceLocation key = cellTypes.getKey(cellTypes.byId(cellTypeId));
-        if (key == null || !key.getNamespace()
-            .equals("neoecoae")) return cellTypeId;
-        String baseType = switch (key.getPath()) {
-            case "mega_item", "bigger_ae2_item" -> "items";
-            case "mega_fluid", "bigger_ae2_fluid" -> "fluids";
-            case "mega_energy", "bigger_ae2_fe" -> "flux";
-            case "mega_chemical", "bigger_ae2_chemical" -> "mekanism";
-            case "mega_air" -> "air";
-            case "mega_experience", "bigger_ae2_experience" -> "experience";
-            case "mega_soul" -> "soul";
-            case "mega_mana" -> "mana";
-            case "mega_source", "bigger_ae2_source" -> "source";
-            case "mega_matter" -> "matter";
-            case "mega_stress" -> "stress";
-            case "mega_data" -> "data";
-            default -> null;
-        };
-        if (baseType == null) return cellTypeId;
-        ECOCellType base = cellTypes.get(ResourceLocation.fromNamespaceAndPath("neoecoae", baseType));
-        // Keep the original group if an optional channel's ordinary cell type is unavailable.
-        return base == null ? cellTypeId : cellTypes.getId(base);
+        return cellTypeId;
     }
 
     private void addInfiniteStorageTypes(Map<Integer, StorageTypeTotals> storageTypes) {

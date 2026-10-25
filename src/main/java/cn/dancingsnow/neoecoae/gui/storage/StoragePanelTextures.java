@@ -65,24 +65,8 @@ public final class StoragePanelTextures {
     static int swatchIndex(ResourceLocation id) {
         if (id == null) return FALLBACK_SWATCH;
         return switch (id.toString()) {
-            case "neoecoae:mekanism", "neoecoae:mega_chemical", "neoecoae:bigger_ae2_chemical", "appmek:chemical" -> 0;
-            case "neoecoae:fluids", "neoecoae:mega_fluid", "neoecoae:bigger_ae2_fluid", "ae2:f" -> 1;
-            case "neoecoae:items", "neoecoae:bulk_item", "neoecoae:mega_item", "neoecoae:bigger_ae2_item", "ae2:i" -> 2;
-            case "neoecoae:air", "neoecoae:mega_air", "appliedpneumatics:air_type" -> 3;
-            case "neoecoae:flux", "neoecoae:mega_energy", "neoecoae:bigger_ae2_fe", "appflux:flux" -> 4;
-            case "neoecoae:lightning", "ae2lt:lightning" -> 5;
-            case "neoecoae:experience", "neoecoae:mega_experience", "neoecoae:bigger_ae2_experience", "appex:experience" -> 6;
-            case "neoecoae:soul", "neoecoae:mega_soul", "soulplied_energistics:soul", "appliedsoul:soul" -> 7;
-            case "neoecoae:source", "neoecoae:mega_source", "neoecoae:bigger_ae2_source", "arseng:source" -> 8;
-            case "neoecoae:mana", "neoecoae:mega_mana", "appbot:mana" -> 9;
-            case "neoecoae:omni", "ae2omnicells:omni", "ae2omnicells:omni_cell" -> 10;
-            case "neoecoae:complex_omni", "ae2omnicells:complex_omni", "ae2omnicells:complex_omni_cell" -> 11;
-            case "neoecoae:quantum_omni", "ae2omnicells:quantum_omni", "ae2omnicells:quantum_omni_cell" -> 12;
-            case "neoecoae:spent_nuclear_waste", "ae2omnicells:spent_nuclear_waste", "ae2omnicells:spent_nuclear_waste_cell", "mekanism:spent_nuclear_waste" -> 13;
-            case "neoecoae:data", "neoecoae:mega_data", "data_energistics:data", "data_energistics:data_flow", "data_energistics:digitalization", "data_energistics:manifest_binary" -> DATA_SWATCH;
-            case "neoecoae:radioactive_chemical" -> RADIOACTIVE_SWATCH;
-            case "neoecoae:stress", "neoecoae:mega_stress", "appliedcreate:stress" -> STRESS_SWATCH;
-            case "neoecoae:matter", "neoecoae:mega_matter", "apprep:m" -> MATTER_SWATCH;
+            case "neoecoae:fluids", "ae2:f" -> 1;
+            case "neoecoae:items", "neoecoae:bulk_item", "ae2:i" -> 2;
             default -> FALLBACK_SWATCH;
         };
     }

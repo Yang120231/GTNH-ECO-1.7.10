@@ -430,23 +430,19 @@ class StoragePanelStateTest {
 
     @Test
     void resourceChannelsUseTheSuppliedLegendInNormalAndInfiniteModes() {
-        String[] normal = { "mekanism", "fluids", "items", "air", "flux", "lightning", "experience", "soul", "source",
-            "mana", "omni", "complex_omni", "quantum_omni", "spent_nuclear_waste", "data" };
-        String[] infinite = { "appmek:chemical", "ae2:f", "ae2:i", "appliedpneumatics:air_type", "appflux:flux",
-            "ae2lt:lightning", "appex:experience", "soulplied_energistics:soul", "arseng:source", "appbot:mana",
-            "ae2omnicells:omni", "ae2omnicells:complex_omni", "ae2omnicells:quantum_omni",
-            "ae2omnicells:spent_nuclear_waste_cell", "data_energistics:manifest_binary" };
+        String[] normal = { "fluids", "items" };
+        String[] infinite = { "ae2:f", "ae2:i" };
         for (int i = 0; i < normal.length; i++) {
-            assertEquals(i, StoragePanelTextures.swatchIndex(ResourceLocation.parse("neoecoae:" + normal[i])));
-            assertEquals(i, StoragePanelTextures.swatchIndex(ResourceLocation.parse(infinite[i])));
+            assertEquals(i + 1, StoragePanelTextures.swatchIndex(ResourceLocation.parse("neoecoae:" + normal[i])));
+            assertEquals(i + 1, StoragePanelTextures.swatchIndex(ResourceLocation.parse(infinite[i])));
         }
         assertEquals(2, StoragePanelTextures.swatchIndex(ResourceLocation.parse("neoecoae:bulk_item")));
-        assertEquals(9, StoragePanelTextures.swatchIndex(ResourceLocation.parse("neoecoae:mega_mana")));
-        assertEquals(13, StoragePanelTextures.swatchIndex(ResourceLocation.parse("mekanism:spent_nuclear_waste")));
-        assertEquals(
-            StoragePanelTextures.FALLBACK_SWATCH,
-            StoragePanelTextures.swatchIndex(ResourceLocation.parse("other:mana")));
-        assertEquals(14, StoragePanelTextures.swatchIndex(ResourceLocation.parse("data_energistics:digitalization")));
+        for (String excluded : new String[] { "neoecoae:mega_mana", "mekanism:spent_nuclear_waste",
+            "data_energistics:digitalization", "other:mana" }) {
+            assertEquals(
+                StoragePanelTextures.FALLBACK_SWATCH,
+                StoragePanelTextures.swatchIndex(ResourceLocation.parse(excluded)));
+        }
         var unknown = StoragePanelTextures.swatch(StoragePanelTextures.FALLBACK_SWATCH, 0x54E6F2);
         assertEquals(16, unknown.spritePosition.x);
         assertEquals(78, unknown.spritePosition.y);
