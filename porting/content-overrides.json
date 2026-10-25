@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "large_integrated_workstation": {
+    "register_upgrade_cards": false,
+    "require_upgrade_cards": false,
+    "show_upgrade_card_slot": false,
+    "source": "User instruction on 2026-10-25: 大型集成工作站无需注册升级卡。",
+    "scope": "The seven integrated_working_station_module_* cards from NEItems belong to the large workstation module inventory. They are excluded from the 1.7.10 registration, UI and recipe scope. Ordinary AE2 upgrade cards for the small workstation are unaffected."
+  }
+}

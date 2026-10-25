@@ -1,0 +1,172 @@
+{
+  "blocks/entity/ECOMachineInterfaceBlockEntity.java": {
+    "scope": "Storage interface state, exact filter and mode policy. Pattern/computation interface members are still pending.",
+    "header": "public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>> extends NEBlockEntity<C, ECOMachineInterfaceBlockEntity<C>> implements ISyncPersistRPCBlockEntity",
+    "members": [
+      "syncStorage",
+      "storageInterfaceMode",
+      "ignoreCreativeStorageInput",
+      "includeStorageBusContainers",
+      "storageResourceFilters",
+      "cachedStorageResourceFilters",
+      "storageResourceFilter",
+      "transferredLastTick",
+      "<init>",
+      "getStorageInterfaceMode",
+      "getTransferredLastTick",
+      "isIgnoringCreativeStorageInput",
+      "isExcludingStorageBusContainers",
+      "toggleExcludeStorageBusContainers",
+      "getStorageResourceFilters",
+      "acceptsStorageResource",
+      "setStorageResourceFilter",
+      "toggleIgnoreCreativeStorageInput",
+      "isStorageInputMode",
+      "isStorageTransferMode",
+      "isInfiniteTransferAvailable",
+      "isTargetOnline",
+      "supportsStorageInterfaceUi",
+      "setStorageInterfaceMode",
+      "recordStorageInterfaceTransfer",
+      "isClientSide",
+      "getGridConnectableSides"
+    ],
+    "extra_members": [
+      "public boolean supportsInterfaceUi() { return supportsStorageInterfaceUi(); }"
+    ]
+  },
+  "blocks/entity/storage/ECOStorageSystemBlockEntity.java": {
+    "scope": "Storage host lifecycle, complete normal/infinite migration and restore state, domain membership, interface transfer, persistence and priority. Construction, optional MEGA filtering and interactive page members remain pending.",
+    "header": "public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity> implements ISyncPersistRPCBlockEntity, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost",
+    "exclude_members": [
+      "selectedBuildLength",
+      "mirrorBuild",
+      "megaController",
+      "selectedEcoMegaBulkCell",
+      "selectedEcoMegaPage",
+      "buildInProgress",
+      "buildController",
+      "createUI",
+      "createActionUI",
+      "hasEcoMegaUpgradeCard",
+      "hasEcoMegaBulkCell",
+      "getEcoMegaBulkCellCount",
+      "getSelectedEcoMegaBulkCell",
+      "getEcoMegaPageCount",
+      "isEcoMegaFilterSlotAvailable",
+      "getSelectedEcoMegaPage",
+      "changeSelectedEcoMegaBulkCell",
+      "changeSelectedEcoMegaPage",
+      "setEcoMegaFilterFromClient",
+      "setEcoMegaFilter",
+      "cycleEcoMegaCutoffFromClient",
+      "cycleEcoMegaCutoff",
+      "selectedEcoMegaBulkCell",
+      "selectEcoMegaBulkCell",
+      "selectedEcoMegaPage",
+      "selectEcoMegaPage",
+      "getBuildDefinition",
+      "getMinBuildLength",
+      "getMaxBuildLength",
+      "getBuildLevel",
+      "getBuildPosition",
+      "getBuildState",
+      "getSelectedBuildLength",
+      "setSelectedBuildLength",
+      "isMirrorBuild",
+      "setMirrorBuild",
+      "isBuildInProgress",
+      "setBuildInProgress",
+      "rebuildAfterBuild",
+      "buildStateChanged"
+    ],
+    "extra_members": [
+      "public cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.Config storageUiConfig(net.minecraft.entity.player.EntityPlayer player) {\n        return new cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.Config(\n            () -> cn.dancingsnow.neoecoae.platform.minecraft.Component.literal(getItemFromBlockEntity().getDisplayName()),\n            () -> getTier().getTier(),this::isFormed,statistics::getStoredEnergy,statistics::getMaxEnergy,\n            statistics::getEnergyConsumePerTick,statistics::getTotalUsedBytesText,statistics::getCellEntries,\n            statistics.createStorageTypeLines(),this::isFormedInfiniteMode,this::isMigratingToInfinite,\n            this::canExtractInfiniteComponents,this::getInfiniteDomainText,this::getMissingInfiniteMembers,\n            infiniteComponentItemHandler,player,\n            (position,expected,shift) -> StorageCellUiExtraction.extract(this,player,position,expected,shift),\n            (position,expected) -> StorageCellUiInsertion.insert(this,player,position,expected),\n            () -> new ItemStack(getBlockState().getBlock()));\n    }"
+    ],
+    "extra_member_origin": "createUI: original StorageHostUI.Config arguments, native player/type boundary"
+  },
+  "gui/storage/StorageHostUI.java": {
+    "scope": "Upstream storage page data records used by the host statistics. Layout tree, sync and actions remain pending.",
+    "header": "public final class StorageHostUI",
+    "members": [
+      "ROOT_WIDTH",
+      "ROOT_HEIGHT",
+      "StorageTypeLine",
+      "CellEntry",
+      "Config",
+      "CellExtractor",
+      "CellInserter",
+      "safeEntries"
+    ],
+    "extra_members": [
+      "private StorageHostUI() {}"
+    ]
+  },
+  "gui/storage/StoragePanelTextures.java": {
+    "scope": "Source storage-channel palette and swatch identity used by page snapshots. Texture drawing remains a native MUI2 adapter.",
+    "header": "public final class StoragePanelTextures",
+    "members": [
+      "VALUE_TEXT",
+      "DATA_SWATCH",
+      "RADIOACTIVE_SWATCH",
+      "STRESS_SWATCH",
+      "MATTER_SWATCH",
+      "FALLBACK_SWATCH",
+      "COLORS",
+      "swatchIndex"
+    ],
+    "extra_members": [
+      "private StoragePanelTextures() {}"
+    ]
+  },
+  "gui/storage/StorageHostCharts.java": {
+    "scope": "Source exact capacity distribution, value formatting and tooltips. Widget drawing is implemented by native MUI2 adapters.",
+    "header": "public final class StorageHostCharts",
+    "members": [
+      "TEXT",
+      "CapacitySegment",
+      "ResourceColor",
+      "capacitySegments",
+      "capacityValue",
+      "fullCapacityValue",
+      "fullUsedBytes",
+      "capacityTooltip",
+      "energyTooltip",
+      "resourceTooltip",
+      "domainTooltip"
+    ],
+    "extra_members": [
+      "private final java.util.function.Supplier<StoragePanelState> snapshot;",
+      "public StorageHostCharts(java.util.function.Supplier<StoragePanelState> snapshot) { this.snapshot = snapshot; }",
+      "private StoragePanelState state() { return snapshot.get(); }"
+    ]
+  },
+  "gui/storage/StorageCellGrid.java": {
+    "scope": "Source physical drive indexing and cell/page tooltips. Native display slots call the unchanged source extraction/insertion callbacks.",
+    "header": "public final class StorageCellGrid",
+    "members": [
+      "cell",
+      "tooltip",
+      "pageText",
+      "capacity",
+      "fullCapacity",
+      "tierName"
+    ],
+    "extra_members": [
+      "private final java.util.function.Supplier<StoragePanelState> snapshot;",
+      "private final int columns;",
+      "public StorageCellGrid(java.util.function.Supplier<StoragePanelState> snapshot, int columns) { this.snapshot = snapshot; this.columns = columns; }"
+    ]
+  },
+  "gui/common/HostPanelTier.java": {
+    "scope": "Source tier resolution and display name; native GUI drawing is a platform concern.",
+    "header": "public final class HostPanelTier",
+    "members": [
+      "resolve",
+      "name"
+    ],
+    "extra_members": [
+      "private HostPanelTier() {}"
+    ]
+  }
+}
