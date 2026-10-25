@@ -1,0 +1,17 @@
+package cn.dancingsnow.neoecoae.crafting.planner.result;
+
+import java.util.List;
+import java.util.Map;
+
+/** Explicit mutually-exclusive dynamic reservation choices. */
+@com.github.bsideup.jabel.Desugar
+public record PendingChoiceGroup(String id, List<Map<?, Long>> branches) {
+
+    public PendingChoiceGroup {
+        if (id == null || branches == null || branches.isEmpty())
+            throw new IllegalArgumentException("Invalid choice group");
+        List<Map<?, Long>> copy = new java.util.ArrayList<>(branches.size());
+        for (Map<?, Long> branch : branches) copy.add(branch);
+        branches = copy;
+    }
+}

@@ -1,0 +1,59 @@
+package cn.dancingsnow.neoecoae.crafting.planner.result;
+
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+import org.jetbrains.annotations.Nullable;
+
+import cn.dancingsnow.neoecoae.crafting.planner.identity.PlanIdentity;
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
+
+/** Hand-off between planning/confirmation and CPU execution. */
+@com.github.bsideup.jabel.Desugar
+public record ECOExecutionContract(UUID planningId, PlanIdentity.Signature planSignature, ExecutionMode mode,
+    @Nullable ECOExecutionPlan executionPlan, @Nullable String error, Set<ResourceLocation> fuzzyPlanningItemIds) {
+
+    public ECOExecutionContract(UUID planningId, PlanIdentity.Signature planSignature, ExecutionMode mode,
+        @Nullable ECOExecutionPlan executionPlan, @Nullable String error) {
+        this(
+            planningId,
+            planSignature,
+            mode,
+            executionPlan,
+            error,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf());
+    }
+
+    public ECOExecutionContract {
+        fuzzyPlanningItemIds = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setCopyOf(fuzzyPlanningItemIds);
+        Objects.requireNonNull(planningId, "planningId");
+        Objects.requireNonNull(planSignature, "planSignature");
+        Objects.requireNonNull(mode, "mode");
+        if (mode == ExecutionMode.BLOCKED
+            && (error == null || cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.isBlank(error))) {
+            throw new IllegalArgumentException("Blocked execution requires an error");
+        }
+        if ((mode == ExecutionMode.PHASED_DAG || mode == ExecutionMode.ORDERED_CYCLE
+            || mode == ExecutionMode.DYNAMIC_CYCLE) && executionPlan == null) {
+            throw new IllegalArgumentException("Phased execution requires an execution plan");
+        }
+    }
+
+    public @Nullable ECOExecutionSchedule schedule() {
+        return executionPlan == null ? null : executionPlan.schedule();
+    }
+
+    public boolean executable() {
+        return mode != ExecutionMode.BLOCKED;
+    }
+
+    public boolean phased() {
+        return mode == ExecutionMode.PHASED_DAG || mode == ExecutionMode.ORDERED_CYCLE
+            || mode == ExecutionMode.DYNAMIC_CYCLE;
+    }
+
+    public static ECOExecutionContract nativeContract(UUID planningId, PlanIdentity.Signature signature) {
+        return new ECOExecutionContract(planningId, signature, ExecutionMode.NATIVE, null, null);
+    }
+}

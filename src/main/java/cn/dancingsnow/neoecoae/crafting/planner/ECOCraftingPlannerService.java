@@ -1,0 +1,624 @@
+package cn.dancingsnow.neoecoae.crafting.planner;
+
+import java.util.Set;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOCraftingPlanDiagnostics;
+import cn.dancingsnow.neoecoae.api.me.planning.ECOPlanningResultRegistry;
+import cn.dancingsnow.neoecoae.crafting.planner.bridge.AE2CraftingPlanBridge;
+import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledNetwork;
+import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledStructureCache;
+import cn.dancingsnow.neoecoae.crafting.planner.compile.CraftingNetworkCompiler;
+import cn.dancingsnow.neoecoae.crafting.planner.cycle.BoundedCycleSolver;
+import cn.dancingsnow.neoecoae.crafting.planner.graph.CondensationGraph;
+import cn.dancingsnow.neoecoae.crafting.planner.graph.CraftingGraphBuilder;
+import cn.dancingsnow.neoecoae.crafting.planner.graph.TarjanSccAnalyzer;
+import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
+import cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus;
+import cn.dancingsnow.neoecoae.crafting.planner.solve.ActiveRouteSelector;
+import cn.dancingsnow.neoecoae.crafting.planner.solve.AcyclicCraftingSolver;
+import cn.dancingsnow.neoecoae.crafting.planner.solve.ComponentPlanner;
+import cn.dancingsnow.neoecoae.crafting.planner.solve.ECOPlanMaterialValidator;
+import cn.dancingsnow.neoecoae.crafting.planner.solve.JointRouteOptimizer;
+import cn.dancingsnow.neoecoae.crafting.planner.solve.PlannerInventorySnapshot;
+import cn.dancingsnow.neoecoae.crafting.planner.trace.ECOPlanTrace;
+import cn.dancingsnow.neoecoae.crafting.planner.trace.PlannerDiagnostic;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
+import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
+
+public final class ECOCraftingPlannerService {
+
+    private static final Logger LOGGER = LogManager.getLogger(ECOCraftingPlannerService.class);
+
+    private final CraftingNetworkCompiler compiler = new CraftingNetworkCompiler();
+    private final CraftingGraphBuilder graphBuilder = new CraftingGraphBuilder();
+    private final TarjanSccAnalyzer sccAnalyzer = new TarjanSccAnalyzer();
+    private final ComponentPlanner componentPlanner = new ComponentPlanner(
+        new AcyclicCraftingSolver(),
+        new BoundedCycleSolver());
+    private final AE2CraftingPlanBridge bridge = new AE2CraftingPlanBridge();
+
+    /**
+     * Per-calculation session: structural compilation is reused by all AE2 CRAFT_LESS probes.
+     */
+    public final class Session {
+
+        private final ICraftingService craftingService;
+        private final AEKey goal;
+        private final KeyCounter inventory;
+        private final PlannerInventorySnapshot inventorySnapshot;
+        private final boolean cyclePlanningEnabled;
+        private final boolean ignorePatternSubstitutions;
+        private final Set<ResourceLocation> fuzzyPlanningItemIds;
+        private final long planningRequestId = ECOPlanningStageLogger.nextRequestId();
+        private ECOPlanningBudget planningBudget;
+        private volatile CompiledNetwork compiled;
+        private volatile CondensationGraph condensation;
+        private volatile ActiveRouteSelector.Selection activeSelection;
+        private volatile long compiledContractGeneration = -1L;
+        private volatile long compiledProviderRevision = -1L;
+        private final Object initializationLock = new Object();
+
+        private Session(ICraftingService craftingService, AEKey goal, KeyCounter inventory,
+            boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions,
+            Set<ResourceLocation> fuzzyPlanningItemIds) {
+            this(
+                craftingService,
+                goal,
+                PlannerInventorySnapshot.of(inventory),
+                cyclePlanningEnabled,
+                ignorePatternSubstitutions,
+                fuzzyPlanningItemIds);
+        }
+
+        private Session(ICraftingService craftingService, AEKey goal, PlannerInventorySnapshot inventory,
+            boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions,
+            Set<ResourceLocation> fuzzyPlanningItemIds) {
+            this.craftingService = craftingService;
+            this.goal = goal;
+            this.inventorySnapshot = inventory;
+            this.inventory = inventorySnapshot.toKeyCounter();
+            this.cyclePlanningEnabled = cyclePlanningEnabled;
+            this.ignorePatternSubstitutions = ignorePatternSubstitutions;
+            this.fuzzyPlanningItemIds = fuzzyPlanningItemIds == null
+                ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf()
+                : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setCopyOf(fuzzyPlanningItemIds);
+        }
+
+        public ECOPlanningResult plan(long amount, boolean simulation, ECOCancellation cancellation)
+            throws InterruptedException {
+            ECOCancellation callerCancellation = cancellation;
+            synchronized (initializationLock) {
+                if (planningBudget == null) planningBudget = new ECOPlanningBudget(ECOCancellation.NONE);
+            }
+            ECOPlanningBudget sharedBudget = planningBudget;
+            cancellation = new ECOCancellation() {
+
+                @Override
+                public void checkpoint() throws InterruptedException {
+                    callerCancellation.checkpoint();
+                    sharedBudget.checkpoint();
+                }
+
+                @Override
+                public boolean improveCompletedPlans() {
+                    return callerCancellation.improveCompletedPlans();
+                }
+            };
+            long startedNanos = System.nanoTime();
+            String budgetStage = "structural_initialization";
+            try (var ignored = ECOPlanningStageLogger
+                .open(PlanningSettings.ecoPlanningStageDebug, planningRequestId, goal, amount, simulation)) {
+                try {
+                    ensureCompiled(cancellation);
+                    ComponentPlanner.Outcome solved;
+                    long componentStarted = ECOPlanningStageLogger.start();
+                    try {
+                        if (cyclePlanningEnabled) {
+                            if (activeSelection == null) synchronized (initializationLock) {
+                                if (activeSelection == null) {
+                                    budgetStage = "route_selection";
+                                    activeSelection = componentPlanner.selectRoutes(condensation, true, cancellation);
+                                }
+                            }
+                            budgetStage = "component_planning";
+                            solved = componentPlanner.planWithCycleFallback(
+                                compiled,
+                                condensation,
+                                activeSelection,
+                                inventory,
+                                inventorySnapshot,
+                                amount,
+                                ignorePatternSubstitutions,
+                                cancellation);
+                        } else {
+                            budgetStage = "component_planning";
+                            solved = componentPlanner.plan(
+                                compiled,
+                                condensation,
+                                inventory,
+                                inventorySnapshot,
+                                amount,
+                                false,
+                                ignorePatternSubstitutions,
+                                cancellation);
+                            solved = new JointRouteOptimizer()
+                                .optimize(compiled, inventorySnapshot, amount, solved, cancellation);
+                        }
+                    } catch (InterruptedException | RuntimeException e) {
+                        ECOPlanningStageLogger.finish(
+                            "component_planning",
+                            componentStarted,
+                            false,
+                            ECOPlanningStageLogger.exceptionReason(e));
+                        throw e;
+                    }
+                    ECOPlanningStageLogger.finish(
+                        "component_planning",
+                        componentStarted,
+                        solved.status() == PlanningStatus.SUCCESS,
+                        ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
+                    long validationStarted = ECOPlanningStageLogger.start();
+                    // Search may have exhausted its allowance while retaining a completed route.
+                    // Publishing that report must still honor cancellation, but must not spend search budget.
+                    callerCancellation.checkpoint();
+                    if (compiledContractGeneration != PatternRuntime.reloadGeneration()) {
+                        throw new IllegalStateException("PATTERN_CONTRACT_CHANGED_DURING_PLANNING");
+                    }
+                    solved = rejectUnclosedSuccess(solved, amount);
+                    ECOPlanningStageLogger.finish(
+                        "material_closure_validation",
+                        validationStarted,
+                        solved.status() == PlanningStatus.SUCCESS,
+                        ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
+                    boolean multiplePaths = compiled.multiplePaths();
+                    long bridgeStarted = ECOPlanningStageLogger.start();
+                    var plan = switch (solved.status()) {
+                        case SUCCESS, MISSING_ITEMS -> bridge.success(
+                            goal,
+                            amount,
+                            simulation || solved.status() != PlanningStatus.SUCCESS,
+                            multiplePaths,
+                            solved.state());
+                        case PARTIAL, CYCLE_UNRESOLVED -> bridge.partial(goal, amount, multiplePaths, solved.state());
+                        case CYCLE_UNSUPPORTED, CANCELLED, AMOUNT_OVERFLOW -> bridge.unsupported(goal, amount);
+                        // Keep the AE2 menu lifecycle alive with a simulation-only shell. The exact
+                        // planner result is attached to this shell and rendered by the ECO screen.
+                        case PLANNED_BUT_AMOUNT_UNREPRESENTABLE -> bridge.unsupported(goal, amount);
+                        default -> bridge.unsupported(goal, amount);
+                    };
+                    ECOPlanningStageLogger.finish(
+                        "ae2_plan_bridge",
+                        bridgeStarted,
+                        plan != null,
+                        plan == null ? "Bridge returned no plan"
+                            : solved.status()
+                                .name());
+                    var result = new ECOPlanningResult(
+                        solved.status(),
+                        plan,
+                        solved.trace(),
+                        solved.cycles(),
+                        solved.components(),
+                        solved.executionComponentOrder(),
+                        elapsedSince(startedNanos),
+                        solved.state()
+                            .executionProvenance());
+                    result.setTheoreticalBytes(
+                        solved.state()
+                            .plannerBytes());
+                    result.setExactPatternTimes(
+                        solved.state()
+                            .plannerPatternTimes());
+                    result.setExactMaterials(
+                        solved.state()
+                            .usedAmounts(),
+                        solved.state()
+                            .emittedAmounts(),
+                        solved.state()
+                            .missingAmounts());
+                    result.setFuzzyPlanningItemIds(fuzzyPlanningItemIds);
+                    long executionPlanStarted = ECOPlanningStageLogger.start();
+                    String executionPlanError = result.status() == PlanningStatus.SUCCESS
+                        && ECOPlanningResultRegistry.cycleExpected(result) ? result.executionPlanError() : null;
+                    ECOPlanningStageLogger.finish(
+                        "execution_plan_validation",
+                        executionPlanStarted,
+                        executionPlanError == null,
+                        executionPlanError);
+                    if (result.status() == PlanningStatus.SUCCESS && ECOPlanningResultRegistry.cycleExpected(result)
+                        && executionPlanError != null) {
+                        // Phase generation failed or produced an empty schedule while the plan is cycle-expected.
+                        // Publishing this would create the illegal combination cycleExpected=true + phaseCount=0.
+                        // Convert to an explicit FAILED result instead and let the native fallback take over.
+                        ECOPlanningResult rejected = rejectExecutionPlanFailure(
+                            result,
+                            amount,
+                            simulation,
+                            startedNanos);
+                        logTotal(startedNanos, rejected);
+                        return rejected;
+                    }
+                    callerCancellation.checkpoint();
+                    attach(result);
+                    logTotal(startedNanos, result);
+                    return result;
+                } catch (InterruptedException e) {
+                    ECOPlanTrace trace = new ECOPlanTrace();
+                    trace.addDiagnostic(
+                        new PlannerDiagnostic(
+                            PlannerDiagnostic.Code.CANCELLED,
+                            "Crafting candidate calculation was cancelled"));
+                    var result = new ECOPlanningResult(
+                        PlanningStatus.CANCELLED,
+                        bridge.unsupported(goal, amount),
+                        trace,
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        elapsedSince(startedNanos));
+                    attach(result);
+                    logTotal(startedNanos, result);
+                    return result;
+                } catch (ECOPlanningBudget.Exhausted exhausted) {
+                    ECOPlanTrace trace = new ECOPlanTrace();
+                    trace.addDiagnostic(
+                        new PlannerDiagnostic(
+                            PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED,
+                            "stage=" + budgetStage + " " + exhausted.getMessage()));
+                    var result = new ECOPlanningResult(
+                        PlanningStatus.CYCLE_UNRESOLVED,
+                        bridge.unsupported(goal, amount),
+                        trace,
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        elapsedSince(startedNanos));
+                    attach(result);
+                    logTotal(startedNanos, result);
+                    return result;
+                } catch (RuntimeException e) {
+                    LOGGER.error(
+                        "[ECO-PLANNER] calculation failed goal={} amount={} simulation={} "
+                            + "cyclePlanningEnabled={} ignorePatternSubstitutions={} fuzzyItems={}",
+                        goal,
+                        amount,
+                        simulation,
+                        cyclePlanningEnabled,
+                        ignorePatternSubstitutions,
+                        fuzzyPlanningItemIds,
+                        e);
+                    ECOPlanTrace trace = new ECOPlanTrace();
+                    trace.addDiagnostic(
+                        new PlannerDiagnostic(
+                            PlannerDiagnostic.Code.INTERNAL_ERROR,
+                            e.getClass()
+                                .getSimpleName() + ": "
+                                + e.getMessage()));
+                    var result = new ECOPlanningResult(
+                        PlanningStatus.INTERNAL_ERROR,
+                        bridge.unsupported(goal, amount),
+                        trace,
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                        elapsedSince(startedNanos));
+                    attach(result);
+                    logTotal(startedNanos, result);
+                    return result;
+                }
+            }
+        }
+
+        private void ensureCompiled(ECOCancellation cancellation) throws InterruptedException {
+            if (compiled != null && condensation != null
+                && compiledContractGeneration == PatternRuntime.reloadGeneration()) {
+                long reused = ECOPlanningStageLogger.start();
+                ECOPlanningStageLogger.finish("structural_initialization", reused, true, "REUSED");
+                return;
+            }
+            synchronized (initializationLock) {
+                long contractGeneration = PatternRuntime.reloadGeneration();
+                if (compiledContractGeneration != contractGeneration) {
+                    compiled = null;
+                    condensation = null;
+                    activeSelection = null;
+                }
+                long providerRevision = CompiledStructureCache.revision(craftingService);
+                var cached = CompiledStructureCache.get(
+                    craftingService,
+                    providerRevision,
+                    contractGeneration,
+                    goal,
+                    cyclePlanningEnabled,
+                    fuzzyPlanningItemIds);
+                if (cached != null) {
+                    compiled = cached.network();
+                    condensation = cached.condensation();
+                    compiledContractGeneration = contractGeneration;
+                    compiledProviderRevision = providerRevision;
+                    ECOPlanningStageLogger.finish(
+                        "structural_initialization",
+                        ECOPlanningStageLogger.start(),
+                        true,
+                        "CACHED_PROVIDER_REVISION=" + providerRevision);
+                    return;
+                }
+                if (compiled == null) {
+                    long stageStarted = ECOPlanningStageLogger.start();
+                    try {
+                        compiled = compiler
+                            .compile(craftingService, goal, cyclePlanningEnabled, fuzzyPlanningItemIds, cancellation);
+                        ECOPlanningStageLogger.finish("network_compile", stageStarted, true, null);
+                    } catch (InterruptedException | RuntimeException e) {
+                        ECOPlanningStageLogger
+                            .finish("network_compile", stageStarted, false, ECOPlanningStageLogger.exceptionReason(e));
+                        throw e;
+                    }
+                }
+                if (condensation == null) {
+                    long graphStarted = ECOPlanningStageLogger.start();
+                    var graph = graphBuilder.build(compiled, cancellation);
+                    ECOPlanningStageLogger.finish("graph_build", graphStarted, true, null);
+                    long sccStarted = ECOPlanningStageLogger.start();
+                    var sccs = sccAnalyzer.analyze(graph, cancellation);
+                    ECOPlanningStageLogger.finish("scc_analysis", sccStarted, true, null);
+                    long condensationStarted = ECOPlanningStageLogger.start();
+                    condensation = CondensationGraph.build(graph, sccs, cancellation);
+                    ECOPlanningStageLogger.finish("condensation_graph", condensationStarted, true, null);
+                }
+                if (contractGeneration != PatternRuntime.reloadGeneration()) {
+                    compiled = null;
+                    condensation = null;
+                    throw new IllegalStateException("PATTERN_CONTRACT_CHANGED_DURING_COMPILATION");
+                }
+                compiledContractGeneration = contractGeneration;
+                compiledProviderRevision = providerRevision;
+                CompiledStructureCache.put(
+                    craftingService,
+                    providerRevision,
+                    contractGeneration,
+                    goal,
+                    cyclePlanningEnabled,
+                    fuzzyPlanningItemIds,
+                    new CompiledStructureCache.Structure(compiled, condensation));
+            }
+        }
+
+        /** Frozen recipe structure, independent stock and allowance for each optional search. */
+        Session fork(PlannerInventorySnapshot stock, ECOCancellation cancellation, boolean remaining) {
+            if (!isStructureCurrent()) throw new IllegalStateException("STALE_PLANNING_STRUCTURE");
+            Session fork = new Session(
+                craftingService,
+                goal,
+                stock,
+                cyclePlanningEnabled,
+                ignorePatternSubstitutions,
+                fuzzyPlanningItemIds);
+            // A running CPU can use only its own stock; emitters would create new, unconfirmed requests.
+            fork.compiled = remaining
+                ? new CompiledNetwork(
+                    goal,
+                    compiled.producers(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf(),
+                    compiled.reachablePatternCount(),
+                    compiled.edgeCount())
+                : compiled;
+            fork.condensation = condensation;
+            fork.compiledContractGeneration = compiledContractGeneration;
+            fork.compiledProviderRevision = compiledProviderRevision;
+            fork.planningBudget = new ECOPlanningBudget(
+                cancellation,
+                ECOPlanningImprovements.MAX_WORK,
+                ECOPlanningImprovements.MAX_NANOS,
+                System::nanoTime);
+            return fork;
+        }
+
+        PlannerInventorySnapshot initialInventory() {
+            return inventorySnapshot;
+        }
+
+        boolean belongsTo(ICraftingService service) {
+            return craftingService == service;
+        }
+
+        boolean isStructureCurrent() {
+            return compiled != null && condensation != null
+                && compiledProviderRevision >= 0
+                && compiledProviderRevision == CompiledStructureCache.revision(craftingService)
+                && compiledContractGeneration == PatternRuntime.reloadGeneration();
+        }
+
+        private void logTotal(long startedNanos, ECOPlanningResult result) {
+            result.trace()
+                .diagnostics()
+                .stream()
+                .filter(d -> d.code() == PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED)
+                .findFirst()
+                .ifPresent(
+                    d -> LOGGER.warn(
+                        "[ECO-PLANNER] CYCLE_BUDGET_EXHAUSTED request={} goal={} amount={} elapsedMs={} detail={}",
+                        planningRequestId,
+                        goal,
+                        result.plan()
+                            .finalOutput()
+                            .amount(),
+                        elapsedSince(startedNanos) / 1_000_000.0D,
+                        d.message()));
+            ECOPlanningStageLogger.finish(
+                "total",
+                startedNanos,
+                result.status() == PlanningStatus.SUCCESS,
+                ECOPlanningStageLogger.resultReason(result.status(), result.trace()));
+        }
+
+        /**
+         * A SUCCESS result that claims cycle expectation but has no executable plan must never reach
+         * submission: it would publish the illegal combination cycleExpected=true + phaseCount=0. Convert it
+         * to an explicit FAILED (INTERNAL_ERROR) result so the runner selects the native fallback instead.
+         */
+        private ECOPlanningResult rejectExecutionPlanFailure(ECOPlanningResult result, long amount, boolean simulation,
+            long startedNanos) {
+            String reason = result.executionPlanError();
+            ECOPlanTrace trace = result.trace();
+            trace.addDiagnostic(
+                new PlannerDiagnostic(PlannerDiagnostic.Code.INTERNAL_ERROR, "EXECUTION_PLAN_FAILED:" + reason));
+            var rejected = new ECOPlanningResult(
+                PlanningStatus.INTERNAL_ERROR,
+                bridge.unsupported(
+                    result.plan()
+                        .finalOutput()
+                        .what(),
+                    amount),
+                trace,
+                result.cycles(),
+                result.components(),
+                result.executionComponentOrder(),
+                elapsedSince(startedNanos));
+            rejected.setFuzzyPlanningItemIds(result.fuzzyPlanningItemIds());
+            attach(rejected);
+            return rejected;
+        }
+
+        private ComponentPlanner.Outcome rejectUnclosedSuccess(ComponentPlanner.Outcome solved, long amount) {
+            if (solved.status() != PlanningStatus.SUCCESS) return solved;
+            var issue = ECOPlanMaterialValidator.firstDeficit(solved.state(), goal, amount, inventory, compiled);
+            if (issue == null) return solved;
+
+            String key = issue.key() == null ? "<plan>"
+                : issue.key()
+                    .toString();
+            String message = "Raw AE2 task vector is not materially closed: key=" + key
+                + " required="
+                + issue.required()
+                + " supplied="
+                + issue.supplied()
+                + " reason="
+                + issue.reason();
+            solved.trace()
+                .addDiagnostic(new PlannerDiagnostic(PlannerDiagnostic.Code.PLAN_MATERIAL_CLOSURE_INVALID, message));
+            // Preserve AE2's normal missing-item contract. The first calculation can therefore render the
+            // deficit as a red row and disable Start, while the exact closure diagnostic remains available in
+            // the ECO report. Treating this as PARTIAL_UNSUPPORTED would invoke the native fallback, whose
+            // virtual/emittable producers can incorrectly make the same material look available.
+            if (issue.key() != null) {
+                solved.state()
+                    .markMissing(
+                        issue.key(),
+                        issue.required()
+                            .subtract(issue.supplied()));
+            }
+            return new ComponentPlanner.Outcome(
+                PlanningStatus.MISSING_ITEMS,
+                solved.state(),
+                solved.trace(),
+                solved.cycles(),
+                solved.components(),
+                solved.executionComponentOrder());
+        }
+
+        private void attach(ECOPlanningResult result) {
+            if ((Object) result.plan() instanceof ECOCraftingPlanDiagnostics diagnostics) {
+                diagnostics.neoecoae$setPlanningResult(result);
+            }
+            if (result.plan() != null) {
+                ECOPlanningResultRegistry.register(result.plan(), result);
+            }
+        }
+
+        private long elapsedSince(long startedNanos) {
+            long now = System.nanoTime();
+            return now >= startedNanos ? now - startedNanos : 0L;
+        }
+    }
+
+    public Session createSession(ICraftingService service, AEKey goal, KeyCounter inventory) {
+        return new Session(
+            service,
+            goal,
+            inventory,
+            false,
+            false,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf());
+    }
+
+    public Session createSession(ICraftingService service, AEKey goal, PlannerInventorySnapshot inventory,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, Set<ResourceLocation> fuzzyPlanningItemIds) {
+        return new Session(
+            service,
+            goal,
+            inventory,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            fuzzyPlanningItemIds);
+    }
+
+    /** @deprecated Planning logs are controlled by the global debug configuration. */
+    @Deprecated
+    public Session createSession(ICraftingService service, AEKey goal, PlannerInventorySnapshot inventory,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, Set<ResourceLocation> fuzzyPlanningItemIds,
+        boolean planningLogEnabled) {
+        return createSession(
+            service,
+            goal,
+            inventory,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            fuzzyPlanningItemIds);
+    }
+
+    public Session createSession(ICraftingService service, AEKey goal, KeyCounter inventory,
+        boolean cyclePlanningEnabled) {
+        return new Session(
+            service,
+            goal,
+            inventory,
+            cyclePlanningEnabled,
+            false,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf());
+    }
+
+    public Session createSession(ICraftingService service, AEKey goal, KeyCounter inventory,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions) {
+        return new Session(
+            service,
+            goal,
+            inventory,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf());
+    }
+
+    public Session createSession(ICraftingService service, AEKey goal, KeyCounter inventory,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, Set<ResourceLocation> fuzzyPlanningItemIds) {
+        return new Session(
+            service,
+            goal,
+            inventory,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            fuzzyPlanningItemIds);
+    }
+
+    /** @deprecated Planning logs are controlled by the global debug configuration. */
+    @Deprecated
+    public Session createSession(ICraftingService service, AEKey goal, KeyCounter inventory,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, Set<ResourceLocation> fuzzyPlanningItemIds,
+        boolean planningLogEnabled) {
+        return new Session(
+            service,
+            goal,
+            inventory,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            fuzzyPlanningItemIds);
+    }
+
+}
