@@ -1,0 +1,126 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEBlocks.java",
+  "source_sha256": "1306558ea9d4406b6df9ebbd6d86480cfa3cee0cf6de1e75ee0b425152a18bfe",
+  "blocks": [
+    {
+      "id": "aluminum_ore",
+      "source_field": "ALUMINUM_ORE",
+      "source_line": 170,
+      "base": "IRON_ORE",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 2,
+      "ore_drop": "raw_aluminum_ore"
+    },
+    {
+      "id": "raw_aluminum_block",
+      "source_field": "RAW_ALUMINUM_BLOCK",
+      "source_line": 180,
+      "base": "RAW_IRON_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "aluminum_block",
+      "source_field": "ALUMINUM_BLOCK",
+      "source_line": 198,
+      "base": "IRON_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "tungsten_ore",
+      "source_field": "TUNGSTEN_ORE",
+      "source_line": 216,
+      "base": "IRON_ORE",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 3,
+      "ore_drop": "raw_tungsten_ore"
+    },
+    {
+      "id": "raw_tungsten_block",
+      "source_field": "RAW_TUNGSTEN_BLOCK",
+      "source_line": 226,
+      "base": "RAW_IRON_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 3
+    },
+    {
+      "id": "tungsten_block",
+      "source_field": "TUNGSTEN_BLOCK",
+      "source_line": 245,
+      "base": "IRON_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "aluminum_alloy_block",
+      "source_field": "ALUMINUM_ALLOY_BLOCK",
+      "source_line": 263,
+      "base": "IRON_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "aluminum_alloy_casing",
+      "source_field": "ALUMINUM_ALLOY_CASING",
+      "source_line": 281,
+      "base": "IRON_BLOCK",
+      "factory": "frame",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "black_tungsten_alloy_block",
+      "source_field": "BLACK_TUNGSTEN_ALLOY_BLOCK",
+      "source_line": 307,
+      "base": "IRON_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "black_tungsten_alloy_casing",
+      "source_field": "BLACK_TUNGSTEN_ALLOY_CASING",
+      "source_line": 325,
+      "base": "IRON_BLOCK",
+      "factory": "frame",
+      "no_occlusion": false,
+      "harvest_level": 2
+    },
+    {
+      "id": "energized_crystal_block",
+      "source_field": "ENERGIZED_CRYSTAL_BLOCK",
+      "source_line": 351,
+      "base": "QUARTZ_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 0
+    },
+    {
+      "id": "energized_superconductive_block",
+      "source_field": "ENERGIZED_SUPERCONDUCTIVE_BLOCK",
+      "source_line": 368,
+      "base": "QUARTZ_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 0
+    },
+    {
+      "id": "energized_fluix_crystal_block",
+      "source_field": "ENERGIZED_FLUIX_CRYSTAL_BLOCK",
+      "source_line": 535,
+      "base": "QUARTZ_BLOCK",
+      "factory": "block",
+      "no_occlusion": false,
+      "harvest_level": 0
+    }
+  ]
+}
