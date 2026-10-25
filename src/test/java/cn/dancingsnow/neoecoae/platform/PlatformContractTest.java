@@ -33,6 +33,36 @@ import io.netty.buffer.Unpooled;
 class PlatformContractTest {
 
     @Test
+    void legacyNbtLongArraysRetainExactExtremesAcrossNativeSerialization() throws Exception {
+        long[] values = { 0L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, 9_007_199_254_740_993L };
+        CompoundTag source = new CompoundTag();
+        source.putLongArray("progress", values);
+        var bytes = new java.io.ByteArrayOutputStream();
+        cn.dancingsnow.neoecoae.platform.nbt.NbtIo.write(source, new java.io.DataOutputStream(bytes));
+        var restored = cn.dancingsnow.neoecoae.platform.nbt.NbtIo.read(
+            new java.io.DataInputStream(new java.io.ByteArrayInputStream(bytes.toByteArray())),
+            cn.dancingsnow.neoecoae.platform.nbt.NbtAccounter.unlimitedHeap());
+        assertArrayEquals(values, restored.getLongArray("progress"));
+        source.putLongArray("empty", new long[0]);
+        assertArrayEquals(new long[0], source.getLongArray("empty"));
+        assertArrayEquals(new long[0], source.getLongArray("missing"));
+    }
+
+    @Test
+    void ceilingDivisionMatchesSignedIntegerBoundaries() {
+        assertEquals(3L, JdkCompat.ceilDiv(7L, 3L));
+        assertEquals(-2L, JdkCompat.ceilDiv(-7L, 3L));
+        assertEquals(-2L, JdkCompat.ceilDiv(7L, -3L));
+        assertEquals(3L, JdkCompat.ceilDiv(-7L, -3L));
+        assertEquals(0L, JdkCompat.ceilDiv(0L, Long.MIN_VALUE));
+        assertEquals(Long.MIN_VALUE, JdkCompat.ceilDiv(Long.MIN_VALUE, -1L));
+        assertEquals(4_611_686_018_427_387_904L, JdkCompat.ceilDiv(Long.MAX_VALUE, 2L));
+        assertEquals(Integer.MIN_VALUE, JdkCompat.ceilDiv(Integer.MIN_VALUE, -1));
+        assertEquals(1_073_741_824, JdkCompat.ceilDiv(Integer.MAX_VALUE, 2));
+        assertThrows(ArithmeticException.class, () -> JdkCompat.ceilDiv(1L, 0L));
+    }
+
+    @Test
     void collectionFactoriesPreserveNullDuplicateAndImmutabilityContracts() {
         assertThrows(NullPointerException.class, () -> JdkCompat.listOf("a", null));
         assertThrows(NullPointerException.class, () -> JdkCompat.mapOf("a", null));

@@ -105,6 +105,15 @@ public final class RegistryFriendlyByteBuf {
         return bytes.readBoolean();
     }
 
+    public RegistryFriendlyByteBuf writeLong(long value) {
+        bytes.writeLong(value);
+        return this;
+    }
+
+    public long readLong() {
+        return bytes.readLong();
+    }
+
     public RegistryFriendlyByteBuf writeByteArray(byte[] value) {
         writeVarInt(value.length);
         bytes.writeBytes(value);

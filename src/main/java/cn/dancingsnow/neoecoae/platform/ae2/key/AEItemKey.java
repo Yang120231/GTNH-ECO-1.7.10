@@ -34,6 +34,15 @@ public final class AEItemKey extends AEKey {
         return identity.getItem();
     }
 
+    @Override
+    public cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation getId() {
+        return cn.dancingsnow.neoecoae.platform.registry.BuiltInRegistries.ITEM.getKey(getItem());
+    }
+
+    public boolean isDamaged() {
+        return identity.isItemDamaged();
+    }
+
     public ItemStack toStack() {
         return identity.copy();
     }

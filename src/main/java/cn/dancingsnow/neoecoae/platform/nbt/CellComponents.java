@@ -16,6 +16,26 @@ public final class CellComponents {
 
     private CellComponents() {}
 
+    public static void writeCustomName(ItemStack stack, cn.dancingsnow.neoecoae.platform.minecraft.Component name) {
+        stack.setStackDisplayName(
+            name.nativeText()
+                .getFormattedText());
+    }
+
+    public static void writeCustomName(net.minecraftforge.fluids.FluidStack stack,
+        cn.dancingsnow.neoecoae.platform.minecraft.Component name) {
+        if (stack.tag == null) stack.tag = new net.minecraft.nbt.NBTTagCompound();
+        stack.tag.setString("neoecoae_display_name", name.toJson());
+    }
+
+    public static void writeCustomName(cn.dancingsnow.neoecoae.platform.fluid.FluidStack stack,
+        cn.dancingsnow.neoecoae.platform.minecraft.Component name) {
+        var tag = stack.copyTag();
+        if (tag == null) tag = new net.minecraft.nbt.NBTTagCompound();
+        tag.setString("neoecoae_display_name", name.toJson());
+        stack.setTag(tag);
+    }
+
     private static CompoundTag root(ItemStack stack) {
         return stack.hasTagCompound() ? new CompoundTag(stack.getTagCompound()) : new CompoundTag();
     }
@@ -67,6 +87,11 @@ public final class CellComponents {
     public static CustomData readCustomData(ItemStack stack) {
         CompoundTag root = root(stack);
         return root.contains(CUSTOM, Tag.TAG_COMPOUND) ? CustomData.view(root.getCompound(CUSTOM)) : CustomData.EMPTY;
+    }
+
+    public static CustomData readCustomDataOrNull(ItemStack stack) {
+        CompoundTag root = root(stack);
+        return root.contains(CUSTOM, Tag.TAG_COMPOUND) ? CustomData.view(root.getCompound(CUSTOM)) : null;
     }
 
     public static void writeCustomData(ItemStack stack, CustomData value) {

@@ -44,6 +44,28 @@ public final class TestItemRegistry {
         register("gravel", TestItems.GRAVEL);
         register("glass", TestItems.GLASS);
         register("diamond", TestItems.DIAMOND);
+        register("coal", TestItems.COAL);
+        register("iron_pickaxe", TestItems.IRON_PICKAXE);
+        register("raw_iron", TestItems.RAW_IRON);
+        register("raw_copper", TestItems.RAW_COPPER);
+        register("copper_ingot", TestItems.COPPER_INGOT);
+        register("gold_ingot", TestItems.GOLD_INGOT);
+        register("brick", TestItems.BRICK);
+        register("bucket", TestItems.BUCKET);
+        register("charcoal", TestItems.CHARCOAL);
+        register("clay_ball", TestItems.CLAY_BALL);
+        register("emerald", TestItems.EMERALD);
+        register("end_stone", TestItems.END_STONE);
+        register("flint", TestItems.FLINT);
+        register("honey_bottle", TestItems.HONEY_BOTTLE);
+        register("iron_block", TestItems.IRON_BLOCK);
+        register("iron_nugget", TestItems.IRON_NUGGET);
+        register("netherite_upgrade_smithing_template", TestItems.NETHERITE_UPGRADE_SMITHING_TEMPLATE);
+        register("netherrack", TestItems.NETHERRACK);
+        register("obsidian", TestItems.OBSIDIAN);
+        register("paper", TestItems.PAPER);
+        register("sugar", TestItems.SUGAR);
+        register("water_bucket", TestItems.WATER_BUCKET);
     }
 
     private void register(String path, Item item) {
@@ -53,11 +75,16 @@ public final class TestItemRegistry {
     }
 
     public static void initialize() {
-        if (ITEM.byName.size() != 9) throw new IllegalStateException("Test identity registry incomplete");
+        if (ITEM.byName.size() != 31) throw new IllegalStateException("Test identity registry incomplete");
     }
 
     public ResourceLocation getKey(Item item) {
         return ResourceLocation.parse(Objects.requireNonNull(byIdentity.get(item)));
+    }
+
+    public ResourceLocation findKey(Item item) {
+        String id = byIdentity.get(item);
+        return id == null ? null : ResourceLocation.parse(id);
     }
 
     public Optional<Item> getOptional(ResourceLocation id) {

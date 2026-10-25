@@ -23,6 +23,30 @@ import java.util.stream.Collectors;
 /** Java 8 implementations of the immutable collection and stream contracts used by the input. */
 public final class JdkCompat {
 
+    public static java.nio.file.Path writeString(java.nio.file.Path path, CharSequence value,
+        java.nio.charset.Charset charset, java.nio.file.OpenOption... options) throws IOException {
+        java.nio.ByteBuffer encoded = charset.newEncoder()
+            .encode(java.nio.CharBuffer.wrap(value));
+        byte[] bytes = new byte[encoded.remaining()];
+        encoded.get(bytes);
+        return java.nio.file.Files.write(path, bytes, options);
+    }
+
+    public static java.nio.file.Path writeString(java.nio.file.Path path, CharSequence value,
+        java.nio.file.OpenOption... options) throws IOException {
+        return writeString(path, value, java.nio.charset.StandardCharsets.UTF_8, options);
+    }
+
+    public static int ceilDiv(int x, int y) {
+        int quotient = x / y;
+        return (x ^ y) >= 0 && quotient * y != x ? quotient + 1 : quotient;
+    }
+
+    public static long ceilDiv(long x, long y) {
+        long quotient = x / y;
+        return (x ^ y) >= 0 && quotient * y != x ? quotient + 1 : quotient;
+    }
+
     public static int clamp(int value, int minimum, int maximum) {
         if (minimum > maximum) throw new IllegalArgumentException("Invalid clamp bounds");
         return Math.min(maximum, Math.max(minimum, value));
@@ -31,6 +55,11 @@ public final class JdkCompat {
     public static int clamp(long value, int minimum, int maximum) {
         if (minimum > maximum) throw new IllegalArgumentException("Invalid clamp bounds");
         return (int) Math.min(maximum, Math.max(minimum, value));
+    }
+
+    public static float clamp(float value, float minimum, float maximum) {
+        if (minimum > maximum) throw new IllegalArgumentException("Minimum exceeds maximum");
+        return Math.min(Math.max(value, minimum), maximum);
     }
 
     public static double clamp(double value, double minimum, double maximum) {

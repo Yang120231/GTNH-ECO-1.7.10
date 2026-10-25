@@ -36,6 +36,13 @@ public class Tag {
 
     public static Tag wrap(NBTBase value) {
         if (value == null) return null;
+        if (value instanceof net.minecraft.nbt.NBTTagByte) return new ByteTag((net.minecraft.nbt.NBTTagByte) value);
+        if (value instanceof net.minecraft.nbt.NBTTagShort) return new ShortTag((net.minecraft.nbt.NBTTagShort) value);
+        if (value instanceof net.minecraft.nbt.NBTTagInt) return new IntTag((net.minecraft.nbt.NBTTagInt) value);
+        if (value instanceof net.minecraft.nbt.NBTTagLong) return new LongTag((net.minecraft.nbt.NBTTagLong) value);
+        if (value instanceof net.minecraft.nbt.NBTTagFloat) return new FloatTag((net.minecraft.nbt.NBTTagFloat) value);
+        if (value instanceof net.minecraft.nbt.NBTTagDouble)
+            return new DoubleTag((net.minecraft.nbt.NBTTagDouble) value);
         if (value instanceof NBTTagCompound) return new CompoundTag((NBTTagCompound) value);
         if (value instanceof NBTTagList) return new ListTag((NBTTagList) value);
         return new Tag(value);

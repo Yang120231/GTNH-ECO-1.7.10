@@ -36,6 +36,10 @@ public final class CompoundTag extends Tag {
         return nativeTag().hasNoTags();
     }
 
+    public java.util.Set<String> getAllKeys() {
+        return java.util.Collections.unmodifiableSet(nativeTag().func_150296_c());
+    }
+
     public boolean contains(String key) {
         return nativeTag().hasKey(key);
     }
@@ -106,6 +110,24 @@ public final class CompoundTag extends Tag {
 
     public void putIntArray(String key, int[] item) {
         nativeTag().setIntArray(key, item);
+    }
+
+    public int[] getIntArray(String key) {
+        return nativeTag().getIntArray(key);
+    }
+
+    /** Legacy NBT has no long-array tag; use a homogeneous native list of exact signed longs. */
+    public void putLongArray(String key, long[] values) {
+        ListTag list = new ListTag();
+        for (long value : values) list.add(LongTag.valueOf(value));
+        put(key, list);
+    }
+
+    public long[] getLongArray(String key) {
+        ListTag list = getList(key, TAG_LONG);
+        long[] values = new long[list.size()];
+        for (int i = 0; i < values.length; i++) values[i] = ((NumericTag) list.get(i)).getAsLong();
+        return values;
     }
 
     public boolean hasUUID(String key) {

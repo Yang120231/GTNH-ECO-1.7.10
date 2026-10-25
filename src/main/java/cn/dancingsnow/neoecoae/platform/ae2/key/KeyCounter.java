@@ -33,6 +33,23 @@ public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
         add(key, -amount);
     }
 
+    public void remove(AEKey key) {
+        amounts.removeLong(key);
+    }
+
+    public java.util.Collection<Object2LongMap.Entry<AEKey>> findFuzzy(AEKey key, appeng.api.config.FuzzyMode mode) {
+        java.util.Objects.requireNonNull(key);
+        if (mode != appeng.api.config.FuzzyMode.IGNORE_ALL)
+            throw new IllegalArgumentException("Inventory template matching expects IGNORE_ALL");
+        var matches = new java.util.ArrayList<Object2LongMap.Entry<AEKey>>();
+        for (var entry : amounts.object2LongEntrySet()) if (entry.getKey()
+            .getType() == key.getType()
+            && entry.getKey()
+                .getPrimaryKey() == key.getPrimaryKey())
+            matches.add(entry);
+        return matches;
+    }
+
     public void clear() {
         amounts.clear();
     }

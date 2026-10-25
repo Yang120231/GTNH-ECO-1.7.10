@@ -7,5 +7,6 @@ public final class InventoryTestBootstrap {
     /** Algorithm tests use an isolated identity registry; client and server acceptance exercise FML registries. */
     public static void initialize() {
         TestItemRegistry.initialize();
+        cn.dancingsnow.neoecoae.platform.registry.BuiltInRegistries.useItemNameLookup(TestItemRegistry.ITEM::findKey);
     }
 }

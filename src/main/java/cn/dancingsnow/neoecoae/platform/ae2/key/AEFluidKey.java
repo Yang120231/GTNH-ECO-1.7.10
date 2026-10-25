@@ -34,8 +34,19 @@ public final class AEFluidKey extends AEKey {
         return fluid == null ? null : new AEFluidKey(fluid, null);
     }
 
+    public static AEFluidKey of(cn.dancingsnow.neoecoae.platform.fluid.FluidStack stack) {
+        return stack == null || stack.isEmpty() ? null : new AEFluidKey(stack.getFluid(), stack.copyTag());
+    }
+
     public Fluid getFluid() {
         return fluid;
+    }
+
+    @Override
+    public cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation getId() {
+        String name = fluid.getName();
+        return name.indexOf(':') >= 0 ? cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse(name)
+            : cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.fromNamespaceAndPath("forge", name);
     }
 
     public FluidStack toStack(int amount) {

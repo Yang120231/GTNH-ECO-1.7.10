@@ -6,6 +6,11 @@ public final class ItemStacks {
 
     private ItemStacks() {}
 
+    @SafeVarargs
+    public static java.util.List<ItemStack> listOf(ItemStack... stacks) {
+        return java.util.Collections.unmodifiableList(new java.util.ArrayList<>(java.util.Arrays.asList(stacks)));
+    }
+
     public static ItemStack copy(ItemStack stack) {
         return isEmpty(stack) ? null : stack.copy();
     }
@@ -57,6 +62,10 @@ public final class ItemStacks {
 
     public static boolean isEmpty(ItemStack stack) {
         return stack == null || stack.stackSize <= 0 || stack.getItem() == null;
+    }
+
+    public static boolean isComponentsPatchEmpty(ItemStack stack) {
+        return isEmpty(stack) || (!stack.hasTagCompound() && stack.getItemDamage() == 0);
     }
 
     public static boolean isSameItem(ItemStack left, ItemStack right) {

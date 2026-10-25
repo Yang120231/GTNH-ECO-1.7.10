@@ -26,6 +26,10 @@ public abstract class AEKey {
 
     public abstract Object getPrimaryKey();
 
+    public cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation getId() {
+        return null;
+    }
+
     public int getFuzzySearchValue() {
         return 0;
     }
