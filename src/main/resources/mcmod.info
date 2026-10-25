@@ -3,7 +3,7 @@
 	"modList": [{
 		"modid": "${modId}",
 		"name": "${modName}",
-		"description": "Foundation for porting Neo ECO AE Extension from Minecraft 1.21.1 to GTNH 1.7.10. Includes the Forge bootstrap and modern model pipeline; gameplay content is pending import.",
+		"description": "Active Neo ECO AE Extension business-code port from Minecraft 1.21.1 to GTNH 1.7.10. Includes exact storage, migrated planning algorithms and the preserved modern model pipeline; full machine and UI integration remains in progress.",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
 		"url": "https://github.com/Yang120231/GTNH-ECO-1.7.10",
@@ -14,7 +14,7 @@
 		"screenshots": [],
 		"parent": "",
 		"requiredMods": ["modularui2", "appliedenergistics2"],
-		"dependencies": ["gtnhlib"],
+		"dependencies": ["gtnhlib", "modularui2", "appliedenergistics2"],
 		"dependants": [],
 		"useDependencyInformation": true
 	}]

@@ -72,6 +72,7 @@ public final class Component {
     }
 
     public static final class TextStyle {
+
         public static final TextStyle EMPTY = new TextStyle(null);
 
         private final Integer color;
@@ -136,17 +137,26 @@ public final class Component {
     public IChatComponent nativeText() {
         return nativeText.createCopy();
     }
-    public <T> java.util.Optional<T> visit(java.util.function.BiFunction<TextStyle, String, java.util.Optional<T>> visitor, TextStyle inherited) {
+
+    public <T> java.util.Optional<T> visit(
+        java.util.function.BiFunction<TextStyle, String, java.util.Optional<T>> visitor, TextStyle inherited) {
         return visitNode(nativeText, "", rgb == null ? inherited.color : rgb, visitor);
     }
+
     private <T> java.util.Optional<T> visitNode(IChatComponent node, String path, Integer inherited,
         java.util.function.BiFunction<TextStyle, String, java.util.Optional<T>> visitor) {
         Integer color = path.isEmpty() ? rgb == null ? inherited : rgb : nestedColors.getOrDefault(path, inherited);
         java.util.Optional<T> result = visitor.apply(new TextStyle(color), node.getUnformattedTextForChat());
         if (result.isPresent()) return result;
-        for (int index = 0; index < node.getSiblings().size(); index++) {
+        for (int index = 0; index < node.getSiblings()
+            .size(); index++) {
             String child = path.isEmpty() ? Integer.toString(index) : path + "/" + index;
-            result = visitNode(node.getSiblings().get(index), child, color, visitor);
+            result = visitNode(
+                node.getSiblings()
+                    .get(index),
+                child,
+                color,
+                visitor);
             if (result.isPresent()) return result;
         }
         return java.util.Optional.empty();
@@ -155,8 +165,7 @@ public final class Component {
     /** Native JSON retains legacy styles; the envelope retains arbitrary RGB values unavailable in 1.7 chat styles. */
     public String toJson() {
         com.google.gson.JsonObject value = new com.google.gson.JsonObject();
-        value
-            .add("native", new com.google.gson.JsonParser().parse(IChatComponent.Serializer.func_150696_a(nativeText)));
+        value.add("native", nativeJson());
         if (rgb != null) value.addProperty("rgb", rgb);
         com.google.gson.JsonObject colors = new com.google.gson.JsonObject();
         nestedColors.forEach(colors::addProperty);
@@ -187,14 +196,18 @@ public final class Component {
 
     @Override
     public boolean equals(Object value) {
-        return value instanceof Component && nativeText.equals(((Component) value).nativeText)
+        return value instanceof Component && nativeJson().equals(((Component) value).nativeJson())
             && java.util.Objects.equals(rgb, ((Component) value).rgb)
             && nestedColors.equals(((Component) value).nestedColors);
     }
 
     @Override
     public int hashCode() {
-        return java.util.Objects.hash(nativeText, rgb, nestedColors);
+        return java.util.Objects.hash(nativeJson(), rgb, nestedColors);
+    }
+
+    private com.google.gson.JsonElement nativeJson() {
+        return new com.google.gson.JsonParser().parse(IChatComponent.Serializer.func_150696_a(nativeText));
     }
 
     @Override

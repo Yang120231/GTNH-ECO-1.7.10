@@ -1,0 +1,6 @@
+// A distinct development client and save directory. Never opens the user's run/client saves.
+gradle.projectsEvaluated {
+    gradle.rootProject.tasks.named('runClient').configure {
+        workingDir = gradle.rootProject.file('run/client-acceptance')
+    }
+}

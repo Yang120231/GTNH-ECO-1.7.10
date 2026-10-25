@@ -43,4 +43,21 @@ public class NeoECOAE {
     public void postInit(FMLPostInitializationEvent event) {
         proxy.postInit(event);
     }
+
+    @Mod.EventHandler
+    public void aboutToStart(cpw.mods.fml.common.event.FMLServerAboutToStartEvent event) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.started();
+    }
+
+    @Mod.EventHandler
+    public void starting(cpw.mods.fml.common.event.FMLServerStartingEvent event) {
+        if (Boolean.getBoolean("neoecoae.portingAcceptance"))
+            event.registerServerCommand(new cn.dancingsnow.neoecoae.platform.forge.PortingAcceptanceCommand());
+    }
+
+    @Mod.EventHandler
+    public void stopped(cpw.mods.fml.common.event.FMLServerStoppedEvent event) {
+        cn.dancingsnow.neoecoae.platform.forge.StorageLifecycle.stopped();
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.stopped();
+    }
 }
