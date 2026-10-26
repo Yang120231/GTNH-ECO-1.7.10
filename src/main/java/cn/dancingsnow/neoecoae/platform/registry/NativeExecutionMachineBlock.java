@@ -7,16 +7,24 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts.Role;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity;
-import cn.dancingsnow.neoecoae.platform.minecraft.*;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.Property;
+import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
+import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 
 /** Keep the actual tile alive through Forge harvest so owned inventories can move to one recovery carrier. */
 public final class NativeExecutionMachineBlock extends NativeMachineBlock {
 
-    public NativeExecutionMachineBlock(BlockEntityType<?> type,
-        cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts.Role role, String model) {
+    public static final Property<Boolean> WORKING = Property.bool("working");
+
+    public NativeExecutionMachineBlock(BlockEntityType<?> type, Role role, String model) {
         super(type, role, model);
+        // Imported worker and threading-core blockstates require this even for inventory rendering.
+        if (role == Role.CRAFTING_WORKER || role == Role.COMPUTATION_THREADING_CORE) define(WORKING, false);
     }
 
     @Override

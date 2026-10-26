@@ -187,7 +187,7 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
             || block instanceof cn.dancingsnow.neoecoae.platform.registry.NativeSimpleModelBlock;
     }
 
-    private static final class BlockModels {
+    static final class BlockModels {
 
         final List<Variant> variants = new ArrayList<>();
         final Map<String, BakedEcoModel> meshes = new LinkedHashMap<>();
@@ -217,7 +217,7 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
         }
     }
 
-    private static final class Variant {
+    static final class Variant {
 
         final String condition, model;
         final ModelFacing facing;
