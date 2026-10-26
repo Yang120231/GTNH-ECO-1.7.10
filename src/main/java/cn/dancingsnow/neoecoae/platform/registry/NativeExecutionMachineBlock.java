@@ -7,7 +7,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.api.computation.ECOComputationCells;
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts.Role;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
@@ -25,6 +27,33 @@ public final class NativeExecutionMachineBlock extends NativeMachineBlock {
         super(type, role, model);
         // Imported worker and threading-core blockstates require this even for inventory rendering.
         if (role == Role.CRAFTING_WORKER || role == Role.COMPUTATION_THREADING_CORE) define(WORKING, false);
+    }
+
+    @Override
+    public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side, float hitX,
+        float hitY, float hitZ) {
+        var tile = world.getTileEntity(x, y, z);
+        if (!(tile instanceof ECOComputationDriveBlockEntity))
+            return super.onBlockActivated(world, x, y, z, player, side, hitX, hitY, hitZ);
+        var drive = (ECOComputationDriveBlockEntity) tile;
+        ItemStack held = player.getHeldItem();
+        if (ECOComputationCells.describe(held) != null && drive.getCellStack() == null) {
+            if (!world.isRemote) {
+                drive.setCellStack(held);
+                if (!player.capabilities.isCreativeMode && --held.stackSize == 0)
+                    player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
+            }
+            return true;
+        }
+        if (held == null && player.isSneaking() && drive.getCellStack() != null) {
+            if (!world.isRemote) {
+                ItemStack cell = drive.getCellStack();
+                drive.setCellStack(null);
+                player.inventory.setInventorySlotContents(player.inventory.currentItem, cell);
+            }
+            return true;
+        }
+        return false;
     }
 
     @Override

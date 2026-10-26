@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.client.render.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,8 @@ public class BakedEcoModel {
     private static final double BOUNDARY_EPSILON = 0.0001D;
 
     private final Map<ModelFacing, List<BakedQuad>> quads = new EnumMap<>(ModelFacing.class);
+    private final Map<ModelFacing, List<BakedQuad>> cutoutQuads = new EnumMap<>(ModelFacing.class);
+    private final Map<ModelFacing, List<BakedQuad>> translucentQuads = new EnumMap<>(ModelFacing.class);
 
     public BakedEcoModel(ModernModel source) {
         this(source, 0.0D, 0.0D, 0.0D);
@@ -24,7 +27,7 @@ public class BakedEcoModel {
     private BakedEcoModel(ModernModel source, double offsetX, double offsetY, double offsetZ,
         boolean modelBoundsAreWorldBoundary) {
         for (ModelFacing facing : ModelFacing.values()) {
-            this.quads.put(
+            putQuads(
                 facing,
                 bakeFacing(
                     source,
@@ -44,7 +47,7 @@ public class BakedEcoModel {
     public static BakedEcoModel transformedSubModel(ModernModel source, VertexTransform transform) {
         BakedEcoModel model = new BakedEcoModel();
         for (ModelFacing facing : ModelFacing.values()) {
-            model.quads.put(facing, bakeRawFacing(source, facing, transform));
+            model.putQuads(facing, bakeRawFacing(source, facing, transform));
         }
         return model;
     }
@@ -53,6 +56,21 @@ public class BakedEcoModel {
 
     public List<BakedQuad> getQuads(ModelFacing facing) {
         return this.quads.get(facing);
+    }
+
+    public List<BakedQuad> getQuads(ModelFacing facing, ModelRenderLayer layer) {
+        return (layer == ModelRenderLayer.TRANSLUCENT ? translucentQuads : cutoutQuads).get(facing);
+    }
+
+    private void putQuads(ModelFacing facing, List<BakedQuad> facingQuads) {
+        List<BakedQuad> cutout = new ArrayList<>();
+        List<BakedQuad> translucent = new ArrayList<>();
+        for (BakedQuad quad : facingQuads) {
+            (quad.getRenderLayer() == ModelRenderLayer.TRANSLUCENT ? translucent : cutout).add(quad);
+        }
+        quads.put(facing, Collections.unmodifiableList(facingQuads));
+        cutoutQuads.put(facing, Collections.unmodifiableList(cutout));
+        translucentQuads.put(facing, Collections.unmodifiableList(translucent));
     }
 
     public int getMaxQuadCount() {
@@ -113,6 +131,11 @@ public class BakedEcoModel {
         ForgeDirection cullDirection = cullFace != null ? rotateDirection(toDirection(cullFace), facing)
             : ForgeDirection.UNKNOWN;
         ForgeDirection normal = rotateDirection(face.getSide(), facing);
+        // Source controller models span several blocks. Their cullface hints cannot be
+        // tested against the controller's immediate neighbors, nor can inserted cells.
+        if (!modelBoundsAreWorldBoundary || !isOwnerBoundaryFace(rotatedVertices, normal, cullDirection)) {
+            cullDirection = ForgeDirection.UNKNOWN;
+        }
         return new BakedQuad(
             resolveTexture(model, face.getTexture()),
             cullFace,
@@ -134,7 +157,7 @@ public class BakedEcoModel {
             transformedVertices[i] = transform.apply(vertices[i], facing);
         }
 
-        ForgeDirection normal = rotateDirection(face.getSide(), facing);
+        ForgeDirection normal = transformedNormal(transformedVertices, rotateDirection(face.getSide(), facing));
         return new BakedQuad(
             resolveTexture(model, face.getTexture()),
             face.getCullFace(),
@@ -165,6 +188,38 @@ public class BakedEcoModel {
             default:
                 return true;
         }
+    }
+
+    private static boolean isOwnerBoundaryFace(double[][] vertices, ForgeDirection normal,
+        ForgeDirection cullDirection) {
+        if (normal != cullDirection || cullDirection == ForgeDirection.UNKNOWN) return false;
+        int axis = normal.offsetX != 0 ? 0 : normal.offsetY != 0 ? 1 : 2;
+        double boundary = normal.offsetX + normal.offsetY + normal.offsetZ > 0 ? 1.0D : 0.0D;
+        if (!isPlaneAt(vertices, axis, boundary)) return false;
+        for (double[] vertex : vertices) {
+            for (int coordinate = 0; coordinate < 3; coordinate++) {
+                if (vertex[coordinate] < -BOUNDARY_EPSILON || vertex[coordinate] > 1.0D + BOUNDARY_EPSILON)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private static ForgeDirection transformedNormal(double[][] vertices, ForgeDirection fallback) {
+        double ax = vertices[1][0] - vertices[0][0];
+        double ay = vertices[1][1] - vertices[0][1];
+        double az = vertices[1][2] - vertices[0][2];
+        double bx = vertices[2][0] - vertices[0][0];
+        double by = vertices[2][1] - vertices[0][1];
+        double bz = vertices[2][2] - vertices[0][2];
+        double nx = ay * bz - az * by;
+        double ny = az * bx - ax * bz;
+        double nz = ax * by - ay * bx;
+        double magnitude = Math.max(Math.abs(nx), Math.max(Math.abs(ny), Math.abs(nz)));
+        if (magnitude < 1.0E-12D) return fallback;
+        if (Math.abs(nx) == magnitude) return nx > 0 ? ForgeDirection.EAST : ForgeDirection.WEST;
+        if (Math.abs(ny) == magnitude) return ny > 0 ? ForgeDirection.UP : ForgeDirection.DOWN;
+        return nz > 0 ? ForgeDirection.SOUTH : ForgeDirection.NORTH;
     }
 
     private static boolean isPlaneAt(double[][] vertices, int axis, double boundary) {

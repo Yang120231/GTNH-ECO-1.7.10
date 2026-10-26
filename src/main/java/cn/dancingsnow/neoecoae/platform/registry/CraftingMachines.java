@@ -582,8 +582,7 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationDrive extends ECOComputationDriveBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
+    public static final class ComputationDrive extends ECOComputationDriveBlockEntity {
 
         public ComputationDrive() {
             super(

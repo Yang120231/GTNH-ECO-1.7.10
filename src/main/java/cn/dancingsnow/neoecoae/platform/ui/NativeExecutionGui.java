@@ -7,7 +7,6 @@ import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 
-import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
@@ -41,8 +40,6 @@ public interface NativeExecutionGui extends IGuiHolder<PosGuiData> {
             return NativeComputationPages.create((ECOComputationSystemBlockEntity) this, data.getPlayer(), sync);
         if (this instanceof ECOCraftingPatternBusBlockEntity)
             return NativeCraftingPages.patternBus((ECOCraftingPatternBusBlockEntity) this, data.getPlayer(), sync);
-        if (this instanceof ECOComputationDriveBlockEntity)
-            return NativeComputationPages.drive((ECOComputationDriveBlockEntity) this, data.getPlayer(), sync);
         throw new IllegalStateException("No native execution menu for " + getClass().getName());
     }
 

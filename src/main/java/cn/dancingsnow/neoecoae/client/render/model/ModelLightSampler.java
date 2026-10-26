@@ -29,7 +29,7 @@ final class ModelLightSampler {
         return getVisualBrightness(world, x, y, z, sampleX, sampleY, sampleZ, block, normal);
     }
 
-    private static int getInternalBrightness(IBlockAccess world, int x, int y, int z, Block block,
+    static int getInternalBrightness(IBlockAccess world, int x, int y, int z, Block block,
         ForgeDirection openingDirection) {
         int openingBrightness = getVisualBrightness(world, x, y, z, x, y, z, block, openingDirection);
         if (openingBrightness != 0) {

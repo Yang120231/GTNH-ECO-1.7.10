@@ -7,6 +7,7 @@ public final class OrientationStrategies {
 
     private static final IOrientationStrategy HORIZONTAL = (state, side) -> {
         Direction facing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        // AE2's north-facing model space defines LEFT as WEST and RIGHT as EAST.
         switch (side) {
             case FRONT:
                 return facing;
@@ -17,9 +18,9 @@ public final class OrientationStrategies {
             case BOTTOM:
                 return Direction.DOWN;
             case LEFT:
-                return facing.getClockWise();
-            case RIGHT:
                 return facing.getCounterClockWise();
+            case RIGHT:
+                return facing.getClockWise();
             default:
                 throw new AssertionError(side);
         }

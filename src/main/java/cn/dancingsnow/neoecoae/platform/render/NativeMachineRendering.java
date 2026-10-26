@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
@@ -21,6 +22,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.storage.ECODriveBlockEntity;
 import cn.dancingsnow.neoecoae.client.render.model.BakedEcoModel;
 import cn.dancingsnow.neoecoae.client.render.model.EcoModelRenderer;
@@ -57,8 +60,8 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
                     .getPanelTierName()
                     .getString()
                     .toLowerCase(Locale.ROOT);
-                String kind = cell.getKeyType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? "item"
-                    : "fluid";
+                String kind = cell.isLegacyBulk() ? (tier.equals("l9") ? "bulk_item" : "bulk")
+                    : cell.getKeyType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? "item" : "fluid";
                 CELLS.put(cell, "cell/storage_cell_" + tier + "_" + kind);
             }
         }
@@ -70,6 +73,13 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
 
     public static IIcon register(NativeMachineBlock block, IIconRegister register) {
         BlockModels models = new BlockModels();
+        String name = block.model();
+        models.hideWhenFormed = name.equals("crafting_network_switch")
+            || name.equals("crafting_high_energy_network_switch")
+            || name.equals("computation_network_switch")
+            || name.equals("computation_high_energy_network_switch")
+            || name.equals("input_hatch")
+            || name.equals("output_hatch");
         ResourceLocation location = new ResourceLocation("neoecoae", "blockstates/" + block.model() + ".json");
         try (var reader = new InputStreamReader(
             Minecraft.getMinecraft()
@@ -103,6 +113,8 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
                 models.load("neoecoae:block/cell/storage_cell_default", register, true);
                 for (String cell : CELLS.values()) models.load("neoecoae:block/" + cell, register, true);
             }
+            if (block.partRole() == ECOMultiblockParts.Role.COMPUTATION_DRIVE)
+                models.computationDrive = new NativeComputationDriveModels(models, register);
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cannot register imported models for " + location, failure);
         }
@@ -125,12 +137,13 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
     @Override
     public boolean renderWorldBlock(IBlockAccess world, int x, int y, int z, Block block, int modelId,
         RenderBlocks renderer) {
-        if (isHidden(world, x, y, z)) return true;
         NativeMachineBlock machine = (NativeMachineBlock) block;
         var tile = world.getTileEntity(x, y, z);
         BlockState state = tile instanceof NativeStateHolder ? ((NativeStateHolder) tile).nativeBlockState()
             : machine.fromMetadata(world.getBlockMetadata(x, y, z));
+        if (state == null || !state.is(block)) state = machine.fromMetadata(world.getBlockMetadata(x, y, z));
         BlockModels models = required(block);
+        if (models.isHidden(state)) return true;
         Variant variant = models.select(state);
         String model = variant.model;
         if (model.equals("neoecoae:block/builtin/eco_drive"))
@@ -154,6 +167,18 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
                     renderer);
             }
         }
+        if (tile instanceof ECOComputationDriveBlockEntity && models.computationDrive != null)
+            models.computationDrive.render(
+                (ECOComputationDriveBlockEntity) tile,
+                state,
+                variant.facing,
+                models.icons,
+                world,
+                x,
+                y,
+                z,
+                block,
+                renderer);
         return true;
     }
 
@@ -175,10 +200,13 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
 
     @Override
     public boolean isHidden(IBlockAccess world, int x, int y, int z) {
+        Block block = world.getBlock(x, y, z);
+        BlockModels models = BLOCKS.get(block);
+        if (models == null) return false;
         var tile = world.getTileEntity(x, y, z);
         if (!(tile instanceof NativeStateHolder)) return false;
         BlockState state = ((NativeStateHolder) tile).nativeBlockState();
-        return state.hasProperty(NativeMachineBlock.INVISIBLE) && state.getValue(NativeMachineBlock.INVISIBLE);
+        return state != null && state.is(block) && models.isHidden(state);
     }
 
     @Override
@@ -192,6 +220,9 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
         final List<Variant> variants = new ArrayList<>();
         final Map<String, BakedEcoModel> meshes = new LinkedHashMap<>();
         final Map<String, IIcon> icons = new LinkedHashMap<>();
+        private final Map<BlockState, Variant> selectedVariants = new ConcurrentHashMap<>();
+        private boolean hideWhenFormed;
+        private NativeComputationDriveModels computationDrive;
 
         void load(String id, IIconRegister register, boolean cell) {
             if (meshes.containsKey(id)) return;
@@ -202,18 +233,38 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
             BakedEcoModel mesh = cell ? BakedEcoModel.offsetSubModel(source, 2 / 16.0, 2 / 16.0, 0)
                 : new BakedEcoModel(source);
             meshes.put(id, mesh);
+            registerTextures(mesh, register);
+        }
+
+        void registerTextures(BakedEcoModel mesh, IIconRegister register) {
             for (var quad : mesh.getQuads(ModelFacing.NORTH)) {
                 String texture = quad.getTexture();
                 if (texture.startsWith("#"))
-                    throw new IllegalArgumentException("Unresolved source texture: " + id + " " + texture);
+                    throw new IllegalArgumentException("Unresolved source texture: " + texture);
                 if (!icons.containsKey(texture))
                     icons.put(texture, register.registerIcon(texture.replace(":block/", ":")));
             }
         }
 
+        boolean isHidden(BlockState state) {
+            return (state.hasProperty(NativeMachineBlock.INVISIBLE) && state.getValue(NativeMachineBlock.INVISIBLE))
+                || (hideWhenFormed && state.getValue(NativeMachineBlock.FORMED));
+        }
+
         Variant select(BlockState state) {
-            for (Variant variant : variants) if (variant.matches(state)) return variant;
-            throw new IllegalStateException("No source model variant for " + state.getValues());
+            Variant selected = selectedVariants.get(state);
+            if (selected == null) {
+                for (Variant variant : variants) if (variant.matches(state)) {
+                    selected = variant;
+                    break;
+                }
+                if (selected == null)
+                    throw new IllegalStateException("No source model variant for " + state.getValues());
+                // Only immutable property projections are cached, never world or tile objects.
+                if (selectedVariants.size() >= 256) selectedVariants.clear();
+                selectedVariants.put(state, selected);
+            }
+            return selected;
         }
     }
 
@@ -221,32 +272,35 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
 
         final String condition, model;
         final ModelFacing facing;
+        private final Map<String, String> expectedValues = new LinkedHashMap<>();
 
         Variant(String condition, String model, ModelFacing facing) {
             this.condition = condition;
             this.model = model;
             this.facing = facing;
+            if (!condition.isEmpty()) for (String test : condition.split(",")) {
+                String[] pair = test.split("=", 2);
+                if (pair.length != 2) throw new IllegalArgumentException("Invalid source model condition: " + test);
+                expectedValues.put(pair[0], pair[1]);
+            }
         }
 
         boolean matches(BlockState state) {
-            if (condition.isEmpty()) return true;
-            for (String test : condition.split(",")) {
-                String[] pair = test.split("=", 2);
-                boolean found = false;
-                for (var entry : state.getValues()
-                    .entrySet())
-                    if (entry.getKey()
-                        .getName()
-                        .equals(pair[0])) {
-                            found = entry.getValue()
-                                .toString()
-                                .toLowerCase(Locale.ROOT)
-                                .equals(pair[1]);
-                            break;
-                        }
-                if (!found) return false;
+            if (expectedValues.isEmpty()) return true;
+            int matched = 0;
+            for (var entry : state.getValues()
+                .entrySet()) {
+                String expected = expectedValues.get(
+                    entry.getKey()
+                        .getName());
+                if (expected == null) continue;
+                if (!entry.getValue()
+                    .toString()
+                    .toLowerCase(Locale.ROOT)
+                    .equals(expected)) return false;
+                matched++;
             }
-            return true;
+            return matched == expectedValues.size();
         }
     }
 }

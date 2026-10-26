@@ -8,18 +8,13 @@ import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
-import com.cleanroommc.modularui.widgets.SlotGroupWidget;
-import com.cleanroommc.modularui.widgets.slot.ItemSlot;
-import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
-import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
-import cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachineWidgets;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
@@ -119,21 +114,6 @@ public final class NativeComputationPages {
                 .pos(index % 11 * 18, index / 11 * 36).size(16));
         }
         return grid;
-    }
-
-    public static ModularPanel drive(ECOComputationDriveBlockEntity host, EntityPlayer player, PanelSyncManager sync) {
-        ModularPanel panel = ModularPanel.defaultPanel("neoecoae_computation_drive", 176, 136);
-        panel.child(
-            new NativeText(() -> Component.translatable("block.neoecoae.computation_drive")).pos(7, 5)
-                .size(162, 12));
-        panel.child(
-            new ItemSlot()
-                .slot(new ModularSlot(new NativeItemHandler(host.getInternalInventory(), host::canExtractCell), 0))
-                .pos(79, 22));
-        panel.child(
-            SlotGroupWidget.playerInventory(false)
-                .pos(7, 50));
-        return panel;
     }
 
     private static Component text(String key, Object... arguments) {

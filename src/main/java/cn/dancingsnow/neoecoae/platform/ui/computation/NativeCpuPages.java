@@ -19,6 +19,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.ui.NativeAe2Button;
 import cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
@@ -69,15 +70,10 @@ public final class NativeCpuPages {
     }
 
     private static Widget<?> actionButton(NativeComputationSession session, boolean pause) {
-        return new ButtonWidget<>().background((context, x, y, width, height, theme) -> NativePageLayout.texture(
-            "neoecoae:textures/gui/vendor/ae2/sprites/button"
-                + (selected(session).getBoolean("busy") ? "" : "_disabled") + ".png", 0, 0, 200, 20, 3, 3)
-            .draw(context, x, y, width, height, theme))
-            .hoverBackground(NativePageLayout.texture(
-                "neoecoae:textures/gui/vendor/ae2/sprites/button_highlighted.png", 0, 0, 200, 20, 3, 3))
-            .child(new NativeText(() -> Component.translatable(pause
+        return new NativeAe2Button(() -> Component.translatable(pause
                 ? selected(session).getBoolean("suspended") ? "gui.neoecoae.native_computation.resume" : "gui.neoecoae.native_computation.pause"
-                : "gui.appliedenergistics2.Cancel"), 1, 0xf2f2f2).sizeRel(1, 1))
+                : "gui.appliedenergistics2.Cancel"))
+            .activeWhen(() -> selected(session).getBoolean("busy"))
             .onMousePressed(button -> {
                 if (button != 0 || !selected(session).getBoolean("busy")) return false;
                 session.action(pause ? 6 : 7, selected(session).getInt("token"));

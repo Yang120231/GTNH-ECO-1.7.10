@@ -14,6 +14,7 @@ import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.google.gson.JsonObject;
 
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
+import cn.dancingsnow.neoecoae.platform.ui.NativeAe2Button;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cpw.mods.fml.relauncher.Side;
@@ -68,24 +69,8 @@ public final class NativeStoragePriorityPages {
                 case "priority_button":
                     int step = node.get("step")
                         .getAsInt();
-                    widget = new ButtonWidget<>()
-                        .child(
-                            new NativeText(
-                                () -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)),
-                                1,
-                                0xf2f2f2))
-                        .background(
-                            NativePageLayout
-                                .texture("neoecoae:textures/gui/vendor/ae2/sprites/button.png", 0, 0, 200, 20, 3, 3))
-                        .hoverBackground(
-                            NativePageLayout.texture(
-                                "neoecoae:textures/gui/vendor/ae2/sprites/button_highlighted.png",
-                                0,
-                                0,
-                                200,
-                                20,
-                                3,
-                                3))
+                    widget = new NativeAe2Button(
+                        () -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)))
                         .onMousePressed(button -> {
                             if (button != 0) return false;
                             session.change(step);

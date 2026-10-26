@@ -14,6 +14,7 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     @Persisted
+    @DescSynced
     private final AppEngInternalInventory inventory = new AppEngInternalInventory(this, 1, 1) {
 
         @Override
@@ -26,7 +27,10 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
             return canExtractCell() ? super.extractItem(slot, amount, simulate) : null;
         }
     };
+    @DescSynced
     private boolean lowerDrive;
+    @DescSynced
+    private int renderTier;
 
     public ECOComputationDriveBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state, NEComputationClusterCalculator::new);
@@ -40,6 +44,11 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
         return inventory.getStackInSlot(0);
     }
 
+    public void setCellStack(net.minecraft.item.ItemStack stack) {
+        if (stack != null && !inventory.isItemValid(0, stack)) return;
+        inventory.setStackInSlot(0, ItemStacks.copyWithCount(stack, 1));
+    }
+
     public AppEngInternalInventory getInternalInventory() {
         return inventory;
     }
@@ -49,12 +58,31 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
     }
 
     public void setLowerDrive(boolean lower) {
+        if (lowerDrive == lower) return;
         lowerDrive = lower;
+        markForClientUpdate();
+    }
+
+    public int getRenderTier() {
+        return renderTier;
+    }
+
+    @Override
+    public void updateState(boolean updateExposed) {
+        super.updateState(updateExposed);
+        if (level == null || level.isClientSide() || notLoaded() || isServerStopping() || isRemoved()) return;
+        var controller = cluster == null ? null : cluster.getController();
+        int tier = controller == null ? 0 : controller.getTier().getTier();
+        if (renderTier != tier) {
+            renderTier = tier;
+            markForClientUpdate();
+        }
     }
 
     public void saveChangedInventory(AppEngInternalInventory inv) {
         setChanged();
         if (cluster != null) cluster.recalculateRemainingStorage();
+        markForClientUpdate();
     }
 
     @Override

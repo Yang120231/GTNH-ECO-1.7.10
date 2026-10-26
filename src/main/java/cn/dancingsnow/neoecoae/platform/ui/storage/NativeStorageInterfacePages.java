@@ -168,7 +168,7 @@ public final class NativeStorageInterfacePages {
         return Component.translatable("gui.neoecoae.storage_interface.mode." + mode.getSerializedName());
     }
 
-    private final class ModeButton extends ButtonWidget<ModeButton> {
+    private final class ModeButton extends cn.dancingsnow.neoecoae.platform.ui.NativeButtonWidget<ModeButton> {
 
         private final ECOStorageInterfaceMode mode;
 
@@ -185,10 +185,10 @@ public final class NativeStorageInterfacePages {
         @Override
         @SideOnly(Side.CLIENT)
         public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            boolean selected = session.mode() == mode;
+            boolean selected = isPressed() || session.mode() == mode;
             int height = selected ? 17 : 18;
             NativePageLayout
-                .texture(ATLAS, (mode.ordinal() + (isHovering() ? 3 : 0)) * 16, selected ? 159 : 140, 16, height)
+                .texture(ATLAS, (mode.ordinal() + (isHovering() || isPressed() ? 3 : 0)) * 16, selected ? 159 : 140, 16, height)
                 .draw(0, 18 - height, 16, height);
         }
     }

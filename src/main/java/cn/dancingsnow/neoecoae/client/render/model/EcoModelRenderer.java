@@ -30,29 +30,42 @@ public final class EcoModelRenderer {
         IBlockAccess world, int x, int y, int z, Block block, RenderBlocks renderer) {
         Tessellator tessellator = Tessellator.instance;
         ModelRenderLayer renderLayer = ModelRenderLayer.fromRenderPass(MinecraftForgeClient.getRenderPass());
+        List<BakedQuad> quads = model.getQuads(facing, renderLayer);
+        if (quads.isEmpty()) return;
+        int checkedSides = 0;
+        int culledSides = 0;
+        int internalBrightness = -1;
         tessellator.addTranslation(x, y, z);
-        for (BakedQuad quad : model.getQuads(facing)) {
-            if (quad.getRenderLayer() != renderLayer) {
-                continue;
-            }
-            if (shouldCull(world, x, y, z, quad)) {
-                continue;
-            }
-            IIcon icon = getWorldIcon(quad, icons, renderer);
-            if (icon == null) {
-                continue;
-            }
+        try {
+            for (BakedQuad quad : quads) {
+                if (quad.isCullable()) {
+                    int side = 1 << quad.getCullDirection().ordinal();
+                    if ((checkedSides & side) == 0) {
+                        checkedSides |= side;
+                        if (shouldCull(world, x, y, z, block, quad.getCullDirection())) culledSides |= side;
+                    }
+                    if ((culledSides & side) != 0) continue;
+                }
+                IIcon icon = getWorldIcon(quad, icons, renderer);
+                if (icon == null) continue;
 
-            int brightness = quad.isFullBright() ? FULL_BRIGHTNESS
-                : ModelLightSampler.getWorldBrightness(world, x, y, z, block, quad, facing);
-            float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : quad.getWorldShade();
-            tessellator.setBrightness(brightness);
-            ForgeDirection normal = quad.getNormal();
-            tessellator.setNormal(normal.offsetX, normal.offsetY, normal.offsetZ);
-            tessellator.setColorOpaque_F(shade, shade, shade);
-            submitQuad(tessellator, quad, icon);
+                int brightness;
+                if (quad.isFullBright()) brightness = FULL_BRIGHTNESS;
+                else if (!quad.isBoundaryFace()) {
+                    if (internalBrightness < 0) internalBrightness = ModelLightSampler
+                        .getInternalBrightness(world, x, y, z, block, facing.getDirection());
+                    brightness = internalBrightness;
+                } else brightness = ModelLightSampler.getWorldBrightness(world, x, y, z, block, quad, facing);
+                float shade = quad.isFullBright() || !quad.isShade() ? 1.0F : quad.getWorldShade();
+                tessellator.setBrightness(brightness);
+                ForgeDirection normal = quad.getNormal();
+                tessellator.setNormal(normal.offsetX, normal.offsetY, normal.offsetZ);
+                tessellator.setColorOpaque_F(shade, shade, shade);
+                submitQuad(tessellator, quad, icon);
+            }
+        } finally {
+            tessellator.addTranslation(-x, -y, -z);
         }
-        tessellator.addTranslation(-x, -y, -z);
     }
 
     public static void renderInventoryBlock(BakedEcoModel model, Map<String, IIcon> icons) {
@@ -80,12 +93,8 @@ public final class EcoModelRenderer {
         return icons.get(quad.getTexture());
     }
 
-    private static boolean shouldCull(IBlockAccess world, int x, int y, int z, BakedQuad quad) {
-        if (!quad.isCullable()) {
-            return false;
-        }
-        ForgeDirection cullDirection = quad.getCullDirection();
-
+    private static boolean shouldCull(IBlockAccess world, int x, int y, int z, Block block,
+        ForgeDirection cullDirection) {
         int neighborX = x + cullDirection.offsetX;
         int neighborY = y + cullDirection.offsetY;
         int neighborZ = z + cullDirection.offsetZ;
@@ -93,8 +102,7 @@ public final class EcoModelRenderer {
             return false;
         }
 
-        return !world.getBlock(x, y, z)
-            .shouldSideBeRendered(world, neighborX, neighborY, neighborZ, cullDirection.ordinal());
+        return !block.shouldSideBeRendered(world, neighborX, neighborY, neighborZ, cullDirection.ordinal());
     }
 
     private static float getInventoryShade(ForgeDirection normal) {

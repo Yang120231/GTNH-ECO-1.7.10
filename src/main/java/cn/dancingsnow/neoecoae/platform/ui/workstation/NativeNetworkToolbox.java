@@ -50,6 +50,7 @@ final class NativeNetworkToolbox {
         for (int index = 0; index < viewer.getSizeInventory(); index++) panel.child(
             new cn.dancingsnow.neoecoae.platform.ui.NativeUpgradeSlot().slot(new ModularSlot(inventory, index))
                 .background(com.cleanroommc.modularui.api.drawable.IDrawable.EMPTY)
+                .hoverBackground(com.cleanroommc.modularui.api.drawable.IDrawable.EMPTY)
                 .pos(174 + index % 3 * 18, 101 + index / 3 * 18));
     }
 }

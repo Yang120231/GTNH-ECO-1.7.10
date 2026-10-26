@@ -52,32 +52,38 @@ public final class NativeWorkstationPages {
             new NativeText(() -> Component.translatable("block.neoecoae.integrated_working_station"), 1, 0x403e53).pos(8, 6)
                 .size(160, 10));
         NativeItemHandler input = new NativeItemHandler(host.getInputInv());
+        // The source panel already contains the slots; null would restore MUI2's default slot texture.
         for (int row = 0; row < 3; row++) for (int column = 0; column < 3; column++) panel.child(
             new ItemSlot().slot(new ModularSlot(input, row + column * 3))
-                .background((IDrawable) null)
+                .background(IDrawable.EMPTY)
+                .hoverBackground(IDrawable.EMPTY)
                 .pos(35 + column * 18, 23 + row * 18));
         panel.child(
             new ItemSlot().slot(new ModularSlot(new NativeItemHandler(host.getOutputInv()), 0).canPut(false))
-                .background((IDrawable) null)
+                .background(IDrawable.EMPTY)
+                .hoverBackground(IDrawable.EMPTY)
                 .pos(122, 42));
         var upgrades = new java.util.ArrayList<com.cleanroommc.modularui.widget.Widget<?>>();
         for (int index = 0; index < 4; index++) upgrades.add(
             new cn.dancingsnow.neoecoae.platform.ui.NativeUpgradeSlot()
-                .slot(new ModularSlot(new InvWrapper(host.getUpgrades()), index)));
+                .slot(new ModularSlot(new InvWrapper(host.getUpgrades()), index))
+                .hoverBackground(IDrawable.NONE));
         panel.child(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.upgrades(176, upgrades));
 
         panel.child(
             new Gauge().syncHandler(new NativeOwnedFluidSync(host, session.tank(true), true, true))
                 .alwaysShowFull(false)
                 .contentPadding(0)
-                .background((IDrawable) null)
+                .background(IDrawable.EMPTY)
+                .hoverBackground(IDrawable.EMPTY)
                 .pos(8, 23)
                 .size(16, 54));
         panel.child(
             new Gauge().syncHandler(new NativeOwnedFluidSync(host, session.tank(false), false, true))
                 .alwaysShowFull(false)
                 .contentPadding(0)
-                .background((IDrawable) null)
+                .background(IDrawable.EMPTY)
+                .hoverBackground(IDrawable.EMPTY)
                 .pos(152, 23)
                 .size(16, 54));
         panel.child(
@@ -95,7 +101,7 @@ public final class NativeWorkstationPages {
         NativeNetworkToolbox toolbox = NativeNetworkToolbox.find(player);
         panel.child(SlotGroupWidget.playerInventory((index, slot) -> {
             if (toolbox != null && index == toolbox.playerSlot()) slot = new LockedToolSlot();
-            return slot.background((IDrawable) null);
+            return slot.background(IDrawable.EMPTY).hoverBackground(IDrawable.EMPTY);
         })
             .pos(7, 105));
         if (toolbox != null) toolbox.attach(panel);
@@ -117,8 +123,10 @@ public final class NativeWorkstationPages {
     }
 
     private static ButtonWidget<?> clear(Runnable action) {
-        return new ButtonWidget<>().background(NativePageLayout.texture(WIDGET, 0, 6, 12, 11))
+        return new cn.dancingsnow.neoecoae.platform.ui.NativeButtonWidget<>()
+            .background(NativePageLayout.texture(WIDGET, 0, 6, 12, 11))
             .hoverBackground(NativePageLayout.texture(WIDGET, 12, 6, 12, 11))
+            .pressedBackground(NativePageLayout.texture(WIDGET, 24, 6, 12, 11))
             .onMousePressed(button -> {
                 if (button != 0) return false;
                 action.run();

@@ -67,7 +67,7 @@ public final class NativeHostSideBar {
         return new IconButton(icon, tooltip, action);
     }
 
-    private static final class IconButton extends ButtonWidget<IconButton> {
+    private static final class IconButton extends NativeButtonWidget<IconButton> {
 
         private final Supplier<IDrawable> icon;
 
@@ -82,13 +82,14 @@ public final class NativeHostSideBar {
         @Override
         @SideOnly(Side.CLIENT)
         public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            NativeUiDraw.sprite(ATLAS, isHovering() ? 212 : 176, 128, 18, 20, -1, 0, 18, 20);
+            boolean highlighted = isHovering() || isPressed();
+            NativeUiDraw.sprite(ATLAS, highlighted ? 212 : 176, 128, 18, 20, -1, highlighted ? 1 : 0, 18, 20);
         }
 
         @Override
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            icon.get().draw(context, 0, isHovering() ? 2 : 1, 16, 16, theme.getTheme());
+            icon.get().draw(context, 0, isHovering() || isPressed() ? 2 : 1, 16, 16, theme.getTheme());
         }
     }
 }
