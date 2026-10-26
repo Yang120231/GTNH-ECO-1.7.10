@@ -73,9 +73,11 @@ public final class SourceRecipes {
                 STATUS.put(id, "pending:" + unavailable.getMessage());
             }
         }
+        WorldTransformRecipes.bind();
         var counts = new LinkedHashMap<String, Integer>();
         for (String status : STATUS.values()) counts.merge(status.split(":", 2)[0], 1, Integer::sum);
         NeoECOAE.LOG.info("NEOECOAE_SOURCE_RECIPES_REGISTERED totals={} native_crafting={}", counts, CRAFTING.size());
+        if (Boolean.getBoolean("neoecoae.recipeAcceptance")) NativeRecipeAcceptance.checkRegistered();
         for (var entry : STATUS.entrySet()) if (entry.getValue()
             .startsWith("pending:"))
             NeoECOAE.LOG.debug("Source recipe deferred {} {}", entry.getKey(), entry.getValue());
@@ -193,6 +195,13 @@ public final class SourceRecipes {
                     cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse("neoecoae:" + id),
                     definition);
                 STATUS.put(id, "installed:blasting_directory");
+                return;
+            }
+            case "ae2:transform": {
+                WorldTransformRecipes.install(
+                    cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse("neoecoae:" + id),
+                    definition);
+                STATUS.put(id, "installed:world_transform");
                 return;
             }
             case "neoecoae:integrated_working_station": {
