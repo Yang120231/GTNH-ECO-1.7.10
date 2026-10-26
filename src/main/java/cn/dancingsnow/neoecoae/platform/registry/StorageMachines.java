@@ -119,7 +119,8 @@ public final class StorageMachines {
         }
     }
 
-    public static final class Interface extends ECOMachineInterfaceBlockEntity<NEStorageCluster> {
+    public static final class Interface extends ECOMachineInterfaceBlockEntity<NEStorageCluster>
+        implements com.cleanroommc.modularui.api.IGuiHolder<com.cleanroommc.modularui.factory.PosGuiData> {
 
         public Interface() {
             super(
@@ -127,6 +128,21 @@ public final class StorageMachines {
                 BlockPos.ZERO,
                 ((NativeMachineBlock) STORAGE_INTERFACE.value()).defaultBlockState(),
                 NEStorageClusterCalculator::new);
+        }
+
+        @Override
+        public com.cleanroommc.modularui.screen.ModularPanel buildUI(com.cleanroommc.modularui.factory.PosGuiData data,
+            com.cleanroommc.modularui.value.sync.PanelSyncManager sync,
+            com.cleanroommc.modularui.screen.UISettings settings) {
+            return cn.dancingsnow.neoecoae.platform.ui.storage.NativeStorageInterfacePages
+                .create(this, data.getPlayer(), sync);
+        }
+
+        @Override
+        @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
+        public com.cleanroommc.modularui.screen.ModularScreen createScreen(
+            com.cleanroommc.modularui.factory.PosGuiData data, com.cleanroommc.modularui.screen.ModularPanel panel) {
+            return new com.cleanroommc.modularui.screen.ModularScreen("neoecoae", panel);
         }
     }
 

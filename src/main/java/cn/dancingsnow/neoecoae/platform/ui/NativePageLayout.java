@@ -65,11 +65,16 @@ public final class NativePageLayout {
     }
 
     public static UITexture texture(String id, int x, int y, int width, int height) {
+        return texture(id, x, y, width, height, 0, 0);
+    }
+
+    public static UITexture texture(String id, int x, int y, int width, int height, int borderX, int borderY) {
         int[] image = IMAGE_SIZES.computeIfAbsent(id, NativePageLayout::imageSize);
         return UITexture.builder()
             .location(id)
             .imageSize(image[0], image[1])
             .subAreaXYWH(x, y, width, height)
+            .adaptable(borderX, borderY)
             .build();
     }
 

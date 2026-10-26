@@ -26,6 +26,7 @@ public final class NativeStorageSession extends SyncHandler {
     public static final int PAGE_SIZE = 33;
     private final ECOStorageSystemBlockEntity host;
     private final StorageHostUI.Config config;
+    private final ServerTasks.Session serverSession = ServerTasks.captureSession();
     private StoragePanelState state = StoragePanelState.EMPTY;
     private CompoundTag previous;
     private int offset, nextToken, pendingToken;
@@ -60,12 +61,8 @@ public final class NativeStorageSession extends SyncHandler {
     }
 
     private boolean validSession() {
-        var player = getSyncManager().getPlayer();
-        return player != null && player.openContainer == getSyncManager().getContainer()
-            && !host.isInvalid()
-            && host.canPlayerInteract(player)
-            && host.getWorldObj()
-                .getTileEntity(host.xCoord, host.yCoord, host.zCoord) == host;
+        return isValid() && cn.dancingsnow.neoecoae.platform.ui.NativeUiAccess
+            .canEdit(host, getSyncManager().getPlayer(), getSyncManager().getContainer());
     }
 
     @Override
@@ -103,7 +100,7 @@ public final class NativeStorageSession extends SyncHandler {
     public void readOnServer(int id, PacketBuffer buffer) throws java.io.IOException {
         if (id == 0) {
             int requested = buffer.readInt();
-            ServerTasks.execute(() -> { if (validSession()) offset = Math.max(0, requested); });
+            serverSession.execute(() -> { if (validSession()) offset = Math.max(0, requested); });
             return;
         }
         if (id != 1) throw new java.io.IOException("Unknown storage action: " + id);
@@ -114,7 +111,7 @@ public final class NativeStorageSession extends SyncHandler {
         UUID expectedId = buffer.readBoolean() ? new UUID(buffer.readLong(), buffer.readLong()) : null;
         ItemStack expected = insert ? ItemStacks.parseOptional(config.registries(), bytes(buffer).readNbt()) : null;
         if (buffer.isReadable()) throw new java.io.IOException("Trailing storage action bytes");
-        ServerTasks.execute(() -> {
+        serverSession.execute(() -> {
             boolean accepted = false;
             try {
                 if (validSession()) accepted = insert ? config.cellInserter()
