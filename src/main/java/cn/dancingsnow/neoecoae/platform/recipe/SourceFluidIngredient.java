@@ -53,7 +53,11 @@ public final class SourceFluidIngredient {
     }
 
     public boolean test(FluidStack stack) {
-        return stack != null && stack.amount > 0 && fluids.contains(stack.getFluid());
+        return stack != null && stack.amount > 0 && accepts(stack.getFluid());
+    }
+
+    public boolean accepts(Fluid fluid) {
+        return fluid != null && fluids.contains(fluid);
     }
 
     public List<FluidStack> examples(int amount) {
