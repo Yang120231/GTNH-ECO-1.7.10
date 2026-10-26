@@ -877,6 +877,24 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         return PlanningSettings.craftingSystemMaxLength - 4;
     }
 
+    public int getSelectedBuildLength() {
+        return selectedBuildLength;
+    }
+
+    public void setSelectedBuildLength(int value) {
+        selectedBuildLength = Math.max(1, Math.min(getMaxBuildLength(), value));
+        saveChanges();
+    }
+
+    public boolean isMirrorBuild() {
+        return mirrorBuild;
+    }
+
+    public void setMirrorBuild(boolean value) {
+        mirrorBuild = value;
+        saveChanges();
+    }
+
     public boolean canPlayerInteract(EntityPlayer player) {
         return player != null && !isRemoved() && player.getDistanceSq(xCoord + .5, yCoord + .5, zCoord + .5) <= 64;
     }

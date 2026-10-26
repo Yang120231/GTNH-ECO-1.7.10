@@ -30,6 +30,8 @@ public class ECOComputationSystemBlockEntity
     private boolean fastPlannerEnabled = true;
     @Persisted
     private int selectedBuildLength = 11;
+    @Persisted
+    private boolean mirrorBuild;
 
     public ECOComputationSystemBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state,
         StorageTierDescriptor tier) {
@@ -86,6 +88,15 @@ public class ECOComputationSystemBlockEntity
 
     public int getSelectedBuildLength() {
         return selectedBuildLength;
+    }
+
+    public boolean isMirrorBuild() {
+        return mirrorBuild;
+    }
+
+    public void setMirrorBuild(boolean value) {
+        mirrorBuild = value;
+        saveChanges();
     }
 
     public void setSelectedBuildLength(int value) {
