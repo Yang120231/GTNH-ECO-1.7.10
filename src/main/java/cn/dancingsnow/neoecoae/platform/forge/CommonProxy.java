@@ -15,6 +15,7 @@ public class CommonProxy {
         cn.dancingsnow.neoecoae.platform.registry.BasicBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.StorageMachines.register();
         cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.register();
+        cn.dancingsnow.neoecoae.platform.registry.CraftingMachines.register();
         cn.dancingsnow.neoecoae.platform.registry.CoreBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.RecipeMaterials.register();
         PortingFoundationFixture.register();

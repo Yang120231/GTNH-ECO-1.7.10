@@ -357,4 +357,14 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
                     .get(property));
         markForClientUpdate();
     }
+
+    public void clearContent() {}
+
+    public void saveToItem(net.minecraft.item.ItemStack stack, HolderLookup.Provider registries) {
+        var tag = new CompoundTag();
+        saveAdditional(tag, registries);
+        if (!stack.hasTagCompound()) stack.setTagCompound(new NBTTagCompound());
+        stack.getTagCompound()
+            .setTag("BlockEntityTag", tag.nativeTag());
+    }
 }

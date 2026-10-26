@@ -35,4 +35,28 @@ public interface StorageTierDescriptor {
     default cn.dancingsnow.neoecoae.platform.minecraft.Component getPanelTierName() {
         return cn.dancingsnow.neoecoae.platform.minecraft.Component.literal("L" + getTier());
     }
+
+    default int getCPUThreads() {
+        return getTier() == 1 ? 4 : getTier() == 2 ? 16 : 64;
+    }
+
+    default int getCPUAccelerators() {
+        return getTier() == 1 ? 64 : getTier() == 2 ? 192 : 576;
+    }
+
+    default int getCrafterParallel() {
+        return getTier() == 1 ? 24 : getTier() == 2 ? 72 : 256;
+    }
+
+    default int getOverclockedCrafterParallel() {
+        return getTier() == 1 ? 32 : getTier() == 2 ? 96 : 384;
+    }
+
+    default int getOverclockedCrafterQueueMultiply() {
+        return 2 << getTier();
+    }
+
+    default int getOverclockedCrafterPowerMultiply() {
+        return 2 << getTier();
+    }
 }

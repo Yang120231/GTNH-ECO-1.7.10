@@ -91,7 +91,11 @@ public final class ManagedFields {
         else if (value instanceof Enum) tag.putString("value", ((Enum<?>) value).name());
         else if (value instanceof ItemStack)
             tag.put("value", new CompoundTag(((ItemStack) value).writeToNBT(new net.minecraft.nbt.NBTTagCompound())));
-        else if (value instanceof CompoundTag) tag.put("value", ((CompoundTag) value).copy());
+        else if (value instanceof cn.dancingsnow.neoecoae.platform.fluid.FluidStack) {
+            var fluid = ((cn.dancingsnow.neoecoae.platform.fluid.FluidStack) value).toNative();
+            if (fluid != null)
+                tag.put("value", new CompoundTag(fluid.writeToNBT(new net.minecraft.nbt.NBTTagCompound())));
+        } else if (value instanceof CompoundTag) tag.put("value", ((CompoundTag) value).copy());
         else if (value instanceof ManagedValue) tag.put("value", ((ManagedValue) value).writeManaged());
         else throw new IllegalArgumentException(
             "No managed codec for " + value.getClass()
@@ -115,6 +119,11 @@ public final class ManagedFields {
         if (type == ItemStack.class) return ItemStack.loadItemStackFromNBT(
             tag.getCompound("value")
                 .nativeTag());
+        if (type == cn.dancingsnow.neoecoae.platform.fluid.FluidStack.class)
+            return cn.dancingsnow.neoecoae.platform.fluid.FluidStack.fromNative(
+                net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(
+                    tag.getCompound("value")
+                        .nativeTag()));
         if (type == CompoundTag.class) return tag.getCompound("value")
             .copy();
         throw new IllegalArgumentException("No managed codec for " + type.getName());

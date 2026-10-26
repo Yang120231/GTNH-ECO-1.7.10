@@ -27,7 +27,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     private final Map<AEKey, List<IPatternDetails>> byOutput;
     private final Set<AEKey> craftables;
     private final Set<AEKey> emitters;
-    private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, NativeCraftingProvider>> providers = new IdentityHashMap<>();
+    private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, ICraftingProvider>> providers = new IdentityHashMap<>();
 
     public CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates,
         NativePatternTrackingCache tracking) {
@@ -89,7 +89,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
                 providers.computeIfAbsent(medium, ignored -> new IdentityHashMap<>())
                     .computeIfAbsent(
                         pattern,
-                        ignored -> new NativeCraftingProvider(medium, Collections.singletonList(pattern))));
+                        ignored -> NativeCraftingProvider.wrap(medium, Collections.singletonList(pattern))));
         return result;
     }
 

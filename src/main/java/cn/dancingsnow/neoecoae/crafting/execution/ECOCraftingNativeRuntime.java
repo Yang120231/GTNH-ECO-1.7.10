@@ -62,9 +62,27 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
     }
 
     @Override
+    public appeng.api.config.CraftingAllow selectionMode() {
+        switch (cpu.getSelectionMode()) {
+            case PLAYER_ONLY:
+                return appeng.api.config.CraftingAllow.ONLY_PLAYER;
+            case MACHINE_ONLY:
+                return appeng.api.config.CraftingAllow.ONLY_NONPLAYER;
+            default:
+                return appeng.api.config.CraftingAllow.ALLOW_ALL;
+        }
+    }
+
+    @Override
     public boolean isSuspended() {
         return cpu.getLogic()
             .isJobSuspended();
+    }
+
+    @Override
+    public void setSuspended(boolean suspended) {
+        cpu.getLogic()
+            .setJobSuspended(suspended);
     }
 
     @Override

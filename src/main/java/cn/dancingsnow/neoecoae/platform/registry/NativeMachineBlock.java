@@ -29,6 +29,8 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
     public static final Property<Boolean> FORMED = Property.bool("formed"), INVISIBLE = Property.bool("invisible"),
         CLASSIC_VISIBLE = Property.bool("classic_visible"), MIRRORED = Property.bool("mirrored"),
         HAS_CELL = Property.bool("has_cell");
+    public static final Property<Boolean> NETWORK_SWITCH = Property.bool("network_switch"),
+        HIGH_ENERGY_NETWORK_SWITCH = Property.bool("high_energy_network_switch");
     public static final Property<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     private final BlockEntityType<?> type;
     private final ECOMultiblockParts.Role role;
@@ -45,6 +47,8 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
         Map<Property<?>, Object> properties = new LinkedHashMap<>();
         properties.put(FACING, Direction.NORTH);
         properties.put(FORMED, false);
+        properties.put(NETWORK_SWITCH, false);
+        properties.put(HIGH_ENERGY_NETWORK_SWITCH, false);
         properties.put(INVISIBLE, false);
         properties.put(CLASSIC_VISIBLE, false);
         properties.put(MIRRORED, false);
