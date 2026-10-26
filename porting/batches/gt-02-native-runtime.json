@@ -19,7 +19,7 @@
       "use": "Native API linkage only; no external implementation copied"
     }
   ],
-  "platform_adaptations": [
+  "platform_outputs": [
     {
       "target": "build.gradle.kts",
       "sha256": "dce36dbd0b6d5bf3c58a2cf477a246ca89356f08f1224ca176828616306e9844"
