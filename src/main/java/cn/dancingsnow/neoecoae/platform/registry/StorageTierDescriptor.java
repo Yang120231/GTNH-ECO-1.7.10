@@ -13,6 +13,11 @@ public interface StorageTierDescriptor {
 
     boolean supportsFeature(ECOFeature feature);
 
+    default cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition getBuildDefinition(
+        cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind kind) {
+        return null;
+    }
+
     default double getComponentIdlePower() {
         return 16.0D;
     }
