@@ -134,6 +134,10 @@ public class BlockPos {
         return "BlockPos[" + x + "," + y + "," + z + "]";
     }
 
+    public String toShortString() {
+        return x + ", " + y + ", " + z;
+    }
+
     public static final class MutableBlockPos extends BlockPos {
 
         public MutableBlockPos() {

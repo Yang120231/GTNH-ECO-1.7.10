@@ -20,4 +20,8 @@ public interface ICraftingService {
     default void addLink(CraftingLink link) {
         throw new UnsupportedOperationException("A frozen planning snapshot cannot publish crafting links");
     }
+
+    default long insertIntoCpus(AEKey key, long amount, appeng.api.config.Actionable mode) {
+        throw new UnsupportedOperationException("A frozen planning snapshot cannot insert crafting outputs");
+    }
 }
