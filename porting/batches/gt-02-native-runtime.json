@@ -1,0 +1,113 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "imports": [],
+  "inputs": [
+    {
+      "repository": "GTNewHorizons/GT5-Unofficial",
+      "commit": "a40199ca4267862155728c85c4d0db38b84503b0",
+      "tag": "5.09.52.398",
+      "source": "src/main/java/gregtech/api/interfaces/tileentity/IGregTechTileEntity.java",
+      "sha256": "89695cda8de5a5a470b91a1d252ba9da3430ac01b2c1cdfded7c842aa2ed8487",
+      "use": "Native API linkage only; no external implementation copied"
+    },
+    {
+      "repository": "GTNewHorizons/GT5-Unofficial",
+      "commit": "a40199ca4267862155728c85c4d0db38b84503b0",
+      "tag": "5.09.52.398",
+      "source": "src/main/java/gregtech/api/metatileentity/implementations/MTEBasicMachine.java",
+      "sha256": "58cb29ae2cb8cc89237c6e66f413802a2ee9a5a1fdf1b0c44bac86343bfaa334",
+      "use": "Native API linkage only; no external implementation copied"
+    }
+  ],
+  "platform_adaptations": [
+    {
+      "target": "build.gradle.kts",
+      "sha256": "dce36dbd0b6d5bf3c58a2cf477a246ca89356f08f1224ca176828616306e9844"
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/forge/CommonProxy.java",
+      "sha256": "f87b4d4a0c83196bc185c4e295286feed40884936863cc183a66b42d0fb2ad16"
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/gt/NativeGregTech.java",
+      "sha256": "b405b622ffb191036b0f2dcf6be0487973c211c49c2398e7bd4e9a6f6138f25d"
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/gt/GregTechMachineAccess.java",
+      "sha256": "47f6eb087d4c43e15009880f0d716c1fc1b4704dafb508781e092c4ae0c936cc"
+    },
+    {
+      "target": "src/test/java/cn/dancingsnow/neoecoae/platform/gt/NativeGregTechLoadingTest.java",
+      "sha256": "fbe485eda7cba8c0a346d54bf34191edd34379953d18b9f731aac62dcea7fd29"
+    },
+    {
+      "target": "porting/run-gt-acceptance.init.gradle",
+      "sha256": "dedfbac4fd118fd6fdfb3a50e8779f4a29e7e4c2843adbe662917e11bebb93b7"
+    }
+  ],
+  "runtime": {
+    "verified_jars": [
+      {
+        "module": "GT5-Unofficial",
+        "required_class": "gregtech/GTMod.class",
+        "file": "GT5-Unofficial-5.09.52.398-dev.jar",
+        "sha256": "c4133c69a15352deffb38d0e1f04b9354ff32dd5734712e561cead52deb49aad"
+      },
+      {
+        "module": "StructureLib",
+        "required_class": "com/gtnewhorizon/structurelib/StructureLib.class",
+        "file": "StructureLib-1.4.39-dev.jar",
+        "sha256": "57019a5657f819e1727cfe2fddb2ec953d8716ca6dd0fb769b7ce769995f1eb2"
+      },
+      {
+        "module": "industrialcraft-2",
+        "required_class": "ic2/core/IC2.class",
+        "file": "ic2-242638-2353971-deobf.jar",
+        "sha256": "87086962ab68cdd59dd0c3b51071b6a94e8b9f1bdc5435d081caacdf5976f74c"
+      },
+      {
+        "module": "ModularUI",
+        "required_class": "com/gtnewhorizons/modularui/ModularUI.class",
+        "file": "ModularUI-1.3.2-dev.jar",
+        "sha256": "0d1a3a6148ac2676033a38da91a9156b71fd4114afd1739c8ecb230434d41cee"
+      },
+      {
+        "module": "NotEnoughItems",
+        "required_class": "codechicken/nei/NEIModContainer.class",
+        "file": "NotEnoughItems-2.8.105-GTNH-dev.jar",
+        "sha256": "990ae76a6268dd172343d36fc73183be8322081407bc587214774ddf21157c7c"
+      },
+      {
+        "module": "waila",
+        "required_class": "mcp/mobius/waila/Waila.class",
+        "file": "waila-1.19.22-dev.jar",
+        "sha256": "565cfb9c54d3d8448046558b277f310d29c8a99c101b4acb643dd7e662db926b"
+      }
+    ],
+    "resolved_modules": [
+      "com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-990-GTNH",
+      "com.github.GTNewHorizons:GT5-Unofficial:5.09.52.398",
+      "com.github.GTNewHorizons:GTNHLib:0.11.37",
+      "com.github.GTNewHorizons:ModularUI:1.3.2",
+      "com.github.GTNewHorizons:ModularUI2:2.3.49-1.7.10",
+      "com.github.GTNewHorizons:NotEnoughItems:2.8.105-GTNH",
+      "com.github.GTNewHorizons:StructureLib:1.4.39",
+      "com.github.GTNewHorizons:waila:1.19.22"
+    ]
+  },
+  "validation": {
+    "profile": "verifyGtRuntimeProfile -PgtRuntime=true --offline --max-workers=2",
+    "classpath": "Actual runClient JavaExec.classpath JAR contents, unique required classes, artifact SHA-256, pinned versions, IC2 embedded mcmod version",
+    "without_gt": "NativeGregTechLoadingTest blocks all gregtech classes and the bridge implementation while loading optional entry point/public signatures",
+    "runtime_launch": false,
+    "native_machine_processing": false,
+    "delivery_save": false,
+    "tests": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "scope": "Explicit native GregTech runtime and read-only real basic-machine inspection. No manufacturing recipe/result/state is emulated. Workstation hosts, complete CPU order execution and final gameplay save are later batches."
+}

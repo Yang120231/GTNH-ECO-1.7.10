@@ -1,4 +1,9 @@
 
+import java.util.zip.ZipFile
+import java.security.MessageDigest
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
@@ -13,6 +18,9 @@ fun gtnhDevJar(artifactId: String, version: String) =
 val ae2Version: String by project
 val gtnhLibVersion: String by project
 val modularUi2Version: String by project
+// Match the reviewed GT API artifact; newer GT releases require unrelated AE2/MUI2 upgrades.
+val gregTechVersion = "5.09.52.398"
+val gtRuntime = providers.gradleProperty("gtRuntime").map(String::toBoolean).getOrElse(false)
 
 repositories {
     exclusiveContent {
@@ -39,6 +47,8 @@ dependencies {
     compileOnly(gtnhDevJar("ModularUI2", modularUi2Version))
     // The pinned MUI2 handler API extends optional ModularUI 1 interfaces before FML strips absent-mod parents.
     compileOnly(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
+    // The native GT bridge is loaded only after FML confirms gregtech is installed.
+    compileOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
     // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
     compileOnly(project.extra["mixinProviderSpec"] as String)
     testImplementation(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
@@ -49,6 +59,78 @@ dependencies {
     runtimeOnlyNonPublishable(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     runtimeOnlyNonPublishable(gtnhDevJar("GTNHLib", gtnhLibVersion))
     runtimeOnlyNonPublishable(gtnhDevJar("ModularUI2", modularUi2Version))
+    if (gtRuntime) {
+        runtimeOnlyNonPublishable(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("StructureLib", "1.4.39")) { isTransitive = false }
+        // Explicitly select IC2 2.2.827, the native artifact used by GTNH's dependency substitution.
+        runtimeOnlyNonPublishable(rfg.deobf("curse.maven:ic2-242638:2353971"))
+        runtimeOnlyNonPublishable(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
+        runtimeOnlyNonPublishable(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
+    }
+}
+
+val verifyGtRuntimeProfile by tasks.registering {
+    group = "verification"
+    description = "Resolve the explicit native GregTech development runtime without changing normal runs."
+    doLast {
+        check(gtRuntime) { "Use -PgtRuntime=true for the native GregTech development runtime" }
+        val runtime = configurations.runtimeClasspath.get()
+        val artifacts = runtime.resolvedConfiguration.resolvedArtifacts
+        // RFG replaces IC2's module artifact with a transformed file dependency. Inspect real JAR
+        // contents too, so dependency substitution cannot produce a false positive or negative.
+        val clientRuntime = (tasks.named("runClient").get() as JavaExec).classpath.files
+        val jars = clientRuntime.filter { it.isFile && it.extension == "jar" }
+        val requiredClasses = mapOf(
+            "GT5-Unofficial" to "gregtech/GTMod.class",
+            "StructureLib" to "com/gtnewhorizon/structurelib/StructureLib.class",
+            "industrialcraft-2" to "ic2/core/IC2.class",
+            "ModularUI" to "com/gtnewhorizons/modularui/ModularUI.class",
+            "NotEnoughItems" to "codechicken/nei/NEIModContainer.class",
+            "waila" to "mcp/mobius/waila/Waila.class"
+        )
+        val verified = mutableListOf<Map<String, String>>()
+        for ((required, entry) in requiredClasses) {
+            val matches = jars.filter { jar -> ZipFile(jar).use { it.getEntry(entry) != null } }
+            check(matches.size == 1) {
+                "Expected one native $required runtime implementation, found ${matches.map { it.name }}"
+            }
+            val jar = matches.single()
+            if (required == "industrialcraft-2") {
+                val metadata = ZipFile(jar).use { archive ->
+                    archive.getInputStream(archive.getEntry("mcmod.info")).reader().use { JsonSlurper().parse(it) }
+                } as List<*>
+                val ic2 = metadata.map { it as Map<*, *> }.single { it["modid"] == "IC2" }
+                check(ic2["version"] == "2.2.827-experimental") { "Unexpected native IC2 runtime: ${ic2["version"]}" }
+            }
+            val sha256 = MessageDigest.getInstance("SHA-256").digest(jar.readBytes())
+                .joinToString("") { "%02x".format(it) }
+            verified.add(mapOf("module" to required, "required_class" to entry, "file" to jar.name,
+                "path" to jar.absolutePath, "sha256" to sha256))
+            logger.lifecycle("NEOECOAE_GT_RUNTIME_CLASS {} {} sha256={}", entry, jar.name, sha256)
+        }
+        val modules = artifacts.map { it.moduleVersion.id }.distinct()
+            .filter { it.name in setOf("GT5-Unofficial", "StructureLib", "industrialcraft-2", "ModularUI", "NotEnoughItems", "waila", "GTNHLib", "Applied-Energistics-2-Unofficial", "ModularUI2") }
+            .sortedBy { it.name }
+        for ((name, version) in mapOf(
+            "Applied-Energistics-2-Unofficial" to ae2Version,
+            "ModularUI2" to modularUi2Version,
+            "GT5-Unofficial" to gregTechVersion,
+            "StructureLib" to "1.4.39",
+            "GTNHLib" to "0.11.37",
+            "ModularUI" to "1.3.2",
+            "NotEnoughItems" to "2.8.105-GTNH",
+            "waila" to "1.19.22"
+        )) {
+            check(modules.filter { it.name == name }.map { it.version }.toSet() == setOf(version)) {
+                "Native GT profile changed pinned module $name:$version"
+            }
+        }
+        modules.forEach { logger.lifecycle("NEOECOAE_GT_RUNTIME_ARTIFACT {}", it) }
+        val report = layout.buildDirectory.file("reports/native-gt-runtime.json").get().asFile
+        report.parentFile.mkdirs()
+        report.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(mapOf("verified_jars" to verified, "resolved_modules" to modules.map { it.toString() }))) + "\n")
+    }
 }
 
 tasks.test {
