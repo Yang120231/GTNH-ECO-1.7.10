@@ -19,32 +19,6 @@
       "use": "Native API linkage only; no external implementation copied"
     }
   ],
-  "platform_adaptations": [
-    {
-      "target": "build.gradle.kts",
-      "sha256": "dce36dbd0b6d5bf3c58a2cf477a246ca89356f08f1224ca176828616306e9844"
-    },
-    {
-      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/forge/CommonProxy.java",
-      "sha256": "f87b4d4a0c83196bc185c4e295286feed40884936863cc183a66b42d0fb2ad16"
-    },
-    {
-      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/gt/NativeGregTech.java",
-      "sha256": "b405b622ffb191036b0f2dcf6be0487973c211c49c2398e7bd4e9a6f6138f25d"
-    },
-    {
-      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/gt/GregTechMachineAccess.java",
-      "sha256": "47f6eb087d4c43e15009880f0d716c1fc1b4704dafb508781e092c4ae0c936cc"
-    },
-    {
-      "target": "src/test/java/cn/dancingsnow/neoecoae/platform/gt/NativeGregTechLoadingTest.java",
-      "sha256": "fbe485eda7cba8c0a346d54bf34191edd34379953d18b9f731aac62dcea7fd29"
-    },
-    {
-      "target": "porting/run-gt-acceptance.init.gradle",
-      "sha256": "dedfbac4fd118fd6fdfb3a50e8779f4a29e7e4c2843adbe662917e11bebb93b7"
-    }
-  ],
   "runtime": {
     "verified_jars": [
       {
@@ -109,5 +83,31 @@
       "skipped": 0
     }
   },
-  "scope": "Explicit native GregTech runtime and read-only real basic-machine inspection. No manufacturing recipe/result/state is emulated. Workstation hosts, complete CPU order execution and final gameplay save are later batches."
+  "scope": "Explicit native GregTech runtime and read-only real basic-machine inspection. No manufacturing recipe/result/state is emulated. Workstation hosts, complete CPU order execution and final gameplay save are later batches.",
+  "platform_outputs": [
+    {
+      "target": "build.gradle.kts",
+      "sha256": "dce36dbd0b6d5bf3c58a2cf477a246ca89356f08f1224ca176828616306e9844"
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/forge/CommonProxy.java",
+      "sha256": "f87b4d4a0c83196bc185c4e295286feed40884936863cc183a66b42d0fb2ad16"
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/gt/NativeGregTech.java",
+      "sha256": "b405b622ffb191036b0f2dcf6be0487973c211c49c2398e7bd4e9a6f6138f25d"
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/gt/GregTechMachineAccess.java",
+      "sha256": "47f6eb087d4c43e15009880f0d716c1fc1b4704dafb508781e092c4ae0c936cc"
+    },
+    {
+      "target": "src/test/java/cn/dancingsnow/neoecoae/platform/gt/NativeGregTechLoadingTest.java",
+      "sha256": "fbe485eda7cba8c0a346d54bf34191edd34379953d18b9f731aac62dcea7fd29"
+    },
+    {
+      "target": "porting/run-gt-acceptance.init.gradle",
+      "sha256": "dedfbac4fd118fd6fdfb3a50e8779f4a29e7e4c2843adbe662917e11bebb93b7"
+    }
+  ]
 }
