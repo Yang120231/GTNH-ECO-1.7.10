@@ -26,11 +26,39 @@ public final class NativeECOCpu extends CraftingCPUCluster
         super(new WorldCoord(0, 0, 0), new WorldCoord(0, 0, 0));
         this.runtime = runtime;
         runtime.bindNativeCPU(this);
+        runtime.addChangeListener(key -> {
+            if (key != null) {
+                postChange(key.toNative(1), runtime.actionSource());
+                postCraftingStatusChange(key.toNative(1));
+            } else {
+                KeyCounter items = new KeyCounter();
+                runtime.getAllItems(items);
+                for (var item : items) {
+                    postChange(
+                        item.getKey()
+                            .toNative(1),
+                        runtime.actionSource());
+                    postCraftingStatusChange(
+                        item.getKey()
+                            .toNative(1));
+                }
+            }
+        });
     }
 
     @Override
     public appeng.api.config.CraftingAllow getCraftingAllowMode() {
         return runtime.selectionMode();
+    }
+
+    @Override
+    public void markDirty() {
+        runtime.markDirty();
+    }
+
+    @Override
+    public void changeCraftingAllowMode(appeng.api.config.CraftingAllow mode) {
+        runtime.setSelectionMode(mode);
     }
 
     @Override
@@ -120,7 +148,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
 
     @Override
     public long getRemainingItemCount() {
-        return runtime.remainingOutput();
+        return runtime.remainingWork();
     }
 
     @Override
@@ -202,6 +230,11 @@ public final class NativeECOCpu extends CraftingCPUCluster
             || !runtime.isActive()
             || job.getByteTotal() > runtime.availableStorage()
             || !job.supportsCPUCluster(this)) return null;
+        if (job instanceof NativeECOCraftingJob) {
+            var ecoJob = (NativeECOCraftingJob) job;
+            return ecoJob.belongsTo(runtime.world(), grid) ? runtime.submit(ecoJob.sourcePlan(), source, requester)
+                : null;
+        }
         try {
             return runtime.submit(NativeJobPlan.capture(grid, job, source, runtime.world()), source, requester);
         } catch (appeng.crafting.CraftBranchFailure changedInventory) {
