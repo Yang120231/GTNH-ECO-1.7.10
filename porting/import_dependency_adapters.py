@@ -31,7 +31,7 @@ def main():
         selected_members = None
         data = original
         if name == "CraftingCpuHelper":
-            selected_members = ["reinjectPatternInputs", "getValidItemTemplates", "extractTemplates", "<init>"]
+            selected_members = ["reinjectPatternInputs", "getValidItemTemplates", "extractTemplates", "calculatePatternPower", "generateLinkData", "tryExtractInitialItems", "<init>"]
             classes = ROOT / "build/porting-tools"
             classes.mkdir(parents=True, exist_ok=True)
             subprocess.check_call(["javac", "-encoding", "UTF-8", "-d", str(classes), str(ROOT/"porting/SourceMembers.java")])

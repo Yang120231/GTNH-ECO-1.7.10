@@ -27,4 +27,23 @@ public final class IActionSource {
     public BaseActionSource nativeSource() {
         return source;
     }
+
+    public java.util.Optional<net.minecraft.entity.player.EntityPlayer> player() {
+        return source instanceof appeng.api.networking.security.PlayerSource
+            ? java.util.Optional.of(((appeng.api.networking.security.PlayerSource) source).player)
+            : java.util.Optional.empty();
+    }
+
+    public java.util.Optional<appeng.api.networking.security.IActionHost> machine() {
+        if (source instanceof appeng.api.networking.security.PlayerSource)
+            return java.util.Optional.ofNullable(((appeng.api.networking.security.PlayerSource) source).via);
+        if (source instanceof appeng.api.networking.security.MachineSource)
+            return java.util.Optional.ofNullable(((appeng.api.networking.security.MachineSource) source).via);
+        return java.util.Optional.empty();
+    }
+
+    public static IActionSource ofPlayer(net.minecraft.entity.player.EntityPlayer player,
+        appeng.api.networking.security.IActionHost via) {
+        return of(new appeng.api.networking.security.PlayerSource(player, via));
+    }
 }

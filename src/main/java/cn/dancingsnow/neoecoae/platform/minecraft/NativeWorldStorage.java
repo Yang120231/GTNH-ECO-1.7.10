@@ -34,6 +34,10 @@ public final class NativeWorldStorage {
         return MinecraftServer.getServer();
     }
 
+    public static MinecraftServer server(net.minecraft.world.World world) {
+        return world instanceof WorldServer && !world.isRemote ? MinecraftServer.getServer() : null;
+    }
+
     public static WorldServer overworld(MinecraftServer server) {
         return server.worldServerForDimension(0);
     }

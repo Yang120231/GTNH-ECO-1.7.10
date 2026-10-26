@@ -27,6 +27,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     private final Map<AEKey, List<IPatternDetails>> byOutput;
     private final Set<AEKey> craftables;
     private final Set<AEKey> emitters;
+    private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, NativeCraftingProvider>> providers = new IdentityHashMap<>();
 
     public CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates,
         NativePatternTrackingCache tracking) {
@@ -84,8 +85,20 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
             throw new IllegalArgumentException("Unmapped source/native pattern provider identity");
         var result = new ArrayList<ICraftingProvider>();
         for (var medium : ((CraftingGridCache) crafting).getMediums(((NativePatternDetails) pattern).nativeDetails()))
-            result.add(new NativeCraftingProvider(medium, Collections.singletonList(pattern)));
+            result.add(
+                providers.computeIfAbsent(medium, ignored -> new IdentityHashMap<>())
+                    .computeIfAbsent(
+                        pattern,
+                        ignored -> new NativeCraftingProvider(medium, Collections.singletonList(pattern))));
         return result;
+    }
+
+    @Override
+    public void addLink(CraftingLink link) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        if (!(crafting instanceof CraftingGridCache))
+            throw new IllegalStateException("Pinned native crafting cache missing");
+        ((CraftingGridCache) crafting).addLink(link.nativeLink());
     }
 
     @Override

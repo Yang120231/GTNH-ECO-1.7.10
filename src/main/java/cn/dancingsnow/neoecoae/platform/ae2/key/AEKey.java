@@ -42,6 +42,14 @@ public abstract class AEKey {
         return getType().getAmountPerUnit();
     }
 
+    public int getAmountPerOperation() {
+        return getType().nativeChannel() == appeng.api.storage.StorageChannel.FLUIDS ? 125 : 1;
+    }
+
+    public boolean matches(GenericStack stack) {
+        return stack != null && equals(stack.what());
+    }
+
     public int getAmountPerByte() {
         return getType().getAmountPerByte();
     }
