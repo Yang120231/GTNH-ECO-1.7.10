@@ -28,6 +28,11 @@ public final class CompiledStructureCache {
 
     private CompiledStructureCache() {}
 
+    /** Release frozen patterns and graph structures at the recipe/server lifetime boundary. */
+    public static synchronized void clear() {
+        ENTRIES.clear();
+    }
+
     public static long revision(ICraftingService service) {
         return service instanceof ECOCraftingProviderRevision source && source.neoecoae$isProviderSnapshotStable()
             ? source.neoecoae$getProviderRevision()
