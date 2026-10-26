@@ -27,6 +27,14 @@ public final class ECOFastPathFacade {
 
     private ECOFastPathFacade() {}
 
+    public static boolean supports(ICraftingProvider provider) {
+        return resolveProvider(provider) != null;
+    }
+
+    public static ECOFastPathDispatchProvider resolveProvider(ICraftingProvider provider) {
+        return NativeProviderAdapters.resolve(provider);
+    }
+
     public static boolean pushPatternForJob(ICraftingProvider provider, IPatternDetails pattern, KeyCounter[] inputs,
         @Nullable UUID craftingJobId) {
         return provider instanceof ECOJobAwareCraftingProvider aware ? aware.pushPattern(pattern, inputs, craftingJobId)

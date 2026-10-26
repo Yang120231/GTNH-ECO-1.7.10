@@ -27,6 +27,46 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 public class CraftingCpuHelper {
 
+    public static double calculatePatternPower(KeyCounter[] craftingContainer) {
+        double sum = 0;
+        for (var itemHolder : craftingContainer)
+            for (var input : itemHolder) sum += ((double) input.getLongValue()) / input.getKey()
+                .getAmountPerOperation();
+        return sum;
+    }
+
+    public static cn.dancingsnow.neoecoae.platform.nbt.CompoundTag generateLinkData(java.util.UUID id,
+        boolean standalone, boolean requester) {
+        return CraftingLink.generateData(id, standalone, requester);
+    }
+
+    /** Admission keeps every physically extracted remainder in CPU custody until rollback succeeds. */
+    public static cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack tryExtractInitialItems(ICraftingPlan plan,
+        cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid,
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.inventory.ListCraftingInventory cpuInventory,
+        cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource source) {
+        var storage = grid.getStorageService()
+            .getInventory();
+        for (var entry : plan.usedItems()) {
+            var key = entry.getKey();
+            long wanted = entry.getLongValue();
+            long extracted = storage.extract(key, wanted, Actionable.MODULATE, source);
+            if (extracted < 0 || extracted > wanted) throw new IllegalStateException("Invalid initial extraction");
+            cpuInventory.insert(key, extracted, Actionable.MODULATE);
+            if (extracted < wanted) {
+                for (var retained : cpuInventory.list.copy()) {
+                    long inserted = storage
+                        .insert(retained.getKey(), retained.getLongValue(), Actionable.MODULATE, source);
+                    if (inserted < 0 || inserted > retained.getLongValue())
+                        throw new IllegalStateException("Invalid initial rollback insertion");
+                    cpuInventory.extract(retained.getKey(), inserted, Actionable.MODULATE);
+                }
+                return new cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack(key, wanted - extracted);
+            }
+        }
+        return null;
+    }
+
     public static void reinjectPatternInputs(ICraftingInventory sourceInv, KeyCounter[] inputHolder) {
         for (var list : inputHolder) {
             // List may be null if we failed to extract some of the pattern's inputs.

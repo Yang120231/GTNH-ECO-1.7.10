@@ -5,7 +5,7 @@ public final class TickClock {
     private TickClock() {}
 
     public static long currentTick() {
-        return net.minecraft.server.MinecraftServer.getServer()
-            .getTickCounter();
+        var server = net.minecraft.server.MinecraftServer.getServer();
+        return server == null ? 0 : server.getTickCounter();
     }
 }

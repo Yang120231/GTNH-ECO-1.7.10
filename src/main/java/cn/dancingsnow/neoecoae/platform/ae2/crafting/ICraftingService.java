@@ -12,4 +12,12 @@ public interface ICraftingService {
     Set<AEKey> getCraftables(AEKeyFilter filter);
 
     boolean canEmitFor(AEKey key);
+
+    default List<ICraftingProvider> getProviders(IPatternDetails pattern) {
+        throw new UnsupportedOperationException("A frozen planning snapshot has no live providers");
+    }
+
+    default void addLink(CraftingLink link) {
+        throw new UnsupportedOperationException("A frozen planning snapshot cannot publish crafting links");
+    }
 }
