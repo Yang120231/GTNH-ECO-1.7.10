@@ -12,7 +12,7 @@ import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedValue;
 
 /** One authoritative inventory for native automation, MUI2 slots and persisted managed fields. */
-public final class AppEngInternalInventory implements IInventory, IItemHandlerModifiable, ManagedValue {
+public class AppEngInternalInventory implements IInventory, IItemHandlerModifiable, ManagedValue {
 
     private final InternalInventoryHost host;
     private final ItemStack[] contents;

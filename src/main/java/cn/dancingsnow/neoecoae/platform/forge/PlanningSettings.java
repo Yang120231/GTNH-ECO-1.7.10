@@ -11,7 +11,8 @@ public final class PlanningSettings {
     public static boolean ecoPlanningStageDebug;
     public static boolean ecoDispatchWatchdogDebug;
     public static boolean ecoCraftingOutputDeliveryDebug;
-    public static int storageSystemMaxLength = 15;
+    public static int storageSystemMaxLength = 15, computationSystemMaxLength = 15, craftingSystemMaxLength = 15;
+    public static final int CRAFTING_WORKER_BASE_CRAFTS = 32;
     public static final int MAX_ECO_CPU_PUSH_TICK_LIMIT = 393_216;
     public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
     public static int ecoFastPathCacheSize = 512;
