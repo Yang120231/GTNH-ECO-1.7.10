@@ -83,7 +83,7 @@ public final class NativeStorageInterfacePages {
                 }
                 switch (custom) {
                     case "player_inventory":
-                        widget = SlotGroupWidget.playerInventory(false);
+                        widget = NativePageLayout.playerInventory();
                         break;
                     case "resource_filters":
                         widget = filters();
@@ -125,11 +125,12 @@ public final class NativeStorageInterfacePages {
                     .append(": ")
                     .append(
                         Component.translatable(
-                            "gui.neoecoae.storage_interface." + (session.online() ? "connected" : "disconnected")));
+                            "gui.neoecoae.storage_interface." + (session.online() ? "connected" : "disconnected"))
+                            .withColor(session.online() ? 0x258345 : 0xb53643));
             case "transfer_status":
                 return Component.translatable(
                     "gui.neoecoae.storage_interface.transfer",
-                    HostText.expandedNumber(session.transferred()));
+                    HostText.ae2Amount(session.transferred()));
             case "filter_caption":
                 return Component.translatable("gui.neoecoae.storage_interface.filter.title");
             case "filter_hint":
@@ -140,14 +141,19 @@ public final class NativeStorageInterfacePages {
     }
 
     private ParentWidget<?> toolbar() {
-        return new ParentWidget<>().pos(-20, 4)
-            .size(20, 40)
-            .child(
-                new SettingButton(true).pos(0, 0)
-                    .size(18, 20))
-            .child(
-                new SettingButton(false).pos(0, 20)
-                    .size(18, 20));
+        return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
+            settingButton(true), settingButton(false));
+    }
+
+    private ButtonWidget<?> settingButton(boolean creative) {
+        return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+            () -> UITexture.fullImage("neoecoae:textures/gui/widget/"
+                + (creative ? "ignore_creative_" : "exclude_storage_bus_")
+                + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? "on" : "off") + ".png"),
+            () -> Component.translatable("gui.neoecoae.storage_interface."
+                + (creative ? "ignore_creative" : "exclude_storage_bus")
+                + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? ".on" : ".off")),
+            creative ? session::toggleCreative : session::toggleStorageBus);
     }
 
     private ParentWidget<?> filters() {
@@ -184,51 +190,6 @@ public final class NativeStorageInterfacePages {
             NativePageLayout
                 .texture(ATLAS, (mode.ordinal() + (isHovering() ? 3 : 0)) * 16, selected ? 159 : 140, 16, height)
                 .draw(0, 18 - height, 16, height);
-        }
-    }
-
-    private final class SettingButton extends ButtonWidget<SettingButton> {
-
-        private final boolean creative;
-
-        SettingButton(boolean creative) {
-            this.creative = creative;
-            onMousePressed(button -> {
-                if (button != 0) return false;
-                if (creative) session.toggleCreative();
-                else session.toggleStorageBus();
-                return true;
-            });
-            tooltipDynamic(tooltip -> {
-                String prefix = "gui.neoecoae.storage_interface."
-                    + (creative ? "ignore_creative" : "exclude_storage_bus");
-                tooltip.add(
-                    Component.translatable(prefix + (enabled() ? ".on" : ".off"))
-                        .getString())
-                    .newLine();
-                tooltip.add(
-                    Component.translatable(prefix + ".description")
-                        .getString());
-            });
-            onUpdateListener(widget -> widget.markTooltipDirty());
-        }
-
-        private boolean enabled() {
-            return creative ? session.ignoringCreative() : session.excludingStorageBus();
-        }
-
-        @Override
-        @SideOnly(Side.CLIENT)
-        public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            UITexture
-                .fullImage("neoecoae:textures/gui/common/side_bar/button_slot_" + (creative ? "up" : "down") + ".png")
-                .draw(0, 0, 18, 20);
-            UITexture
-                .fullImage(
-                    "neoecoae:textures/gui/widget/" + (creative ? "ignore_creative_" : "exclude_storage_bus_")
-                        + (enabled() ? "on" : "off")
-                        + ".png")
-                .draw(2, 2, 14, 14);
         }
     }
 

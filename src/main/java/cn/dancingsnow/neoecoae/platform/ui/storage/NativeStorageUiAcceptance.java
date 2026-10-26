@@ -32,6 +32,8 @@ public final class NativeStorageUiAcceptance extends CommandBase {
     private ServerTasks.Session serverSession;
     private int stage, ticks;
     private boolean finished;
+    private final cn.dancingsnow.neoecoae.platform.ui.NativeUiParityAcceptance parity = Boolean.getBoolean("neoecoae.uiParityAcceptance")
+        ? new cn.dancingsnow.neoecoae.platform.ui.NativeUiParityAcceptance() : null;
     private final NativeStorageUiNetworkAcceptance network = Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")
         ? new NativeStorageUiNetworkAcceptance(() -> open("interface"), this::verifyNetworkResult)
         : null;
@@ -104,6 +106,7 @@ public final class NativeStorageUiAcceptance extends CommandBase {
                 "NEOECOAE_STORAGE_UI_FIXTURE_READY save={} command=/neoecoae_ui_storage host|interface|snapshot|finish",
                 worldName);
         } else if (stage == 3) {
+            if (parity != null) parity.tick(serverPlayer, serverSession);
             if (ticks % 100 == 0) observe();
             if (network != null) {
                 try {

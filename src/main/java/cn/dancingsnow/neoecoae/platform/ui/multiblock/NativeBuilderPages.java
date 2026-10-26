@@ -21,7 +21,12 @@ public final class NativeBuilderPages {
     private NativeBuilderPages() {}
 
     public static ModularPanel create(NativeBuilderSession session, IPanelHandler handler) {
-        ModularPanel panel = ModularPanel.defaultPanel("neoecoae_multiblock_builder", 286, 234);
+        ModularPanel panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel.create("neoecoae_multiblock_builder", 286, 221)
+            .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.panel());
+        panel.child(new com.cleanroommc.modularui.widget.Widget<>().pos(4, 29).size(116, 188)
+            .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.panel()));
+        panel.child(new com.cleanroommc.modularui.widget.Widget<>().pos(124, 29).size(152, 104)
+            .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.panel()));
         panel.child(
             label("builder").pos(8, 6)
                 .size(240, 12));
@@ -35,62 +40,63 @@ public final class NativeBuilderPages {
                     return true;
                 }));
         panel.child(
-            label("parameters").pos(8, 28)
+            label("parameters").pos(7, 32)
                 .size(110, 10));
         panel.child(
-            button("-", () -> session.changeLength(-1)).pos(8, 42)
+            button("-", () -> session.changeLength(-1)).pos(7, 45)
                 .size(18)
                 .setEnabledIf(widget -> !session.building()));
         panel.child(
-            new NativeText(() -> text("length", session.length())).pos(28, 46)
-                .size(70, 10));
+            new NativeText(() -> text("length", session.length()), 1, 0x3f3d52).pos(27, 49)
+                .size(54, 10));
         panel.child(
-            button("+", () -> session.changeLength(1)).pos(100, 42)
+            button("+", () -> session.changeLength(1)).pos(83, 45)
                 .size(18)
                 .setEnabledIf(widget -> !session.building()));
         panel.child(
-            label("mirror").pos(8, 66)
+            label("mirror").pos(7, 71)
                 .size(42, 10));
         panel.child(
-            buttonKey("mirror.off", () -> session.mirror(false)).pos(50, 63)
-                .size(32, 16)
+            buttonKey("mirror.off", () -> session.mirror(false)).pos(51, 67)
+                .size(32, 18)
                 .setEnabledIf(widget -> !session.building() && session.mirrored()));
         panel.child(
-            buttonKey("mirror.on", () -> session.mirror(true)).pos(84, 63)
-                .size(34, 16)
+            buttonKey("mirror.on", () -> session.mirror(true)).pos(85, 67)
+                .size(32, 18)
                 .setEnabledIf(widget -> !session.building() && !session.mirrored()));
         panel.child(
-            label("live_result").pos(8, 84)
+            label("live_result").pos(7, 89)
                 .size(110, 10));
         String[] metrics = { "missing", "conflicts", "reused", "required_items" };
         String[] names = { "missing", "conflicts", "reused", "required" };
         for (int index = 0; index < metrics.length; index++) {
             final int value = index;
             panel.child(
-                new NativeText(() -> text(metrics[value], session.metric(names[value]))).pos(8, 98 + index * 13)
+                new NativeText(() -> text(metrics[value], session.metric(names[value])), 1, 0x3f3d52).pos(7, 102 + index * 13)
                     .size(110, 10));
         }
         panel.child(
-            new NativeText(() -> text("status." + session.status())).pos(8, 151)
-                .size(110, 18));
+            new NativeText(() -> text("status." + session.status()), 1, 0x3f3d52).pos(7, 154)
+                .size(110, 9));
+        panel.child(label("actions").pos(7, 167).size(110, 9));
         panel.child(
-            buttonKey("build", session::build).pos(8, 174)
-                .size(110, 20)
+            buttonKey("build", session::build).pos(7, 180)
+                .size(104, 20)
                 .setEnabledIf(widget -> session.canBuild()));
         panel.child(
-            label("auto_preview_hint").pos(8, 199)
-                .size(110, 24));
+            label("auto_preview_hint").pos(7, 204)
+                .size(110, 9));
         panel.child(
-            label("materials").pos(128, 28)
+            label("materials").pos(127, 32)
                 .size(150, 10));
         for (int index = 0; index < 24; index++) panel.child(
-            new Material(session, index).pos(128 + index % 8 * 18, 42 + index / 8 * 18)
+            new Material(session, index).pos(128 + index % 8 * 18, 47 + index / 8 * 18)
                 .size(18));
         panel.child(
-            label("conflict_preview").pos(128, 104)
+            label("conflict_preview").pos(127, 107)
                 .size(150, 10));
         panel.child(
-            new NativeText(() -> text("conflicts", session.metric("conflicts"))).pos(128, 119)
+            new NativeText(() -> text("conflicts", session.metric("conflicts")), 1, 0x3f3d52).pos(127, 121)
                 .size(150, 12)
                 .tooltipDynamic(tooltip -> {
                     if (session.metric("conflicts") == 0) tooltip.add(text("no_conflicts").getString());
@@ -105,7 +111,7 @@ public final class NativeBuilderPages {
     }
 
     private static NativeText label(String key) {
-        return new NativeText(() -> text(key));
+        return new NativeText(() -> text(key), 1, 0x236f80);
     }
 
     private static Component text(String key, Object... args) {
@@ -113,7 +119,7 @@ public final class NativeBuilderPages {
     }
 
     private static ButtonWidget<?> button(String label, Runnable action) {
-        return new ButtonWidget<>().child(new NativeText(() -> Component.literal(label)))
+        return cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.button().child(new NativeText(() -> Component.literal(label)))
             .onMousePressed(button -> {
                 if (button != 0) return false;
                 action.run();
@@ -122,7 +128,7 @@ public final class NativeBuilderPages {
     }
 
     private static ButtonWidget<?> buttonKey(String key, Runnable action) {
-        return new ButtonWidget<>().child(new NativeText(() -> text(key)))
+        return cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.button().child(new NativeText(() -> text(key)))
             .onMousePressed(button -> {
                 if (button != 0) return false;
                 action.run();
