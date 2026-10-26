@@ -22,6 +22,10 @@ public final class ECOExecutionTaskProgress {
         return exactTotal != null;
     }
 
+    java.math.BigInteger totalExact() {
+        return exactTotal;
+    }
+
     long completedBounded(long total) {
         return exactTotal == null ? Math.max(0L, total - value)
             : cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan

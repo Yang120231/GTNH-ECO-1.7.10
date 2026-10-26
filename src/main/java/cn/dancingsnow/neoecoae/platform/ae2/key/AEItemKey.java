@@ -34,6 +34,15 @@ public final class AEItemKey extends AEKey {
         return identity.getItem();
     }
 
+    public CompoundTag toTag(HolderLookup.Provider registries) {
+        return toTagGeneric(registries);
+    }
+
+    public static AEItemKey fromTag(HolderLookup.Provider registries, CompoundTag tag) {
+        AEKey key = AEKey.fromTagGeneric(registries, tag);
+        return key instanceof AEItemKey ? (AEItemKey) key : null;
+    }
+
     @Override
     public cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation getId() {
         return cn.dancingsnow.neoecoae.platform.registry.BuiltInRegistries.ITEM.getKey(getItem());
