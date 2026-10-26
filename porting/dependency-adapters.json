@@ -46,12 +46,15 @@
     "source": "src/main/java/appeng/crafting/execution/CraftingCpuHelper.java",
     "source_sha256": "454087a61f8683da77f77ba7718f1a7b603cf333e2d9146ae282d49e8c67e5ff",
     "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingCpuHelper.java",
-    "target_sha256": "d4b2f582486b887bbf0f63cf41d89877fe622c81421165679a1d61398e61102d",
+    "target_sha256": "bf7f89680b7b1358c214d29891adc90a339ec01da7f451647e9e00abe5d086cb",
     "license": "LGPL-3.0-or-later; original source header preserved where present",
     "selected_members": [
       "reinjectPatternInputs",
       "getValidItemTemplates",
       "extractTemplates",
+      "calculatePatternPower",
+      "generateLinkData",
+      "tryExtractInitialItems",
       "<init>"
     ]
   },
@@ -124,5 +127,50 @@
     "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingPlanSummaryEntry.java",
     "target_sha256": "2d5bcdc6bfab2647387a45fc9766784326a21fe9fe61b9e9588f705740a0d1b2",
     "license": "LGPL-3.0-or-later; original source header preserved where present"
+  },
+  {
+    "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "source": "src/main/java/appeng/recipes/transform/TransformRecipe.java",
+    "source_sha256": "2d8aff4bb0ea122b27e5e94bb2cd36806873988eef8edc71443718629bfad8ae",
+    "selected_members": [
+      "CODEC circumstance default"
+    ],
+    "target": "src/main/java/cn/dancingsnow/neoecoae/platform/recipe/NativeTransformRecipe.java",
+    "target_sha256": "57818efdd92ad43550c9cc89e8b6daea232a1671e74908687079649a844b3320",
+    "license": "LGPL-3.0-or-later",
+    "adaptation": "Native Forge world tick / explosion event binding; original first-ingredient versus any-ingredient trigger, 61 tick fluid wait, 1-block neighborhood, ordered all-or-nothing item claims and anchor damage cancellation.",
+    "batch_manifest": "porting/batches/recipes-world-20261026.json"
+  },
+  {
+    "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "source": "src/main/java/appeng/recipes/transform/TransformLogic.java",
+    "source_sha256": "20e4e88e5a3efdb19e9659e83844983d7c213295a8fd7bb94b94d5ba04594513",
+    "selected_members": [
+      "tryTransform",
+      "getTransformableItems",
+      "getTransformableItemsExplosion"
+    ],
+    "target": "src/main/java/cn/dancingsnow/neoecoae/platform/recipe/WorldTransformRecipes.java",
+    "target_sha256": "0a85da2dfadde521edfc8e11f4c235343bbaebe5abedf4829795112b7cf59f12",
+    "license": "LGPL-3.0-or-later",
+    "adaptation": "Native Forge world tick / explosion event binding; original first-ingredient versus any-ingredient trigger, 61 tick fluid wait, 1-block neighborhood, ordered all-or-nothing item claims and anchor damage cancellation.",
+    "batch_manifest": "porting/batches/recipes-world-20261026.json"
+  },
+  {
+    "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "source": "src/main/java/appeng/mixins/ItemEntityMixin.java",
+    "source_sha256": "074188156fd09b4b3ed7afbccaee85c93899b44f0c0736ef44cd1e6196c53f6f",
+    "selected_members": [
+      "handleExplosion",
+      "handleEntityTransform"
+    ],
+    "target": "src/main/java/cn/dancingsnow/neoecoae/platform/recipe/WorldTransformRecipes.java",
+    "target_sha256": "0a85da2dfadde521edfc8e11f4c235343bbaebe5abedf4829795112b7cf59f12",
+    "license": "LGPL-3.0-or-later",
+    "adaptation": "Native Forge world tick / explosion event binding; original first-ingredient versus any-ingredient trigger, 61 tick fluid wait, 1-block neighborhood, ordered all-or-nothing item claims and anchor damage cancellation.",
+    "batch_manifest": "porting/batches/recipes-world-20261026.json"
   }
 ]

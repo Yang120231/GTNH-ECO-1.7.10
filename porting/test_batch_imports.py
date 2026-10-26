@@ -73,6 +73,22 @@ class BatchImportsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "existing source identity"):
             merge_batch_imports([dict(self.entry, source="different source")], batches)
 
+    def test_generated_resource_adaptation_keeps_fixed_source_and_rejects_escape(self):
+        source = "src/generated/resources/assets/neoecoae/blockstates/integrated_working_station.json"
+        target = "src/main/resources/assets/neoecoae/blockstates/integrated_working_station.json"
+        original = b'{"variants":{}}'
+        self.blobs[source] = original
+        output = self.root / target
+        output.parent.mkdir(parents=True)
+        output.write_bytes(original)
+        entry = dict(source=source, target=target, kind="resource", source_sha256=hashlib.sha256(original).hexdigest())
+        self.write_batch(entry)
+        batches = reviewed_batch_imports(self.root, "fixed", self.blobs)
+        self.assertEqual(source, batches[target]["source"])
+        self.write_batch(dict(entry, target="src/main/resources/../../outside.json"))
+        with self.assertRaisesRegex(ValueError, "Invalid batch resource"):
+            reviewed_batch_imports(self.root, "fixed", self.blobs)
+
     def test_platform_adapter_validates_all_sources_without_claiming_business_import(self):
         path = self.root / "porting/batches/adapter.json"
         path.parent.mkdir(parents=True)

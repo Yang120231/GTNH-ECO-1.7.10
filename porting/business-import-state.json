@@ -1,25 +1,25 @@
 {
   "schema_version": 1,
   "status": "business_import_in_progress",
-  "verified_at": "2026-10-26T02:01:23.646316+00:00",
+  "verified_at": "2026-10-26T05:11:09.681485+00:00",
   "source_lock": "source-lock.json",
-  "branch": "codex/1710-port-foundation",
-  "target_base": "82104b03ff9d2a18e242eb8c419cbedd6fc9653e",
+  "branch": "7.3.1",
+  "target_base": "ddb7a12eb455e03e83878fe732d975e9929170eb",
   "primary_source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
   "selected_source_patches": [],
   "imported": {
-    "business": 318,
-    "test": 79,
+    "business": 374,
+    "test": 89,
     "resource": 1335,
-    "platform_resource_alias": 432
+    "platform_resource_alias": 434
   },
-  "pending_source_paths": 463,
-  "main_java": 544,
-  "test_java": 93,
+  "pending_source_paths": 411,
+  "main_java": 654,
+  "test_java": 117,
   "preserved_model_files": 11,
   "preserved_model_hash_changes": [],
   "tests": {
-    "tests": 523,
+    "tests": 636,
     "failures": 0,
     "errors": 0,
     "skipped": 0
@@ -28,6 +28,30 @@
     {
       "name": "cn.dancingsnow.neoecoae.api.extension.ECOExtensionRegistryTest",
       "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationOverclockTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationProcessingTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationThermalTest",
+      "tests": 24
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationThermalUsageTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationTickPaymentTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.blocks.entity.NativeSmallWorkstationTest",
+      "tests": 3
     },
     {
       "name": "cn.dancingsnow.neoecoae.blocks.entity.storage.CombinedStorageAmountTest",
@@ -66,6 +90,14 @@
       "tests": 2
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCoreCpuExecutionTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingDispatchAccountingTest",
+      "tests": 3
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingDispatchStrategyTest",
       "tests": 1
     },
@@ -78,7 +110,19 @@
       "tests": 13
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingPlanUpdaterTest",
+      "tests": 10
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOExactInventoryLifecycleTest",
+      "tests": 6
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOExecutionRuntimeStartupSeedTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ExecutingCraftingJobPersistenceTest",
       "tests": 3
     },
     {
@@ -102,8 +146,12 @@
       "tests": 4
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingThreadRuntimeTest",
+      "tests": 5
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.execution.worker.ECOExactVirtualLedgerTest",
-      "tests": 1
+      "tests": 2
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.compiled.AE2ProcessingCycleSemanticsTest",
@@ -160,6 +208,10 @@
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudgetTest",
       "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningLifecycleTest",
+      "tests": 2
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningServiceTest",
@@ -338,6 +390,10 @@
       "tests": 11
     },
     {
+      "name": "cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockPlacementServiceTest",
+      "tests": 3
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.platform.ComponentTransportTest",
       "tests": 3
     },
@@ -346,7 +402,15 @@
       "tests": 8
     },
     {
+      "name": "cn.dancingsnow.neoecoae.platform.gt.NativeGregTechLoadingTest",
+      "tests": 1
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.platform.ManagedFieldsContractTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.network.ServerTasksLifecycleTest",
       "tests": 3
     },
     {
@@ -354,144 +418,91 @@
       "tests": 10
     },
     {
+      "name": "cn.dancingsnow.neoecoae.platform.recipe.NativeMachineRecipesTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.recipe.NativeTransformRecipeTest",
+      "tests": 4
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.platform.recipe.SourceShapelessRecipeTest",
       "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSessionTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.ui.NativeUiAccessTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.ui.storage.NativeStorageFiltersTest",
+      "tests": 2
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.platform.ui.workstation.NativeWorkstationContractsTest",
+      "tests": 3
     },
     {
       "name": "cn.dancingsnow.neoecoae.platform.WorldViewContractTest",
       "tests": 2
     },
     {
+      "name": "cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipeCoreTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.recipe.NativeLargeRecipeAmountsTest",
+      "tests": 4
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.util.MultiBlockUtilTest",
       "tests": 1
     }
   ],
-  "build_log": "build/content-registration-build.log",
+  "build_log": "build/resume-integrated-build.log",
   "artifacts": [
     {
       "path": "build/libs/neoecoae-0.1.0-porting-dev.jar",
-      "bytes": 3341018,
-      "sha256": "d13c70cdbadb66894a28fd19dfc9dce3524b707ac440036b4334394873cc5494",
-      "classes": 896,
+      "bytes": 3854504,
+      "sha256": "ab1daf3bea08946ba637054e11cfee21700cf196dc1f1f728d374107ac6d365a",
+      "classes": 1092,
       "classfile_major_counts": {
-        "52": 896
+        "52": 1092
       },
-      "entries": 2996
+      "entries": 3206
     },
     {
       "path": "build/libs/neoecoae-0.1.0-porting-sources.jar",
-      "bytes": 2277757,
-      "sha256": "b7474507a60fc6ecdff0d1779493cfd844dcd80880e27c3f650c2001154ebbb4",
+      "bytes": 2503305,
+      "sha256": "33a6eac86d7a90d3c50c85a22efbc948d0661d6a7b79fb56e0f244520b329193",
       "classes": 0,
       "classfile_major_counts": {},
-      "entries": 2652
+      "entries": 2776
     },
     {
       "path": "build/libs/neoecoae-0.1.0-porting.jar",
-      "bytes": 3379816,
-      "sha256": "018bfa23369ffb07ae032ad7b6beadf35570d11d673193a451b979eb01da72c5",
-      "classes": 896,
+      "bytes": 3894311,
+      "sha256": "d434f825bc55b87c1879ff78557ae90954279dcd5962019fc03b7da57e8b787d",
+      "classes": 1092,
       "classfile_major_counts": {
-        "52": 896
+        "52": 1092
       },
-      "entries": 2996
+      "entries": 3206
     }
   ],
-  "server_acceptance": [
-    {
-      "kind": "initial-storage",
-      "source": "build/porting-server-first.log",
-      "source_sha256": "df2251c22221844588a2eb30fb924db9056190c97d09f8c3ddb7028f00fb7067",
-      "minecraft_source": "build/porting-server-first-minecraft.log",
-      "minecraft_source_sha256": "b6d902b590cf2cd72699ca4026c694f74c420aed38bb81d13ca8cf2a2b3bc830",
-      "excerpt": "porting/acceptance/initial-storage.log",
-      "resolved_runtime_versions": {
-        "Applied-Energistics-2-Unofficial": [
-          "rv3-beta-990-GTNH"
-        ],
-        "ModularUI2": [
-          "2.3.49-1.7.10"
-        ],
-        "GTNHLib": []
-      }
-    },
-    {
-      "kind": "restart-reload",
-      "source": "build/porting-server-reload.log",
-      "source_sha256": "3be0927a45e0e5be10702310b7fd7a1e443c289f21f0e6d9d567a2567add0feb",
-      "minecraft_source": "build/porting-server-reload-minecraft.log",
-      "minecraft_source_sha256": "6604795792f4df89286f73497aeec3734d7268ff026f78112ef963671c57969c",
-      "excerpt": "porting/acceptance/restart-reload.log",
-      "resolved_runtime_versions": {
-        "Applied-Energistics-2-Unofficial": [
-          "rv3-beta-990-GTNH"
-        ],
-        "ModularUI2": [
-          "2.3.49-1.7.10"
-        ],
-        "GTNHLib": []
-      }
-    },
-    {
-      "kind": "previous-storage-recipes-mui2",
-      "source": "build/porting-server-current.log",
-      "source_sha256": "0e1cf33458023f8e824640e5646775456841d1e0f56ccc1c3e1ff8d5f46c0459",
-      "minecraft_source": "build/porting-server-current-minecraft.log",
-      "minecraft_source_sha256": "04bcdae4f66070a304db33c9f4fd54c0952e645180caf573e651608a0960684c",
-      "excerpt": "porting/acceptance/previous-storage-recipes-mui2.log",
-      "resolved_runtime_versions": {
-        "Applied-Energistics-2-Unofficial": [
-          "rv3-beta-990-GTNH"
-        ],
-        "ModularUI2": [
-          "2.3.49-1.7.10"
-        ],
-        "GTNHLib": []
-      }
-    },
-    {
-      "kind": "material-execution",
-      "source": "build/server-material-execution.log",
-      "source_sha256": "bf2d38dd0af2e0c6655c20c80c62f5b2cb78aae5eac73d01b8ca488f797223a6",
-      "minecraft_source": "build/server-material-execution-minecraft.log",
-      "minecraft_source_sha256": "acd51bc80484f8dfa28bed298f1a4dea7d61924c5c18af680b8d3620c680d561",
-      "excerpt": "porting/acceptance/material-execution.log",
-      "resolved_runtime_versions": {
-        "Applied-Energistics-2-Unofficial": [
-          "rv3-beta-990-GTNH"
-        ],
-        "ModularUI2": [
-          "2.3.49-1.7.10"
-        ],
-        "GTNHLib": []
-      }
-    },
-    {
-      "kind": "core-planning",
-      "source": "build/server-core-planning.log",
-      "source_sha256": "6d4ac62019000fb54714fca8df58aec35042b627a69afbca30295af1af890e1e",
-      "minecraft_source": "build/server-core-planning-minecraft.log",
-      "minecraft_source_sha256": "ce94d991d0510afd5a7ee3804749504102d2d6f71f68468b1705e5d9e4d1d706",
-      "excerpt": "porting/acceptance/core-planning.log",
-      "resolved_runtime_versions": {
-        "Applied-Energistics-2-Unofficial": [
-          "rv3-beta-990-GTNH"
-        ],
-        "ModularUI2": [
-          "2.3.49-1.7.10"
-        ],
-        "GTNHLib": []
-      }
-    }
-  ],
+  "server_acceptance": [],
   "test_profile": {
     "planner_challenge_enabled": true,
     "challenge_cases": 26
   },
   "pending_test_members": [
-    "src/test/java/cn/dancingsnow/neoecoae/crafting/execution/worker/ECOExactVirtualLedgerTest.java",
+    "src/test/java/cn/dancingsnow/neoecoae/crafting/execution/ECOExactInventoryLifecycleTest.java",
     "src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ByproductReviewProbeTest.java",
-    "src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/CreativeSupplyPlanningTest.java"
+    "src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/CreativeSupplyPlanningTest.java",
+    "src/test/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeTest.java"
   ],
   "dependency_adapters": [
     {
@@ -541,12 +552,15 @@
       "source": "src/main/java/appeng/crafting/execution/CraftingCpuHelper.java",
       "source_sha256": "454087a61f8683da77f77ba7718f1a7b603cf333e2d9146ae282d49e8c67e5ff",
       "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingCpuHelper.java",
-      "target_sha256": "d4b2f582486b887bbf0f63cf41d89877fe622c81421165679a1d61398e61102d",
+      "target_sha256": "bf7f89680b7b1358c214d29891adc90a339ec01da7f451647e9e00abe5d086cb",
       "license": "LGPL-3.0-or-later; original source header preserved where present",
       "selected_members": [
         "reinjectPatternInputs",
         "getValidItemTemplates",
         "extractTemplates",
+        "calculatePatternPower",
+        "generateLinkData",
+        "tryExtractInitialItems",
         "<init>"
       ]
     },
@@ -619,6 +633,51 @@
       "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingPlanSummaryEntry.java",
       "target_sha256": "2d5bcdc6bfab2647387a45fc9766784326a21fe9fe61b9e9588f705740a0d1b2",
       "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/java/appeng/recipes/transform/TransformRecipe.java",
+      "source_sha256": "2d8aff4bb0ea122b27e5e94bb2cd36806873988eef8edc71443718629bfad8ae",
+      "selected_members": [
+        "CODEC circumstance default"
+      ],
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/recipe/NativeTransformRecipe.java",
+      "target_sha256": "57818efdd92ad43550c9cc89e8b6daea232a1671e74908687079649a844b3320",
+      "license": "LGPL-3.0-or-later",
+      "adaptation": "Native Forge world tick / explosion event binding; original first-ingredient versus any-ingredient trigger, 61 tick fluid wait, 1-block neighborhood, ordered all-or-nothing item claims and anchor damage cancellation.",
+      "batch_manifest": "porting/batches/recipes-world-20261026.json"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/java/appeng/recipes/transform/TransformLogic.java",
+      "source_sha256": "20e4e88e5a3efdb19e9659e83844983d7c213295a8fd7bb94b94d5ba04594513",
+      "selected_members": [
+        "tryTransform",
+        "getTransformableItems",
+        "getTransformableItemsExplosion"
+      ],
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/recipe/WorldTransformRecipes.java",
+      "target_sha256": "0a85da2dfadde521edfc8e11f4c235343bbaebe5abedf4829795112b7cf59f12",
+      "license": "LGPL-3.0-or-later",
+      "adaptation": "Native Forge world tick / explosion event binding; original first-ingredient versus any-ingredient trigger, 61 tick fluid wait, 1-block neighborhood, ordered all-or-nothing item claims and anchor damage cancellation.",
+      "batch_manifest": "porting/batches/recipes-world-20261026.json"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/java/appeng/mixins/ItemEntityMixin.java",
+      "source_sha256": "074188156fd09b4b3ed7afbccaee85c93899b44f0c0736ef44cd1e6196c53f6f",
+      "selected_members": [
+        "handleExplosion",
+        "handleEntityTransform"
+      ],
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/recipe/WorldTransformRecipes.java",
+      "target_sha256": "0a85da2dfadde521edfc8e11f4c235343bbaebe5abedf4829795112b7cf59f12",
+      "license": "LGPL-3.0-or-later",
+      "adaptation": "Native Forge world tick / explosion event binding; original first-ingredient versus any-ingredient trigger, 61 tick fluid wait, 1-block neighborhood, ordered all-or-nothing item claims and anchor damage cancellation.",
+      "batch_manifest": "porting/batches/recipes-world-20261026.json"
     }
   ],
   "derived_resources": [
@@ -820,6 +879,13 @@
   ],
   "excluded_source_paths": 948,
   "optional_mod_integrations": false,
+  "native_gregtech": null,
+  "acceptance_policy": {
+    "mode": "compile_and_build",
+    "manual_mouse_required": false,
+    "current_gameplay_verified": false,
+    "historical_runtime_rechecked": false
+  },
   "content": {
     "core_items": 65,
     "material_blocks": 13,
@@ -827,38 +893,18 @@
     "registered_core_blocks": 70,
     "blocks_pending_behavior": 47,
     "source_recipes": 164,
-    "installed_source_recipes": 115,
-    "native_crafting_recipes": 88,
+    "installed_source_recipes": null,
+    "native_crafting_recipes": null,
     "excluded_large_workstation_cards": 7
   },
-  "registration_acceptance": {
-    "source": "build/client-content-registration.log",
-    "sha256": "75b603b02032a10f73d09a4b3360b322a1c6c7eade0ba1bdd55d2c22a9dfbf2d",
-    "registered_blocks": 70,
-    "new_blocks": 47,
-    "visible_items": 132,
-    "creative_order": [
-      "storage",
-      "crafting",
-      "computation",
-      "workstation",
-      "materials",
-      "tools"
-    ],
-    "scope": "Real FML identities, complete creative-tab listing, stable functional grouping and ascending tier/capacity order, native placement of 47 new blocks, source artwork and four creative-scroll screenshots. Pending machine behavior remains unimplemented."
-  },
-  "client_acceptance": {
-    "source": "build/client-material-recipes-acceptance.log",
-    "sha256": "86428257c43c3d5e56288d5acc4e34efc45f27bef68949cdd40e81ead74faf0f",
-    "scope": "Storage main page, real MUI2 extraction/reinsertion packets, material atlas loading and recipe/NBT assertions; not manual mouse gestures or a full crafting order"
-  },
+  "registration_acceptance": null,
+  "client_acceptance": null,
   "outstanding": [
-    "Remaining storage interfaces, priority/build/guide pages and gestures",
-    "Native planner request/confirmation and complete source CPU execution hooks",
-    "Computation and workstation business modules",
-    "Complete high-version MUI2 pages, native slot gestures and render-state binding",
-    "Remaining core source recipes",
-    "Actual ECO trio plus GT machines and pattern-provider order save; GT runtime is not enabled yet",
-    "NEI, remaining client visuals and ordinary installation"
+    "Remaining core source files and platform adaptations are listed in source-lock.json",
+    "See the current implementation record for machine and page completion; file counts are not behavior coverage"
+  ],
+  "no_longer_required": [
+    "Manual mouse verification",
+    "Final live game acceptance save"
   ]
 }

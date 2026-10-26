@@ -569,6 +569,8 @@ def main():
     partial_tests={"src/test/java/"+PACKAGE+p.removeprefix("test:") for p in PARTIAL_IMPORTS if p.startswith("test:")}
     entries = merge_batch_imports(entries, batch_imports)
     for entry in batch_imports.values():
+        if entry["kind"] == "resource":
+            continue
         if entry.get("complete") is True:
             partial_paths.discard(entry["source"])
             partial_tests.discard(entry["source"])

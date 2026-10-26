@@ -1,4 +1,4 @@
-"""Audit the actual build, source provenance, retained models and Java-8 server acceptance evidence."""
+"""Audit current build artifacts and source evidence; historical runtime checks are opt-in."""
 from collections import Counter
 from datetime import datetime, timezone
 import argparse
@@ -27,10 +27,41 @@ def read_text(path):
     return raw.decode("utf-16" if raw[:2] in (b"\xff\xfe",b"\xfe\xff") else "utf-8-sig",errors="replace")
 
 
+def gregtech_resources():
+    catalog_path = ROOT / "src/main/resources/neoecoae/gt-1201/catalog.json"
+    if not catalog_path.exists():
+        return [], None
+    override = json.loads((ROOT / "porting/content-overrides.json").read_text(encoding="utf8"))
+    assert override["native_gregtech"]["enabled"], "GT resources require the explicit user scope override"
+    catalog = json.loads(catalog_path.read_text(encoding="utf8"))
+    commit = catalog["source_commit"]
+    assert re.fullmatch("[0-9a-f]{40}", commit), commit
+    repository = ROOT.parent / "NeoECOAEExtension-1.20.1"
+    derived = []
+    seen = set()
+    resource_root = (ROOT / "src/main/resources").resolve()
+    for entry in catalog["files"]:
+        resource = entry["resource"]
+        path = (resource_root / resource).resolve()
+        assert path.is_relative_to(resource_root / "neoecoae/gt-1201"), resource
+        assert resource not in seen, resource
+        seen.add(resource)
+        assert entry["profile"] in {"gtm", "gt_legacy"} and entry["kind"] in {"recipe", "tag"}, entry
+        original = subprocess.check_output(["git", "-C", str(repository), "show", commit + ":" + entry["source"]])
+        assert sha(original) == entry["sha256"] and path.read_bytes() == original, resource
+        derived.append(dict(target=path.relative_to(ROOT).as_posix(), target_sha256=entry["sha256"],
+                            repository=str(repository), commit=commit, source=entry["source"]))
+    derived.append(dict(target=catalog_path.relative_to(ROOT).as_posix(), target_sha256=sha(catalog_path.read_bytes())))
+    return derived, dict(reference_commit=commit, source_files=len(catalog["files"]),
+                         profiles=dict(Counter(entry["profile"] for entry in catalog["files"])))
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--build-log", default="build/porting-build.log")
     parser.add_argument("--registration-log", help="Optional complete native content/creative acceptance log")
+    parser.add_argument("--include-historical-runtime", action="store_true",
+                        help="Recheck existing historical game logs; this does not run the game or prove the current build")
     args=parser.parse_args()
     lock_path=ROOT/"porting/source-lock.json"
     lock=json.loads(lock_path.read_text(encoding="utf8"))
@@ -91,6 +122,8 @@ def main():
         original=subprocess.check_output(["git","-C",entry["repository"],"show",entry["commit"]+":"+entry["source"]])
         assert sha(original)==entry["source_sha256"],entry["source"]
     derived.extend(artwork)
+    gt_resources, gt_reference = gregtech_resources()
+    derived.extend(gt_resources)
     for path in ["neoecoae/core-blocks.json","neoecoae/core-registration.json","neoecoae/recipe-catalog.json"]:
         target="src/main/resources/"+path
         derived.append(dict(target=target,target_sha256=sha((ROOT/target).read_bytes())))
@@ -129,6 +162,10 @@ def main():
             majors=Counter(int.from_bytes(jar.read(name)[6:8],"big") for name in classes)
             assert not majors or set(majors)=={52},(path,majors)
             if not path.name.endswith("-sources.jar"):
+                for source in main_sources:
+                    primary = source.relative_to(ROOT / "src/main/java").as_posix().removesuffix(".java") + ".class"
+                    if not primary.endswith("/package-info.class"):
+                        assert primary in names, primary
                 for entry in dependency_adapters:
                     assert entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class" in names,entry["target"]
                 for entry in derived:
@@ -138,6 +175,8 @@ def main():
                     primary=entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class"
                     if not primary.endswith("/package-info.class"):assert primary in names,primary
                 for entry in lock.get("platform_adaptations", []):
+                    if entry.get("kind") == "test":
+                        continue
                     primary=entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class"
                     assert primary in names,primary
                 for entry in resources:
@@ -161,39 +200,41 @@ def main():
     acceptance=[]
     evidence_dir=ROOT/"porting/acceptance"
     evidence_dir.mkdir(exist_ok=True)
-    for label,source in [("initial-storage","build/porting-server-first.log"),("restart-reload","build/porting-server-reload.log"),("previous-storage-recipes-mui2","build/porting-server-current.log"),("material-execution","build/server-material-execution.log"),("core-planning","build/server-core-planning.log")]:
-        path=ROOT/source
-        # Forge routes its own mod/lifecycle log separately from the vanilla
-        # server/command logger. Both original streams are required evidence.
-        minecraft_source=source.removesuffix(".log")+"-minecraft.log"
-        minecraft_path=ROOT/minecraft_source
-        text=read_text(path)+"\n"+read_text(minecraft_path)
-        assert "1.8.0_492" in text and "Done (" in text and "NEOECOAE_PORT_ACCEPTANCE_OK" in text,source
-        assert "Encountered an unexpected exception" not in text,source
-        selected=[line for line in text.splitlines() if any(token in line for token in ["Java is OpenJDK","successfully loaded","Done (","NEOECOAE_PORT_","Stopping server","Unloading dimension"])]
-        target=evidence_dir/(label+".log")
-        target.write_text("\n".join(selected)+"\n",encoding="utf8")
-        versions={}
-        for artifact in ["Applied-Energistics-2-Unofficial","ModularUI2","GTNHLib"]:
-            matches=re.findall(re.escape(artifact)+r"/([^/;]+?)/[0-9a-f]{40}/"+re.escape(artifact)+r"-",text)
-            versions[artifact]=sorted(set(matches))
-        acceptance.append(dict(kind=label,source=source,source_sha256=sha(path.read_bytes()),minecraft_source=minecraft_source,
-            minecraft_source_sha256=sha(minecraft_path.read_bytes()),excerpt=target.relative_to(ROOT).as_posix(),resolved_runtime_versions=versions))
-    assert "mode=reload" in read_text(ROOT/"build/porting-server-reload-minecraft.log")
-    assert "NEOECOAE_PORT_RECIPES_OK" in read_text(ROOT/"build/porting-server-current.log")
-    assert "NEOECOAE_PORT_MUI2_BINDINGS_OK" in read_text(ROOT/"build/porting-server-current.log")
-    latest_server=read_text(ROOT/"build/server-material-execution.log")+read_text(ROOT/"build/server-material-execution-minecraft.log")
-    for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_PORT_LEGACY_BULK_BOUNDARY", "NEOECOAE_PORT_STORAGE_NORMAL_OK", "NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK", "NEOECOAE_PORT_FOUNDATION_OK"]:
-        assert marker in latest_server,marker
-    core_server=read_text(ROOT/"build/server-core-planning.log")+read_text(ROOT/"build/server-core-planning-minecraft.log")
-    for marker in ["NEOECOAE_PORT_PLANNING_OK", "emitter_only=true", "provider_dispatch=1", "NEOECOAE_PORT_STORAGE_NORMAL_OK", "NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK", "NEOECOAE_NATIVE_CONTENT_OK"]:
-        assert marker in core_server,marker
     client_log=ROOT/"build/client-material-recipes-acceptance.log"
-    client_text=read_text(client_log)
-    for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_CLIENT_STORAGE_OK", "NEOECOAE_CLIENT_ACCEPTANCE_FINISHED success=true"]: assert marker in client_text,marker
+    if args.include_historical_runtime:
+        for label,source in [("initial-storage","build/porting-server-first.log"),("restart-reload","build/porting-server-reload.log"),("previous-storage-recipes-mui2","build/porting-server-current.log"),("material-execution","build/server-material-execution.log"),("core-planning","build/server-core-planning.log")]:
+            path=ROOT/source
+            # Forge routes its own mod/lifecycle log separately from the vanilla
+            # server/command logger. Both original streams are required evidence.
+            minecraft_source=source.removesuffix(".log")+"-minecraft.log"
+            minecraft_path=ROOT/minecraft_source
+            text=read_text(path)+"\n"+read_text(minecraft_path)
+            assert "1.8.0_492" in text and "Done (" in text and "NEOECOAE_PORT_ACCEPTANCE_OK" in text,source
+            assert "Encountered an unexpected exception" not in text,source
+            selected=[line for line in text.splitlines() if any(token in line for token in ["Java is OpenJDK","successfully loaded","Done (","NEOECOAE_PORT_","Stopping server","Unloading dimension"])]
+            target=evidence_dir/(label+".log")
+            target.write_text("\n".join(selected)+"\n",encoding="utf8")
+            versions={}
+            for artifact in ["Applied-Energistics-2-Unofficial","ModularUI2","GTNHLib"]:
+                matches=re.findall(re.escape(artifact)+r"/([^/;]+?)/[0-9a-f]{40}/"+re.escape(artifact)+r"-",text)
+                versions[artifact]=sorted(set(matches))
+            acceptance.append(dict(kind=label,source=source,source_sha256=sha(path.read_bytes()),minecraft_source=minecraft_source,
+                minecraft_source_sha256=sha(minecraft_path.read_bytes()),excerpt=target.relative_to(ROOT).as_posix(),resolved_runtime_versions=versions))
+        assert "mode=reload" in read_text(ROOT/"build/porting-server-reload-minecraft.log")
+        assert "NEOECOAE_PORT_RECIPES_OK" in read_text(ROOT/"build/porting-server-current.log")
+        assert "NEOECOAE_PORT_MUI2_BINDINGS_OK" in read_text(ROOT/"build/porting-server-current.log")
+        latest_server=read_text(ROOT/"build/server-material-execution.log")+read_text(ROOT/"build/server-material-execution-minecraft.log")
+        for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_PORT_LEGACY_BULK_BOUNDARY", "NEOECOAE_PORT_STORAGE_NORMAL_OK", "NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK", "NEOECOAE_PORT_FOUNDATION_OK"]:
+            assert marker in latest_server,marker
+        core_server=read_text(ROOT/"build/server-core-planning.log")+read_text(ROOT/"build/server-core-planning-minecraft.log")
+        for marker in ["NEOECOAE_PORT_PLANNING_OK", "emitter_only=true", "provider_dispatch=1", "NEOECOAE_PORT_STORAGE_NORMAL_OK", "NEOECOAE_PORT_STORAGE_INFINITE_HOST_OK", "NEOECOAE_NATIVE_CONTENT_OK"]:
+            assert marker in core_server,marker
+        client_log=ROOT/"build/client-material-recipes-acceptance.log"
+        client_text=read_text(client_log)
+        for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_CLIENT_STORAGE_OK", "NEOECOAE_CLIENT_ACCEPTANCE_FINISHED success=true"]: assert marker in client_text,marker
 
     registration_acceptance=None
-    installed_recipes,native_crafting=92,65
+    installed_recipes,native_crafting=None,None
     block_catalog=json.loads((ROOT/"src/main/resources/neoecoae/core-registration.json").read_text(encoding="utf8"))
     if args.registration_log:
         registration_path=ROOT/args.registration_log
@@ -220,14 +261,17 @@ def main():
         pending_test_members=lock.get("pending_test_members", []),
         dependency_adapters=dependency_adapters,derived_resources=derived,
         excluded_source_paths=len(lock.get("excluded_sources", [])),optional_mod_integrations=False,
+        native_gregtech=gt_reference, acceptance_policy=dict(mode="compile_and_build", manual_mouse_required=False,
+            current_gameplay_verified=False, historical_runtime_rechecked=args.include_historical_runtime),
         content=dict(core_items=65,material_blocks=13,storage_machine_blocks=10,registered_core_blocks=len(block_catalog["blocks"]),
             blocks_pending_behavior=sum(entry["registration"]=="pending_behavior" for entry in block_catalog["blocks"]),
             source_recipes=len(recipe_catalog["recipes"]),installed_source_recipes=installed_recipes,native_crafting_recipes=native_crafting,excluded_large_workstation_cards=7),
         registration_acceptance=registration_acceptance,
-        client_acceptance=dict(source=client_log.relative_to(ROOT).as_posix(),sha256=sha(client_log.read_bytes()),scope="Storage main page, real MUI2 extraction/reinsertion packets, material atlas loading and recipe/NBT assertions; not manual mouse gestures or a full crafting order"),
-        outstanding=["Remaining storage interfaces, priority/build/guide pages and gestures","Native planner request/confirmation and complete source CPU execution hooks",
-            "Computation and workstation business modules","Complete high-version MUI2 pages, native slot gestures and render-state binding",
-            "Remaining core source recipes","Actual ECO trio plus GT machines and pattern-provider order save; GT runtime is not enabled yet","NEI, remaining client visuals and ordinary installation"])
+        client_acceptance=(dict(source=client_log.relative_to(ROOT).as_posix(),sha256=sha(client_log.read_bytes()),
+            scope="Historical client evidence only; current acceptance is compilation") if args.include_historical_runtime else None),
+        outstanding=["Remaining core source files and platform adaptations are listed in source-lock.json",
+            "See the current implementation record for machine and page completion; file counts are not behavior coverage"],
+        no_longer_required=["Manual mouse verification", "Final live game acceptance save"])
     (ROOT/"porting/business-import-state.json").write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf8")
     print(json.dumps({key:report[key] for key in ["main_java","test_java","imported","pending_source_paths","tests","preserved_model_files"]}))
     print(json.dumps(artifacts))

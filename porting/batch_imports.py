@@ -3,7 +3,7 @@ import hashlib
 import json
 from pathlib import PurePosixPath
 
-from import_scope import source_exclusion
+from import_scope import source_exclusion, resource_exclusion
 
 
 def java_path(value, kind):
@@ -13,6 +13,16 @@ def java_path(value, kind):
     path = PurePosixPath(value)
     if "\\" in value or ".." in path.parts or path.as_posix() != value or path.suffix != ".java":
         raise ValueError("Invalid batch Java path: " + value)
+    return value
+
+
+def resource_path(value, source=False):
+    prefixes = ("src/main/resources/", "src/generated/resources/") if source else ("src/main/resources/",)
+    if not isinstance(value, str) or not value.startswith(prefixes):
+        raise ValueError("Batch resource outside the project resources: " + str(value))
+    path = PurePosixPath(value)
+    if "\\" in value or ".." in path.parts or path.as_posix() != value:
+        raise ValueError("Invalid batch resource path: " + value)
     return value
 
 
@@ -31,11 +41,11 @@ def reviewed_batch_imports(root, commit, blobs):
         for original in batch.get("imports", []):
             entry = dict(original)
             kind = entry.get("kind")
-            if kind not in {"business", "test"}:
+            if kind not in {"business", "test", "resource"}:
                 raise ValueError("Unsupported batch import kind: " + str(kind))
-            source = java_path(entry.get("source"), kind)
-            target = java_path(entry.get("target"), kind)
-            if source_exclusion(source):
+            source = resource_path(entry.get("source"), source=True) if kind == "resource" else java_path(entry.get("source"), kind)
+            target = resource_path(entry.get("target")) if kind == "resource" else java_path(entry.get("target"), kind)
+            if kind != "resource" and source_exclusion(source):
                 raise ValueError("Batch imports an excluded source: " + source)
             if source not in blobs:
                 raise ValueError("Batch source missing from fixed revision: " + source)
@@ -44,6 +54,8 @@ def reviewed_batch_imports(root, commit, blobs):
                 raise ValueError("Batch source hash mismatch: " + source)
             if not (root / target).is_file():
                 raise ValueError("Batch target missing from the compiled source tree: " + target)
+            if kind == "resource" and resource_exclusion(target, (root / target).read_bytes()):
+                raise ValueError("Batch imports an excluded resource: " + target)
             if "complete" in entry and not isinstance(entry["complete"], bool):
                 raise ValueError("Batch complete flag must be boolean: " + target)
             prior = imports.get(target)
@@ -80,7 +92,8 @@ def reviewed_platform_adaptations(root, commit, blobs):
             raise ValueError("Batch uses a different source revision: " + str(path))
         for original in batch.get("platform_adaptations", []):
             entry = dict(original)
-            target = java_path(entry.get("target"), "business")
+            kind = "test" if str(entry.get("target")).startswith("src/test/java/") else "business"
+            target = java_path(entry.get("target"), kind)
             if not (root / target).is_file():
                 raise ValueError("Platform adaptation target missing: " + target)
             if not entry.get("inputs"):
@@ -92,6 +105,7 @@ def reviewed_platform_adaptations(root, commit, blobs):
                 if source not in blobs or hashlib.sha256(blobs[source]).hexdigest() != source_input.get("source_sha256"):
                     raise ValueError("Platform adaptation source hash mismatch: " + source)
             entry["target_sha256"] = hashlib.sha256((root / target).read_bytes()).hexdigest()
+            entry["kind"] = kind
             entry["source_commit"] = commit
             entry["batch_manifest"] = path.relative_to(root).as_posix()
             adaptations[target] = entry
