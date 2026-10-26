@@ -17,7 +17,7 @@ public final class SourceIngredient {
         this.examples = examples;
     }
 
-    static SourceIngredient alternatives(ItemStack... stacks) {
+    public static SourceIngredient alternatives(ItemStack... stacks) {
         return new SourceIngredient(new ArrayList<>(java.util.Arrays.asList(stacks)));
     }
 
@@ -54,6 +54,10 @@ public final class SourceIngredient {
                 || candidate.getItemDamage() == stack.getItemDamage()
                 || stack.isItemStackDamageable())) return true;
         return false;
+    }
+
+    public boolean test(ItemStack stack) {
+        return matches(stack);
     }
 
     public List<ItemStack> examples() {

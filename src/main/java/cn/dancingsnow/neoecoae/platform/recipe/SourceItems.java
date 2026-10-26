@@ -59,6 +59,8 @@ public final class SourceItems {
 
     public static ItemStack stack(String id, int count) {
         if (count <= 0) throw new IllegalArgumentException("Invalid source count: " + count);
+        if (id.equals("minecraft:blue_ice"))
+            return new ItemStack(cn.dancingsnow.neoecoae.platform.registry.RecipeMaterials.BLUE_ICE, count);
         if (id.startsWith("ae2:")) {
             var definition = AE.get(id.substring(4));
             return definition == null ? null
