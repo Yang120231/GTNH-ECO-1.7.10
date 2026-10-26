@@ -10,6 +10,7 @@ public final class PlanningSettings {
     public static int ecoPlanningMaxMillis = 120_000, ecoPlanningMaxWork = 50_000_000, ecoPlanningMaxMemoryMiB = 64;
     public static boolean ecoPlanningStageDebug;
     public static boolean ecoDispatchWatchdogDebug;
+    public static boolean ecoCraftingOutputDeliveryDebug;
     public static int storageSystemMaxLength = 15;
     public static final int MAX_ECO_CPU_PUSH_TICK_LIMIT = 393_216;
     public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
@@ -47,6 +48,11 @@ public final class PlanningSettings {
         ecoPlanningStageDebug = config.getBoolean("ecoPlanningStageDebug", "crafting", false, "Log planning stages");
         ecoDispatchWatchdogDebug = config
             .getBoolean("ecoDispatchWatchdogDebug", "crafting", false, "Log source dispatch runtime diagnostics");
+        ecoCraftingOutputDeliveryDebug = config.getBoolean(
+            "ecoCraftingOutputDeliveryDebug",
+            "crafting",
+            false,
+            "Log blocked worker output delivery diagnostics");
         ecoCpuPushTickLimit = config.getInt(
             "ecoCpuPushTickLimit",
             "crafting",

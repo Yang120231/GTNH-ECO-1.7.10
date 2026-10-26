@@ -11,11 +11,6 @@
     "header": "class ByproductReviewProbeTest",
     "exclude_members": ["randomizedSmallNetworksContainVanillaSuccessesAndReplayJointSupply", "vanillaPlan"]
   },
-  "test:crafting/execution/worker/ECOExactVirtualLedgerTest.java": {
-    "scope": "Complete pure exact-ledger custody, partial delivery and NBT reload regression. The separate exact-lane worker integration test is pending its real worker/controller runtime dependencies.",
-    "header": "class ECOExactVirtualLedgerTest",
-    "exclude_members": ["exactLaneUsesOneSlotAndRejectsBusyOrNonVirtualWorker"]
-  },
   "api/me/ECOFastPathFacade.java": {
     "scope": "Core provider submission/preparation, exact allocated batches and energy contracts. Optional mod provider resolution is excluded by user instruction and replaced by core native capability access. Worker cancellation follows real machine/persistence dependencies.",
     "header": "public final class ECOFastPathFacade",
