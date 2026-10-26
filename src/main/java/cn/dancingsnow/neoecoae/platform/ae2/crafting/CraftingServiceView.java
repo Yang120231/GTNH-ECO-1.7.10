@@ -102,6 +102,19 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     }
 
     @Override
+    public long insertIntoCpus(AEKey key, long amount, appeng.api.config.Actionable mode) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        if (amount <= 0) return 0;
+        if (!(crafting instanceof CraftingGridCache))
+            throw new IllegalStateException("Pinned native crafting cache missing");
+        var remainder = ((CraftingGridCache) crafting)
+            .injectItems(key.toNative(amount), mode, new appeng.api.networking.security.BaseActionSource());
+        long left = remainder == null ? 0 : remainder.getStackSize();
+        if (left < 0 || left > amount) throw new IllegalStateException("Invalid native crafting output remainder");
+        return amount - left;
+    }
+
+    @Override
     public long neoecoae$getProviderRevision() {
         return tracking.revision();
     }
