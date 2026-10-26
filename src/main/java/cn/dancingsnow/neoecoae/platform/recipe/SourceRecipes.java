@@ -91,8 +91,12 @@ public final class SourceRecipes {
         throw new IllegalArgumentException("Unsupported source recipe condition: " + condition);
     }
 
-    private static ItemStack output(JsonObject definition) {
-        var result = definition.getAsJsonObject("result");
+    static ItemStack output(JsonObject definition) {
+        return output(definition, true);
+    }
+
+    static ItemStack output(JsonObject definition, boolean nested) {
+        var result = nested ? definition.getAsJsonObject("result") : definition;
         if (result == null) throw new IllegalArgumentException("Missing source result: " + definition);
         int count = result.has("count") ? result.get("count")
             .getAsInt() : 1;
@@ -182,6 +186,27 @@ public final class SourceRecipes {
                         definition.get("experience")
                             .getAsFloat());
                 STATUS.put(id, "installed:smelting");
+                return;
+            }
+            case "minecraft:blasting": {
+                BlastingRecipes.install(
+                    cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse("neoecoae:" + id),
+                    definition);
+                STATUS.put(id, "installed:blasting_directory");
+                return;
+            }
+            case "neoecoae:integrated_working_station": {
+                WorkstationRecipes.install(
+                    cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse("neoecoae:" + id),
+                    definition);
+                STATUS.put(id, "installed:workstation_directory");
+                return;
+            }
+            case "neoecoae:cooling": {
+                WorkstationRecipes.installCooling(
+                    cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse("neoecoae:" + id),
+                    definition);
+                STATUS.put(id, "installed:cooling_directory");
                 return;
             }
             case "ae2:inscriber": {
