@@ -318,7 +318,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class CraftingInterface extends ECOMachineInterfaceBlockEntity<NECraftingCluster> {
+    public static final class CraftingInterface extends ECOMachineInterfaceBlockEntity<NECraftingCluster>
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public CraftingInterface() {
             super(
@@ -495,7 +496,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationInterface extends ECOMachineInterfaceBlockEntity<NEComputationCluster> {
+    public static final class ComputationInterface extends ECOMachineInterfaceBlockEntity<NEComputationCluster>
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public ComputationInterface() {
             super(
@@ -564,14 +566,16 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class InputHatch extends ECOFluidInputHatchBlockEntity {
+    public static final class InputHatch extends ECOFluidInputHatchBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public InputHatch() {
             super(INPUT_HATCH_TYPE, BlockPos.ZERO, ((NativeMachineBlock) INPUT_HATCH.value()).defaultBlockState());
         }
     }
 
-    public static final class OutputHatch extends ECOFluidOutputHatchBlockEntity {
+    public static final class OutputHatch extends ECOFluidOutputHatchBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public OutputHatch() {
             super(OUTPUT_HATCH_TYPE, BlockPos.ZERO, ((NativeMachineBlock) OUTPUT_HATCH.value()).defaultBlockState());

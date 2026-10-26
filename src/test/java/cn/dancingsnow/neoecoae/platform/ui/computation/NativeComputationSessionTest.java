@@ -29,6 +29,9 @@ class NativeComputationSessionTest {
 
     private static ECOCraftingCPU cpu() {
         ECOCraftingCPU cpu = mock(ECOCraftingCPU.class);
+        when(cpu.isBusy()).thenReturn(true);
+        when(cpu.getTier()).thenReturn(StorageTiers.L4);
+        when(cpu.getSelectionMode()).thenReturn(CpuSelectionMode.ANY);
         when(cpu.getLogic()).thenReturn(mock(ECOCraftingCPULogic.class));
         ECOCraftingProgressView progress = mock(ECOCraftingProgressView.class);
         when(progress.bigOrder()).thenReturn(Optional.empty());
@@ -40,6 +43,10 @@ class NativeComputationSessionTest {
         ECOComputationSystemBlockEntity host = mock(ECOComputationSystemBlockEntity.class);
         when(host.getTier()).thenReturn(StorageTiers.L4);
         when(host.getCluster()).thenReturn(cluster);
+        var node = mock(cn.dancingsnow.neoecoae.platform.ae2.grid.ManagedNode.class);
+        when(host.getMainNode()).thenReturn(node);
+        when(node.isOnline()).thenReturn(true);
+        when(cluster.isActive()).thenReturn(true);
         when(cluster.getSelectionMode()).thenReturn(CpuSelectionMode.ANY);
         when(cluster.getDrives()).thenReturn(Collections.emptyList());
         when(cluster.getUpperDrives()).thenReturn(Collections.emptyList());
@@ -108,5 +115,25 @@ class NativeComputationSessionTest {
         } finally {
             bytes.release();
         }
+    }
+
+    @Test
+    void pooledCpuCanBePausedAndDisappearingNetworkMembershipInvalidatesItsToken() {
+        var local = mock(NEComputationCluster.class);
+        var remote = mock(NEComputationCluster.class);
+        var network = mock(cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationNetworkCluster.class);
+        var running = cpu();
+        when(local.getNetworkCluster()).thenReturn(network);
+        when(network.getMembers()).thenReturn(Arrays.asList(local, remote));
+        when(local.getActiveCPUs()).thenReturn(Collections.emptyList());
+        when(remote.getActiveCPUs()).thenReturn(Collections.singletonList(running));
+        when(remote.isActive()).thenReturn(true);
+        var session = new NativeComputationSession(host(local));
+        int token = session.capture().getList("cpus", 10).getCompound(0).getInt("token");
+        session.apply(6, token);
+        verify(running.getLogic()).setJobSuspended(true);
+        when(network.getMembers()).thenReturn(Collections.singletonList(local));
+        session.apply(7, token);
+        verify(running, never()).cancelJob();
     }
 }

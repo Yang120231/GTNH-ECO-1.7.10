@@ -202,6 +202,16 @@ public class ECOComputationSystemBlockEntity
     }
 
     public java.util.Set<ResourceLocation> neoecoae$getFuzzyPlanningItemIds() {
-        return java.util.Collections.emptySet();
+        var result = new java.util.LinkedHashSet<ResourceLocation>();
+        if (cluster != null && !cluster.isDestroyed()) {
+            var members = cluster.getBlockEntities();
+            while (members.hasNext()) {
+                var member = members.next();
+                if (member instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>)
+                    result.addAll(((cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>) member)
+                        .getFuzzyPlanningItemIds());
+            }
+        }
+        return result;
     }
 }

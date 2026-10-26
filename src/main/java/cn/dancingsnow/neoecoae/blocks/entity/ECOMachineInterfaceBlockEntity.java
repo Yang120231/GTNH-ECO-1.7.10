@@ -24,7 +24,8 @@ import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
 import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
-    extends NEBlockEntity<C, ECOMachineInterfaceBlockEntity<C>> implements ManagedHolder {
+    extends NEBlockEntity<C, ECOMachineInterfaceBlockEntity<C>> implements ManagedHolder,
+    cn.dancingsnow.neoecoae.platform.inventory.InternalInventoryHost {
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
@@ -48,6 +49,28 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
     private transient StorageInterfaceFilter storageResourceFilter;
 
     private long transferredLastTick;
+
+    @Persisted
+    private final cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory fuzzyPlanningInventory =
+        new cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory(this, 63, 1);
+
+    public cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory getFuzzyPlanningInventory() {
+        return fuzzyPlanningInventory;
+    }
+
+    public java.util.Set<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation> getFuzzyPlanningItemIds() {
+        var result = new java.util.LinkedHashSet<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation>();
+        for (int slot = 0; slot < fuzzyPlanningInventory.size(); slot++) {
+            var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(fuzzyPlanningInventory.getStackInSlot(slot));
+            if (key != null) result.add(key.getId());
+        }
+        return result;
+    }
+
+    @Override
+    public void saveChangedInventory(cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory inventory) {
+        setChanged();
+    }
 
     public ECOMachineInterfaceBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState,
         NEClusterCalculator.Factory<C> calculator) {
@@ -171,7 +194,9 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
     }
 
     public boolean supportsInterfaceUi() {
-        return supportsStorageInterfaceUi();
+        return supportsStorageInterfaceUi()
+            || calculator instanceof cn.dancingsnow.neoecoae.multiblock.calculator.NECraftingClusterCalculator
+            || calculator instanceof cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
     }
 
     public FieldManagedStorage getSyncStorage() {

@@ -21,6 +21,20 @@ public interface NativeExecutionGui extends IGuiHolder<PosGuiData> {
 
     @Override
     default ModularPanel buildUI(PosGuiData data, PanelSyncManager sync, UISettings settings) {
+        if (this instanceof cn.dancingsnow.neoecoae.platform.registry.CraftingMachines.CraftingInterface)
+            return cn.dancingsnow.neoecoae.platform.ui.crafting.NativeCraftingInterfacePages.create(
+                (cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>) this, data.getPlayer(), sync);
+        if (this instanceof cn.dancingsnow.neoecoae.platform.registry.CraftingMachines.ComputationInterface)
+            return cn.dancingsnow.neoecoae.platform.ui.computation.NativeComputationInterfacePages.create(
+                (cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>) this, data.getPlayer(), sync);
+        if (this instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity)
+            return cn.dancingsnow.neoecoae.platform.ui.crafting.NativeFluidHatchPages.create(
+                (net.minecraft.tileentity.TileEntity) this,
+                ((cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity) this).tank, true);
+        if (this instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEntity)
+            return cn.dancingsnow.neoecoae.platform.ui.crafting.NativeFluidHatchPages.create(
+                (net.minecraft.tileentity.TileEntity) this,
+                ((cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEntity) this).tank, false);
         if (this instanceof ECOCraftingSystemBlockEntity)
             return NativeCraftingPages.create((ECOCraftingSystemBlockEntity) this, data.getPlayer(), sync);
         if (this instanceof ECOComputationSystemBlockEntity)
