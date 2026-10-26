@@ -30,6 +30,7 @@ public final class PatternRuntime {
 
     public static synchronized void onRecipeReloadOrServerReload() {
         generation++;
+        cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledStructureCache.clear();
         cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCache.clearAllCaches();
         cn.dancingsnow.neoecoae.crafting.planner.growth.NetGrowthPatternValidationRegistry.clear();
     }
