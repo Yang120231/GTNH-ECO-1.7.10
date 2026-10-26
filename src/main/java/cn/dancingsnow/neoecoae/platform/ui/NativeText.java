@@ -51,6 +51,8 @@ public final class NativeText extends Widget<NativeText> {
                 : value.getStyle()
                     .getColor()
                     .getValue();
+        // Text fields and stencil masks may leave texturing disabled before the next sibling label.
+        com.cleanroommc.modularui.utils.Platform.setupDrawFont();
         org.lwjgl.opengl.GL11.glPushMatrix();
         try {
             org.lwjgl.opengl.GL11.glTranslatef(0, (height - 9 * scale) / 2, 0);

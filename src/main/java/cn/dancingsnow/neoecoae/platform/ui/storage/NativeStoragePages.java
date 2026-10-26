@@ -532,6 +532,7 @@ public final class NativeStoragePages {
         float scale = Math.max(.5f, Math.min(limit, width / (float) Math.max(1, font.getStringWidth(string))));
         string = font.trimStringToWidth(string, Math.max(1, (int) (width / scale)));
         if (right) x += Math.max(0, width - Math.round(font.getStringWidth(string) * scale));
+        com.cleanroommc.modularui.utils.Platform.setupDrawFont();
         org.lwjgl.opengl.GL11.glPushMatrix();
         try {
             org.lwjgl.opengl.GL11.glTranslated(x, y, 0);
