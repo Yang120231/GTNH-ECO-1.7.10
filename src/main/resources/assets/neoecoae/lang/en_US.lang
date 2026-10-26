@@ -1273,3 +1273,4 @@ upgrade.neoecoae.aluminum_alloy_upgrade=Aluminum Alloy Upgrade
 upgrade.neoecoae.black_tungsten_alloy_upgrade=Black Tungsten Alloy Upgrade
 gui.neoecoae.storage_priority.insertion_hint=Insert into higher priority storage first.
 gui.neoecoae.storage_priority.extraction_hint=Extract from lower priority storage first.
+tile.neoecoae.platform_blue_ice.name=Blue Ice

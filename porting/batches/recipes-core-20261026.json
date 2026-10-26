@@ -1,0 +1,334 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "imports": [
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/recipe/IntegratedWorkingStationRecipe.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/recipe/IntegratedWorkingStationRecipe.java",
+      "source_sha256": "1dd145501a05387830e7bcadf78f8c1bef57e27f21c043dc1c27a93a80f6453c",
+      "target_sha256": "78ef418d8ce23c06c2575406d1caa3ddb081f798b29a9b7454666f6e60b939df",
+      "kind": "business",
+      "adaptation": "Native ItemStack/Forge FluidStack and counted predicates; nullable empty stacks, defensive output copies; original matching, quantities, default duration and cooling rules retained. Modern recipe serializer interfaces are replaced by WorkstationRecipes typed runtime installation."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/recipe/CoolingRecipe.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/recipe/CoolingRecipe.java",
+      "source_sha256": "e6f237f37a5656704ed2365241e5dcde14242dbb53769bece51e014e5de34e02",
+      "target_sha256": "bf0c96cf221c459a9b6814d42735fad0a7a901ff4aa6723cd4c7fd42966fa942",
+      "kind": "business",
+      "adaptation": "Native ItemStack/Forge FluidStack and counted predicates; nullable empty stacks, defensive output copies; original matching, quantities, default duration and cooling rules retained. Modern recipe serializer interfaces are replaced by WorkstationRecipes typed runtime installation."
+    }
+  ],
+  "original_pending": [
+    {
+      "id": "aluminum_alloy_ingot_from_dusts_aluminum_alloy_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "aluminum_ingot_from_dusts_aluminum_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "aluminum_ingot_from_ores_aluminum_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "aluminum_ingot_from_raw_materials_aluminum_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "black_tungsten_alloy_ingot_from_dusts_black_tungsten_alloy_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "computation_cooling_controller_l4",
+      "type": "minecraft:crafting_shaped",
+      "original_reason": "missing minecraft:blue_ice",
+      "resolution": "RecipeMaterials.BLUE_ICE"
+    },
+    {
+      "id": "computation_system_l4",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "computation_system_l6",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "computation_system_l9",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "cooling/cryotheum_solution",
+      "type": "neoecoae:cooling",
+      "original_reason": "missing recipe adapter neoecoae:cooling",
+      "resolution": "WorkstationRecipes.cooling"
+    },
+    {
+      "id": "cooling/water",
+      "type": "neoecoae:cooling",
+      "original_reason": "missing recipe adapter neoecoae:cooling",
+      "resolution": "WorkstationRecipes.cooling"
+    },
+    {
+      "id": "crafting_system_l4",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "crafting_system_l6",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "crafting_system_l9",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "crafting_vent",
+      "type": "minecraft:crafting_shaped",
+      "original_reason": "missing minecraft:blue_ice",
+      "resolution": "RecipeMaterials.BLUE_ICE"
+    },
+    {
+      "id": "eco_cell_component_16m",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_cell_component_256m",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_cell_component_64m",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_computation_cell_l4",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_computation_cell_l6",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_computation_cell_l9",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_infinite_cell_component",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "eco_infinite_item_cell",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/computation_high_energy_network_switch",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/computation_network_switch",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/crafting_high_energy_network_switch",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/crafting_network_switch",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/cryotheum_solution",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/crystal_ingot",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/energized_crystal",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/energized_fluix_crystal",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "integrated_working_station/energized_superconductive_ingot",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "large_integrated_working_station_casing",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "large_integrated_working_station_input_hatch",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "large_integrated_working_station_interface",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "large_integrated_working_station_output_hatch",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "storage_system_l4",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "storage_system_l6",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "storage_system_l9",
+      "type": "neoecoae:integrated_working_station",
+      "original_reason": "missing recipe adapter neoecoae:integrated_working_station",
+      "resolution": "WorkstationRecipes"
+    },
+    {
+      "id": "storage_vent",
+      "type": "minecraft:crafting_shaped",
+      "original_reason": "missing minecraft:blue_ice",
+      "resolution": "RecipeMaterials.BLUE_ICE"
+    },
+    {
+      "id": "transform/chipped_budding_energized_crystal",
+      "type": "ae2:transform",
+      "original_reason": "missing recipe adapter ae2:transform",
+      "resolution": "next world-transform batch"
+    },
+    {
+      "id": "transform/crystal_ingot",
+      "type": "ae2:transform",
+      "original_reason": "missing recipe adapter ae2:transform",
+      "resolution": "next world-transform batch"
+    },
+    {
+      "id": "transform/damaged_budding_energized_crystal",
+      "type": "ae2:transform",
+      "original_reason": "missing recipe adapter ae2:transform",
+      "resolution": "next world-transform batch"
+    },
+    {
+      "id": "transform/energized_fluix_crystal",
+      "type": "ae2:transform",
+      "original_reason": "missing recipe adapter ae2:transform",
+      "resolution": "next world-transform batch"
+    },
+    {
+      "id": "transform/energized_superconductive_ingot",
+      "type": "ae2:transform",
+      "original_reason": "missing recipe adapter ae2:transform",
+      "resolution": "next world-transform batch"
+    },
+    {
+      "id": "transform/flawed_budding_energized_crystal",
+      "type": "ae2:transform",
+      "original_reason": "missing recipe adapter ae2:transform",
+      "resolution": "next world-transform batch"
+    },
+    {
+      "id": "tungsten_ingot_from_dusts_tungsten_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "tungsten_ingot_from_ores_tungsten_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    },
+    {
+      "id": "tungsten_ingot_from_raw_materials_tungsten_blasting",
+      "type": "minecraft:blasting",
+      "original_reason": "missing recipe adapter minecraft:blasting",
+      "resolution": "BlastingRecipes"
+    }
+  ],
+  "platform_additions": [
+    {
+      "target": "src/main/resources/assets/neoecoae/textures/blocks/platform_blue_ice.png",
+      "source_jar": "Minecraft 1.21.1 client.jar",
+      "source_entry": "assets/minecraft/textures/block/blue_ice.png",
+      "source_jar_sha256": "499f6897d1837516680f3114072d8106e11c9adcd933fe5cf051b551089b0c99",
+      "target_sha256": "7170dfc70083df07ee61cd65aeaeb7add46c9d11397e401babc2a36d82599b07",
+      "adaptation": "Vanilla platform material backport, separate from locked mod core block catalog."
+    }
+  ],
+  "validation": {
+    "command": "gradlew.bat spotlessJavaApply test --tests '*NativeMachineRecipesTest' --tests '*SourceShapelessRecipeTest' --offline --console=plain --max-workers=2",
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "real_machine_runtime": "pending GT/workstation host acceptance"
+  }
+}

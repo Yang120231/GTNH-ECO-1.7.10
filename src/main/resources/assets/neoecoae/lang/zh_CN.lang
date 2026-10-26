@@ -1275,3 +1275,4 @@ upgrade.neoecoae.aluminum_alloy_upgrade=铝合金升级
 upgrade.neoecoae.black_tungsten_alloy_upgrade=黑钨合金升级
 gui.neoecoae.storage_priority.insertion_hint=优先向优先级较高的存储写入。
 gui.neoecoae.storage_priority.extraction_hint=优先从优先级较低的存储提取。
+tile.neoecoae.platform_blue_ice.name=蓝冰
