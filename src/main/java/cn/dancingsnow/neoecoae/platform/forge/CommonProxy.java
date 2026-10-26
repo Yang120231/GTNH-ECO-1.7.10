@@ -14,9 +14,11 @@ public class CommonProxy {
         cn.dancingsnow.neoecoae.platform.registry.NativeContent.register();
         cn.dancingsnow.neoecoae.platform.registry.BasicBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.StorageMachines.register();
+        cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.register();
         cn.dancingsnow.neoecoae.platform.registry.CoreBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.RecipeMaterials.register();
         PortingFoundationFixture.register();
+        cn.dancingsnow.neoecoae.platform.gt.NativeWorkstationAcceptance.register();
         AcceptanceChunkTicket.configure();
         StorageLifecycle lifecycle = new StorageLifecycle();
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(lifecycle);
