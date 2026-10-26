@@ -20,6 +20,9 @@ public final class StorageLifecycle {
 
     @SubscribeEvent
     public void unload(WorldEvent.Unload event) {
+        if (!event.world.isRemote) cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.clear(
+            (cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView) cn.dancingsnow.neoecoae.platform.minecraft.WorldView
+                .of(event.world));
         if (!event.world.isRemote && event.world.provider.dimensionId == 0) {
             MinecraftServer server = MinecraftServer.getServer();
             NativeWorldStorage.close(server);
@@ -34,6 +37,10 @@ public final class StorageLifecycle {
             PortingFoundationFixture.tick();
             PortingStorageHostFixture.tick();
             PortingPlanningFixture.tick();
+            for (net.minecraft.world.WorldServer world : net.minecraftforge.common.DimensionManager.getWorlds())
+                cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.tick(
+                    (cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView) cn.dancingsnow.neoecoae.platform.minecraft.WorldView
+                        .of(world));
             ECOCellMutationBatch.retry();
             ECOCellMutationBatch.assertClean();
         }
@@ -41,6 +48,7 @@ public final class StorageLifecycle {
 
     public static void stopped() {
         MinecraftServer server = MinecraftServer.getServer();
+        cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.clearAll();
         ECOCellMutationBatch.clearThreadState();
         ECOCellMutationBatch.drainRetries();
         NativeWorldStorage.close(server);

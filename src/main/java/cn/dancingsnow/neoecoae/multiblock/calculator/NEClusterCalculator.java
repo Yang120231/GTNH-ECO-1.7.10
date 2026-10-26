@@ -30,8 +30,11 @@ import cn.dancingsnow.neoecoae.util.MultiBlockUtil;
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public abstract class NEClusterCalculator<C extends NECluster<C>> extends MBCalculator<NEBlockEntity<C, ?>, C> {
 
+    protected final NEBlockEntity<C, ?> owner;
+
     public NEClusterCalculator(NEBlockEntity<C, ?> t) {
         super(t);
+        owner = t;
     }
 
     @SuppressWarnings("unchecked")

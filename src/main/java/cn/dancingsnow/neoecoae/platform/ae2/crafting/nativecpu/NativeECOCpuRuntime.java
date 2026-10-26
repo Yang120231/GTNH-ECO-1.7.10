@@ -36,7 +36,11 @@ public interface NativeECOCpuRuntime extends ECOCraftingOutputRouter {
 
     boolean isBusy();
 
+    appeng.api.config.CraftingAllow selectionMode();
+
     boolean isSuspended();
+
+    void setSuspended(boolean suspended);
 
     long availableStorage();
 

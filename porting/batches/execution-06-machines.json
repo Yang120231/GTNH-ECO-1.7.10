@@ -1,0 +1,267 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "title": "???????????CPU??",
+  "imports": [
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/api/me/cooling/ECOVirtualCraftingCoolantRegistry.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/api/me/cooling/ECOVirtualCraftingCoolantRegistry.java",
+      "source_sha256": "b8d1e1d700e906e552741a098535d1a0242b54fa83af0b48fc270fda79fea701",
+      "target_sha256": "468eb4ac7247693422f88fc94a1131822aca1692c1d366098fbe9ac0493e19b0",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/api/me/network/CraftingCapabilitySnapshot.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/api/me/network/CraftingCapabilitySnapshot.java",
+      "source_sha256": "369176987501a85b04c65d524790431a9f03913063c02b2f410e71ca003ce5ee",
+      "target_sha256": "f18f77226f66576d39c4acedc3b16603e8beabf2f1cfc8e86318ff2a027e0881",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationCoolingControllerBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationCoolingControllerBlockEntity.java",
+      "source_sha256": "cd807a156a638a1425c7155aa993c715faec4dd75f353d5f35205f1198639ef2",
+      "target_sha256": "d098ec6da5310ba20b9e5eab6c6ea1d5256fae7a0be6fd3ac70b59b8d82f53ca",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationDriveBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationDriveBlockEntity.java",
+      "source_sha256": "2f8c93db461f597d4736af2f9f060dc4b43d151aa560363f24298ada8d76cb68",
+      "target_sha256": "a2aa990d6a07da77cf721f1e30b437728ed6998d8925e9d753fda6eb648390be",
+      "kind": "business",
+      "complete": false,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationNetworkSwitchBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationNetworkSwitchBlockEntity.java",
+      "source_sha256": "fa3412a135ca6d8c21b94981affc59d63f89f6d3f1d703f6aa7029caeb5085d2",
+      "target_sha256": "c665278e09892d8bf266708de9faa2c65fbe70d1c6390c285ac09e5772567d14",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationParallelCoreBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationParallelCoreBlockEntity.java",
+      "source_sha256": "8c680ed4592e3a6cdb86938fb8c523be92d78cbebe563ba26d7297852173808f",
+      "target_sha256": "f59a94c04d6c939432ca65f8f4faa516a2fa811c9cd56c4d5f00b4b5ff7b6e5e",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationSystemBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationSystemBlockEntity.java",
+      "source_sha256": "29771b445ebefe18506612c36885260fa0aa0bde8e859326749ac48a27bbf600",
+      "target_sha256": "3615e425cf0e6a77aaa617680b9fb294b0edf7445ea68464821075a210abc520",
+      "kind": "business",
+      "complete": false,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationThreadingCoreBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationThreadingCoreBlockEntity.java",
+      "source_sha256": "74df73ec9bdf987f118e5eadbcb08609344bd7b148f60f45a308a31e51912c90",
+      "target_sha256": "2be6406862c8a66cd8884562a34c2debd3fe8388a96085c5c155085a88c585ef",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationTransmitterBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationTransmitterBlockEntity.java",
+      "source_sha256": "8c412464c6f93ccb389928a0ec2fb132349acb3db81d05f34dbd736e696bf537",
+      "target_sha256": "65f7a27434b63918758eae7b6647829a897516c8ce3231e96662c671a957cc90",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingCoolingController.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingCoolingController.java",
+      "source_sha256": "afe6947a3a63fd0483c93977bc3f8ce71cb5ef5d678711db3cdd1fda34c6061d",
+      "target_sha256": "c1f03765ecdc3f1281f0b0df749d8cb4df4ad60fee2040c632aabedfb8b44238",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingNetworkSwitchBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingNetworkSwitchBlockEntity.java",
+      "source_sha256": "59d73b414d3c7fe042c12c35664afb24340431fd35148d198ae1be3acd7a1fac",
+      "target_sha256": "cc70aceb7aabbb7ad8ffe7c95b1143865b63d740bdc22990d71dbb3c48877cb3",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingParallelCoreBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingParallelCoreBlockEntity.java",
+      "source_sha256": "9f89b57d2de076ba2994044815bf6fa2c8939e96e26f94dcec0a7075d3c22dd0",
+      "target_sha256": "f346b2251f9fadded1f1841b917fa952a03c522be86d48d37391b9f260146a41",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternBusBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternBusBlockEntity.java",
+      "source_sha256": "f438f56ab6057934567ade2b45843052ed3e9af5e68fedbde2cca0499c27b51f",
+      "target_sha256": "edc636b1f4bced10292b6169d273e97f252f285e9cc3601287de30fb03b36b17",
+      "kind": "business",
+      "complete": false,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternBusDispatcher.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternBusDispatcher.java",
+      "source_sha256": "c61660913489dcc51b0b7e3c8f343dbfb2d62eb87bf0ea84aefd047e07e2b1e7",
+      "target_sha256": "c88d36e34c36e8f4cd3f04fc08140cfc74d67a37e391e70ca185e6c2a2a0c0a4",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternDispatch.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPatternDispatch.java",
+      "source_sha256": "98b91e85c47b1f20d1bce91c538e8c4625e8703c1a4866de1b53439388c2a12c",
+      "target_sha256": "3e8652001bd5f31010b70cfc75a0607f2c0018ae4a16e0c083a6f2c8feb1899e",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPerformanceMeter.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingPerformanceMeter.java",
+      "source_sha256": "f340ae23f73cf2e067b03832d79c3a5cf101d2a092fc53bcd0b956969e1df992",
+      "target_sha256": "02f4756d92b784ebf2a568f66c0679c868f725159742b7bfdd9f3458efb2ef62",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingSystemBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingSystemBlockEntity.java",
+      "source_sha256": "e31c62f6b3139c06358b0477010147f4180d980f97dcaa5bab8fa77b27aec84f",
+      "target_sha256": "fa45e1c80713a0cd53b281a86232864c2afb2fff8a3e538dd7ac58d1e6fb2f49",
+      "kind": "business",
+      "complete": false,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingVentBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingVentBlockEntity.java",
+      "source_sha256": "5b0fed3d4c8c7a489693c1f683c565fe5258b98ea841961b5ed8636d82e34ba3",
+      "target_sha256": "aac1ddf86f4bb25624e9fe760a692fd1242072c14d98d89620686ceea7e2c80d",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingWorkerBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingWorkerBlockEntity.java",
+      "source_sha256": "55c114c850747fc0b6cdc419c918ba0ce0290c184ef32c90698729edecf35b43",
+      "target_sha256": "5b8d0567056891600a0c20192709e24f32f596a8416bd521e48cfddc0a2dda89",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOFluidInputHatchBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOFluidInputHatchBlockEntity.java",
+      "source_sha256": "a5e10e021253aff6f734b74feb6b2113b1b9bfb27fecb2f82da758c95f32a96b",
+      "target_sha256": "1d1ca32cbc79afe5faeac7ee2cd9f9ed512646536fb0ea69ece6a75343f5d7ca",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOFluidOutputHatchBlockEntity.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOFluidOutputHatchBlockEntity.java",
+      "source_sha256": "9064481c815fa521f8faa9648b96dd70f9c4e466e5a9b52f3beb6ff5bd940bc4",
+      "target_sha256": "484cac716711150c468fe7e9824779c821df5eff75f415df1904b78e184ed88e",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/calculator/NEComputationClusterCalculator.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/calculator/NEComputationClusterCalculator.java",
+      "source_sha256": "10a3ed77263a901292b75089075ffd608d8aa5ae6de6eda985e4cd321e552078",
+      "target_sha256": "a3713d5853a11741af6288f94afcd5981d6f0e976a93787b76942f6feb77ce66",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/calculator/NECraftingClusterCalculator.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/calculator/NECraftingClusterCalculator.java",
+      "source_sha256": "367d97e2546416cbd2619a2b82583b9b120ffcb1033e37871555c905d3889411",
+      "target_sha256": "59567ddcffb8f823455aee0baf93cba367851fe21d9b975b3bcfa49c83347c07",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NEComputationCluster.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NEComputationCluster.java",
+      "source_sha256": "af5ecb3f67eec374cb4ccd3b345db154faa45e504c90267baa0e9460c6eca10c",
+      "target_sha256": "3db72cf388f07fc763783b89a37c4e13d05262349e662cd3d0f803748b15a855",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NEComputationNetworkCluster.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NEComputationNetworkCluster.java",
+      "source_sha256": "5ee7db30b3e3760e0bf4eced8d8159c373da8761d4e3f556c0b2e3deae2e327c",
+      "target_sha256": "b2397f2e434ed07d72b3935ad1323b52b247447821363f7912ad9200bb1bfe99",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NECraftingCluster.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NECraftingCluster.java",
+      "source_sha256": "890ab1d854281959ce15a64a7de4a57f472bb76066fc0b7d308af8f7ab105e94",
+      "target_sha256": "e12a191f6e13b67747f989568d3621b6169b16d4d9f16a177b6600d36be85d14",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NECraftingNetworkCluster.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NECraftingNetworkCluster.java",
+      "source_sha256": "79aabe664caf80fcbbb38dd3640b249beb314932c8d501ca12d3a6a2e58c8785",
+      "target_sha256": "ea4c1bf127abc1061c111fecb09059144660dca05ecc5ca37ac30e8d3bb06deb",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/network/NELogicalNetworkManager.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/network/NELogicalNetworkManager.java",
+      "source_sha256": "226135763b7e9fbc0d6eb4da088061598c22a008a419f15c3bafbb476709c80d",
+      "target_sha256": "60170fc85a70a70abef9a81b07ceb68e2f4e125c066c5c5cc60bae31a2ef657e",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/network/NENetworkSwitchUtil.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/network/NENetworkSwitchUtil.java",
+      "source_sha256": "974bc5196e03436639fb450d24d04c03f65d224dafa39e415fd3e8f3b8177088",
+      "target_sha256": "05fdc70da793e41a9ef96813ff86e2c5ab113a9d231d04487576bcb445498e4d",
+      "kind": "business",
+      "complete": true,
+      "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
+    }
+  ]
+}

@@ -1,0 +1,884 @@
+package cn.dancingsnow.neoecoae.blocks.entity.crafting;
+
+import java.util.Map;
+
+import net.minecraft.entity.player.EntityPlayer;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
+
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.energy.IEnergyGrid;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
+import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.api.me.network.CraftingCapabilitySnapshot;
+import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
+import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
+import cn.dancingsnow.neoecoae.crafting.amount.NEMath;
+import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingThread;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NECraftingClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingNetworkCluster;
+import cn.dancingsnow.neoecoae.multiblock.network.NEFrequencyAllocator;
+import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
+import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
+import cn.dancingsnow.neoecoae.platform.ae2.grid.NodeListener;
+import cn.dancingsnow.neoecoae.platform.fluid.FluidStack;
+import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.Component;
+import cn.dancingsnow.neoecoae.platform.minecraft.ServerTaskUtil;
+import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
+import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
+import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
+import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
+import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
+import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
+import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
+import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
+import cn.dancingsnow.neoecoae.platform.sync.Persisted;
+
+public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluster, ECOCraftingSystemBlockEntity>
+    implements ManagedHolder, IGridTickable,
+    cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingControllerHost {
+
+    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
+
+    public static final int MAX_COOLANT = 1_000_000;
+    public static final int VIRTUAL_COOLANT_PER_LANE_TICK = 10_000;
+    private static final long MODE_SWITCH_NOTICE_DURATION_MS = 3_000L;
+    /** Highest overclock level the progress model can represent: 10 + 9 * 10 == MAX_PROGRESS. */
+    public static final int MAX_OVERCLOCK_TIMES = 9;
+
+    private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
+
+    private final StorageTierDescriptor tier;
+
+    @Persisted
+    private boolean overclocked = false;
+
+    @Persisted
+    private boolean activeCooling = false;
+
+    @Persisted
+    private boolean ignorePatternSubstitutions = false;
+
+    @Persisted
+    @DescSynced
+    private int coolant = 0;
+
+    @Persisted
+    @DescSynced
+    private int coolantMaxOverclock = -1;
+
+    @Persisted
+    @DescSynced
+    private FluidStack currentCoolantFluid = FluidStack.EMPTY;
+
+    private int workerCount = 0;
+
+    private int runningThreadCount = 0;
+    private long modeSwitchBlockedNoticeUntilMs = 0L;
+
+    private int threadCount = 0;
+    private long exactThreadCount = 0L;
+
+    /**
+     * Runtime capability values are read from the server thread only. Keep one immutable result until a runtime
+     * mutation invalidates it; the hot dispatch path uses the separate capacity-only cache for worker slot checks.
+     */
+    @Nullable
+    private CraftingCapabilitySnapshot capabilitySnapshotCache;
+
+    /** Capacity-only view retained while runtime counters and coolant change. */
+    @Nullable
+    private CraftingCapabilitySnapshot capabilityCapacityCache;
+
+    /** Detects a network regroup without retaining a stale standalone capacity view. */
+    @Nullable
+    private NECraftingNetworkCluster capabilityNetworkAssociation;
+
+    private long performanceAverageNanos = 0L;
+    private final ECOCraftingPerformanceMeter performanceMeter = new ECOCraftingPerformanceMeter(
+        this::updatePerformanceAverage);
+    @Persisted
+    @DescSynced
+    private int selectedBuildLength = PlanningSettings.craftingSystemMaxLength - 4;
+    @Persisted
+    @DescSynced
+    private boolean mirrorBuild;
+    @Persisted
+    @DescSynced
+    private int networkFrequency = NEFrequencyAllocator.DEFAULT_FREQUENCY;
+    @DescSynced
+    private boolean buildInProgress;
+
+    private final ECOCraftingCoolingController coolingController = new ECOCraftingCoolingController(this);
+    // Transient derived state rebuilt by the calculator; the BlockState property is render-only persistence.
+
+    private boolean mirrored;
+
+    public ECOCraftingSystemBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState blockState,
+        StorageTierDescriptor tier) {
+        super(type, pos, blockState, NECraftingClusterCalculator::new);
+        this.tier = tier;
+        getMainNode().addService(IGridTickable.class, this);
+    }
+
+    @Override
+    public void onReady() {
+        super.onReady();
+        applyIdlePower(ECOPowerRole.CRAFTING_CONTROLLER, 64, 0);
+        updateInfo();
+    }
+
+    public void notifyPersistence() {
+        if (level instanceof ServerWorldView serverLevel) {
+            ServerTaskUtil.executeIfServerRunning(serverLevel, () -> {
+                setChanged();
+                markForUpdate();
+                updateInfo();
+            });
+        }
+    }
+
+    @Override
+    public void updateState(boolean updateExposed) {
+        if (isServerStopping()) {
+            return;
+        }
+        super.updateState(updateExposed);
+        if (level != null) {
+            BlockState state = level.getBlockState(worldPosition);
+            if (state.hasProperty(NativeMachineBlock.MIRRORED)) {
+                BlockState newState = state.setValue(NativeMachineBlock.MIRRORED, formed && mirrored);
+                if (newState != state) {
+                    level.setBlock(worldPosition, newState, 2);
+                }
+            }
+        }
+        if (updateExposed) {
+            updateInfo();
+        }
+    }
+
+    @Override
+    public TickingRequest getTickingRequest(IGridNode node) {
+        return new TickingRequest(1, 10, false, true);
+    }
+
+    @Override
+    public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+        long startNanos = System.nanoTime();
+        try {
+            return doTickingRequest(node, ticksSinceLastCall);
+        } finally {
+            recordPerformanceSample(System.nanoTime() - startNanos);
+        }
+    }
+
+    private TickRateModulation doTickingRequest(IGridNode node, int ticksSinceLastCall) {
+        return coolingController.tick();
+    }
+
+    void recordPerformanceSample(long elapsedNanos) {
+        performanceMeter.record(elapsedNanos);
+    }
+
+    private void updatePerformanceAverage(long nextAverageNanos) {
+        if (performanceAverageNanos == nextAverageNanos) {
+            return;
+        }
+        performanceAverageNanos = nextAverageNanos;
+        setChanged();
+    }
+
+    private void updateInfo() {
+        invalidateCapabilityCapacity();
+        updateCount();
+        updateThreadCount();
+    }
+
+    private void updateThreadCount() {
+        if (cluster != null && !cluster.getParallelCores()
+            .isEmpty()) {
+            exactThreadCount = cluster.getParallelCores()
+                .stream()
+                .mapToLong(core -> NEMath.saturatingMultiply(getCoreThreadCountLong(core.getTier(), overclocked), 1))
+                .reduce(0L, NEMath::saturatingAdd);
+            threadCount = (int) Math.min(Integer.MAX_VALUE, exactThreadCount);
+            recalculateRunningThreadCountFromWorkers();
+        } else {
+            threadCount = 0;
+            exactThreadCount = 0L;
+            runningThreadCount = 0;
+        }
+    }
+
+    private void updateCount() {
+        if (cluster != null) {
+            workerCount = cluster.getWorkers()
+                .size();
+        } else {
+            workerCount = 0;
+        }
+    }
+
+    public int getWorkerCount() {
+        if (cluster != null) {
+            return cluster.getWorkers()
+                .size();
+        }
+        return workerCount;
+    }
+
+    public void recalculateRunningThreadCountFromWorkers() {
+        invalidateCapabilitySnapshot();
+        if (cluster == null) {
+            runningThreadCount = 0;
+            return;
+        }
+
+        long recalculated = cluster.getWorkers()
+            .stream()
+            .mapToLong(ECOCraftingWorkerBlockEntity::getRunningBatchCount)
+            .sum();
+        runningThreadCount = (int) Math.min(Integer.MAX_VALUE, Math.max(0L, recalculated));
+        setChanged();
+    }
+
+    /**
+     * Craft slots this worker may hold in flight. A fully virtualized endgame network reports the accounting
+     * headroom instead of a hardware-derived number, so one batch can absorb an entire remaining task - that
+     * is what "unlimited processing capacity" means, and it is the same number the UI and Jade display.
+     *
+     * <p>
+     * The override is still gated on real hardware: a host without parallel cores has a per-worker craft
+     * count of zero and must keep rejecting every dispatch.
+     */
+    public int getThreadCountForWorker(ECOCraftingWorkerBlockEntity worker) {
+        NECraftingNetworkCluster network = refreshCapabilityNetworkAssociation();
+        CraftingCapabilitySnapshot.Capacity capacity = network != null ? network.getBatchPerFxCapacity()
+            : getStandaloneCapabilityCapacitySnapshot().batchPerFx();
+        if (capacity.unlimited()) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, capacity.finiteValue());
+    }
+
+    /**
+     * How many {@link ECOCraftingThread} objects a worker may keep alive. Craft slots are virtual, but every
+     * thread object is real memory that is ticked and persisted, so this ceiling is never lifted - not even in
+     * the endgame network.
+     */
+    public int getThreadObjectCapacityForWorker(ECOCraftingWorkerBlockEntity worker) {
+        return 1;
+    }
+
+    /**
+     * Parallel-core thread ceiling a dispatch through this host may fill. It mirrors
+     * {@link #getThreadCountForWorker}: both halves of the pattern bus limit have to lift together, otherwise
+     * the FT parallel-core total silently caps a network that advertises unlimited capacity.
+     */
+    public int getDispatchThreadCapacity() {
+        NECraftingNetworkCluster network = refreshCapabilityNetworkAssociation();
+        CraftingCapabilitySnapshot.Capacity capacity = network != null ? network.getTotalBatchCapacity()
+            : getStandaloneCapabilityCapacitySnapshot().totalBatchCapacity();
+        return capacity.unlimited() ? Integer.MAX_VALUE : (int) Math.min(Integer.MAX_VALUE, capacity.finiteValue());
+    }
+
+    public int getLocalThreadCountForWorker(ECOCraftingWorkerBlockEntity worker) {
+        long capacity = isLocallyOverclocked() ? NEMath.saturatingMultiply(
+            PlanningSettings.CRAFTING_WORKER_BASE_CRAFTS,
+            getTier().getOverclockedCrafterQueueMultiply()) : PlanningSettings.CRAFTING_WORKER_BASE_CRAFTS;
+        return (int) Math.min(Integer.MAX_VALUE, capacity);
+    }
+
+    private static long getCoreThreadCountLong(StorageTierDescriptor coreTier, boolean overclocked) {
+        long threads = Math.max(0L, coreTier.getCrafterParallel());
+        if (overclocked) {
+            threads = NEMath.saturatingAdd(threads, Math.max(0L, coreTier.getOverclockedCrafterParallel()));
+        }
+        return threads;
+    }
+
+    static int getParallelCoreMultiplier(BlockPos corePos, Map<BlockPos, Integer> workerCapacityMultipliers) {
+        return 1;
+    }
+
+    /**
+     * Overclock level implied by how far the FT parallel cores overshoot the FX worker queue capacity.
+     *
+     * <p>
+     * {@code availableThreads} must be the un-overclocked worker capacity. Feeding it the overclocked
+     * capacity makes the ratio shrink as soon as the player enables overclocking, which is exactly the
+     * inversion that used to pin every balanced build at level 0.
+     */
+    static int calculateOverclockTimes(long threadCount, long availableThreads) {
+        long overflow = threadCount - availableThreads;
+        if (threadCount <= 0 || overflow <= 0) {
+            return 0;
+        }
+        double overflowRatio = (double) overflow / (double) threadCount;
+        return (int) cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+            .clamp(Math.round(overflowRatio / 0.05D), 0L, MAX_OVERCLOCK_TIMES);
+    }
+
+    public boolean tryConsumeCoolant(int amount, int requiredOverclock) {
+        if (cluster != null && cluster.getNetworkCluster() != null) {
+            return cluster.getNetworkCluster()
+                .tryConsumeCoolant(amount, requiredOverclock);
+        }
+        return tryConsumeLocalCoolant(amount, requiredOverclock);
+    }
+
+    public boolean tryConsumeLocalCoolant(int amount, int requiredOverclock) {
+        return coolingController.tryConsumeLocalCoolant(amount, requiredOverclock);
+    }
+
+    public boolean usesTickBasedCoolant() {
+        return isFullVirtualCraftingMode();
+    }
+
+    public boolean tryConsumeTickBasedCoolant(int occupiedThreadSlots, int attemptedProgress, int effectiveOverclock) {
+        return !usesTickBasedCoolant() || tryConsumeVirtualLaneCoolant();
+    }
+
+    public int getLocalAvailableCoolant(int requested, int requiredOverclock) {
+        return coolingController.getLocalAvailableCoolant(requested, requiredOverclock);
+    }
+
+    /** Flat virtual coolant cost per active physical lane; craft count never participates. */
+    public boolean tryConsumeVirtualLaneCoolant() {
+        return coolingController.tryConsumeVirtualLaneCoolant();
+    }
+
+    /** Checks the flat lane coolant before paying the once-per-network-tick virtual power charge. */
+    public boolean tryStartVirtualLaneTick() {
+        return tryStartVirtualLaneTickWithResult() == VirtualLaneStartResult.STARTED;
+    }
+
+    public VirtualLaneStartResult tryStartVirtualLaneTickWithResult() {
+        boolean hasCoolant = true;
+        if (isActiveCooling()) {
+            hasCoolant = cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+                .hasCoolant(VIRTUAL_COOLANT_PER_LANE_TICK, MAX_OVERCLOCK_TIMES)
+                : getLocalAvailableCoolant(VIRTUAL_COOLANT_PER_LANE_TICK, MAX_OVERCLOCK_TIMES)
+                    >= VIRTUAL_COOLANT_PER_LANE_TICK;
+        }
+        if (!hasCoolant) {
+            return VirtualLaneStartResult.COOLANT_UNAVAILABLE;
+        }
+        if (!tryConsumeVirtualCraftingPower()) {
+            return VirtualLaneStartResult.ENERGY_UNAVAILABLE;
+        }
+        return tryConsumeVirtualLaneCoolant() ? VirtualLaneStartResult.STARTED
+            : VirtualLaneStartResult.COOLANT_UNAVAILABLE;
+    }
+
+    public int getCraftingCoolantCraftLimit(int coolantPerCraft, int requiredOverclock, int requestedCrafts) {
+        if (cluster != null && cluster.getNetworkCluster() != null) {
+            return cluster.getNetworkCluster()
+                .getCraftingCoolantCraftLimit(coolantPerCraft, requiredOverclock, requestedCrafts);
+        }
+        return getLocalCraftingCoolantCraftLimit(coolantPerCraft, requiredOverclock, requestedCrafts);
+    }
+
+    public int getLocalCraftingCoolantCraftLimit(int coolantPerCraft, int requiredOverclock, int requestedCrafts) {
+        return coolingController.getLocalCraftingCoolantCraftLimit(coolantPerCraft, requiredOverclock, requestedCrafts);
+    }
+
+    public int getEffectiveOverclockTimes() {
+        return getCapabilitySnapshot().effectiveOverclock();
+    }
+
+    public int getDisplayedCoolingMaxOverclock() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .getCoolantMaxOverclock() : coolingController.getCurrentCoolingMaxOverclock();
+    }
+
+    public int getLocalCoolingMaxOverclock() {
+        return coolingController.getCurrentCoolingMaxOverclock();
+    }
+
+    public boolean hasLocalVirtualCraftingCoolant() {
+        return coolingController.hasVirtualCraftingCoolant();
+    }
+
+    boolean hasVirtualCraftingCoolant() {
+        NECraftingNetworkCluster network = cluster == null ? null : cluster.getNetworkCluster();
+        if (network == null) return hasLocalVirtualCraftingCoolant();
+        for (NECraftingCluster member : network.getMembers()) {
+            ECOCraftingSystemBlockEntity controller = member.getController();
+            if (controller != null && controller.hasLocalVirtualCraftingCoolant()) return true;
+        }
+        return false;
+    }
+
+    private static Component getVirtualCraftingCoolantNames() {
+        return Component.literal("Virtual crafting coolant");
+    }
+
+    /**
+     * Returns the combined queue capacity of all workers reachable by this host, <em>before</em> subtracting
+     * the threads that are currently running. Callers that need the remaining room subtract
+     * {@link #getRunningThreadCount()} themselves, so this must never do it for them.
+     */
+    public int getTotalWorkerThreadCapacity() {
+        CraftingCapabilitySnapshot.Capacity capacity = getCapabilitySnapshot().totalBatchCapacity();
+        return capacity.unlimited() ? Integer.MAX_VALUE : (int) Math.min(Integer.MAX_VALUE, capacity.finiteValue());
+    }
+
+    /**
+     * Identity of the set of workers a dispatch through this host can reach: the Network Switch group when one
+     * is formed, otherwise this host alone. Used to search each reachable worker set exactly once per dispatch,
+     * since any bus of a group now offers every worker of that group.
+     */
+    public Object getDispatchScope() {
+        if (cluster != null && cluster.getNetworkCluster() != null) {
+            return cluster.getNetworkCluster();
+        }
+        return this;
+    }
+
+    private long getMaxEnergyUsage() {
+        return getCapabilitySnapshot().energyUsage();
+    }
+
+    /**
+     * Pays this tick's flat virtual-crafting draw and reports whether crafting may progress.
+     *
+     * <p>
+     * Charged once per game tick for the whole exchange group, so it replaces - never adds to - the per
+     * craft, per batch and per occupied-slot charges. A host outside the fully virtualized mode always answers
+     * {@code true}: its threads pay their own scaling cost as before.
+     */
+    public boolean tryConsumeVirtualCraftingPower() {
+        if (!isFullVirtualCraftingMode()) {
+            return true;
+        }
+        NECraftingNetworkCluster network = cluster.getNetworkCluster();
+        return network != null
+            && network.tryConsumeVirtualCraftingPower(TickClock.currentTick(), this::extractGridPower);
+    }
+
+    private boolean extractGridPower(double amount) {
+        GridView grid = getMainNode().getGrid();
+        if (grid == null) {
+            return false;
+        }
+        IEnergyGrid energyService = grid.getEnergyService();
+        // Simulate first: a partial extraction would burn power without buying a single tick of progress.
+        if (energyService.extractAEPower(amount, Actionable.SIMULATE, PowerMultiplier.CONFIG) < amount - 0.01D) {
+            return false;
+        }
+        double charged = energyService.extractAEPower(amount, Actionable.MODULATE, PowerMultiplier.CONFIG);
+        if (Double.isFinite(charged) && charged >= amount - 0.01D && charged <= amount + 0.01D) {
+            return true;
+        }
+        if (Double.isFinite(charged) && charged > 0.0D) {
+            try {
+                double overflow = energyService.injectPower(charged, Actionable.MODULATE);
+                if (!Double.isFinite(overflow) || overflow > 0.01D) {
+                    LOGGER.error(
+                        "ECO virtual crafting energy refund was incomplete: overflow {} of {}",
+                        overflow,
+                        charged);
+                }
+            } catch (RuntimeException failure) {
+                LOGGER.error("ECO virtual crafting energy refund failed for {} energy", charged, failure);
+            }
+        }
+        return false;
+    }
+
+    public boolean hasNormalNetworkSwitch() {
+        BlockState state = getBlockState();
+        return state.hasProperty(NativeMachineBlock.NETWORK_SWITCH)
+            && state.getValue(NativeMachineBlock.NETWORK_SWITCH);
+    }
+
+    public boolean hasHighEnergyNetworkSwitch() {
+        BlockState state = getBlockState();
+        return state.hasProperty(NativeMachineBlock.HIGH_ENERGY_NETWORK_SWITCH)
+            && state.getValue(NativeMachineBlock.HIGH_ENERGY_NETWORK_SWITCH);
+    }
+
+    public boolean hasNetworkSwitch() {
+        return hasNormalNetworkSwitch() || hasHighEnergyNetworkSwitch();
+    }
+
+    public boolean hasNetworkFrequency() {
+        return networkFrequency >= 1 && networkFrequency <= NEFrequencyAllocator.FREQUENCY_COUNT;
+    }
+
+    public int getLocalThreadCount() {
+        return threadCount;
+    }
+
+    public int getLocalRunningThreadCount() {
+        return runningThreadCount;
+    }
+
+    public int getThreadCount() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .getThreadCount() : threadCount;
+    }
+
+    public int getRunningThreadCount() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .getRunningThreadCount() : runningThreadCount;
+    }
+
+    public int getNetworkFrequency() {
+        return hasNetworkFrequency() ? networkFrequency : NEFrequencyAllocator.DEFAULT_FREQUENCY;
+    }
+
+    /** Manager-only: assigns a frequency to a newly-eligible host that has none yet. */
+    public void assignNetworkFrequency(int frequency) {
+        if (hasNetworkFrequency()) {
+            return;
+        }
+        this.networkFrequency = NEFrequencyAllocator.normalize(frequency);
+        setChanged();
+        markForUpdate();
+    }
+
+    public void cycleNetworkFrequency(EntityPlayer player) {
+        if (!canPlayerInteract(player)) return;
+        adjustNetworkFrequency(1);
+    }
+
+    public void adjustNetworkFrequency(int delta) {
+        int current = hasNetworkFrequency() ? networkFrequency : NEFrequencyAllocator.DEFAULT_FREQUENCY;
+        setNetworkFrequency(NEFrequencyAllocator.normalize(current + delta));
+    }
+
+    /** EntityPlayer-facing: manually reassigns this host's frequency, splitting/rejoining groups. */
+    public void setNetworkFrequency(int frequency) {
+        this.networkFrequency = NEFrequencyAllocator.normalize(frequency);
+        setChanged();
+        markForUpdate();
+        if (cluster != null) {
+            NELogicalNetworkManager.refresh(cluster);
+        }
+    }
+
+    @Override
+    public void onMainNodeStateChanged(NodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        if (!isServerStopping()) {
+            // Becoming online does not necessarily change the grid identity.
+            onMainNodeGridChanged();
+        }
+    }
+
+    @Override
+    protected void onMainNodeGridChanged() {
+        if (cluster != null) {
+            NELogicalNetworkManager.refreshAfterGridChange(cluster);
+        }
+    }
+
+    public int getPooledParallelism() {
+        return (int) Math.min(Integer.MAX_VALUE, getCapabilitySnapshot().ftParallelCapacity());
+    }
+
+    public int getPooledCraftingCapability() {
+        return getTotalWorkerThreadCapacity();
+    }
+
+    private int getPooledWorkerCount() {
+        return getCapabilitySnapshot().physicalFxCount();
+    }
+
+    private int getPooledActiveWorkerCount() {
+        return getCapabilitySnapshot().activeFxCount();
+    }
+
+    private int getSingleCoreProcessingCapacity() {
+        long capacity = getSingleCoreProcessingCapacityLong();
+        return (int) Math.min(Integer.MAX_VALUE, capacity);
+    }
+
+    private long getSingleCoreProcessingCapacityLong() {
+        CraftingCapabilitySnapshot.Capacity capacity = getCapabilitySnapshot().batchPerFx();
+        return capacity.unlimited() ? Long.MAX_VALUE : capacity.finiteValue();
+    }
+
+    /**
+     * The single predicate every "unlimited" claim goes through - dispatch limits, the panel readout, the
+     * statistics tooltip and the Jade overlay all read it, so the display can never promise a capacity the
+     * dispatch path does not actually grant.
+     *
+     * <p>
+     * FT parallel capacity is deliberately absent from this predicate: virtual eligibility is physical FX
+     * topology, while FT remains an ordinary-mode timing input.
+     */
+    public boolean isFullVirtualCraftingMode() {
+        NECraftingNetworkCluster network = refreshCapabilityNetworkAssociation();
+        if (network != null) {
+            return network.isVirtualMode();
+        }
+        return getStandaloneCapabilityCapacitySnapshot().virtualMode();
+    }
+
+    /** Authoritative server-side capability state consumed by dispatch, GUI, tooltips and Jade. */
+    public CraftingCapabilitySnapshot getCapabilitySnapshot() {
+        NECraftingNetworkCluster network = refreshCapabilityNetworkAssociation();
+        if (network != null) {
+            return network.getCapabilitySnapshot();
+        }
+        if (capabilitySnapshotCache != null) {
+            return capabilitySnapshotCache;
+        }
+        int physicalFx = cluster == null ? 0
+            : cluster.getWorkers()
+                .size();
+        int activeFx = 0;
+        int runningBatches = 0;
+        if (cluster != null) {
+            for (ECOCraftingWorkerBlockEntity worker : cluster.getWorkers()) {
+                if (worker.isWorking()) {
+                    activeFx++;
+                }
+                runningBatches = (int) Math
+                    .min(Integer.MAX_VALUE, (long) runningBatches + worker.getRunningBatchCount());
+            }
+        }
+        long standaloneOverclockedBatch = NEMath.saturatingMultiply(
+            PlanningSettings.CRAFTING_WORKER_BASE_CRAFTS,
+            getTier().getOverclockedCrafterQueueMultiply());
+        CraftingCapabilitySnapshot snapshot = CraftingCapabilitySnapshot.calculate(
+            new CraftingCapabilitySnapshot.Input(
+                physicalFx,
+                activeFx,
+                0,
+                0,
+                standaloneOverclockedBatch,
+                exactThreadCount,
+                runningBatches,
+                overclocked,
+                activeCooling,
+                getTier().getOverclockedCrafterPowerMultiply(),
+                false,
+                new CraftingCapabilitySnapshot.CoolantState(
+                    activeCooling,
+                    coolant,
+                    MAX_COOLANT,
+                    coolingController.getCurrentCoolingMaxOverclock())));
+        capabilitySnapshotCache = snapshot;
+        return snapshot;
+    }
+
+    /** Invalidates the standalone cache and the shared network cache, if this host belongs to one. */
+    void invalidateCapabilitySnapshot() {
+        capabilitySnapshotCache = null;
+        if (cluster != null && cluster.getNetworkCluster() != null) {
+            cluster.getNetworkCluster()
+                .invalidateCapabilitySnapshot();
+        }
+    }
+
+    /** Invalidates both runtime and capacity views after topology or overclock changes. */
+    private void invalidateCapabilityCapacity() {
+        capabilitySnapshotCache = null;
+        capabilityCapacityCache = null;
+        if (cluster != null && cluster.getNetworkCluster() != null) {
+            cluster.getNetworkCluster()
+                .invalidateCapabilityCapacity();
+        }
+    }
+
+    private CraftingCapabilitySnapshot getStandaloneCapabilityCapacitySnapshot() {
+        if (capabilityCapacityCache == null) {
+            capabilityCapacityCache = getCapabilitySnapshot();
+        }
+        return capabilityCapacityCache;
+    }
+
+    @Nullable
+    private NECraftingNetworkCluster refreshCapabilityNetworkAssociation() {
+        NECraftingNetworkCluster network = cluster == null ? null : cluster.getNetworkCluster();
+        if (network != capabilityNetworkAssociation) {
+            capabilityNetworkAssociation = network;
+            capabilitySnapshotCache = null;
+            capabilityCapacityCache = null;
+        }
+        return network;
+    }
+
+    public long getLocalFtParallelCapacity() {
+        return Math.max(0L, exactThreadCount);
+    }
+
+    /** Compatibility name for UI integrations; the authoritative value lives in the snapshot. */
+    public int getOverlockTimes() {
+        return getCapabilitySnapshot().theoreticalOverclock();
+    }
+
+    private int getCraftingNetworkMemberCount() {
+        return cluster != null && cluster.getNetworkCluster() != null ? Math.max(
+            1,
+            cluster.getNetworkCluster()
+                .getMembers()
+                .size())
+            : 1;
+    }
+
+    private Component getCraftingDisplayTitle() {
+        return Component.translatable("gui.neoecoae.crafting.ui.title");
+    }
+
+    public long getDisplayedCoolantAmount() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .getCoolantAmount() : coolant;
+    }
+
+    public long getDisplayedCoolantCapacity() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .getCoolantCapacity() : MAX_COOLANT;
+    }
+
+    public FluidStack getDisplayedCoolantFluid() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .getCoolantFluid() : currentCoolantFluid;
+    }
+
+    public FluidStack getDisplayedOutputFluid() {
+        return cluster != null && cluster.getOutputHatch() != null ? cluster.getOutputHatch().tank.getFluid()
+            : FluidStack.EMPTY;
+    }
+
+    public int getDisplayedOutputCapacity() {
+        return cluster != null && cluster.getOutputHatch() != null ? cluster.getOutputHatch().tank.getCapacity() : 0;
+    }
+
+    public boolean isOverclocked() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .isOverclocked() : overclocked;
+    }
+
+    public boolean isActiveCooling() {
+        return cluster != null && cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+            .isActiveCooling() : activeCooling;
+    }
+
+    public boolean isLocallyOverclocked() {
+        return overclocked;
+    }
+
+    public boolean isLocallyActiveCooling() {
+        return activeCooling;
+    }
+
+    public boolean isLocallyIgnoringPatternSubstitutions() {
+        return ignorePatternSubstitutions;
+    }
+
+    public void applyNetworkIgnoringPatternSubstitutions(boolean value) {
+        if (ignorePatternSubstitutions == value) return;
+        ignorePatternSubstitutions = value;
+        setChanged();
+        markForUpdate();
+    }
+
+    public void applyNetworkOverclocked(boolean value) {
+        if (overclocked == value) return;
+        overclocked = value;
+        updateInfo();
+        setChanged();
+        markForUpdate();
+    }
+
+    public void applyNetworkActiveCooling(boolean value) {
+        if (activeCooling == value) return;
+        activeCooling = value;
+        // Cooling also gates unlimited virtual admission, so dispatch capacity must change with the mode.
+        invalidateCapabilityCapacity();
+        setChanged();
+        markForUpdate();
+    }
+
+    void updateLocalCoolantState(int amount, int maxOverclock, FluidStack fluid) {
+        coolant = amount;
+        coolantMaxOverclock = maxOverclock;
+        currentCoolantFluid = fluid;
+        invalidateCapabilitySnapshot();
+        setChanged();
+        markForUpdate();
+    }
+
+public void setOverclocked(boolean value) {
+        if (getRunningThreadCount() > 0) return;
+        if (cluster != null && cluster.getNetworkCluster() != null) cluster.getNetworkCluster()
+            .setOverclocked(value);
+        else applyNetworkOverclocked(value);
+    }
+
+    public void setActiveCooling(boolean value) {
+        if (getRunningThreadCount() > 0) return;
+        if (cluster != null && cluster.getNetworkCluster() != null) cluster.getNetworkCluster()
+            .setActiveCooling(value);
+        else applyNetworkActiveCooling(value);
+    }
+
+    public int getOverclockTimes() {
+        return getOverlockTimes();
+    }
+
+    public void setOverclockTimes(int value) {
+        setOverclocked(value > 0);
+    }
+
+    public void setMirrored(boolean value) {
+        mirrored = value;
+    }
+
+    public void setOverclocked(EntityPlayer player, boolean value) {
+        setOverclocked(value);
+    }
+
+    public void setActiveCooling(EntityPlayer player, boolean value) {
+        setActiveCooling(value);
+    }
+
+    public FieldManagedStorage getSyncStorage() {
+        return syncStorage;
+    }
+
+    public StorageTierDescriptor getTier() {
+        return tier;
+    }
+
+    public int getCoolant() {
+        return coolant;
+    }
+
+    public int getCoolantMaxOverclock() {
+        return coolantMaxOverclock;
+    }
+
+    public FluidStack getCurrentCoolantFluid() {
+        return currentCoolantFluid;
+    }
+
+    public long getPerformanceAverageNanos() {
+        return performanceAverageNanos;
+    }
+
+    public int getMaxBuildLength() {
+        return PlanningSettings.craftingSystemMaxLength - 4;
+    }
+
+    public boolean canPlayerInteract(EntityPlayer player) {
+        return player != null && !isRemoved() && player.getDistanceSq(xCoord + .5, yCoord + .5, zCoord + .5) <= 64;
+    }
+}

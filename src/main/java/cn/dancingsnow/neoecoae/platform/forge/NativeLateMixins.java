@@ -19,8 +19,10 @@ public final class NativeLateMixins implements ILateMixinLoader {
 
     @Override
     public List<String> getMixins(Set<String> loadedMods) {
-        return loadedMods.contains("appliedenergistics2")
-            ? Arrays.asList("NetworkInventoryHandlerMixin", "NetworkItemListMixin", "StorageBusMountMixin")
-            : Collections.emptyList();
+        return loadedMods.contains("appliedenergistics2") ? Arrays.asList(
+            "NetworkInventoryHandlerMixin",
+            "NetworkItemListMixin",
+            "StorageBusMountMixin",
+            "CraftingCpuPublicationMixin") : Collections.emptyList();
     }
 }
