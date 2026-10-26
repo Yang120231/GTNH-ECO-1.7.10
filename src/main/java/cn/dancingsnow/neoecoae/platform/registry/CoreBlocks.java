@@ -39,10 +39,16 @@ public final class CoreBlocks {
                 if (definition.get("registration")
                     .getAsString()
                     .equals("pending_behavior")) {
-                    if (block != null) throw new IllegalStateException("Duplicate pending block: " + id);
-                    block = new NativeRegisteredBlock(definition);
-                    GameRegistry.registerBlock(block, NativeMachineItemBlock.class, id);
-                    pending++;
+                    if (block == null) {
+                        block = new NativeRegisteredBlock(definition);
+                        GameRegistry.registerBlock(block, NativeMachineItemBlock.class, id);
+                        pending++;
+                    } else if (!WorkstationMachines.owns(
+                        id,
+                        block,
+                        definition.get("model")
+                            .getAsString()))
+                        throw new IllegalStateException("Unrecognized behavior registration: " + id);
                 } else if (block == null) throw new IllegalStateException("Missing existing core block: " + id);
                 if (BLOCKS.put(id, block) != null) throw new IllegalStateException("Duplicate source block: " + id);
                 RARITIES.put(

@@ -1,0 +1,8 @@
+// Explicit opt-in live recipe processing in a distinct development world.
+gradle.projectsEvaluated {
+    gradle.rootProject.tasks.named('runServer').configure {
+        workingDir = gradle.rootProject.file('run/workstation-acceptance')
+        jvmArgs('-Dneoecoae.workstationAcceptance=true', '-Dneoecoae.workstationAcceptanceStopAfter=true')
+        standardInput = System.in
+    }
+}
