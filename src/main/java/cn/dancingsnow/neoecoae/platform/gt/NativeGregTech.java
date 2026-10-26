@@ -22,6 +22,16 @@ public final class NativeGregTech {
             .get("gregtech")
             .getVersion();
         NeoECOAE.LOG.info("NEOECOAE_NATIVE_GT_AVAILABLE version={} reviewed_api=5.09.52.398", version);
+        GregTechMachineRecipes.register();
+        NativeGTMachineAcceptance.register();
+    }
+
+    public static net.minecraft.item.ItemStack recipeItem(String id, int count) {
+        return isAvailable() ? GregTechRecipeMaterials.item(id, count) : null;
+    }
+
+    public static net.minecraftforge.fluids.Fluid recipeFluid(String id) {
+        return isAvailable() ? GregTechRecipeMaterials.fluid(id) : null;
     }
 
     /** Reads the actual native machine. Manufacturing remains owned by the GT tile and its recipe map. */

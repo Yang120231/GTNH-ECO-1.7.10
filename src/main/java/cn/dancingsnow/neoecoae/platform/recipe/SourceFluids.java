@@ -21,6 +21,7 @@ public final class SourceFluids {
     public static Fluid fluid(String id) {
         if (id.equals("minecraft:water")) return FluidRegistry.WATER;
         if (id.equals("minecraft:lava")) return FluidRegistry.LAVA;
+        if (id.startsWith("gtceu:")) return cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.recipeFluid(id);
         return FluidRegistry.getFluid(id);
     }
 

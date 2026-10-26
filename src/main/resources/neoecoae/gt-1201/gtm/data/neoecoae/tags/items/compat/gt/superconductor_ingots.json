@@ -1,0 +1,21 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "gtceu:mercury_barium_calcium_cuprate_ingot",
+      "required": false
+    },
+    {
+      "id": "gtceu:niobium_titanium_ingot",
+      "required": false
+    },
+    {
+      "id": "gtceu:vanadium_gallium_ingot",
+      "required": false
+    },
+    {
+      "id": "gtceu:yttrium_barium_cuprate_ingot",
+      "required": false
+    }
+  ]
+}
