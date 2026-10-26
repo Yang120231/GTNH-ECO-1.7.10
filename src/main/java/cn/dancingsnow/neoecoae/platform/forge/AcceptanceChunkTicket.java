@@ -40,6 +40,7 @@ final class AcceptanceChunkTicket implements AutoCloseable {
 
     private static boolean enabled() {
         return Boolean.getBoolean("neoecoae.portingAcceptance") || Boolean.getBoolean("neoecoae.clientAcceptance")
-            || Boolean.getBoolean("neoecoae.storageUiAcceptance");
+            || Boolean.getBoolean("neoecoae.storageUiAcceptance")
+            || Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance");
     }
 }

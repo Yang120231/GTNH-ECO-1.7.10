@@ -23,7 +23,8 @@ public class ClientProxy extends CommonProxy {
         if (Boolean.getBoolean("neoecoae.clientAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
             .register(new NativeClientAcceptance());
-        if (Boolean.getBoolean("neoecoae.storageUiAcceptance")) {
+        if (Boolean.getBoolean("neoecoae.storageUiAcceptance")
+            || Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")) {
             var acceptance = new cn.dancingsnow.neoecoae.platform.ui.storage.NativeStorageUiAcceptance();
             cpw.mods.fml.common.FMLCommonHandler.instance()
                 .bus()
