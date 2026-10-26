@@ -367,6 +367,7 @@ public final class NativeRecipeAcceptance {
     }
 
     static void unload(net.minecraft.world.World world) {
+        FINISHED.remove(world);
         if (pending != null && pending.world == world) pending = null;
     }
 
