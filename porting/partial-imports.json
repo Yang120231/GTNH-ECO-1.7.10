@@ -57,16 +57,12 @@
     ]
   },
   "blocks/entity/storage/ECOStorageSystemBlockEntity.java": {
-    "scope": "Storage lifecycle, normal/infinite migration/restore, membership, interface transfer, persistence and priority. MEGA members are excluded by user instruction; construction and interactive page members remain pending.",
-    "header": "public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity> implements ISyncPersistRPCBlockEntity, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost",
+    "scope": "Storage lifecycle, normal/infinite migration/restore, membership, interface transfer, persistence, priority and the full source construction Host contract. MEGA members are excluded by user instruction; modern LDLib UI layout members remain pending and native page replacements are recorded as platform adaptations.",
+    "header": "public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity> implements ISyncPersistRPCBlockEntity, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost, MultiBlockBuildController.Host",
     "exclude_members": [
-      "selectedBuildLength",
-      "mirrorBuild",
       "megaController",
       "selectedEcoMegaBulkCell",
       "selectedEcoMegaPage",
-      "buildInProgress",
-      "buildController",
       "createUI",
       "createActionUI",
       "hasEcoMegaUpgradeCard",
@@ -85,21 +81,7 @@
       "selectedEcoMegaBulkCell",
       "selectEcoMegaBulkCell",
       "selectedEcoMegaPage",
-      "selectEcoMegaPage",
-      "getBuildDefinition",
-      "getMinBuildLength",
-      "getMaxBuildLength",
-      "getBuildLevel",
-      "getBuildPosition",
-      "getBuildState",
-      "getSelectedBuildLength",
-      "setSelectedBuildLength",
-      "isMirrorBuild",
-      "setMirrorBuild",
-      "isBuildInProgress",
-      "setBuildInProgress",
-      "rebuildAfterBuild",
-      "buildStateChanged"
+      "selectEcoMegaPage"
     ],
     "extra_members": [
       "public cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.Config storageUiConfig(net.minecraft.entity.player.EntityPlayer player) {\n        return new cn.dancingsnow.neoecoae.gui.storage.StorageHostUI.Config(\n            () -> cn.dancingsnow.neoecoae.platform.minecraft.Component.literal(getItemFromBlockEntity().getDisplayName()),\n            () -> getTier().getTier(),this::isFormed,statistics::getStoredEnergy,statistics::getMaxEnergy,\n            statistics::getEnergyConsumePerTick,statistics::getTotalUsedBytesText,statistics::getCellEntries,\n            statistics.createStorageTypeLines(),this::isFormedInfiniteMode,this::isMigratingToInfinite,\n            this::canExtractInfiniteComponents,this::getInfiniteDomainText,this::getMissingInfiniteMembers,\n            infiniteComponentItemHandler,player,\n            (position,expected,shift) -> StorageCellUiExtraction.extract(this,player,position,expected,shift),\n            (position,expected) -> StorageCellUiInsertion.insert(this,player,position,expected),\n            () -> new ItemStack(getBlockState().getBlock()));\n    }"
