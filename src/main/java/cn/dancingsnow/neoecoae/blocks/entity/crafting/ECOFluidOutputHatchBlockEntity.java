@@ -86,8 +86,10 @@ public class ECOFluidOutputHatchBlockEntity extends
 
     public net.minecraftforge.fluids.FluidStack drain(net.minecraftforge.common.util.ForgeDirection side,
         net.minecraftforge.fluids.FluidStack fluid, boolean execute) {
-        return fluid != null && tank.getFluid()
-            .getFluid() == fluid.getFluid() ? drain(side, fluid.amount, execute) : null;
+        var stored = tank.nativeTank()
+            .getFluid();
+        return fluid != null && stored != null && stored.isFluidEqual(fluid) ? drain(side, fluid.amount, execute)
+            : null;
     }
 
     public boolean canFill(net.minecraftforge.common.util.ForgeDirection side, net.minecraftforge.fluids.Fluid fluid) {

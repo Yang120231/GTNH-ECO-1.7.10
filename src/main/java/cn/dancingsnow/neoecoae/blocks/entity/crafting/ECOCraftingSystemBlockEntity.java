@@ -37,7 +37,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
-import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
@@ -816,7 +815,7 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         markForUpdate();
     }
 
-public void setOverclocked(boolean value) {
+    public void setOverclocked(boolean value) {
         if (getRunningThreadCount() > 0) return;
         if (cluster != null && cluster.getNetworkCluster() != null) cluster.getNetworkCluster()
             .setOverclocked(value);

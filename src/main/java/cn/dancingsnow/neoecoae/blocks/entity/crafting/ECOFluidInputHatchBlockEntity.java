@@ -48,10 +48,12 @@ public class ECOFluidInputHatchBlockEntity extends
                 cn.dancingsnow.neoecoae.platform.fluid.FluidStack.fromNative(probe),
                 IFluidHandler.FluidAction.SIMULATE);
             if (accepted > 0) {
+                var requested = probe.copy();
+                requested.amount = Math.min(accepted, probe.amount);
                 var taken = other.drain(
                     face.getOpposite()
                         .nativeSide(),
-                    accepted,
+                    requested,
                     true);
                 tank.fill(
                     cn.dancingsnow.neoecoae.platform.fluid.FluidStack.fromNative(taken),
@@ -88,8 +90,10 @@ public class ECOFluidInputHatchBlockEntity extends
 
     public net.minecraftforge.fluids.FluidStack drain(net.minecraftforge.common.util.ForgeDirection side,
         net.minecraftforge.fluids.FluidStack fluid, boolean execute) {
-        return fluid != null && tank.getFluid()
-            .getFluid() == fluid.getFluid() ? drain(side, fluid.amount, execute) : null;
+        var stored = tank.nativeTank()
+            .getFluid();
+        return fluid != null && stored != null && stored.isFluidEqual(fluid) ? drain(side, fluid.amount, execute)
+            : null;
     }
 
     public boolean canFill(net.minecraftforge.common.util.ForgeDirection side, net.minecraftforge.fluids.Fluid fluid) {

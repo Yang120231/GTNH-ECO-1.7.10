@@ -1,6 +1,6 @@
 {
   "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
-  "title": "???????????CPU??",
+  "title": "合成计算机器宿主与原生 CPU 接入",
   "imports": [
     {
       "source": "src/main/java/cn/dancingsnow/neoecoae/api/me/cooling/ECOVirtualCraftingCoolantRegistry.java",
