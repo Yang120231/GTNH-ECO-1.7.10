@@ -1,10 +1,12 @@
 # Neo ECO AE Extension · GTNH 1.7.10 正式移植
 
-当前已进入业务迁入阶段。业务输入采用 1.21.1，参考 1.20.1 的平台转接组织方式，接入 Forge 1.7.10、GTNH AE2 和 GTNH MUI2。完整移植仍在进行。
+**已按用户要求暂停（2026-10-26）。** 当前主分支、独立工作树未提交代码、645 项测试通过但 Checkstyle 未过的状态，以及恢复顺序统一见最新停止交接记录（仅保存在本地 porting/CHECKPOINT_20261026_PAUSED_ZH_CN.md）。下文“继续移植”是暂停前的实施背景，不是当前执行指令。
 
-本轮固定业务输入为 f6003889a1352ea0d7e2e23a3868eb69943789ca，未选择来源工作区补丁。已迁入 158 个业务文件、15 个高版本测试文件和 2,066 个有效来源资源。标准物品/流体盘、精确世界存储、主要规划算法及平台基础已落地。逐文件哈希与待迁路径见 [source-lock.json](porting/source-lock.json)。
+当前按 UI、规划与执行、配方、GT 联动四个方向继续移植，完成一个可验证批次即本地提交，见四方向实施记录（仅保存在本地 porting/PARALLEL_IMPLEMENTATION_20261026_ZH_CN.md）。核心业务输入采用 1.21.1，GT 联动配方对照 1.20.1 主线，接入 Forge 1.7.10、GTNH AE2 和 GTNH MUI2。按用户最新要求，以编译通过验收，不要求真实鼠标操作或最终游戏存档。
 
-保留的 11 个现代模型源码相对基础清理快照哈希一致。主源码由保留基础、新迁入业务及 platform 转接组成；ECO 主机/驱动器、多方块、CPU 接管、计算、工作站和完整 MUI2 页面仍待继续迁入，完整状态见 [正式移植进度](porting/PROGRESS_ZH_CN.md)。
+本轮固定业务输入为 f6003889a1352ea0d7e2e23a3868eb69943789ca，未选择来源工作区补丁；GT 配方独立对照 1.20.1 提交 `024b73da2eed6113934d39f0a684e3dc92177c20`。标准盘、精确世界存储、存储主机与驱动器、共享多方块、规划与 CPU／工作线程、建造窗口及普通工作站加工和页面已迁入。逐文件数量、哈希与待迁路径见 source-lock.json（仅保存在本地 porting/source-lock.json），文件数量不换算为行为完成率。
+
+保留的 11 个现代模型源码相对基础清理快照哈希一致。当前已补齐 70 个核心方块及 65 个独立物品注册；机器行为按批次接替初始注册壳，未接通部分继续明确记录。其它可选 Mod 联动与大型工作站七张专用模块卡仍不纳入范围。
 
 ```text
 src/main/java/cn/dancingsnow/neoecoae/
@@ -16,7 +18,7 @@ src/main/java/cn/dancingsnow/neoecoae/
   platform/forge/            Forge 生命周期与客户端代理
   platform/render/           只读渲染状态接入
 src/test/java/               模型、高版本算法与平台契约测试
-porting/                     来源锁、进度与运行证据
+porting/                     本地来源锁、进度与运行证据（不纳入 Git）
 docs/porting-1.7.10-20261025/ 已完成的移植调查和来源证据
 ```
 
@@ -29,15 +31,15 @@ docs/porting-1.7.10-20261025/ 已完成的移植调查和来源证据
 | GTNHLib | 直接声明 0.11.19；本轮传递依赖实际解析 0.11.37 |
 
 ```powershell
-./gradlew.bat test build --console=plain
+./gradlew.bat test build -PplannerChallenge=true --console=plain
 ```
 
-依赖缓存齐全后可加 `--offline`。本批完整构建、118 项测试、Checkstyle、Spotless 和来源编译覆盖检查均通过；开发版、安装版与源码包核对见 [业务验证记录](porting/business-import-state.json)。默认 JavaCompile 覆盖全部已迁入业务，不通过排除目录获得成功。
+依赖缓存齐全后可加 `--offline`。构建和测试不依赖本地 `porting/` 目录；来源覆盖审计与导入输出清理已从默认构建中移除。完整构建、测试、Checkstyle、Spotless 与开发版／安装版／源码包核对结果见 业务验证记录（仅保存在本地 porting/business-import-state.json）。默认 JavaCompile 覆盖全部已迁入业务，不通过排除目录获得成功。
 
-默认版本为 `0.1.0-porting`，JAR、Mod 元信息与生成的 Tags.VERSION 一致。6 种标准物品/流体盘及其组件/外壳已注册，6 项组装及拆解定义已接入。其他配方 JSON 的打包不表示它们已在目标游戏注册。
+默认版本为 `0.1.0-porting`，JAR、Mod 元信息与生成的 Tags.VERSION 一致。核心配方目录包含工作台、组装／拆解、炉、压印、工作站、冷却与世界转化。GT 配方使用独立来源目录及原生条件注册，配方 JSON 的打包不表示运行验收。
 
-保留的 4 项模型测试包含在本批 118 项测试中。Java 1.8.0_492 独立专服已验证真实双通道存取、封存、物品 NBT、组装配方、MUI2 同步值的服务端加载，以及 10^40 + 48 的世界保存和跨进程重载。完整客户端画面/手势、ECO 主机、原生 CPU 任务与普通安装尚未验收。
+保留的 4 项模型测试和 26 项来源复杂订单挑战包含在完整构建中。既有专服与客户端日志保留为历史证据；当前交付标准是实现后的编译与构建检查，不把旧日志当作本次构建的游戏运行结果。审计脚本默认检查当前源码、字节码、资源和 JAR，`--include-historical-runtime` 仅用于显式重查旧日志。
 
-续接顺序和边界见 [正式移植进度](porting/PROGRESS_ZH_CN.md)，导入与专服复现命令见 [接入说明](porting/README_ZH_CN.md)。[基础工程验证记录](porting/foundation-state.json) 与 [移植调查](docs/porting-1.7.10-20261025/README_ZH_CN.md) 保留历史证据。
+续接顺序和边界见 正式移植进度（仅保存在本地 porting/PROGRESS_ZH_CN.md），导入与专服复现命令见 接入说明（仅保存在本地 porting/README_ZH_CN.md）。基础工程验证记录（仅保存在本地 porting/foundation-state.json） 与 [移植调查](docs/porting-1.7.10-20261025/README_ZH_CN.md) 保留历史证据。
 
 清理前旧实现的远端提交为 `442305f9864623d54eb6bbb57139b2fb72dbbd0d`，可从 Git 历史查阅。项目采用 [GPL-3.0](LICENSE)。

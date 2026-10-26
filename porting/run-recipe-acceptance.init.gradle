@@ -1,9 +1,0 @@
-// An isolated native world for complete recipe registration and real world transformations.
-gradle.projectsEvaluated {
-    def root = gradle.rootProject
-    root.tasks.named('runServer').configure {
-        workingDir = root.file('run/recipe-acceptance')
-        standardInput = System.in
-        jvmArgs '-Dneoecoae.recipeAcceptance=true', '-Dneoecoae.recipeAcceptance.stopAfter=true', '-Dneoecoae.portingAcceptance=true'
-    }
-}

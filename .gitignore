@@ -26,3 +26,4 @@ addon.late.local.gradle.kts
 layout.json
 __pycache__/
 *.py[cod]
+/porting/

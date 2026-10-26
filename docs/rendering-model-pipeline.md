@@ -6,7 +6,7 @@
 
 世界绘制通过 `EcoModelRenderer.renderWorld` 使用 Forge 1.7.10 的 Tessellator、IIcon 和渲染 pass；物品绘制入口为 `renderInventoryBlock` 和 `renderItemModel`。`BakedEcoModel` 预烘焙四个水平朝向，避免绘制时重新解析 JSON。
 
-旧成型缓存和旧控制器查询已改接 `platform/render/ModelRenderState`。实现与绑定方式见 [当前骨架说明](../porting/README_ZH_CN.md)。后续方块、物品与资源注册由高版本业务的目标平台适配器完成。
+旧成型缓存和旧控制器查询已改接 `platform/render/ModelRenderState`。实现与绑定方式见 当前骨架说明（仅保存在本地 porting/README_ZH_CN.md）。后续方块、物品与资源注册由高版本业务的目标平台适配器完成。
 
 现代贴图标识 `neoecoae:block/...` 通过 `ModernIconRegistrar` 转为 1.7.10 的 icon 标识 `neoecoae:...`，目标纹理放在 `assets/neoecoae/textures/blocks/...`。当前旧模型与纹理已清空，正式导入时从高版本资源清单生成目标布局。
 

@@ -1,8 +1,0 @@
-// Opt-in launcher for a disposable local server; never opens a user world.
-gradle.projectsEvaluated {
-    def root = gradle.rootProject
-    root.tasks.named('runServer').configure {
-        workingDir = root.file('run/porting-acceptance')
-        standardInput = System.in
-    }
-}

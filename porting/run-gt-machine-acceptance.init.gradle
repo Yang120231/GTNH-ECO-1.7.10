@@ -1,8 +1,0 @@
-// Real native GT tile, native AE2 provider dispatch and finite ME storage, in an independent save.
-gradle.projectsEvaluated {
-    gradle.rootProject.tasks.named('runServer').configure {
-        workingDir = gradle.rootProject.file('run/gt-machine-acceptance')
-        jvmArgs('-Dneoecoae.gtMachineAcceptance=true', '-Dneoecoae.gtMachineAcceptanceStopAfter=true')
-        standardInput = System.in
-    }
-}
