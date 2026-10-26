@@ -5,20 +5,23 @@ import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 /** Executor/lifecycle boundary for the running integrated or dedicated server. */
 public final class ServerRuntime {
 
-    public static final ServerRuntime INSTANCE = new ServerRuntime();
+    private final ServerTasks.Session session;
+    private final net.minecraft.server.MinecraftServer server;
 
-    private ServerRuntime() {}
+    ServerRuntime() {
+        session = ServerTasks.captureSession();
+        server = net.minecraft.server.MinecraftServer.getServer();
+    }
 
     public boolean isStopped() {
-        net.minecraft.server.MinecraftServer server = net.minecraft.server.MinecraftServer.getServer();
-        return server == null || server.isServerStopped();
+        return !session.isRunning() || server == null || server.isServerStopped();
     }
 
     public void executeIfPossible(Runnable task) {
-        ServerTasks.execute(task);
+        session.execute(task);
     }
 
     public net.minecraft.server.MinecraftServer nativeServer() {
-        return net.minecraft.server.MinecraftServer.getServer();
+        return server;
     }
 }
