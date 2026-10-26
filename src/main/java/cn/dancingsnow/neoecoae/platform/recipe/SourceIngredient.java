@@ -21,6 +21,12 @@ public final class SourceIngredient {
         return new SourceIngredient(new ArrayList<>(java.util.Arrays.asList(stacks)));
     }
 
+    public static SourceIngredient items(net.minecraft.item.Item... items) {
+        ItemStack[] stacks = new ItemStack[items.length];
+        for (int i = 0; i < items.length; i++) stacks[i] = new ItemStack(items[i]);
+        return alternatives(stacks);
+    }
+
     public static SourceIngredient of(JsonElement json) {
         var examples = new ArrayList<ItemStack>();
         collect(json, examples);
