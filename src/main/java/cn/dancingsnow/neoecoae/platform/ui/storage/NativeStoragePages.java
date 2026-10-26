@@ -44,6 +44,7 @@ public final class NativeStoragePages {
     private final StorageCellGrid cells;
     private final NativeStoragePrioritySession priority;
     private final com.cleanroommc.modularui.api.IPanelHandler priorityPanel;
+    private final com.cleanroommc.modularui.api.IPanelHandler builderPanel;
     private int typeOffset;
 
     private NativeStoragePages(ECOStorageSystemBlockEntity host, EntityPlayer player, PanelSyncManager sync) {
@@ -58,6 +59,14 @@ public final class NativeStoragePages {
             "storage.priority.window",
             true,
             (panelSync, handler) -> NativeStoragePriorityPages.create(priority, handler));
+        var builder = new cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSession(
+            host.storageBuildUiConfig(player));
+        sync.syncValue("storage.builder", builder);
+        builderPanel = sync.syncedPanel(
+            "storage.builder.window",
+            true,
+            (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderPages
+                .create(builder, handler));
     }
 
     public static ModularPanel controller(ECOStorageSystemBlockEntity host, EntityPlayer player,
@@ -134,6 +143,20 @@ public final class NativeStoragePages {
                 .tooltipDynamic(
                     tooltip -> tooltip.add(
                         Component.translatable("gui.neoecoae.storage_priority.open")
+                            .getString())));
+        panel.child(
+            new ButtonWidget<>().pos(-20, 24)
+                .size(18, 20)
+                .background(NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 176, 128, 18, 20))
+                .overlay(UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"))
+                .onMousePressed(button -> {
+                    if (button != 0) return false;
+                    builderPanel.openPanel();
+                    return true;
+                })
+                .tooltipDynamic(
+                    tooltip -> tooltip.add(
+                        Component.translatable("gui.neoecoae.multiblock.builder")
                             .getString())));
         return panel;
     }
