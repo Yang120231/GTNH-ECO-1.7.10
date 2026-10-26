@@ -41,7 +41,9 @@ public final class NativeStorageSession extends SyncHandler {
     public NativeStorageSession(ECOStorageSystemBlockEntity host, StorageHostUI.Config config) {
         this.host = host;
         this.config = config;
-        if (Boolean.getBoolean("neoecoae.clientAcceptance") && host.getWorldObj().isRemote) inspection = this;
+        if ((Boolean.getBoolean("neoecoae.clientAcceptance") || Boolean.getBoolean("neoecoae.storageUiAcceptance")
+            || Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")) && host.getWorldObj().isRemote)
+            inspection = this;
     }
 
     public StoragePanelState state() {

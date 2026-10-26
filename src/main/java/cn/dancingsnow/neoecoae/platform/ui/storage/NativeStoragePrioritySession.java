@@ -15,10 +15,18 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
 
     private final ECOStorageSystemBlockEntity host;
     private int priority;
+    private static volatile NativeStoragePrioritySession inspection;
 
     public NativeStoragePrioritySession(ECOStorageSystemBlockEntity host) {
         super(host);
         this.host = host;
+        if ((Boolean.getBoolean("neoecoae.storageUiAcceptance")
+            || Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")) && host.getWorldObj().isRemote)
+            inspection = this;
+    }
+
+    static NativeStoragePrioritySession acceptanceInspection() {
+        return inspection;
     }
 
     public int priority() {

@@ -22,10 +22,18 @@ public final class NativeStorageInterfaceSession extends NativeTileSession {
     private CompoundTag state = new CompoundTag();
     private CompoundTag previous;
     private long sampledTransfer, nextSample;
+    private static volatile NativeStorageInterfaceSession inspection;
 
     public NativeStorageInterfaceSession(ECOMachineInterfaceBlockEntity<?> host) {
         super(host);
         this.host = host;
+        if ((Boolean.getBoolean("neoecoae.storageUiAcceptance")
+            || Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")) && host.getWorldObj().isRemote)
+            inspection = this;
+    }
+
+    static NativeStorageInterfaceSession acceptanceInspection() {
+        return inspection;
     }
 
     public ECOStorageInterfaceMode mode() {
