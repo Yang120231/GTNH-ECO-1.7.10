@@ -56,7 +56,10 @@ dependencies {
     testImplementation(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     testRuntimeOnly(gtnhDevJar("GTNHLib", gtnhLibVersion))
 
-    runtimeOnlyNonPublishable(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
+    runtimeOnlyNonPublishable(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version)) {
+        // Select one explicitly remapped CoFHCore implementation for GT's Thermal dependency.
+        if (gtRuntime) exclude(group = "curse.maven", module = "cofh-core-69162")
+    }
     runtimeOnlyNonPublishable(gtnhDevJar("GTNHLib", gtnhLibVersion))
     runtimeOnlyNonPublishable(gtnhDevJar("ModularUI2", modularUi2Version))
     if (gtRuntime) {
@@ -67,6 +70,11 @@ dependencies {
         runtimeOnlyNonPublishable(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
         runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
         runtimeOnlyNonPublishable(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("Postea", "1.2.5")) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughIds", "2.1.10")) { isTransitive = false }
+        // GT++ and GoodGenerator in the original GT bundle require real Thermal fluids at init.
+        runtimeOnlyNonPublishable(rfg.deobf("curse.maven:cofh-core-69162:2388751"))
+        runtimeOnlyNonPublishable(rfg.deobf("curse.maven:thermal-foundation-222880:2388753"))
     }
 }
 
@@ -87,7 +95,11 @@ val verifyGtRuntimeProfile by tasks.registering {
             "industrialcraft-2" to "ic2/core/IC2.class",
             "ModularUI" to "com/gtnewhorizons/modularui/ModularUI.class",
             "NotEnoughItems" to "codechicken/nei/NEIModContainer.class",
-            "waila" to "mcp/mobius/waila/Waila.class"
+            "waila" to "mcp/mobius/waila/Waila.class",
+            "Postea" to "com/gtnewhorizons/postea/utility/BlockInfo.class",
+            "NotEnoughIds" to "com/gtnewhorizons/neid/mixins/interfaces/ClientBlockTransformer.class",
+            "CoFHCore" to "cofh/CoFHCore.class",
+            "ThermalFoundation" to "cofh/thermalfoundation/ThermalFoundation.class"
         )
         val verified = mutableListOf<Map<String, String>>()
         for ((required, entry) in requiredClasses) {
@@ -110,7 +122,7 @@ val verifyGtRuntimeProfile by tasks.registering {
             logger.lifecycle("NEOECOAE_GT_RUNTIME_CLASS {} {} sha256={}", entry, jar.name, sha256)
         }
         val modules = artifacts.map { it.moduleVersion.id }.distinct()
-            .filter { it.name in setOf("GT5-Unofficial", "StructureLib", "industrialcraft-2", "ModularUI", "NotEnoughItems", "waila", "GTNHLib", "Applied-Energistics-2-Unofficial", "ModularUI2") }
+            .filter { it.name in setOf("GT5-Unofficial", "StructureLib", "industrialcraft-2", "ModularUI", "NotEnoughItems", "waila", "GTNHLib", "Applied-Energistics-2-Unofficial", "ModularUI2", "Postea", "NotEnoughIds") }
             .sortedBy { it.name }
         for ((name, version) in mapOf(
             "Applied-Energistics-2-Unofficial" to ae2Version,
@@ -120,7 +132,9 @@ val verifyGtRuntimeProfile by tasks.registering {
             "GTNHLib" to "0.11.37",
             "ModularUI" to "1.3.2",
             "NotEnoughItems" to "2.8.105-GTNH",
-            "waila" to "1.19.22"
+            "waila" to "1.19.22",
+            "Postea" to "1.2.5",
+            "NotEnoughIds" to "2.1.10"
         )) {
             check(modules.filter { it.name == name }.map { it.version }.toSet() == setOf(version)) {
                 "Native GT profile changed pinned module $name:$version"

@@ -14,7 +14,7 @@
 		"screenshots": [],
 		"parent": "",
 		"requiredMods": ["modularui2", "appliedenergistics2"],
-		"dependencies": ["gtnhlib", "modularui2", "appliedenergistics2"],
+		"dependencies": ["gtnhlib", "modularui2", "appliedenergistics2", "gregtech"],
 		"dependants": [],
 		"useDependencyInformation": true
 	}]

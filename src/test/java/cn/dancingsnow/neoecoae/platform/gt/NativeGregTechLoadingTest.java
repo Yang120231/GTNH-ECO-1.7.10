@@ -18,8 +18,7 @@ class NativeGregTechLoadingTest {
 
             @Override
             protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-                if (name.startsWith("gregtech.")
-                    || name.equals("cn.dancingsnow.neoecoae.platform.gt.GregTechMachineAccess"))
+                if (name.startsWith("gregtech.") || name.startsWith("cn.dancingsnow.neoecoae.platform.gt.GregTech"))
                     throw new ClassNotFoundException("GT intentionally absent: " + name);
                 if (!name.startsWith(entryName)) return super.loadClass(name, resolve);
                 synchronized (getClassLoadingLock(name)) {
@@ -48,6 +47,8 @@ class NativeGregTechLoadingTest {
         assertNotNull(entry.getDeclaredMethod("initialize"));
         assertNotNull(entry.getDeclaredMethod("isAvailable"));
         assertNotNull(entry.getDeclaredMethod("inspect", net.minecraft.tileentity.TileEntity.class));
+        assertNotNull(entry.getDeclaredMethod("recipeItem", String.class, int.class));
+        assertNotNull(entry.getDeclaredMethod("recipeFluid", String.class));
         assertNotNull(
             Class.forName(entryName + "$MachineSnapshot", true, absentGt)
                 .getDeclaredConstructors());

@@ -22,6 +22,10 @@ public final class SourceTags {
 
     private SourceTags() {}
 
+    static void add(String id, JsonObject definition) {
+        TAGS.put(id, definition);
+    }
+
     public static void initialize(JsonObject catalog) {
         for (var entry : catalog.getAsJsonArray("tags")) {
             String path = entry.getAsJsonObject()
@@ -128,6 +132,21 @@ public final class SourceTags {
     }
 
     public static String oreName(String tag) {
+        if (tag.startsWith("gtceu:circuits/")) {
+            String tier = tag.substring("gtceu:circuits/".length());
+            switch (tier) {
+                case "hv":
+                    return "circuitAdvanced";
+                case "ev":
+                    return "circuitData";
+                case "iv":
+                    return "circuitElite";
+                case "zpm":
+                    return "circuitUltimate";
+                default:
+                    throw new IllegalArgumentException("Unmapped GT circuit tier: " + tag);
+            }
+        }
         if (!tag.startsWith("c:")) return null;
         String[] path = tag.substring(2)
             .split("/", 2);

@@ -53,13 +53,25 @@ public final class SourceRecipes {
         SourceItems.initialize();
         var catalog = read("neoecoae/recipe-catalog.json");
         SourceTags.initialize(catalog);
+        Map<String, JsonObject> definitions = new LinkedHashMap<>();
         for (var entry : catalog.getAsJsonArray("recipes")) {
             String path = entry.getAsJsonObject()
                 .get("path")
                 .getAsString();
             String id = path.substring("data/neoecoae/recipe/".length(), path.length() - 5);
-            var definition = read(path);
+            definitions.put(id, read(path));
+        }
+        definitions.putAll(GTRecipeProfile.load());
+        for (var recipeEntry : definitions.entrySet()) {
+            String id = recipeEntry.getKey();
+            var definition = recipeEntry.getValue();
             try {
+                if (definition.get("type")
+                    .getAsString()
+                    .equals("forge:conditional")) {
+                    STATUS.put(id, "excluded:gt_profile");
+                    continue;
+                }
                 if (definition.has("neoforge:conditions"))
                     for (var condition : definition.getAsJsonArray("neoforge:conditions"))
                         if (!condition(condition.getAsJsonObject())) throw new Unavailable("optional source condition");

@@ -53,12 +53,14 @@ public final class SourceItems {
         AE.put("quartz_block", b.quartz());
         AE.put("quartz_vibrant_glass", b.quartzVibrantGlass());
         AE.put("singularity", m.singularity());
+        AE.put("silicon", m.silicon());
         AE.put("sky_stone_block", b.skyStone());
         AE.put("storage_monitor", p.storageMonitor());
     }
 
     public static ItemStack stack(String id, int count) {
         if (count <= 0) throw new IllegalArgumentException("Invalid source count: " + count);
+        if (id.startsWith("gtceu:")) return cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.recipeItem(id, count);
         if (id.equals("minecraft:blue_ice"))
             return new ItemStack(cn.dancingsnow.neoecoae.platform.registry.RecipeMaterials.BLUE_ICE, count);
         if (id.startsWith("ae2:")) {
