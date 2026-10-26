@@ -60,7 +60,7 @@
       "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationSystemBlockEntity.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/computation/ECOComputationSystemBlockEntity.java",
       "source_sha256": "29771b445ebefe18506612c36885260fa0aa0bde8e859326749ac48a27bbf600",
-      "target_sha256": "3615e425cf0e6a77aaa617680b9fb294b0edf7445ea68464821075a210abc520",
+      "target_sha256": "e6bde17313012a6f37edfc5a23a43c77507f3380759743b4c86d160476679a75",
       "kind": "business",
       "complete": false,
       "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
@@ -150,7 +150,7 @@
       "source": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingSystemBlockEntity.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/blocks/entity/crafting/ECOCraftingSystemBlockEntity.java",
       "source_sha256": "e31c62f6b3139c06358b0477010147f4180d980f97dcaa5bab8fa77b27aec84f",
-      "target_sha256": "fa45e1c80713a0cd53b281a86232864c2afb2fff8a3e538dd7ac58d1e6fb2f49",
+      "target_sha256": "ad92f65ea07b76bb6245393df7d9db7884f79b176563aed3444b38e0e82ca276",
       "kind": "business",
       "complete": false,
       "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."
@@ -213,7 +213,7 @@
       "source": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NEComputationCluster.java",
       "target": "src/main/java/cn/dancingsnow/neoecoae/multiblock/cluster/NEComputationCluster.java",
       "source_sha256": "af5ecb3f67eec374cb4ccd3b345db154faa45e504c90267baa0e9460c6eca10c",
-      "target_sha256": "3db72cf388f07fc763783b89a37c4e13d05262349e662cd3d0f803748b15a855",
+      "target_sha256": "f5b830b6c769f9ce0b5f9bdea468918cadae7c2d2bc898451d2e52f510d17d8a",
       "kind": "business",
       "complete": true,
       "adaptation": "Physical machine, cluster, network, native inventory and execution host adapters. Source crafting/computation algorithms retained; controller UI and construction are implemented by the independent native UI batch. Native pattern bus retains source dispatcher; optional addon pattern containers remain excluded."

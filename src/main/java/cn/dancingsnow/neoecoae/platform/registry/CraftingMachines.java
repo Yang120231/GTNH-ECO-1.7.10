@@ -183,7 +183,7 @@ public final class CraftingMachines {
     public static final Holder<Block> COMPUTATION_TRANSMITTER = define(COMPUTATION_TRANSMITTER_TYPE, Role.TRANSMITTER);
 
     private static Holder<Block> define(BlockEntityType<?> type, Role role) {
-        NativeMachineBlock block = new NativeMachineBlock(type, role, type.id());
+        NativeMachineBlock block = new NativeExecutionMachineBlock(type, role, type.id());
         block.setBlockName("neoecoae." + type.id())
             .setCreativeTab(NativeContent.TAB);
         BLOCKS.put(type.id(), block);

@@ -511,6 +511,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
 
     public void deactivate(@Nullable ICraftingPlan plan) {
         ECOCraftingCPU cpu = this.activeCpus.remove(plan);
+        if (cpu != null) nativeCpus.remove(cpu);
         this.bigOrderPlans.remove(plan);
         this.recalculateRemainingStorage();
         this.updateGridForChangedCpu();

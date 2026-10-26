@@ -38,6 +38,12 @@ public interface NativeECOCpuRuntime extends ECOCraftingOutputRouter {
 
     appeng.api.config.CraftingAllow selectionMode();
 
+    void setSelectionMode(appeng.api.config.CraftingAllow mode);
+
+    void markDirty();
+
+    void addChangeListener(java.util.function.Consumer<AEKey> listener);
+
     boolean isSuspended();
 
     void setSuspended(boolean suspended);
@@ -54,6 +60,8 @@ public interface NativeECOCpuRuntime extends ECOCraftingOutputRouter {
     long remainingOutput();
 
     long startedWork();
+
+    long remainingWork();
 
     long elapsedTimeNanos();
 

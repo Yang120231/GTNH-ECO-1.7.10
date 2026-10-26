@@ -74,6 +74,28 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
     }
 
     @Override
+    public void setSelectionMode(appeng.api.config.CraftingAllow mode) {
+        cpu.getCluster()
+            .setSelectionMode(
+                mode == appeng.api.config.CraftingAllow.ONLY_PLAYER
+                    ? cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode.PLAYER_ONLY
+                    : mode == appeng.api.config.CraftingAllow.ONLY_NONPLAYER
+                        ? cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode.MACHINE_ONLY
+                        : cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode.ANY);
+    }
+
+    @Override
+    public void markDirty() {
+        cpu.markDirty();
+    }
+
+    @Override
+    public void addChangeListener(java.util.function.Consumer<AEKey> listener) {
+        cpu.getLogic()
+            .addListener(listener);
+    }
+
+    @Override
     public boolean isSuspended() {
         return cpu.getLogic()
             .isJobSuspended();
@@ -118,6 +140,13 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         return cpu.getLogic()
             .getElapsedTimeTracker()
             .getSyntheticStartItemCount();
+    }
+
+    @Override
+    public long remainingWork() {
+        return cpu.getLogic()
+            .getElapsedTimeTracker()
+            .getSyntheticRemainingItemCount();
     }
 
     @Override

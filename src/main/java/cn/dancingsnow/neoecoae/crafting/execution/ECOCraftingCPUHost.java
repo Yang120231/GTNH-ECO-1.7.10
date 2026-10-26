@@ -18,6 +18,8 @@ public interface ECOCraftingCPUHost {
 
     CpuSelectionMode getSelectionMode();
 
+    void setSelectionMode(CpuSelectionMode mode);
+
     boolean isActive();
 
     void cancelJob(ICraftingPlan plan);

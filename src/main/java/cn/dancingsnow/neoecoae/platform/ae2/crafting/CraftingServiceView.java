@@ -19,8 +19,10 @@ import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Frozen pattern contracts captured on the owning server thread; revision reads stay lock-free for the planner. */
-public final class CraftingServiceView implements ICraftingService, ECOCraftingProviderRevision {
+public final class CraftingServiceView implements ICraftingService, ECOCraftingProviderRevision,
+    cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings {
 
+    private final IGrid nativeGrid;
     private final ICraftingGrid crafting;
     private final NativePatternTrackingCache tracking;
     private final Map<ICraftingPatternDetails, NativePatternDetails> patterns = new IdentityHashMap<>();
@@ -31,6 +33,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
 
     public CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates,
         NativePatternTrackingCache tracking) {
+        nativeGrid = grid;
         crafting = grid.getCache(ICraftingGrid.class);
         this.tracking = tracking;
         // The source compiler runs off-thread. Resolve every native pattern/recipe query here on the server thread.
@@ -122,5 +125,75 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     @Override
     public boolean neoecoae$isProviderSnapshotStable() {
         return tracking.stable();
+    }
+
+    private cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity settings() {
+        return cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.settings(nativeGrid, null);
+    }
+
+    @Override
+    public boolean neoecoae$isIgnoringPatternSubstitutions() {
+        var host = settings();
+        return host != null && host.isIgnoringPatternSubstitutions();
+    }
+
+    @Override
+    public void neoecoae$setIgnoringPatternSubstitutions(boolean value) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+            host.setIgnoringPatternSubstitutions(value);
+    }
+
+    @Override
+    public int neoecoae$getSubstitutionPatternCount() {
+        return (int) patterns.keySet()
+            .stream()
+            .filter(ICraftingPatternDetails::canSubstitute)
+            .count();
+    }
+
+    @Override
+    public boolean neoecoae$isFastPlannerEnabled() {
+        var host = settings();
+        return host != null && host.isFastPlannerEnabled();
+    }
+
+    @Override
+    public void neoecoae$setFastPlannerEnabled(boolean value) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+            host.setFastPlannerEnabled(value);
+    }
+
+    @Override
+    public boolean neoecoae$isCyclePlanningEnabled() {
+        var host = settings();
+        return host != null && host.isCyclePlanningEnabled();
+    }
+
+    @Override
+    public void neoecoae$setCyclePlanningEnabled(boolean value) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+            host.setCyclePlanningEnabled(value);
+    }
+
+    @Override
+    public boolean neoecoae$hasComputationHost() {
+        return settings() != null;
+    }
+
+    @Override
+    public boolean neoecoae$hasComputationHost(cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource source) {
+        return cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.settings(nativeGrid, source)
+            != null;
+    }
+
+    @Override
+    public Set<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation> neoecoae$getFuzzyPlanningItemIds() {
+        Set<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation> ids = new LinkedHashSet<>();
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+            ids.addAll(host.neoecoae$getFuzzyPlanningItemIds());
+        return Collections.unmodifiableSet(ids);
     }
 }
