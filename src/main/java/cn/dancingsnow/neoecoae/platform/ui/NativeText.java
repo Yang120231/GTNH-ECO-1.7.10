@@ -46,20 +46,6 @@ public final class NativeText extends Widget<NativeText> {
         String text = value.nativeText()
             .getFormattedText();
         float scale = Math.min(Math.min(maxScale, height / 9f), width / (float) Math.max(1, font.getStringWidth(text)));
-        int color = value.getStyle()
-            .getColor() == null ? fallbackColor
-                : value.getStyle()
-                    .getColor()
-                    .getValue();
-        // Text fields and stencil masks may leave texturing disabled before the next sibling label.
-        com.cleanroommc.modularui.utils.Platform.setupDrawFont();
-        org.lwjgl.opengl.GL11.glPushMatrix();
-        try {
-            org.lwjgl.opengl.GL11.glTranslatef(0, (height - 9 * scale) / 2, 0);
-            org.lwjgl.opengl.GL11.glScalef(scale, scale, 1);
-            font.drawString(text, 0, 0, color);
-        } finally {
-            org.lwjgl.opengl.GL11.glPopMatrix();
-        }
+        NativeUiDraw.text(value, 0, (height - 9 * scale) / 2, width, scale, fallbackColor, false, false);
     }
 }
