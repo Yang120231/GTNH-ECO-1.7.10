@@ -42,6 +42,8 @@ public final class NativeStoragePages {
     private final NativeStorageSession session;
     private final StorageHostCharts charts;
     private final StorageCellGrid cells;
+    private final NativeStoragePrioritySession priority;
+    private final com.cleanroommc.modularui.api.IPanelHandler priorityPanel;
     private int typeOffset;
 
     private NativeStoragePages(ECOStorageSystemBlockEntity host, EntityPlayer player, PanelSyncManager sync) {
@@ -50,6 +52,12 @@ public final class NativeStoragePages {
         charts = new StorageHostCharts(session::state);
         cells = new StorageCellGrid(session::state, 11);
         sync.syncValue("storage.snapshot", session);
+        priority = new NativeStoragePrioritySession(host);
+        sync.syncValue("storage.priority", priority);
+        priorityPanel = sync.syncedPanel(
+            "storage.priority.window",
+            true,
+            (panelSync, handler) -> NativeStoragePriorityPages.create(priority, handler));
     }
 
     public static ModularPanel controller(ECOStorageSystemBlockEntity host, EntityPlayer player,
@@ -113,6 +121,20 @@ public final class NativeStoragePages {
             layout.place(widget, node);
             panel.child(widget);
         }
+        panel.child(
+            new ButtonWidget<>().pos(-20, 44)
+                .size(18, 20)
+                .background(NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 176, 128, 18, 20))
+                .overlay(NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 144, 64, 16, 16))
+                .onMousePressed(button -> {
+                    if (button != 0) return false;
+                    priorityPanel.openPanel();
+                    return true;
+                })
+                .tooltipDynamic(
+                    tooltip -> tooltip.add(
+                        Component.translatable("gui.neoecoae.storage_priority.open")
+                            .getString())));
         return panel;
     }
 

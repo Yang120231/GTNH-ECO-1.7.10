@@ -1273,3 +1273,5 @@ tooltip.neoecoae.storage_dirve.1=§7§o可驱动的存储矩阵等级由存储�
 tooltip.neoecoae.storage_system=§7§o存储系统的核心
 upgrade.neoecoae.aluminum_alloy_upgrade=铝合金升级
 upgrade.neoecoae.black_tungsten_alloy_upgrade=黑钨合金升级
+gui.neoecoae.storage_priority.insertion_hint=优先向优先级较高的存储写入。
+gui.neoecoae.storage_priority.extraction_hint=优先从优先级较低的存储提取。

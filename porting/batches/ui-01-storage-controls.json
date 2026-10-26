@@ -1,0 +1,152 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "imports": [],
+  "platform_adaptations": [
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/NativeText.java",
+      "target_sha256": "200a95d9d5880ea0bda6667113c9a869023f8424576581d9e2b55a86aafa823a",
+      "adaptation": "Native MUI2 fitted translated labels from FittedLabel; full values remain in tooltips.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageInterfaceUI.java",
+          "source_sha256": "1fc6602c5908e9014779b8d9580531ae7d88aafce5f11d56b1d2fad0c3ea394f"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/NativeUiAccess.java",
+      "target_sha256": "16f9056324eb0b1c246a6d36b4dcdde02a796aa12fd0ad7611f292247b9ce369",
+      "adaptation": "Native equivalent of canEdit; same open container, physical tile, server world, distance and container validity.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageInterfaceUI.java",
+          "source_sha256": "1fc6602c5908e9014779b8d9580531ae7d88aafce5f11d56b1d2fad0c3ea394f"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/NativeTileSession.java",
+      "target_sha256": "038a9631ecd6d419099cb64f5f7c3e1a3c52cc538c865380b05c8b9088897fcf",
+      "adaptation": "Native deferred server actions capture the owning ServerTasks.Session and revalidate the menu at execution.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageInterfaceUI.java",
+          "source_sha256": "1fc6602c5908e9014779b8d9580531ae7d88aafce5f11d56b1d2fad0c3ea394f"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStorageFilters.java",
+      "target_sha256": "bae11407ddac3310d8acf41688640af90b8ec17d0a1db22d1b919db33c8c0e10",
+      "adaptation": "Port sample to Forge fluid container APIs using a defensive ItemStack copy; shift samples exact item identity.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageResourceFilterGrid.java",
+          "source_sha256": "0eb86118ccd93972d4a80ae31f70fcf042790cfacc02a3a183d422c2cad6aee7"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStorageInterfaceSession.java",
+      "target_sha256": "981bc1cfc864c21b90fb61d154a20ca05437c809f9dbd4b9acc3e7579c1d7c18",
+      "adaptation": "Server-authored mode, transfer and filter snapshot; bounded exact-key editing and menu-owned source actions.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageInterfaceUI.java",
+          "source_sha256": "1fc6602c5908e9014779b8d9580531ae7d88aafce5f11d56b1d2fad0c3ea394f"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageResourceFilterGrid.java",
+          "source_sha256": "0eb86118ccd93972d4a80ae31f70fcf042790cfacc02a3a183d422c2cad6aee7"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/common/CreativeStorageInputButton.java",
+          "source_sha256": "31ea9ce4a330e8e140a1cb385d1573dfdb69b07d39c6ac4a517761291869affb"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/common/StorageBusExclusionButton.java",
+          "source_sha256": "65ccb9d929f39ae8fea5b8f7d75e310885284cf011eb7194066858fe250c97a4"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStorageInterfacePages.java",
+      "target_sha256": "2d685afc7708717b986b0e3c7c58d38ccf0423aa563439ce5c8db88b7085a841",
+      "adaptation": "Replace LDLib2 layout widgets with MUI2 widgets using unchanged source JSON geometry, atlas states, exact filters and ghost samples.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageInterfaceUI.java",
+          "source_sha256": "1fc6602c5908e9014779b8d9580531ae7d88aafce5f11d56b1d2fad0c3ea394f"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageResourceFilterGrid.java",
+          "source_sha256": "0eb86118ccd93972d4a80ae31f70fcf042790cfacc02a3a183d422c2cad6aee7"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/common/CreativeStorageInputButton.java",
+          "source_sha256": "31ea9ce4a330e8e140a1cb385d1573dfdb69b07d39c6ac4a517761291869affb"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/common/StorageBusExclusionButton.java",
+          "source_sha256": "65ccb9d929f39ae8fea5b8f7d75e310885284cf011eb7194066858fe250c97a4"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStoragePrioritySession.java",
+      "target_sha256": "03fbc83a877cfbe8d62abcba405125959f0f622fb460f53d720076d03eb49c00",
+      "adaptation": "Source priority direct edits and saturating change actions on the owning physical storage host.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StoragePriorityUI.java",
+          "source_sha256": "5586291a1f13398b21f663894cf1e94efe6d62fb486f4e3e7e5584c36522eb35"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStoragePriorityPages.java",
+      "target_sha256": "b5b9bb4c5cafcf2c0c6d10c66f7eac5822bb7c6b9fc07763db886c8e277a9dab",
+      "adaptation": "MUI2 draggable source popup, signed int entry, eight step buttons, source AE2 artwork and native language mapping.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StoragePriorityUI.java",
+          "source_sha256": "5586291a1f13398b21f663894cf1e94efe6d62fb486f4e3e7e5584c36522eb35"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStoragePages.java",
+      "target_sha256": "a2cbb0653223ae1850ae132a885731cc75f23c94007b298f506b717a950e80ea",
+      "adaptation": "Expose the working priority popup from the controller side toolbar.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageHostUI.java",
+          "source_sha256": "c72c73c3420db25d6e78cd5860965fb588fd0fdce9bf7699237f418a06910b82"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageHostActionUI.java",
+          "source_sha256": "c0e955e8927baee32d1d6cc9327d6ef20b55f1109d85c98603cd004e65eb05b1"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StoragePriorityUI.java",
+          "source_sha256": "5586291a1f13398b21f663894cf1e94efe6d62fb486f4e3e7e5584c36522eb35"
+        }
+      ]
+    },
+    {
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ui/storage/NativeStorageSession.java",
+      "target_sha256": "d4e4038d5dd78e5686fc9fa8d5608a777b4c1d1125b9bd05bf97e26755ad602f",
+      "adaptation": "Capture world lifecycle for pending network actions and share the physical menu ownership validation.",
+      "inputs": [
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StoragePanelSync.java",
+          "source_sha256": "bcc1fbd45f833172c2e422c338294375cff17c9ce457fbe081c1875f67c973cd"
+        },
+        {
+          "source": "src/main/java/cn/dancingsnow/neoecoae/gui/storage/StorageHostUI.java",
+          "source_sha256": "c72c73c3420db25d6e78cd5860965fb588fd0fdce9bf7699237f418a06910b82"
+        }
+      ]
+    }
+  ]
+}

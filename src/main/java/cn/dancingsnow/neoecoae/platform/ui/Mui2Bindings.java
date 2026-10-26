@@ -68,13 +68,14 @@ public final class Mui2Bindings {
     public void install(PanelSyncManager sync) {
         if (installed) throw new IllegalStateException("MUI binding schema installed twice");
         installed = true;
+        ServerTasks.Session serverSession = ServerTasks.captureSession();
         values.forEach(sync::syncValue);
         actions.forEach(
             (key, action) -> sync.registerSyncedAction(
                 key,
                 false,
                 true,
-                buffer -> ServerTasks.execute(() -> { if (action.sessionValid.getAsBoolean()) action.task.run(); })));
+                buffer -> serverSession.execute(() -> { if (action.sessionValid.getAsBoolean()) action.task.run(); })));
     }
 
     public List<String> schema() {
