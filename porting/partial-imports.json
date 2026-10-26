@@ -194,5 +194,53 @@
     "extra_members": [
       "private HostPanelTier() {}"
     ]
+  },
+  "all/NEMultiBlocks.java": {
+    "scope": "Source storage definitions for all three built-in tiers, complete storage geometry and registration. Crafting/computation/large-workstation definitions remain core pending until their native machine states are available.",
+    "header": "public class NEMultiBlocks",
+    "members": [
+      "DEFINITIONS",
+      "STORAGE_SYSTEM_L4",
+      "STORAGE_SYSTEM_L6",
+      "STORAGE_SYSTEM_L9",
+      "storageSystem",
+      "pos",
+      "getStorageSystemDefinition"
+    ],
+    "pending_core_members": [
+      "LARGE_INTEGRATED_WORKING_STATION",
+      "createLargeIntegratedWorkingStation",
+      "COMPUTATION_SYSTEM_L4",
+      "COMPUTATION_SYSTEM_L6",
+      "COMPUTATION_SYSTEM_L9",
+      "createComputationSystem",
+      "getComputationSystemDefinition",
+      "CRAFTING_SYSTEM_L4",
+      "CRAFTING_SYSTEM_L6",
+      "CRAFTING_SYSTEM_L9",
+      "createCraftingSystem",
+      "getCraftingSystemDefinition"
+    ]
+  },
+  "multiblock/definition/MultiBlockContext.java": {
+    "scope": "Complete placement context contract. The LDLib2 virtual-world display context remains separately pending its native preview adapter.",
+    "header": "public abstract class MultiBlockContext",
+    "members": [
+      "repeats",
+      "setBlock",
+      "setRequirement",
+      "getLevel",
+      "allBlocks",
+      "isFormed"
+    ],
+    "extra_members": [
+      "public int getRepeats() { return repeats; }"
+    ],
+    "extra_member_origin": "Source Lombok @Getter on repeats",
+    "pending_core_members": [
+      "dummyDelegated",
+      "DummyDelegated"
+    ]
   }
+
 }
