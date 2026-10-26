@@ -238,7 +238,8 @@ public final class CraftingMachines {
         GameRegistry.registerTileEntity(ComputationTransmitter.class, "neoecoae.computation_transmitter");
     }
 
-    public static final class CraftingSystemL4 extends ECOCraftingSystemBlockEntity {
+    public static final class CraftingSystemL4 extends ECOCraftingSystemBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public CraftingSystemL4() {
             super(
@@ -260,7 +261,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class CraftingSystemL6 extends ECOCraftingSystemBlockEntity {
+    public static final class CraftingSystemL6 extends ECOCraftingSystemBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public CraftingSystemL6() {
             super(
@@ -282,7 +284,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class CraftingSystemL9 extends ECOCraftingSystemBlockEntity {
+    public static final class CraftingSystemL9 extends ECOCraftingSystemBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public CraftingSystemL9() {
             super(
@@ -346,7 +349,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationSystemL4 extends ECOComputationSystemBlockEntity {
+    public static final class ComputationSystemL4 extends ECOComputationSystemBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public ComputationSystemL4() {
             super(
@@ -390,7 +394,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationSystemL6 extends ECOComputationSystemBlockEntity {
+    public static final class ComputationSystemL6 extends ECOComputationSystemBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public ComputationSystemL6() {
             super(
@@ -434,7 +439,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationSystemL9 extends ECOComputationSystemBlockEntity {
+    public static final class ComputationSystemL9 extends ECOComputationSystemBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public ComputationSystemL9() {
             super(
@@ -540,7 +546,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class CraftingPatternBus extends ECOCraftingPatternBusBlockEntity {
+    public static final class CraftingPatternBus extends ECOCraftingPatternBusBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public CraftingPatternBus() {
             super(
@@ -571,7 +578,8 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationDrive extends ECOComputationDriveBlockEntity {
+    public static final class ComputationDrive extends ECOComputationDriveBlockEntity
+        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
 
         public ComputationDrive() {
             super(

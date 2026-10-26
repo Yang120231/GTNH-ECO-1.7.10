@@ -37,7 +37,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
-import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
@@ -816,7 +815,7 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         markForUpdate();
     }
 
-public void setOverclocked(boolean value) {
+    public void setOverclocked(boolean value) {
         if (getRunningThreadCount() > 0) return;
         if (cluster != null && cluster.getNetworkCluster() != null) cluster.getNetworkCluster()
             .setOverclocked(value);
@@ -876,6 +875,24 @@ public void setOverclocked(boolean value) {
 
     public int getMaxBuildLength() {
         return PlanningSettings.craftingSystemMaxLength - 4;
+    }
+
+    public int getSelectedBuildLength() {
+        return selectedBuildLength;
+    }
+
+    public void setSelectedBuildLength(int value) {
+        selectedBuildLength = Math.max(1, Math.min(getMaxBuildLength(), value));
+        saveChanges();
+    }
+
+    public boolean isMirrorBuild() {
+        return mirrorBuild;
+    }
+
+    public void setMirrorBuild(boolean value) {
+        mirrorBuild = value;
+        saveChanges();
     }
 
     public boolean canPlayerInteract(EntityPlayer player) {

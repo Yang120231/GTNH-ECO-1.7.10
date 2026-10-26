@@ -30,6 +30,8 @@ public class ECOComputationSystemBlockEntity
     private boolean fastPlannerEnabled = true;
     @Persisted
     private int selectedBuildLength = 11;
+    @Persisted
+    private boolean mirrorBuild;
 
     public ECOComputationSystemBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state,
         StorageTierDescriptor tier) {
@@ -88,6 +90,15 @@ public class ECOComputationSystemBlockEntity
         return selectedBuildLength;
     }
 
+    public boolean isMirrorBuild() {
+        return mirrorBuild;
+    }
+
+    public void setMirrorBuild(boolean value) {
+        mirrorBuild = value;
+        saveChanges();
+    }
+
     public void setSelectedBuildLength(int value) {
         selectedBuildLength = Math.max(1, Math.min(getMaxBuildLength(), value));
         setChanged();
@@ -102,9 +113,17 @@ public class ECOComputationSystemBlockEntity
     }
 
     private boolean mirrored;
-    public void setMirrored(boolean value) {mirrored=value;}
-    @Override public void updateState(boolean exposed){super.updateState(exposed);if(level!=null && getBlockState().hasProperty(NativeMachineBlock.MIRRORED))level.setBlock(getBlockPos(),getBlockState().setValue(NativeMachineBlock.MIRRORED,formed && mirrored),2);}
 
+    public void setMirrored(boolean value) {
+        mirrored = value;
+    }
+
+    @Override
+    public void updateState(boolean exposed) {
+        super.updateState(exposed);
+        if (level != null && getBlockState().hasProperty(NativeMachineBlock.MIRRORED))
+            level.setBlock(getBlockPos(), getBlockState().setValue(NativeMachineBlock.MIRRORED, formed && mirrored), 2);
+    }
 
     public boolean isIgnoringPatternSubstitutions() {
         return ignorePatternSubstitutions;
