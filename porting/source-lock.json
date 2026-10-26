@@ -5,30 +5,30 @@
     "repository": "E:\\Minecraft Project\\NeoECOAEExtension-1.21.1",
     "commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
     "selected_patches": [],
-    "working_tree_status": " M docs/WORKSTATION_PROCESSING_TIME_AND_FE_ZH_CN.md\n M src/main/java/cn/dancingsnow/neoecoae/blocks/entity/ECOLargeIntegratedWorkingStationBlockEntity.java\n M src/main/java/cn/dancingsnow/neoecoae/blocks/entity/LargeWorkstationPatternProvider.java\n M src/main/java/cn/dancingsnow/neoecoae/compat/ECOPatternIntegrations.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/execution/ECOCraftingCPULogic.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuItemEntry.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuStatusPanel.java\n M src/main/java/cn/dancingsnow/neoecoae/integration/recipe/LargeWorkstationRecipeDisplay.java\n M src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeGroup.java\n M src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipes.java\n M src/test/java/cn/dancingsnow/neoecoae/integration/recipe/GroupedWorkstationRecipeDisplayTest.java\n M src/test/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeGroupTest.java\n M src/test/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeTest.java\n?? src/main/java/cn/dancingsnow/neoecoae/api/me/diagnostics/ECOProcessingTargetProvider.java\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/display/processing/\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/execution/ECOProcessingMonitor.java\n?? src/test/java/cn/dancingsnow/neoecoae/blocks/entity/LargeWorkstationProgressTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/execution/ECOProcessingMonitorTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationProcessingDisplayTest.java\n",
-    "unselected_patch_sha256": "f6b3a69f95701ade5f115b786c8709026dc80a36598f70431df84251c8caf468"
+    "working_tree_status": "",
+    "unselected_patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "reference_port": {
     "repository": "E:\\Minecraft Project\\NeoECOAEExtension-1.20.1",
     "commit": "36dada343abff7533f63cce0d5729950342488f5",
     "purpose": "Read-only platform organization reference; no reference business copied",
     "selected_patches": [],
-    "unselected_patch_sha256": "cb2ec66157583311652ba5daaf207160d8dba25c252861c6017e329ca4cf6c77"
+    "unselected_patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   "repositories": [
     {
       "repository": "NeoECOAEExtension-1.21.1",
-      "head": "dae06aefe0d575707d872bed6ba6fee1ca222006",
-      "upstream": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
-      "ahead_behind": "5\t0",
-      "working_tree_status": "M src/generated/resources/assets/neoecoae/lang/en_us.json\n M src/main/java/cn/dancingsnow/neoecoae/client/NeoECOAEClient.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/CompactTreeRenderer.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/ECOCraftingGraphScreen.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphRenderer.java\n M src/main/java/cn/dancingsnow/neoecoae/compat/ECOPatternIntegrations.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/execution/ECOCraftingCPULogic.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/graph/GraphLayoutSnapshot.java\n M src/main/java/cn/dancingsnow/neoecoae/data/lang/GuiLangs.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuStatusPanel.java\n M src/main/java/cn/dancingsnow/neoecoae/mixins/ae2/accessor/PatternProviderLogicAccessor.java\n M src/main/resources/assets/neoecoae/lang/lzh.json\n M src/main/resources/assets/neoecoae/lang/zh_cn.json\n M src/main/resources/assets/neoecoae/lang/zh_hk.json\n M src/main/resources/assets/neoecoae/lang/zh_tw.json\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphDraw.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphTileCache.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphViewTransform.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphViewportCache.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphVisibilityCache.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/rendering/ProviderLocationHighlight.java\n?? src/main/java/cn/dancingsnow/neoecoae/compat/ae2/ECOProviderActions.java\n?? src/main/java/cn/dancingsnow/neoecoae/compat/ae2/ECORemoteProviderLocator.java\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/graph/GraphSpatialIndex.java\n?? src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationItemActionsPopup.java\n?? src/main/resources/assets/neoecoae/textures/gui/vendor/ae2/context_background.png\n?? src/test/java/cn/dancingsnow/neoecoae/client/gui/graph/\n?? src/test/java/cn/dancingsnow/neoecoae/client/rendering/ProviderLocationHighlightTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/compat/ae2/ECOProviderActionsTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/graph/GraphViewportIndexTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationItemActionsPopupTest.java\n?? src/test/java/cn/dancingsnow/neoecoae/gui/computation/ComputationItemActionsTest.java"
+      "head": "b9914229cffc53f20cf5c0cb7837bcd70b17207c",
+      "upstream": "b9914229cffc53f20cf5c0cb7837bcd70b17207c",
+      "ahead_behind": "0\t0",
+      "working_tree_status": ""
     },
     {
       "repository": "NeoECOAEExtension-1.20.1",
-      "head": "2654bdb34e1f00049bcd2920cf1c18b2135b33ce",
-      "upstream": "038b490c54f02d31e8de169fdffb34f9577a918c",
-      "ahead_behind": "6\t0",
-      "working_tree_status": "M src/generated/resources/assets/neoecoae/lang/en_us.json\n M src/main/java/cn/dancingsnow/neoecoae/client/NeoECOAEClient.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/CompactTreeRenderer.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/ECOCraftingGraphScreen.java\n M src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphRenderer.java\n M src/main/java/cn/dancingsnow/neoecoae/crafting/graph/GraphLayoutSnapshot.java\n M src/main/java/cn/dancingsnow/neoecoae/data/lang/NELangGenerator.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationCpuStatusPanel.java\n M src/main/java/cn/dancingsnow/neoecoae/gui/computation/ComputationProcessingTooltips.java\n M src/main/java/cn/dancingsnow/neoecoae/platform/ui/runtime/gui/ui/UIElement.java\n M src/main/resources/assets/neoecoae/lang/zh_cn.json\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphDraw.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphTileCache.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphViewTransform.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphViewportCache.java\n?? src/main/java/cn/dancingsnow/neoecoae/client/gui/graph/GraphVisibilityCache.java\n?? src/main/java/cn/dancingsnow/neoecoae/crafting/graph/GraphSpatialIndex.java\n?? src/test/java/cn/dancingsnow/neoecoae/client/gui/graph/\n?? src/test/java/cn/dancingsnow/neoecoae/crafting/graph/GraphViewportIndexTest.java\n?? work/"
+      "head": "32b6f4ddada6349f4f8faca01968fe998de429e0",
+      "upstream": null,
+      "ahead_behind": null,
+      "working_tree_status": ""
     },
     {
       "repository": "Applied-Energistics-2-Unofficial",
@@ -3667,6 +3667,27 @@
       "kind": "resource"
     },
     {
+      "source": "src/generated/resources/assets/neoecoae/blockstates/energy_cell_l4.json",
+      "target": "src/main/resources/assets/neoecoae/blockstates/energy_cell_l4.json",
+      "source_sha256": "72aeff7ce0ad42218aa74c5dd18f60030fb1dc670d08f09dc15376994acf3a90",
+      "target_sha256": "72aeff7ce0ad42218aa74c5dd18f60030fb1dc670d08f09dc15376994acf3a90",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/assets/neoecoae/blockstates/energy_cell_l6.json",
+      "target": "src/main/resources/assets/neoecoae/blockstates/energy_cell_l6.json",
+      "source_sha256": "971941476ea41d36f7e9f67b5d15fef4aabc3e4d569dbe9cd4bf640ed557d019",
+      "target_sha256": "971941476ea41d36f7e9f67b5d15fef4aabc3e4d569dbe9cd4bf640ed557d019",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/assets/neoecoae/blockstates/energy_cell_l9.json",
+      "target": "src/main/resources/assets/neoecoae/blockstates/energy_cell_l9.json",
+      "source_sha256": "804c6dec298f52fafbecc73108f5fedf5c1e5bad7d06cf2a846c0a527c2af538",
+      "target_sha256": "804c6dec298f52fafbecc73108f5fedf5c1e5bad7d06cf2a846c0a527c2af538",
+      "kind": "resource"
+    },
+    {
       "source": "src/generated/resources/assets/neoecoae/blockstates/flawed_budding_energized_crystal.json",
       "target": "src/main/resources/assets/neoecoae/blockstates/flawed_budding_energized_crystal.json",
       "source_sha256": "765e3f65d6b86e39ae2c5cd5448ab7c0e1e35521f3c00e514cfaaaf6281b63ad",
@@ -6205,6 +6226,27 @@
       "target": "src/main/resources/assets/neoecoae/models/item/energized_superconductive_ingot.json",
       "source_sha256": "527816844efbbc98c21ba4fdbc729bf21f3824f8f90cbf212806e42220a8fa87",
       "target_sha256": "527816844efbbc98c21ba4fdbc729bf21f3824f8f90cbf212806e42220a8fa87",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/assets/neoecoae/models/item/energy_cell_l4.json",
+      "target": "src/main/resources/assets/neoecoae/models/item/energy_cell_l4.json",
+      "source_sha256": "922f5af1faa1e28dfe0a14a211ee6ca624f7044cb5ebffce5816ad8ea7086a24",
+      "target_sha256": "922f5af1faa1e28dfe0a14a211ee6ca624f7044cb5ebffce5816ad8ea7086a24",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/assets/neoecoae/models/item/energy_cell_l6.json",
+      "target": "src/main/resources/assets/neoecoae/models/item/energy_cell_l6.json",
+      "source_sha256": "7bb9193efaa71b1111917594dea7837d09773e1fd1939fab38a93993b97faf18",
+      "target_sha256": "7bb9193efaa71b1111917594dea7837d09773e1fd1939fab38a93993b97faf18",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/assets/neoecoae/models/item/energy_cell_l9.json",
+      "target": "src/main/resources/assets/neoecoae/models/item/energy_cell_l9.json",
+      "source_sha256": "87f40472bcc73640d6a4886cdee733c3b6aa0e23414a53dd4b1c109f9f020fbd",
+      "target_sha256": "87f40472bcc73640d6a4886cdee733c3b6aa0e23414a53dd4b1c109f9f020fbd",
       "kind": "resource"
     },
     {
@@ -13460,6 +13502,27 @@
       "kind": "resource"
     },
     {
+      "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l4.json",
+      "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l4.json",
+      "source_sha256": "e3788d7dd97521db1c266afe8f2c76d714993b9516c4f4f7c2a35bb724531370",
+      "target_sha256": "e3788d7dd97521db1c266afe8f2c76d714993b9516c4f4f7c2a35bb724531370",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l6.json",
+      "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l6.json",
+      "source_sha256": "8a9aa4c91b5ff9aeed272e1d022034e219957c00700a7e1471789dea18ed6060",
+      "target_sha256": "8a9aa4c91b5ff9aeed272e1d022034e219957c00700a7e1471789dea18ed6060",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l9.json",
+      "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l9.json",
+      "source_sha256": "997b54be2e5ae9f938f491dafa544979e74ad85966a10480581144eb5a0bcf52",
+      "target_sha256": "997b54be2e5ae9f938f491dafa544979e74ad85966a10480581144eb5a0bcf52",
+      "kind": "resource"
+    },
+    {
       "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/fx_monitor_core.json",
       "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/fx_monitor_core.json",
       "source_sha256": "7b305681b0291fda2396096ba774d97d761c45bfeff049e3c85530fa9847935e",
@@ -14045,6 +14108,27 @@
       "target": "src/main/resources/data/neoecoae/loot_table/blocks/energized_superconductive_block.json",
       "source_sha256": "9aec70f0f6c5e14c776cf0cf49fa66c205ccde9bc5cfdae09fe8a9cefc9afe85",
       "target_sha256": "9aec70f0f6c5e14c776cf0cf49fa66c205ccde9bc5cfdae09fe8a9cefc9afe85",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/loot_table/blocks/energy_cell_l4.json",
+      "target": "src/main/resources/data/neoecoae/loot_table/blocks/energy_cell_l4.json",
+      "source_sha256": "66983863a92bc6f6ddce4547ec527af3028caf14d1a4ddad8782eb0b448d3921",
+      "target_sha256": "66983863a92bc6f6ddce4547ec527af3028caf14d1a4ddad8782eb0b448d3921",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/loot_table/blocks/energy_cell_l6.json",
+      "target": "src/main/resources/data/neoecoae/loot_table/blocks/energy_cell_l6.json",
+      "source_sha256": "c4f070d05fc78a9106953e74ec5ce57f359847921170dd07a979e6e611b81abf",
+      "target_sha256": "c4f070d05fc78a9106953e74ec5ce57f359847921170dd07a979e6e611b81abf",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/loot_table/blocks/energy_cell_l9.json",
+      "target": "src/main/resources/data/neoecoae/loot_table/blocks/energy_cell_l9.json",
+      "source_sha256": "498e6a4b740afc440795fa66731d14c6ef54c49a89766b22dd28ef0323bff070",
+      "target_sha256": "498e6a4b740afc440795fa66731d14c6ef54c49a89766b22dd28ef0323bff070",
       "kind": "resource"
     },
     {
@@ -14902,6 +14986,27 @@
       "kind": "resource"
     },
     {
+      "source": "src/generated/resources/data/neoecoae/recipe/energy_cell_l4.json",
+      "target": "src/main/resources/data/neoecoae/recipe/energy_cell_l4.json",
+      "source_sha256": "c9d117c94abedea00dcdc4ecc2f46fa254897121ffe451a6f67234a8b63e7d36",
+      "target_sha256": "c9d117c94abedea00dcdc4ecc2f46fa254897121ffe451a6f67234a8b63e7d36",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/recipe/energy_cell_l6.json",
+      "target": "src/main/resources/data/neoecoae/recipe/energy_cell_l6.json",
+      "source_sha256": "4120f019a2822c5bcb613830ce94721c02961775afeb24c36b3c001197419242",
+      "target_sha256": "4120f019a2822c5bcb613830ce94721c02961775afeb24c36b3c001197419242",
+      "kind": "resource"
+    },
+    {
+      "source": "src/generated/resources/data/neoecoae/recipe/energy_cell_l9.json",
+      "target": "src/main/resources/data/neoecoae/recipe/energy_cell_l9.json",
+      "source_sha256": "c97fc0b3617189eab4c2d4cc6f253ac8caec87f9b755a1a559a9f010261ed957",
+      "target_sha256": "c97fc0b3617189eab4c2d4cc6f253ac8caec87f9b755a1a559a9f010261ed957",
+      "kind": "resource"
+    },
+    {
       "source": "src/generated/resources/data/neoecoae/recipe/fx_monitor_core.json",
       "target": "src/main/resources/data/neoecoae/recipe/fx_monitor_core.json",
       "source_sha256": "46e05003b8ce0f64114d2946194e813bb63456542f9468979d257eed6d77996d",
@@ -15375,111 +15480,6 @@
       "target": "src/main/resources/data/neoecoae/worldgen/placed_feature/ore_tungsten_small.json",
       "source_sha256": "9ca55a7c26bb265b29d0d3ee00b0486ee075351afc0a6b91b147ac81081459fc",
       "target_sha256": "9ca55a7c26bb265b29d0d3ee00b0486ee075351afc0a6b91b147ac81081459fc",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/assets/neoecoae/blockstates/energy_cell_l4.json",
-      "target": "src/main/resources/assets/neoecoae/blockstates/energy_cell_l4.json",
-      "source_sha256": "72aeff7ce0ad42218aa74c5dd18f60030fb1dc670d08f09dc15376994acf3a90",
-      "target_sha256": "72aeff7ce0ad42218aa74c5dd18f60030fb1dc670d08f09dc15376994acf3a90",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/assets/neoecoae/blockstates/energy_cell_l6.json",
-      "target": "src/main/resources/assets/neoecoae/blockstates/energy_cell_l6.json",
-      "source_sha256": "971941476ea41d36f7e9f67b5d15fef4aabc3e4d569dbe9cd4bf640ed557d019",
-      "target_sha256": "971941476ea41d36f7e9f67b5d15fef4aabc3e4d569dbe9cd4bf640ed557d019",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/assets/neoecoae/blockstates/energy_cell_l9.json",
-      "target": "src/main/resources/assets/neoecoae/blockstates/energy_cell_l9.json",
-      "source_sha256": "804c6dec298f52fafbecc73108f5fedf5c1e5bad7d06cf2a846c0a527c2af538",
-      "target_sha256": "804c6dec298f52fafbecc73108f5fedf5c1e5bad7d06cf2a846c0a527c2af538",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/assets/neoecoae/models/item/energy_cell_l4.json",
-      "target": "src/main/resources/assets/neoecoae/models/item/energy_cell_l4.json",
-      "source_sha256": "922f5af1faa1e28dfe0a14a211ee6ca624f7044cb5ebffce5816ad8ea7086a24",
-      "target_sha256": "922f5af1faa1e28dfe0a14a211ee6ca624f7044cb5ebffce5816ad8ea7086a24",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/assets/neoecoae/models/item/energy_cell_l6.json",
-      "target": "src/main/resources/assets/neoecoae/models/item/energy_cell_l6.json",
-      "source_sha256": "7bb9193efaa71b1111917594dea7837d09773e1fd1939fab38a93993b97faf18",
-      "target_sha256": "7bb9193efaa71b1111917594dea7837d09773e1fd1939fab38a93993b97faf18",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/assets/neoecoae/models/item/energy_cell_l9.json",
-      "target": "src/main/resources/assets/neoecoae/models/item/energy_cell_l9.json",
-      "source_sha256": "87f40472bcc73640d6a4886cdee733c3b6aa0e23414a53dd4b1c109f9f020fbd",
-      "target_sha256": "87f40472bcc73640d6a4886cdee733c3b6aa0e23414a53dd4b1c109f9f020fbd",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l4.json",
-      "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l4.json",
-      "source_sha256": "e3788d7dd97521db1c266afe8f2c76d714993b9516c4f4f7c2a35bb724531370",
-      "target_sha256": "e3788d7dd97521db1c266afe8f2c76d714993b9516c4f4f7c2a35bb724531370",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l6.json",
-      "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l6.json",
-      "source_sha256": "8a9aa4c91b5ff9aeed272e1d022034e219957c00700a7e1471789dea18ed6060",
-      "target_sha256": "8a9aa4c91b5ff9aeed272e1d022034e219957c00700a7e1471789dea18ed6060",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l9.json",
-      "target": "src/main/resources/data/neoecoae/advancement/recipes/misc/energy_cell_l9.json",
-      "source_sha256": "997b54be2e5ae9f938f491dafa544979e74ad85966a10480581144eb5a0bcf52",
-      "target_sha256": "997b54be2e5ae9f938f491dafa544979e74ad85966a10480581144eb5a0bcf52",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/loot_table/blocks/energy_cell_l4.json",
-      "target": "src/main/resources/data/neoecoae/loot_table/blocks/energy_cell_l4.json",
-      "source_sha256": "66983863a92bc6f6ddce4547ec527af3028caf14d1a4ddad8782eb0b448d3921",
-      "target_sha256": "66983863a92bc6f6ddce4547ec527af3028caf14d1a4ddad8782eb0b448d3921",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/loot_table/blocks/energy_cell_l6.json",
-      "target": "src/main/resources/data/neoecoae/loot_table/blocks/energy_cell_l6.json",
-      "source_sha256": "c4f070d05fc78a9106953e74ec5ce57f359847921170dd07a979e6e611b81abf",
-      "target_sha256": "c4f070d05fc78a9106953e74ec5ce57f359847921170dd07a979e6e611b81abf",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/loot_table/blocks/energy_cell_l9.json",
-      "target": "src/main/resources/data/neoecoae/loot_table/blocks/energy_cell_l9.json",
-      "source_sha256": "498e6a4b740afc440795fa66731d14c6ef54c49a89766b22dd28ef0323bff070",
-      "target_sha256": "498e6a4b740afc440795fa66731d14c6ef54c49a89766b22dd28ef0323bff070",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/recipe/energy_cell_l4.json",
-      "target": "src/main/resources/data/neoecoae/recipe/energy_cell_l4.json",
-      "source_sha256": "c9d117c94abedea00dcdc4ecc2f46fa254897121ffe451a6f67234a8b63e7d36",
-      "target_sha256": "c9d117c94abedea00dcdc4ecc2f46fa254897121ffe451a6f67234a8b63e7d36",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/recipe/energy_cell_l6.json",
-      "target": "src/main/resources/data/neoecoae/recipe/energy_cell_l6.json",
-      "source_sha256": "4120f019a2822c5bcb613830ce94721c02961775afeb24c36b3c001197419242",
-      "target_sha256": "4120f019a2822c5bcb613830ce94721c02961775afeb24c36b3c001197419242",
-      "kind": "resource"
-    },
-    {
-      "source": "src/generated/resources/data/neoecoae/recipe/energy_cell_l9.json",
-      "target": "src/main/resources/data/neoecoae/recipe/energy_cell_l9.json",
-      "source_sha256": "c97fc0b3617189eab4c2d4cc6f253ac8caec87f9b755a1a559a9f010261ed957",
-      "target_sha256": "c97fc0b3617189eab4c2d4cc6f253ac8caec87f9b755a1a559a9f010261ed957",
       "kind": "resource"
     }
   ],

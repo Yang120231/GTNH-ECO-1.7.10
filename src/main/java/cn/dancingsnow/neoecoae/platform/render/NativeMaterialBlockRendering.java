@@ -48,13 +48,17 @@ public final class NativeMaterialBlockRendering implements ISimpleBlockRendering
             var variants = new JsonParser().parse(reader)
                 .getAsJsonObject()
                 .getAsJsonObject("variants");
-            if (variants == null || variants.entrySet()
+            boolean pending = block instanceof cn.dancingsnow.neoecoae.platform.registry.NativeRegisteredBlock;
+            if (!pending && (variants == null || variants.entrySet()
                 .size() != 1
                 || !variants.has("")
                 || !variants.get("")
-                    .isJsonObject())
+                    .isJsonObject()))
                 throw new IllegalArgumentException("Expected one static source model: " + location);
-            var definition = variants.getAsJsonObject("");
+            var definition = pending ? new com.google.gson.JsonObject() : variants.getAsJsonObject("");
+            if (pending) definition.addProperty(
+                "model",
+                ((cn.dancingsnow.neoecoae.platform.registry.NativeRegisteredBlock) block).sourceModel());
             if ((definition.has("x") && definition.get("x")
                 .getAsInt() != 0) || (definition.has("y")
                     && definition.get("y")

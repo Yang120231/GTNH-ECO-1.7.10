@@ -26,11 +26,20 @@ public final class NativeContent {
     private static final Map<String, Item> ITEMS = new LinkedHashMap<>();
     private static final Map<Item, String> IDS = new IdentityHashMap<>();
     private static final List<NativeStorageCellItem> CELLS = new ArrayList<>();
-    public static final CreativeTabs TAB = new CreativeTabs("neoecoae") {
+    public static final CreativeTabs TAB = new CreativeTabs("neoecoae.main") {
 
         @Override
         public Item getTabIconItem() {
             return ITEMS.get("eco_item_storage_cell_16m");
+        }
+
+        @Override
+        @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
+        public void displayAllReleventItems(List<ItemStack> items) {
+            List<ItemStack> content = new ArrayList<>();
+            super.displayAllReleventItems(content);
+            CreativeContentOrder.sort(content);
+            items.addAll(content);
         }
     };
 

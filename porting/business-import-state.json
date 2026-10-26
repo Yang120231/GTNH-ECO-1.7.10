@@ -1,25 +1,25 @@
 {
   "schema_version": 1,
   "status": "business_import_in_progress",
-  "verified_at": "2026-10-25T12:08:25.187536+00:00",
+  "verified_at": "2026-10-26T02:01:23.646316+00:00",
   "source_lock": "source-lock.json",
   "branch": "codex/1710-port-foundation",
-  "target_base": "bfda33e3dec7b39a5e167836e3ce12a9ce3316ab",
+  "target_base": "82104b03ff9d2a18e242eb8c419cbedd6fc9653e",
   "primary_source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
   "selected_source_patches": [],
   "imported": {
-    "business": 292,
-    "test": 40,
-    "resource": 1320,
+    "business": 318,
+    "test": 79,
+    "resource": 1335,
     "platform_resource_alias": 432
   },
-  "pending_source_paths": 494,
-  "main_java": 504,
-  "test_java": 54,
+  "pending_source_paths": 463,
+  "main_java": 544,
+  "test_java": 93,
   "preserved_model_files": 11,
   "preserved_model_hash_changes": [],
   "tests": {
-    "tests": 248,
+    "tests": 523,
     "failures": 0,
     "errors": 0,
     "skipped": 0
@@ -74,6 +74,14 @@
       "tests": 6
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingInputCachingTest",
+      "tests": 13
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.ECOExecutionRuntimeStartupSeedTest",
+      "tests": 3
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBigBatchSafetyTest",
       "tests": 8
     },
@@ -94,6 +102,30 @@
       "tests": 4
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.execution.worker.ECOExactVirtualLedgerTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.compiled.AE2ProcessingCycleSemanticsTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.compiled.CompiledStructureCacheTest",
+      "tests": 8
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.compiled.CraftingNetworkDeduplicationTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.compiled.InfusionCrystalClassificationTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.AERecipeCircuitTest",
+      "tests": 8
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleBoundaryImportCapTest",
       "tests": 3
     },
@@ -112,6 +144,10 @@
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.ExactGrowthRingTest",
       "tests": 10
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.PlayerCycleReviewProbeTest",
+      "tests": 1
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.cycle.RepeatableCycleGrowthTest",
@@ -138,24 +174,140 @@
       "tests": 2
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.growth.NetGrowthPatternValidationRegistryTest",
+      "tests": 5
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.provenance.MaterialProvenanceTest",
       "tests": 7
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.result.ECOExecutionSchedulePatternContractTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.semantic.AE2PatternSemanticContractTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.snapshot.ExactMaterialFlowTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ActiveRouteSelectorTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.AcyclicStockRouteTest",
+      "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ByproductPlanningTest",
+      "tests": 11
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ByproductReviewProbeTest",
+      "tests": 17
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ComponentExternalDemandCacheTest",
       "tests": 1
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ComponentPlannerMissingSeedTest",
+      "tests": 16
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CreativeCycleSupplyTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CreativeSupplyPlanningTest",
+      "tests": 5
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CycleFailureCacheTest",
       "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CycleRouteCompletenessReviewTest",
+      "tests": 13
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CycleSeedRetentionEdgeCaseTest",
+      "tests": 10
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CycleSeedRetentionPlanningTest",
+      "tests": 10
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.CycleStartupRecoveryTest",
+      "tests": 6
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.DemandAttributedScheduleTest",
+      "tests": 6
     },
     {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ExternalDemandCacheTest",
       "tests": 9
     },
     {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ExternalDemandReservationTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.FeedbackRouteRegressionTest",
+      "tests": 7
+    },
+    {
       "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.JointOrderedProposalTest",
       "tests": 5
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.JointRouteOptimizationTest",
+      "tests": 11
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.OverloadCrystalCyclePlanningTest",
+      "tests": 9
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.PlannerStartupAndRemainderRegressionTest",
+      "tests": 13
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.ReachableRouteSearchTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.RouteAvailabilityPruningTest",
+      "tests": 1
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.RouteSearchTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.SpecialPatternResolverTest",
+      "tests": 3
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.StoredInputSnapshotTest",
+      "tests": 4
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.TechModPlannerChallengeTest",
+      "tests": 26
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.TechModPlannerScenarioTest",
+      "tests": 26
+    },
+    {
+      "name": "cn.dancingsnow.neoecoae.crafting.planner.solve.UnsupportedRouteFallbackTest",
+      "tests": 6
     },
     {
       "name": "cn.dancingsnow.neoecoae.gui.common.HostTextTest",
@@ -199,7 +351,7 @@
     },
     {
       "name": "cn.dancingsnow.neoecoae.platform.PlatformContractTest",
-      "tests": 8
+      "tests": 10
     },
     {
       "name": "cn.dancingsnow.neoecoae.platform.recipe.SourceShapelessRecipeTest",
@@ -214,35 +366,35 @@
       "tests": 1
     }
   ],
-  "build_log": "build/porting-build.log",
+  "build_log": "build/content-registration-build.log",
   "artifacts": [
     {
       "path": "build/libs/neoecoae-0.1.0-porting-dev.jar",
-      "bytes": 3184823,
-      "sha256": "608e081c67fd32daf7b4a7f6762da2b4eb28b35f897670cfe58ae36cd5601d0b",
-      "classes": 844,
+      "bytes": 3341018,
+      "sha256": "d13c70cdbadb66894a28fd19dfc9dce3524b707ac440036b4334394873cc5494",
+      "classes": 896,
       "classfile_major_counts": {
-        "52": 844
+        "52": 896
       },
-      "entries": 2912
+      "entries": 2996
     },
     {
       "path": "build/libs/neoecoae-0.1.0-porting-sources.jar",
-      "bytes": 2187285,
-      "sha256": "e765fdf07251509c26e6f1c643fb1bb552057d8a57f68dbcee290d08da39875c",
+      "bytes": 2277757,
+      "sha256": "b7474507a60fc6ecdff0d1779493cfd844dcd80880e27c3f650c2001154ebbb4",
       "classes": 0,
       "classfile_major_counts": {},
-      "entries": 2580
+      "entries": 2652
     },
     {
       "path": "build/libs/neoecoae-0.1.0-porting.jar",
-      "bytes": 3222987,
-      "sha256": "4f0d1aed2f95aa2bfc9f274a305b18a45a2ba480f8023b4ac7a5de39b33d523f",
-      "classes": 844,
+      "bytes": 3379816,
+      "sha256": "018bfa23369ffb07ae032ad7b6beadf35570d11d673193a451b979eb01da72c5",
+      "classes": 896,
       "classfile_major_counts": {
-        "52": 844
+        "52": 896
       },
-      "entries": 2912
+      "entries": 2996
     }
   ],
   "server_acceptance": [
@@ -313,7 +465,33 @@
         ],
         "GTNHLib": []
       }
+    },
+    {
+      "kind": "core-planning",
+      "source": "build/server-core-planning.log",
+      "source_sha256": "6d4ac62019000fb54714fca8df58aec35042b627a69afbca30295af1af890e1e",
+      "minecraft_source": "build/server-core-planning-minecraft.log",
+      "minecraft_source_sha256": "ce94d991d0510afd5a7ee3804749504102d2d6f71f68468b1705e5d9e4d1d706",
+      "excerpt": "porting/acceptance/core-planning.log",
+      "resolved_runtime_versions": {
+        "Applied-Energistics-2-Unofficial": [
+          "rv3-beta-990-GTNH"
+        ],
+        "ModularUI2": [
+          "2.3.49-1.7.10"
+        ],
+        "GTNHLib": []
+      }
     }
+  ],
+  "test_profile": {
+    "planner_challenge_enabled": true,
+    "challenge_cases": 26
+  },
+  "pending_test_members": [
+    "src/test/java/cn/dancingsnow/neoecoae/crafting/execution/worker/ECOExactVirtualLedgerTest.java",
+    "src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/ByproductReviewProbeTest.java",
+    "src/test/java/cn/dancingsnow/neoecoae/crafting/planner/solve/CreativeSupplyPlanningTest.java"
   ],
   "dependency_adapters": [
     {
@@ -324,7 +502,7 @@
       "source_sha256": "941bcf88d463bd43d265cac9f03f398076ef4cf0810ca66d9c0d6232ee19a26f",
       "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/inventory/ICraftingInventory.java",
       "target_sha256": "5e363e7def844e4a559856f1ff5af264986dec905f3d204fc1c2f5409277946a",
-      "license": "LGPL-3.0-or-later; source license header preserved"
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
     },
     {
       "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
@@ -334,7 +512,7 @@
       "source_sha256": "4949bae879fffc781420410a3b91cfacdf0419fd8af93e9b644d843aa7cb6d82",
       "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/inventory/ListCraftingInventory.java",
       "target_sha256": "82bbe802b4466d334a532a86d2ad7492a175a59fbd8b58e6e0d6db1c3fbda27b",
-      "license": "LGPL-3.0-or-later; source license header preserved"
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
     },
     {
       "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
@@ -344,7 +522,103 @@
       "source_sha256": "56d388809dcc845c888dc7abe75fe29b950a12943cfdf2b27825717e12c9e8c5",
       "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CalculationStrategy.java",
       "target_sha256": "c7429283b37d87e88ef1f887041e4fb503dc590b3f3e339da7d71fc0912a1a13",
-      "license": "LGPL-3.0-or-later; source license header preserved"
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/crafting/execution/InputTemplate.java",
+      "source_sha256": "9c2ef0a1cd27d81f214660de8d8953dded9af99b7938e205a140cf2f0f1c5754",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/InputTemplate.java",
+      "target_sha256": "e31bd17fe4bf5a1d361b51932e13071a08b5cc4d52b6187e026bd61ce1d4e2a9",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/crafting/execution/CraftingCpuHelper.java",
+      "source_sha256": "454087a61f8683da77f77ba7718f1a7b603cf333e2d9146ae282d49e8c67e5ff",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingCpuHelper.java",
+      "target_sha256": "d4b2f582486b887bbf0f63cf41d89877fe622c81421165679a1d61398e61102d",
+      "license": "LGPL-3.0-or-later; original source header preserved where present",
+      "selected_members": [
+        "reinjectPatternInputs",
+        "getValidItemTemplates",
+        "extractTemplates",
+        "<init>"
+      ]
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/api/networking/crafting/ICraftingCPU.java",
+      "source_sha256": "856315d3b2d33569d3329f8cef064cbd4eed0bf104a46a8ff8a6fc66e40236af",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/ICraftingCPU.java",
+      "target_sha256": "947c49487aa367ec8225cd797b1c02b43183b5fb30bfcdd667f30cfd24e95a36",
+      "license": "MIT; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/api/networking/crafting/CraftingJobStatus.java",
+      "source_sha256": "59e9f1978a98fabea7580f6bf60d5698faef87ff69c9b60a202ebc2f5aa9f0f6",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingJobStatus.java",
+      "target_sha256": "434b8cd8666ccfa2765827a4f10db156ea17e006b4f78d8fc9d893b75301f785",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/api/config/CpuSelectionMode.java",
+      "source_sha256": "c7a13b5afc4532075f2ca95fc955e70e551a1e7be3f910715718df4a7598654a",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CpuSelectionMode.java",
+      "target_sha256": "37071d1cd8ab2a0711a373de289f354bb1da92b5cd7674398b60b23d1d8cf1d6",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/api/storage/AEKeyFilter.java",
+      "source_sha256": "179aaba39799bcf99992918248561908a3f2d41760452bbd95ef46fbbf9f26a8",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/AEKeyFilter.java",
+      "target_sha256": "b299c3c9944eaf7fa2c5eb1f5607de3fa7d7fc81a3bcd348660b43a5fbd73213",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/api/storage/NoOpKeyFilter.java",
+      "source_sha256": "c79db29b5ddd52099d2a366bf3b8f611a084efbfeda6226eada889a184cdf81b",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/NoOpKeyFilter.java",
+      "target_sha256": "b3ecc4ee93c4ed624947ddfb59aff31200d74dec5557554f917d19f021910b29",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/menu/me/crafting/CraftingPlanSummary.java",
+      "source_sha256": "d610a090a5d641bd2a56a42221930aa9bd6b8c9c72d97aa30f6d50ade2327b25",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingPlanSummary.java",
+      "target_sha256": "69b6493ee239f27e2e239a5e363c883392aa5e2a6493a4deda2b201069bc77c5",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "tag": "neoforge/v19.2.18",
+      "source": "src/main/java/appeng/menu/me/crafting/CraftingPlanSummaryEntry.java",
+      "source_sha256": "8e0f86124cd8c0ab3a2f9780b11052a06c44be692b989961f22641b3f8a16d49",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/platform/ae2/crafting/CraftingPlanSummaryEntry.java",
+      "target_sha256": "2d5bcdc6bfab2647387a45fc9766784326a21fe9fe61b9e9588f705740a0d1b2",
+      "license": "LGPL-3.0-or-later; original source header preserved where present"
     }
   ],
   "derived_resources": [
@@ -410,7 +684,7 @@
     },
     {
       "target": "src/main/resources/neoecoae/core-content.json",
-      "target_sha256": "cca1b9b45ae65d9a4d376917e2ea73efc24efbc6b49aee26a98b99ef9fb72875",
+      "target_sha256": "bb8549c10c50988c668301c54bfe0b6eb75f13d8b671d51c82e8600f5c56e8ad",
       "source": "src/main/java/cn/dancingsnow/neoecoae/all/NEItems.java",
       "source_sha256": "64f6a20a7b18cf656a1c569e318d84dac4814e61193299590eada6a3372b8428",
       "members": [
@@ -489,24 +763,89 @@
       ]
     },
     {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "LICENSE",
+      "source_sha256": "39676552fd16d3317f6e6af4cf810778060cda238f75dac9b27c0fcbe848d3d4",
+      "target": "src/main/resources/META-INF/licenses/ae2-modern-LGPL-3.0.txt",
+      "target_sha256": "39676552fd16d3317f6e6af4cf810778060cda238f75dac9b27c0fcbe848d3d4"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/java/appeng/api/networking/crafting/ICraftingCPU.java",
+      "source_sha256": "856315d3b2d33569d3329f8cef064cbd4eed0bf104a46a8ff8a6fc66e40236af",
+      "target": "src/main/resources/META-INF/licenses/ae2-modern-api-MIT.txt",
+      "target_sha256": "efe5498a07acb430df955f3a829f4a6f8fead5d836dae7aa0a80cf2da6fd2969"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/resources/assets/ae2/textures/block/generics/back.png",
+      "source_sha256": "8d035a9a9dec872ff8a5c6a46c46f422b365097d6422b440b23cb8c59883bd4e",
+      "target": "src/main/resources/assets/ae2/textures/blocks/generics/back.png",
+      "target_sha256": "8d035a9a9dec872ff8a5c6a46c46f422b365097d6422b440b23cb8c59883bd4e",
+      "license": "META-INF/licenses/ae2-modern-LGPL-3.0.txt"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/resources/assets/ae2/textures/block/generics/bottom.png",
+      "source_sha256": "ecb2cee5ead9c1303a6ecd65adce2110974ac488b3eedcd30f370af7ebc6ac42",
+      "target": "src/main/resources/assets/ae2/textures/blocks/generics/bottom.png",
+      "target_sha256": "ecb2cee5ead9c1303a6ecd65adce2110974ac488b3eedcd30f370af7ebc6ac42",
+      "license": "META-INF/licenses/ae2-modern-LGPL-3.0.txt"
+    },
+    {
+      "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+      "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+      "source": "src/main/resources/assets/ae2/textures/block/generics/side.png",
+      "source_sha256": "ff1ba98262fe5722cd8a1015e7c026f1e902e7a42879e1f4309e854c27022812",
+      "target": "src/main/resources/assets/ae2/textures/blocks/generics/side.png",
+      "target_sha256": "ff1ba98262fe5722cd8a1015e7c026f1e902e7a42879e1f4309e854c27022812",
+      "license": "META-INF/licenses/ae2-modern-LGPL-3.0.txt"
+    },
+    {
       "target": "src/main/resources/neoecoae/core-blocks.json",
       "target_sha256": "f06c6ddf934c8ab465b5a4607d5cb2d1680096c13b54341aedbbb8714b4e1b5a"
     },
     {
+      "target": "src/main/resources/neoecoae/core-registration.json",
+      "target_sha256": "432cd2bbe7cdf86010d8f3b0cdadfb2aa1e6c4d79430f5cd8a792bde6774fc18"
+    },
+    {
       "target": "src/main/resources/neoecoae/recipe-catalog.json",
-      "target_sha256": "6a9ab1378b89c0ceb88e3d98309447d0bfdc50f83719b505e368b3533717f4f9"
+      "target_sha256": "43e8187025caa6a8fb9c99d9a9f66faec4b317031920789f3e44f3ea263a3683"
     }
   ],
-  "excluded_source_paths": 957,
+  "excluded_source_paths": 948,
   "optional_mod_integrations": false,
   "content": {
     "core_items": 65,
     "material_blocks": 13,
     "storage_machine_blocks": 10,
-    "source_recipes": 161,
-    "installed_source_recipes": 92,
-    "native_crafting_recipes": 65,
+    "registered_core_blocks": 70,
+    "blocks_pending_behavior": 47,
+    "source_recipes": 164,
+    "installed_source_recipes": 115,
+    "native_crafting_recipes": 88,
     "excluded_large_workstation_cards": 7
+  },
+  "registration_acceptance": {
+    "source": "build/client-content-registration.log",
+    "sha256": "75b603b02032a10f73d09a4b3360b322a1c6c7eade0ba1bdd55d2c22a9dfbf2d",
+    "registered_blocks": 70,
+    "new_blocks": 47,
+    "visible_items": 132,
+    "creative_order": [
+      "storage",
+      "crafting",
+      "computation",
+      "workstation",
+      "materials",
+      "tools"
+    ],
+    "scope": "Real FML identities, complete creative-tab listing, stable functional grouping and ascending tier/capacity order, native placement of 47 new blocks, source artwork and four creative-scroll screenshots. Pending machine behavior remains unimplemented."
   },
   "client_acceptance": {
     "source": "build/client-material-recipes-acceptance.log",

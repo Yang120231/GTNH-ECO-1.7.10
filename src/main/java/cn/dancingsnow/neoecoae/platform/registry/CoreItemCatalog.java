@@ -64,7 +64,13 @@ public final class CoreItemCatalog {
         for (var value : DATA.getAsJsonArray("items")) {
             var entry = value.getAsJsonObject();
             if (!entry.get("enabled")
-                .getAsBoolean()) continue;
+                .getAsBoolean()) {
+                String excluded = entry.get("id")
+                    .getAsString();
+                if (cpw.mods.fml.common.registry.GameRegistry.findItem("neoecoae", excluded) != null)
+                    throw new IllegalStateException("Excluded core item registered: " + excluded);
+                continue;
+            }
             String id = entry.get("id")
                 .getAsString(),
                 kind = entry.get("kind")

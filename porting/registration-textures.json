@@ -1,0 +1,29 @@
+[
+  {
+    "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "source": "src/main/resources/assets/ae2/textures/block/generics/back.png",
+    "source_sha256": "8d035a9a9dec872ff8a5c6a46c46f422b365097d6422b440b23cb8c59883bd4e",
+    "target": "src/main/resources/assets/ae2/textures/blocks/generics/back.png",
+    "target_sha256": "8d035a9a9dec872ff8a5c6a46c46f422b365097d6422b440b23cb8c59883bd4e",
+    "license": "META-INF/licenses/ae2-modern-LGPL-3.0.txt"
+  },
+  {
+    "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "source": "src/main/resources/assets/ae2/textures/block/generics/bottom.png",
+    "source_sha256": "ecb2cee5ead9c1303a6ecd65adce2110974ac488b3eedcd30f370af7ebc6ac42",
+    "target": "src/main/resources/assets/ae2/textures/blocks/generics/bottom.png",
+    "target_sha256": "ecb2cee5ead9c1303a6ecd65adce2110974ac488b3eedcd30f370af7ebc6ac42",
+    "license": "META-INF/licenses/ae2-modern-LGPL-3.0.txt"
+  },
+  {
+    "repository": "E:\\Minecraft Project\\Applied-Energistics-2",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "source": "src/main/resources/assets/ae2/textures/block/generics/side.png",
+    "source_sha256": "ff1ba98262fe5722cd8a1015e7c026f1e902e7a42879e1f4309e854c27022812",
+    "target": "src/main/resources/assets/ae2/textures/blocks/generics/side.png",
+    "target_sha256": "ff1ba98262fe5722cd8a1015e7c026f1e902e7a42879e1f4309e854c27022812",
+    "license": "META-INF/licenses/ae2-modern-LGPL-3.0.txt"
+  }
+]

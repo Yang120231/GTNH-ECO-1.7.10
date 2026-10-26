@@ -1,6 +1,7 @@
 """Audit the actual build, source provenance, retained models and Java-8 server acceptance evidence."""
 from collections import Counter
 from datetime import datetime, timezone
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -27,6 +28,10 @@ def read_text(path):
 
 
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--build-log", default="build/porting-build.log")
+    parser.add_argument("--registration-log", help="Optional complete native content/creative acceptance log")
+    args=parser.parse_args()
     lock_path=ROOT/"porting/source-lock.json"
     lock=json.loads(lock_path.read_text(encoding="utf8"))
     for entry in lock["imported"]:
@@ -44,9 +49,11 @@ def main():
     for name in ["NeoECOAEExtension-1.21.1","NeoECOAEExtension-1.20.1","Applied-Energistics-2-Unofficial",
                  "ModularUI2","LDLib2","GT5-Unofficial","jabel","GTNHLib","StructureLib","NotEnoughItems","GTNHGradle"]:
         repository=ROOT.parent/name
+        branch=git(repository,"branch","--show-current")
+        upstream_ref=git(repository,"for-each-ref","--format=%(upstream)","refs/heads/"+branch) if branch else ""
         repositories.append(dict(repository=name,head=git(repository,"rev-parse","HEAD"),
-            upstream=git(repository,"rev-parse","@{upstream}"),
-            ahead_behind=git(repository,"rev-list","--left-right","--count","HEAD...@{upstream}"),
+            upstream=git(repository,"rev-parse",upstream_ref) if upstream_ref else None,
+            ahead_behind=git(repository,"rev-list","--left-right","--count","HEAD..."+upstream_ref) if upstream_ref else None,
             working_tree_status=git(repository,"status","--porcelain")))
     lock["repositories"]=repositories
     lock["reference_port"]["selected_patches"]=[]
@@ -72,7 +79,12 @@ def main():
     derived=json.loads((ROOT/"porting/core-content-derived.json").read_text(encoding="utf8"))["outputs"]
     derived=list(derived)
     derived.extend(json.loads((ROOT/"porting/dependency-licenses.json").read_text(encoding="utf8")))
-    for path in ["neoecoae/core-blocks.json","neoecoae/recipe-catalog.json"]:
+    artwork=json.loads((ROOT/"porting/registration-textures.json").read_text(encoding="utf8"))
+    for entry in artwork:
+        original=subprocess.check_output(["git","-C",entry["repository"],"show",entry["commit"]+":"+entry["source"]])
+        assert sha(original)==entry["source_sha256"],entry["source"]
+    derived.extend(artwork)
+    for path in ["neoecoae/core-blocks.json","neoecoae/core-registration.json","neoecoae/recipe-catalog.json"]:
         target="src/main/resources/"+path
         derived.append(dict(target=target,target_sha256=sha((ROOT/target).read_bytes())))
     for entry in derived: assert sha((ROOT/entry["target"]).read_bytes())==entry["target_sha256"],entry["target"]
@@ -87,7 +99,7 @@ def main():
         for field in ["tests","failures","errors","skipped"]:test_counts[field]+=int(suite.get(field,"0"))
         suites.append(dict(name=suite.get("name"),tests=int(suite.get("tests","0"))))
     assert test_counts["tests"]>4 and test_counts["failures"]==test_counts["errors"]==test_counts["skipped"]==0,dict(test_counts)
-    build_log=read_text(ROOT/"build/porting-build.log")
+    build_log=read_text(ROOT/args.build_log)
     assert "BUILD SUCCESSFUL" in build_log and "> Task :verifyMigratedSourceCoverage" in build_log
     main_sources=sorted((ROOT/"src/main/java").rglob("*.java"))
     for path in main_sources:
@@ -170,18 +182,38 @@ def main():
     client_text=read_text(client_log)
     for marker in ["NEOECOAE_NATIVE_CONTENT_OK", "NEOECOAE_CLIENT_STORAGE_OK", "NEOECOAE_CLIENT_ACCEPTANCE_FINISHED success=true"]: assert marker in client_text,marker
 
+    registration_acceptance=None
+    installed_recipes,native_crafting=92,65
+    block_catalog=json.loads((ROOT/"src/main/resources/neoecoae/core-registration.json").read_text(encoding="utf8"))
+    if args.registration_log:
+        registration_path=ROOT/args.registration_log
+        registration_text=read_text(registration_path)
+        for marker in ["NEOECOAE_CORE_BLOCKS_REGISTERED total=70 pending_behavior=47", "NEOECOAE_CONTENT_PLACEMENT_OK blocks=47", "NEOECOAE_CONTENT_ACCEPTANCE_OK total_blocks=70 new_blocks=47 visible_items=132", "NEOECOAE_CONTENT_ORDER_OK visible=132 groups=storage,crafting,computation,workstation,materials,tools tier_order=ascending"]:
+            assert marker in registration_text,marker
+        counts=re.search(r"NEOECOAE_SOURCE_RECIPES_REGISTERED totals=\{installed=(\d+), pending=(\d+)\} native_crafting=(\d+)", registration_text)
+        assert counts, "Missing current native recipe counts"
+        installed_recipes,native_crafting=int(counts[1]),int(counts[3])
+        assert installed_recipes+int(counts[2])==len(recipe_catalog["recipes"])
+        registration_acceptance=dict(source=args.registration_log,sha256=sha(registration_path.read_bytes()),
+            registered_blocks=len(block_catalog["blocks"]),new_blocks=47,visible_items=132,
+            creative_order=["storage","crafting","computation","workstation","materials","tools"],
+            scope="Real FML identities, complete creative-tab listing, stable functional grouping and ascending tier/capacity order, native placement of 47 new blocks, source artwork and four creative-scroll screenshots. Pending machine behavior remains unimplemented.")
+
     report=dict(schema_version=1,status="business_import_in_progress",verified_at=datetime.now(timezone.utc).isoformat(),
         source_lock="source-lock.json",branch=git(ROOT,"branch","--show-current"),target_base=git(ROOT,"rev-parse","HEAD"),
         primary_source_commit=lock["primary_source"]["commit"],selected_source_patches=[],
         imported=Counter(entry["kind"] for entry in lock["imported"]),pending_source_paths=len(lock["pending_business"]),
         main_java=len(main_sources),test_java=len(list((ROOT/"src/test/java").rglob("*.java"))),
         preserved_model_files=len(foundation["models"]),preserved_model_hash_changes=[],
-        tests=dict(test_counts),test_suites=suites,build_log="build/porting-build.log",artifacts=artifacts,server_acceptance=acceptance,
+        tests=dict(test_counts),test_suites=suites,build_log=args.build_log,artifacts=artifacts,server_acceptance=acceptance,
         test_profile=dict(planner_challenge_enabled=True,challenge_cases=next(s["tests"] for s in suites if s["name"].endswith("TechModPlannerChallengeTest"))),
         pending_test_members=lock.get("pending_test_members", []),
         dependency_adapters=dependency_adapters,derived_resources=derived,
         excluded_source_paths=len(lock.get("excluded_sources", [])),optional_mod_integrations=False,
-        content=dict(core_items=65,material_blocks=13,storage_machine_blocks=10,source_recipes=len(recipe_catalog["recipes"]),installed_source_recipes=92,native_crafting_recipes=65,excluded_large_workstation_cards=7),
+        content=dict(core_items=65,material_blocks=13,storage_machine_blocks=10,registered_core_blocks=len(block_catalog["blocks"]),
+            blocks_pending_behavior=sum(entry["registration"]=="pending_behavior" for entry in block_catalog["blocks"]),
+            source_recipes=len(recipe_catalog["recipes"]),installed_source_recipes=installed_recipes,native_crafting_recipes=native_crafting,excluded_large_workstation_cards=7),
+        registration_acceptance=registration_acceptance,
         client_acceptance=dict(source=client_log.relative_to(ROOT).as_posix(),sha256=sha(client_log.read_bytes()),scope="Storage main page, real MUI2 extraction/reinsertion packets, material atlas loading and recipe/NBT assertions; not manual mouse gestures or a full crafting order"),
         outstanding=["Remaining storage interfaces, priority/build/guide pages and gestures","Native planner request/confirmation and complete source CPU execution hooks",
             "Computation and workstation business modules","Complete high-version MUI2 pages, native slot gestures and render-state binding",

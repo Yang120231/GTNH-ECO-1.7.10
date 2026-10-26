@@ -30,6 +30,9 @@ public final class NativeBlockProperties {
             case "QUARTZ_BLOCK":
                 base = Blocks.quartz_block;
                 break;
+            case "AMETHYST_CLUSTER":
+                base = Blocks.glass;
+                break;
             default:
                 throw new IllegalArgumentException("Unmapped source block properties: " + prototype);
         }
