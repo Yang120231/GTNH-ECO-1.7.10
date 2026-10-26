@@ -1,0 +1,66 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "imports": [
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipe.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipe.java",
+      "source_sha256": "ccc84392309baff26757a6a23e91364fa491564c170d4678ebc10c17ead3a5dc",
+      "target_sha256": "5e0917397edad4bd13a2f65778d7305ea19a557fac7714bc88c68a45545c4930",
+      "kind": "business",
+      "adaptation": "Native keys/stacks and Java 8 syntax; preserve full integer quantities, max-flow matching, output contract, legal multipliers, processing budget overflow checks and source cost order. No optional recipe decoders or large workstation card gates are installed."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipes.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipes.java",
+      "source_sha256": "3eaab316efc004b2bc1a44a08fc4411ac0cebbe8d9e6e970f926d8abda53a664",
+      "target_sha256": "199f7260edfdfc33869a27c4a384a79667f98ad82fe598edeef511cec63bdfeb",
+      "kind": "business",
+      "adaptation": "Native keys/stacks and Java 8 syntax; preserve full integer quantities, max-flow matching, output contract, legal multipliers, processing budget overflow checks and source cost order. No optional recipe decoders or large workstation card gates are installed.",
+      "partial_source_scope": {
+        "scope": "Core native runtime query and scaled pattern matching. Native immutable workstation directory replaces modern RecipeManager. Optional decoders, module cards and viewer grouping are not imported.",
+        "members": [
+          "COST_ORDER",
+          "compareCosts",
+          "extraCost",
+          "energyKind",
+          "isLightning",
+          "find(List<LargeWorkstationRecipe>,KeyCounter,KeyCounter)",
+          "findScaled(List<LargeWorkstationRecipe>,KeyCounter,KeyCounter)",
+          "PatternMatch"
+        ],
+        "pending_core_members": [
+          "getGroups",
+          "group",
+          "deduplicate"
+        ]
+      }
+    },
+    {
+      "source": "src/test/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeTest.java",
+      "target": "src/test/java/cn/dancingsnow/neoecoae/recipe/LargeWorkstationRecipeCoreTest.java",
+      "source_sha256": "d19d2b22df443740fc34bd3dd91d8cb160237c61ec46b73c71a95a49486a280b",
+      "target_sha256": "8a7eb0f113b9dbbf157cc002f382a29b9fb87869d0ea9a153d5a21b8e083126a",
+      "kind": "test",
+      "adaptation": "Rename partial core test class, use native test identities and sized predicates; five original core tests preserved. Optional integration and module-card tests excluded.",
+      "partial_source_scope": {
+        "members": [
+          "overlappingTagsCanReassignEarlierAllocations",
+          "hugeCountsStayCompactAndRejectSurplus",
+          "fullOutputContractSelectsBetweenIdenticalInputs",
+          "fractionalOutputsOrDifferentInputScaleAreRejected",
+          "scaledOverlappingIngredientsAllowDifferentConcreteItemsPerRecipeOperation",
+          "nativeRecipe",
+          "items"
+        ]
+      }
+    }
+  ],
+  "validation": {
+    "command": "gradlew.bat spotlessJavaApply test --tests '*LargeWorkstationRecipeCoreTest' --tests '*NativeLargeRecipeAmountsTest' --tests '*NativeTransformRecipeTest' --tests '*NativeMachineRecipesTest' --tests '*SourceShapelessRecipeTest' --offline --console=plain --max-workers=2",
+    "tests": 20,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "host_runtime": "GT/workstation host remains a separate acceptance batch"
+  }
+}
