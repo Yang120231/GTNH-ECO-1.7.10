@@ -80,6 +80,10 @@ public final class WorldTransformRecipes {
         return RECIPES.get(id);
     }
 
+    static int observedFluidTicks(EntityItem item) {
+        return EVENTS.fluidTime.getOrDefault(item, 0);
+    }
+
     @SubscribeEvent
     public void worldTick(TickEvent.WorldTickEvent event) {
         if (event.world.isRemote || event.phase != TickEvent.Phase.END) return;

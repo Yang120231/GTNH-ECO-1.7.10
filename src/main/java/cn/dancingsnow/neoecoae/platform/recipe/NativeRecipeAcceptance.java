@@ -292,6 +292,26 @@ public final class NativeRecipeAcceptance {
             require(outputs(pending).isEmpty(), "Water transform cannot run at 60 ticks " + recipe.id());
         if (!recipe.explosion() && elapsed < 61 || recipe.explosion() && elapsed < 1) return;
         var outputs = outputs(pending);
+        if (outputs.size() != 1 || !same(
+            outputs.get(0)
+                .getEntityItem(),
+            recipe.result())) {
+            NeoECOAE.LOG.error(
+                "NEOECOAE_RECIPE_WORLD_DIAGNOSTIC recipe={} elapsed={} outputs={}",
+                recipe.id(),
+                elapsed,
+                outputs.size());
+            for (var input : pending.inputs) NeoECOAE.LOG.error(
+                "NEOECOAE_RECIPE_WORLD_INPUT stack={} dead={} position={},{},{} valid_fluid_ticks={}",
+                input.getEntityItem(),
+                input.isDead,
+                input.posX,
+                input.posY,
+                input.posZ,
+                WorldTransformRecipes.observedFluidTicks(input));
+            for (var output : outputs)
+                NeoECOAE.LOG.error("NEOECOAE_RECIPE_WORLD_OUTPUT stack={}", output.getEntityItem());
+        }
         require(
             outputs.size() == 1 && same(
                 outputs.get(0)
@@ -311,6 +331,9 @@ public final class NativeRecipeAcceptance {
             pending = null;
             NeoECOAE.LOG.info(
                 "NEOECOAE_NATIVE_WORLD_RECIPES_OK transformations=6 water=4 explosion=2 water_delay=61 exact_consumption=true anchor_survives=true");
+            if (Boolean.getBoolean("neoecoae.recipeAcceptance.stopAfter"))
+                net.minecraft.server.MinecraftServer.getServer()
+                    .initiateShutdown();
         } else begin(pending);
     }
 
