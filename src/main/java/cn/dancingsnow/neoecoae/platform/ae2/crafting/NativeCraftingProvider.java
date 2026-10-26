@@ -20,6 +20,12 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     private final ICraftingMedium medium;
     private final List<IPatternDetails> patterns;
 
+    public static ICraftingProvider wrap(ICraftingMedium medium, List<? extends IPatternDetails> patterns) {
+        if (medium instanceof NativeSourceCraftingMedium) return java.util.Objects
+            .requireNonNull(((NativeSourceCraftingMedium) medium).sourceCraftingProvider(), "Native ECO provider");
+        return new NativeCraftingProvider(medium, patterns);
+    }
+
     public NativeCraftingProvider(ICraftingMedium medium, List<? extends IPatternDetails> patterns) {
         this.medium = java.util.Objects.requireNonNull(medium);
         this.patterns = Collections.unmodifiableList(new ArrayList<>(patterns));
