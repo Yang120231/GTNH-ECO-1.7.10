@@ -70,6 +70,25 @@ def main():
                         "source_sha256": hashlib.sha256(original).hexdigest(), "target": target,
                         "target_sha256": hashlib.sha256(data).hexdigest(), "license": license_name + "; original source header preserved where present"})
         if selected_members: entries[-1]["selected_members"] = selected_members
+    for batch_path in sorted((ROOT/"porting/batches").glob("*.json")):
+        batch = json.loads(batch_path.read_text(encoding="utf8"))
+        for original_entry in batch.get("dependency_imports", []):
+            entry = dict(original_entry)
+            repository = Path(entry["repository"])
+            if not repository.is_absolute(): repository = ROOT.parent/repository
+            repository = repository.resolve()
+            original = subprocess.check_output(["git", "-C", str(repository), "show", entry["commit"]+":"+entry["source"]])
+            if hashlib.sha256(original).hexdigest() != entry["source_sha256"]:
+                raise SystemExit("Dependency batch source hash mismatch: " + entry["source"])
+            target = (ROOT/entry["target"]).resolve()
+            if not target.is_relative_to((ROOT/"src/main/java/cn/dancingsnow/neoecoae").resolve()) or not target.is_file():
+                raise SystemExit("Dependency batch target outside the compiled project namespace: " + entry["target"])
+            if not entry.get("license"):
+                raise SystemExit("Dependency batch has no license evidence: " + entry["source"])
+            entry["repository"] = str(repository)
+            entry["target_sha256"] = hashlib.sha256(target.read_bytes()).hexdigest()
+            entry["batch_manifest"] = batch_path.relative_to(ROOT).as_posix()
+            entries.append(entry)
     manifest.write_text(json.dumps(entries, indent=2) + "\n", encoding="utf8")
     license_state_path = ROOT / "porting/dependency-licenses.json"
     previous_licenses = json.loads(license_state_path.read_text(encoding="utf8")) if license_state_path.exists() else []

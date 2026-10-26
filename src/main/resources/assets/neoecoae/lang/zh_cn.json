@@ -1128,6 +1128,7 @@
   "gui.neoecoae.workstation.fe_value": "网络 FE 消耗：%s FE/t；待结算：%s FE",
   "gui.neoecoae.workstation.fe_requirement": "网络 FE 供能需要 Applied Flux；FE 不足或未安装时，可用等价 AE 代偿。",
   "gui.neoecoae.workstation.task_duration": "加工时间：%s / %s tick",
+  "tile.neoecoae.platform_blue_ice.name": "蓝冰",
   "gui.neoecoae.storage_priority.insertion_hint": "优先向优先级较高的存储写入。",
   "gui.neoecoae.storage_priority.extraction_hint": "优先从优先级较低的存储提取。"
 }

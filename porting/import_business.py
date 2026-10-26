@@ -14,6 +14,7 @@ from storage_adapters import adapt_storage
 from execution_adapters import adapt_execution, preserve_empty_stack_lists
 from import_scope import source_exclusion, resource_exclusion, adapt_resource, adapt_core_business, SHARED_CORE_ASSETS
 from pathlib import Path
+from batch_imports import merge_batch_imports, reviewed_batch_imports, reviewed_platform_adaptations
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT.parent / "NeoECOAEExtension-1.21.1"
@@ -473,8 +474,13 @@ def main():
                 TESTS.append(path[len(test_prefix):])
     selected = ["src/main/java/" + PACKAGE + p for p in BUSINESS]
     selected += ["src/test/java/" + PACKAGE + p for p in TESTS]
-    with tarfile.open(fileobj=io.BytesIO(git("archive", COMMIT, "src"))) as archive:
+    # A Git archive otherwise applies Windows autocrlf and changes source evidence hashes.
+    with tarfile.open(fileobj=io.BytesIO(git("-c", "core.autocrlf=false", "archive", COMMIT, "src"))) as archive:
         blobs = {member.name: archive.extractfile(member).read() for member in archive if member.isfile()}
+    batch_imports = reviewed_batch_imports(ROOT, COMMIT, blobs)
+    batch_reapply = set(args.reapply_path) & set(batch_imports)
+    if batch_reapply or (args.reapply_adapters and batch_imports):
+        raise SystemExit("Batch adaptations must be reviewed in their dedicated adapter, not regenerated: " + repr(sorted(batch_reapply or batch_imports)))
     selected = [path for path in selected if not source_exclusion(path)]
     excluded = [dict(source=path, source_sha256=digest(blobs[path]), reason=source_exclusion(path))
                 for path in all_paths if path.startswith(("src/main/java/", "src/test/java/")) and source_exclusion(path)]
@@ -532,7 +538,7 @@ def main():
         original = blobs[source_path]
         resource_data = adapt_resource(source_path, original)
         target = ROOT / target_path
-        if not args.refresh_manifest or (args.import_missing and not target.exists()) or args.apply_core_scope:
+        if not args.refresh_manifest or (args.import_missing and not target.exists()) or args.apply_core_scope or target_path in args.reapply_path:
             write_import(target_path,resource_data)
         entries.append(dict(source=source_path, target=target_path, source_sha256=digest(original), target_sha256=digest(target.read_bytes()), kind="resource"))
         aliases=[]
@@ -543,24 +549,35 @@ def main():
             aliases.append((target_path.replace("/textures/block/","/textures/blocks/"),original))
         if "/lang/" in target_path and target_path.endswith(".json"):
             language=Path(target_path).stem
-            if "_" in language:
-                region=language.split("_",1)
-                lang_path=str(Path(target_path).with_name(region[0]+"_"+region[1].upper()+".lang")).replace("\\","/")
-                strings=json.loads(resource_data)
-                lines=[]
-                for key,value in sorted(strings.items()):
-                    value=value.replace("\r", "").replace("\n","\\n")
-                    lines.append(key+"="+value)
-                    if key.startswith(("item.","block.")):lines.append(key+".name="+value)
-                aliases.append((lang_path,("\n".join(lines)+"\n").encode("utf8")))
+            region=language.split("_",1)
+            native_language=region[0]+"_"+region[1].upper() if len(region)==2 else language
+            lang_path=str(Path(target_path).with_name(native_language+".lang")).replace("\\","/")
+            strings=json.loads(resource_data)
+            lines=[]
+            for key,value in sorted(strings.items()):
+                value=value.replace("\r", "").replace("\n","\\n")
+                lines.append(key+"="+value)
+                if key.startswith(("item.","block.")):lines.append(key+".name="+value)
+            aliases.append((lang_path,("\n".join(lines)+"\n").encode("utf8")))
         for alias_path,alias_data in aliases:
             alias=ROOT/alias_path
-            if not args.refresh_manifest or (args.import_missing and not alias.exists()) or args.apply_core_scope:
+            if not args.refresh_manifest or (args.import_missing and not alias.exists()) or args.apply_core_scope or alias_path in args.reapply_path:
                 write_import(alias_path,alias_data)
             if not alias.exists():raise SystemExit("Missing resource alias: "+alias_path)
             entries.append(dict(source=source_path,target=alias_path,source_sha256=digest(original),target_sha256=digest(alias.read_bytes()),kind="platform_resource_alias"))
     partial_paths={"src/main/java/"+PACKAGE+p for p in PARTIAL_IMPORTS if not p.startswith("test:")}
     partial_tests={"src/test/java/"+PACKAGE+p.removeprefix("test:") for p in PARTIAL_IMPORTS if p.startswith("test:")}
+    entries = merge_batch_imports(entries, batch_imports)
+    for entry in batch_imports.values():
+        if entry.get("complete") is True:
+            partial_paths.discard(entry["source"])
+            partial_tests.discard(entry["source"])
+        elif entry.get("partial_source_scope") is not None or entry.get("complete") is False or entry["source"] != entry["target"]:
+            if entry["kind"] == "test":
+                partial_tests.add(entry["source"])
+            else:
+                partial_paths.add(entry["source"])
+    selected = set(selected) | {entry["source"] for entry in batch_imports.values()}
     pruned = list(previous.get("removed_excluded_imports", []))
     retained = {entry["target"] for entry in entries}
     for entry in previous.get("imported", []):
@@ -576,8 +593,10 @@ def main():
         pruned.append(entry)
     lock = dict(previous, schema_version=1, observed_date="2026-10-25", primary_source=dict(repository=str(SOURCE), commit=COMMIT, selected_patches=[], working_tree_status=git("status", "--porcelain").decode("utf-8"), unselected_patch_sha256=digest(git("diff", "--binary", "HEAD"))), reference_port=dict(previous.get("reference_port", {}), repository=str(ROOT.parent / "NeoECOAEExtension-1.20.1"), commit="36dada343abff7533f63cce0d5729950342488f5", purpose="Read-only platform organization reference; no reference business copied"), repositories=previous.get("repositories", []), imported=entries, excluded_sources=excluded, removed_excluded_imports=pruned, pending_business=[p for p in all_paths if p.startswith("src/main/java/") and not source_exclusion(p) and (p not in selected or p in partial_paths)])
     lock["pending_test_members"] = sorted(partial_tests)
+    lock["platform_adaptations"] = reviewed_platform_adaptations(ROOT, COMMIT, blobs)
+    lock["source_byte_policy"] = "Canonical Git object bytes; archive explicitly disables core.autocrlf. Batch snapshots remain historical; target hashes describe current reviewed files."
     lock_path.write_text(json.dumps(lock, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(dict(business=sum(e["kind"]=="business" for e in entries), tests=len(TESTS), resources=len(targets), pending_business=len(lock["pending_business"]))))
+    print(json.dumps(dict(business=sum(e["kind"]=="business" for e in entries), tests=sum(e["kind"]=="test" for e in entries), resources=len(targets), pending_business=len(lock["pending_business"]))))
 
 
 if __name__ == "__main__":

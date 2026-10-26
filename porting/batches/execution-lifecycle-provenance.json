@@ -1,0 +1,22 @@
+{
+  "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
+  "title": "规划器服务器生命周期适配",
+  "imports": [
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/crafting/planner/ECOPlanningExecutor.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/crafting/planner/ECOPlanningExecutor.java",
+      "source_sha256": "7af57594d5d1eb33bcb19d4e808b624cbe55c287cdef3cfe8df8322d9572fd20",
+      "target_sha256": "4a63cf4e8a27bc88b45d93ad48c59e98b76747d1d642a1a00f003902c0beca8c",
+      "kind": "business",
+      "adaptation": "Keep source planning and cache algorithms; add explicit platform-owned server lifecycle cancellation and cache invalidation."
+    },
+    {
+      "source": "src/main/java/cn/dancingsnow/neoecoae/crafting/planner/compile/CompiledStructureCache.java",
+      "target": "src/main/java/cn/dancingsnow/neoecoae/crafting/planner/compile/CompiledStructureCache.java",
+      "source_sha256": "630535231264d9ac0fee6b9a6dac240b0e54dc7264a5a1e6f97b06b86b2e4217",
+      "target_sha256": "6075469e79462220c300de4e11528e831f70688376598ac2b691704a842aae49",
+      "kind": "business",
+      "adaptation": "Keep source planning and cache algorithms; add explicit platform-owned server lifecycle cancellation and cache invalidation."
+    }
+  ]
+}

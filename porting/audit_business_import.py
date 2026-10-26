@@ -41,6 +41,13 @@ def main():
         elif entry["kind"] == "resource":
             assert resource_exclusion(entry["target"], (ROOT/entry["target"]).read_bytes()) is None, entry["target"]
     assert all(source_exclusion(path) is None for path in lock["pending_business"])
+    for entry in lock.get("platform_adaptations", []):
+        assert sha((ROOT/entry["target"]).read_bytes()) == entry["target_sha256"], entry["target"]
+        assert entry["source_commit"] == lock["primary_source"]["commit"], entry["target"]
+        for source_input in entry["inputs"]:
+            original = subprocess.check_output(["git", "-C", lock["primary_source"]["repository"], "show",
+                                               entry["source_commit"] + ":" + source_input["source"]])
+            assert sha(original) == source_input["source_sha256"], source_input["source"]
     foundation=json.loads((ROOT/"porting/foundation-state.json").read_text(encoding="utf8"))
     for model in foundation["models"]:
         assert sha((ROOT/model["path"]).read_bytes())==model["sha256"],model["path"]
@@ -130,6 +137,9 @@ def main():
                 for entry in business:
                     primary=entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class"
                     if not primary.endswith("/package-info.class"):assert primary in names,primary
+                for entry in lock.get("platform_adaptations", []):
+                    primary=entry["target"].removeprefix("src/main/java/").removesuffix(".java")+".class"
+                    assert primary in names,primary
                 for entry in resources:
                     resource=entry["target"].removeprefix("src/main/resources/")
                     assert resource in names and sha(jar.read(resource))==entry["target_sha256"],resource

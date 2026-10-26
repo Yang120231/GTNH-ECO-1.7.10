@@ -1,7 +1,9 @@
 """User-approved core-only import boundary, shared by import and package audit."""
 import json
 import re
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
+
+PLATFORM_TRANSLATIONS = json.loads(Path(__file__).with_name("platform-translations.json").read_text(encoding="utf8"))
 
 PACKAGE = "cn/dancingsnow/neoecoae/"
 OPTIONAL_CELL = re.compile(
@@ -87,6 +89,7 @@ def adapt_resource(path, data):
         document = {key: value for key, value in document.items()
                     if not optional_identity(key) and ".integration." not in key
                     and not any(part in key for part in [".advanced_ae.", ".extendedae.", ".aelt."])}
+        document.update(PLATFORM_TRANSLATIONS.get(PurePosixPath(relative).stem.lower(), {}))
     elif "/tags/" in relative and isinstance(document, dict):
         document = dict(document)
         document["values"] = [value for value in document.get("values", [])

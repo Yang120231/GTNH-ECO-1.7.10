@@ -7,6 +7,19 @@
     "rules": "import_scope.py",
     "retain_core_fallback_recipes": true
   },
+  "native_gregtech": {
+    "enabled": true,
+    "source": "User instruction on 2026-10-26 local time: 开4个subagent，分别完成以上内容，每次完成了就在项目内分批提交。The preceding four directions explicitly include GT integration.",
+    "scope": "Implement native GT5 item/fluid boundaries and GregTech integration recipes by comparison with the 1.20.1 mainline. This does not re-enable other optional-mod cells, assets, recipes, compatibility code or mixins.",
+    "recipe_reference": "NeoECOAEExtension-1.20.1 origin/1.20.1; user clarification on 2026-10-26: GT我是要你对照着1.20.1来做GT联动配方的",
+    "runtime_profile": "gtRuntime"
+  },
+  "current_acceptance": {
+    "source": "User clarification on 2026-10-26: 都不需要真实鼠标验收。只要代码编译没问题就行。",
+    "required": "Compilation of the completed implementation; retain existing automated checks where useful.",
+    "manual_mouse_acceptance_required": false,
+    "gameplay_acceptance_save_required": false
+  },
   "large_integrated_workstation": {
     "register_upgrade_cards": false,
     "require_upgrade_cards": false,

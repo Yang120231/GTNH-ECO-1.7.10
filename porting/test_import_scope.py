@@ -7,6 +7,14 @@ from import_scope import adapt_resource, optional_identity, resource_exclusion
 
 
 class EnergyCellImportTest(unittest.TestCase):
+    def test_native_ui_and_material_translations_survive_source_refresh(self):
+        for language, name in (("en_us", "Blue Ice"), ("zh_cn", "蓝冰")):
+            path = "src/main/resources/assets/neoecoae/lang/" + language + ".json"
+            adapted = json.loads(adapt_resource(path, b"{}"))
+            self.assertEqual(name, adapted["tile.neoecoae.platform_blue_ice.name"])
+            self.assertIn("gui.neoecoae.storage_priority.insertion_hint", adapted)
+            self.assertIn("gui.neoecoae.storage_priority.extraction_hint", adapted)
+
     def test_core_energy_resources_are_retained(self):
         for tier in (4, 6, 9):
             identity = f"energy_cell_l{tier}"
