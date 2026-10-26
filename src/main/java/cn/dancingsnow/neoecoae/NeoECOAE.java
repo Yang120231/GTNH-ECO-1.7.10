@@ -47,6 +47,7 @@ public class NeoECOAE {
     @Mod.EventHandler
     public void aboutToStart(cpw.mods.fml.common.event.FMLServerAboutToStartEvent event) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.started();
+        cn.dancingsnow.neoecoae.platform.forge.PlanningLifecycle.started();
     }
 
     @Mod.EventHandler
@@ -57,6 +58,7 @@ public class NeoECOAE {
 
     @Mod.EventHandler
     public void stopped(cpw.mods.fml.common.event.FMLServerStoppedEvent event) {
+        cn.dancingsnow.neoecoae.platform.forge.PlanningLifecycle.stopped();
         cn.dancingsnow.neoecoae.platform.forge.StorageLifecycle.stopped();
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.stopped();
     }
