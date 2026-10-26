@@ -53,17 +53,17 @@ public final class CraftingPlan implements ICraftingPlan, ECOCraftingPlanDiagnos
 
     @Override
     public KeyCounter usedItems() {
-        return used.copy();
+        return used;
     }
 
     @Override
     public KeyCounter emittedItems() {
-        return emitted.copy();
+        return emitted;
     }
 
     @Override
     public KeyCounter missingItems() {
-        return missing.copy();
+        return missing;
     }
 
     @Override

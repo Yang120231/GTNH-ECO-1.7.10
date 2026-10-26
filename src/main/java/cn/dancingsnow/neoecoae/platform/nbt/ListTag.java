@@ -7,6 +7,10 @@ import net.minecraft.nbt.NBTTagList;
 
 public final class ListTag extends Tag implements java.util.Collection<Tag> {
 
+    public String getString(int index) {
+        return nativeTag().getStringTagAt(index);
+    }
+
     private static final java.lang.reflect.Field ELEMENTS = cpw.mods.fml.relauncher.ReflectionHelper
         .findField(NBTTagList.class, "tagList", "field_74747_a");
 

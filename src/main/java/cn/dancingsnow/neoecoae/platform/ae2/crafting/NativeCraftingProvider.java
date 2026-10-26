@@ -60,10 +60,24 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return medium.getBlockingMode() != ICraftingMedium.BlockingMode.NONE;
     }
 
+    public boolean supportsScaledProcessing() {
+        return medium.getClass() == appeng.helpers.DualityInterface.class;
+    }
+
+    public boolean isScaledProcessingFullyInserted() {
+        return supportsScaledProcessing()
+            && NativeProcessingAccess.isSendBufferEmpty((appeng.helpers.DualityInterface) medium);
+    }
+
     @Override
     public boolean pushPattern(IPatternDetails pattern, KeyCounter[] inputHolder) {
-        if (!(pattern instanceof NativePatternDetails) || !patterns.contains(pattern)) return false;
-        var nativePattern = (NativePatternDetails) pattern;
+        IPatternDetails physical = pattern instanceof cn.dancingsnow.neoecoae.compat.ae2.ECOProcessingExecutionPattern
+            ? ((cn.dancingsnow.neoecoae.compat.ae2.ECOProcessingExecutionPattern) pattern).providerLookupPattern()
+            : pattern;
+        if (!(physical instanceof NativePatternDetails) || !patterns.contains(physical)) return false;
+        if (physical != pattern && (!supportsScaledProcessing() || !(physical instanceof AEProcessingPattern)))
+            return false;
+        var nativePattern = (NativePatternDetails) physical;
         if (inputHolder.length != pattern.getInputs().length)
             throw new IllegalArgumentException("Source input dimensions differ from native pattern");
         MEInventoryCrafting table;
