@@ -254,7 +254,8 @@ public final class NativeCpuPages {
             for (int field = 0; field < fields.length; field++) {
                 String value = entry.getString(fields[field]);
                 if (number(value).signum() <= 0) continue;
-                Component line = Component.translatable("gui.appliedenergistics2." + labels[field], amount(value, key));
+                Component line = Component.translatable("gui.appliedenergistics2." + labels[field])
+                    .append(": ").append(amount(value, key));
                 int textWidth = net.minecraft.client.Minecraft.getMinecraft().fontRenderer.getStringWidth(line.getString());
                 NativeUiDraw.text(line, 46 - textWidth * .5f, top + row++ * 5.5f, 46, .5f, 0x413f54, false, false);
             }

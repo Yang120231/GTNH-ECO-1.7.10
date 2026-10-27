@@ -10,7 +10,6 @@ import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
-import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
@@ -55,7 +54,7 @@ public final class NativeComputationInterfacePages {
         return panel;
     }
 
-    private static final class Filter extends ButtonWidget<Filter> implements RecipeViewerGhostIngredientSlot<ItemStack> {
+    private static final class Filter extends cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<Filter> implements RecipeViewerGhostIngredientSlot<ItemStack> {
         private final NativeFuzzyPlanningSession session;
         private final int index;
 
@@ -91,7 +90,6 @@ public final class NativeComputationInterfacePages {
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
             NativeUiDraw.item(session.sample(index), 1, 1, context.getCurrentDrawingZ());
-            if (isHovering()) com.cleanroommc.modularui.drawable.GuiDraw.drawRect(1, 1, 16, 16, 0x80ffffff);
         }
     }
 }

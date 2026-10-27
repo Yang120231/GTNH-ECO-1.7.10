@@ -55,6 +55,59 @@ class NativeComputationSessionTest {
     }
 
     @Test
+    void standaloneStatusCountsTheCurrentHostAndKeepsEveryBlocker() {
+        var cluster = mock(NEComputationCluster.class);
+        when(cluster.getEndgameBlockers()).thenReturn(Arrays.asList("host_count", "tier", "max_length", "drives"));
+        var state = new NativeComputationSession(host(cluster)).capture();
+        assertFalse(state.getBoolean("endgameActive"));
+        assertEquals(1, state.getInt("networkHosts"));
+        var blockers = state.getList("endgameBlockers", 8);
+        assertEquals(4, blockers.size());
+        assertEquals("host_count", blockers.getString(0));
+        assertEquals("tier", blockers.getString(1));
+        assertEquals("max_length", blockers.getString(2));
+        assertEquals("drives", blockers.getString(3));
+    }
+
+    @Test
+    void infiniteStatusTracksNetworkConditionsInsteadOfDisplayedCapacity() {
+        var cluster = mock(NEComputationCluster.class);
+        when(cluster.getNetworkMemberCount()).thenReturn(8);
+        when(cluster.getPooledTotalStorage()).thenReturn(Long.MAX_VALUE);
+        when(cluster.getPooledParallelism()).thenReturn(Integer.MAX_VALUE);
+        when(cluster.getEndgameBlockers()).thenReturn(Collections.singletonList("drives"));
+        var session = new NativeComputationSession(host(cluster));
+        var blocked = session.capture();
+        assertFalse(blocked.getBoolean("endgameActive"));
+        assertEquals(8, blocked.getInt("networkHosts"));
+        assertEquals("drives", blocked.getList("endgameBlockers", 8).getString(0));
+        when(cluster.getEndgameBlockers()).thenReturn(Collections.emptyList());
+        var active = session.capture();
+        assertTrue(active.getBoolean("endgameActive"));
+        assertTrue(active.getList("endgameBlockers", 8).isEmpty());
+        when(cluster.getEndgameBlockers()).thenReturn(Collections.singletonList("high_energy_switch"));
+        var changed = session.capture();
+        assertFalse(changed.getBoolean("endgameActive"));
+        assertEquals("high_energy_switch", changed.getList("endgameBlockers", 8).getString(0));
+    }
+
+    @Test
+    void removingTheClusterClearsInfiniteStatusAndRestoresStandaloneCount() {
+        var cluster = mock(NEComputationCluster.class);
+        when(cluster.getNetworkMemberCount()).thenReturn(8);
+        when(cluster.getEndgameBlockers()).thenReturn(Collections.emptyList());
+        var controller = host(cluster);
+        var session = new NativeComputationSession(controller);
+        assertTrue(session.capture().getBoolean("endgameActive"));
+        when(controller.getCluster()).thenReturn(null);
+        var removed = session.capture();
+        assertFalse(removed.getBoolean("endgameActive"));
+        assertEquals(1, removed.getInt("networkHosts"));
+        assertEquals(1, removed.getList("endgameBlockers", 8).size());
+        assertEquals("host_count", removed.getList("endgameBlockers", 8).getString(0));
+    }
+
+    @Test
     void reorderingTaskListCannotRedirectPauseOrCancellation() {
         NEComputationCluster cluster = mock(NEComputationCluster.class);
         ECOCraftingCPU first = cpu(), second = cpu();

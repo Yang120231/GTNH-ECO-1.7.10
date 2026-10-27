@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui.computation;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -15,6 +16,7 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
+import cn.dancingsnow.neoecoae.platform.nbt.StringTag;
 import cn.dancingsnow.neoecoae.platform.ui.NativeSnapshotSession;
 
 /** Bounded task pages and exact order quantities, with stable session identities for destructive actions. */
@@ -53,8 +55,15 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         tag.putInt("frequency", host.getNetworkFrequency());
         tag.putBoolean("connected", host.getMainNode().isOnline());
         var cluster = host.getCluster();
+        boolean validCluster = cluster != null && !cluster.isDestroyed();
+        var endgameBlockers = validCluster ? cluster.getEndgameBlockers() : Collections.singletonList("host_count");
+        ListTag blockers = new ListTag();
+        for (String blocker : endgameBlockers) blockers.add(StringTag.valueOf(blocker));
+        tag.put("endgameBlockers", blockers);
+        tag.putBoolean("endgameActive", endgameBlockers.isEmpty());
+        tag.putInt("networkHosts", validCluster ? Math.max(1, cluster.getNetworkMemberCount()) : 1);
         ListTag cpus = new ListTag(), drives = new ListTag();
-        if (cluster != null && !cluster.isDestroyed()) {
+        if (validCluster) {
             tag.putLong("bytes", cluster.getPooledTotalStorage());
             tag.putLong("freeBytes", cluster.getAvailableStorage());
             tag.putInt("threads", cluster.getMaxThreads());

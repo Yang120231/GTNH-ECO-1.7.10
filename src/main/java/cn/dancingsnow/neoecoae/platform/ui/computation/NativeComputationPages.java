@@ -4,10 +4,10 @@ import net.minecraft.entity.player.EntityPlayer;
 
 import com.cleanroommc.modularui.api.IPanelHandler;
 import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
-import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
@@ -58,7 +58,7 @@ public final class NativeComputationPages {
                 case "computation_toolbar":
                     return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(176, 0,
-                            () -> Component.translatable("gui.tooltips.appliedenergistics2.OpenGuide"), guide::openPanel),
+                            () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             () -> com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"),
                             () -> Component.translatable("gui.neoecoae.multiblock.builder"), builder::openPanel),
@@ -71,10 +71,30 @@ public final class NativeComputationPages {
                                 "neoecoae:textures/gui/widget/cpu_selector" + (view.list ? "" : "_closed") + ".png"),
                             () -> text("tasks"), () -> { view.list = !view.list; view.resize(); }).name("computation-cpu-list-toggle"));
                 case "computation_info":
-                    return new com.cleanroommc.modularui.widget.Widget<>().pos(251, 0).size(23, 30)
+                    return new com.cleanroommc.modularui.widget.ParentWidget<>().pos(251, 0).size(23, 30)
                         .background(com.cleanroommc.modularui.drawable.UITexture.fullImage(
                             "neoecoae:textures/gui/common/side_bar/mirrored_button_slot_up.png"))
-                        .overlay(com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/information.png"))
+                        .child(new com.cleanroommc.modularui.widget.Widget<>().name("computation-info-icon")
+                            .pos(0, 3).size(21, 21)
+                            .background(com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/information.png"))
+                            .hoverBackground(com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/information_highlight.png"))
+                            .tooltip(tooltip -> tooltip.setAutoUpdate(true))
+                            .tooltipDynamic(lines -> {
+                                CompoundTag state = session.state();
+                                if (state.getBoolean("endgameActive")) {
+                                    lines.add(IKey.lang("gui.neoecoae.computation.endgame.active").color(0xFF55FF8A));
+                                    return;
+                                }
+                                lines.add(IKey.lang("gui.neoecoae.computation.endgame.title").color(0xFFD8B4FE)).newLine();
+                                var blockers = state.getList("endgameBlockers", 8);
+                                for (int i = 0; i < blockers.size(); i++) {
+                                    String key = blockers.getString(i);
+                                    IKey reason = "host_count".equals(key)
+                                        ? IKey.lang("gui.neoecoae.computation.endgame.reason.host_count", Math.max(1, state.getInt("networkHosts")), 8)
+                                        : IKey.lang("gui.neoecoae.computation.endgame.reason." + key);
+                                    lines.add(reason.color(0xFFFF5555)).newLine();
+                                }
+                            }))
                         .setEnabledIf(widget -> !view.list);
                 case "computation_cpu_selector":
                     return NativeCpuPages.selector(session, token -> { view.status = true; session.action(13, 9); view.resize(); })
@@ -104,7 +124,8 @@ public final class NativeComputationPages {
         var grid = new com.cleanroommc.modularui.widget.ParentWidget<>().size(196, 52).background(IDrawable.EMPTY);
         for (int index = 0; index < 22; index++) {
             final int cell = index;
-            grid.child(new ButtonWidget<>().background(IDrawable.EMPTY).hoverBackground(IDrawable.EMPTY)
+            grid.child(new cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<>().slotInset(0)
+                .highlightWhen(() -> session.drive(cell).getInt("token") != 0)
                 .onMousePressed(button -> {
                     if ((button != 0 && button != 1) || session.drive(cell).getInt("token") == 0) return false;
                     session.action(Interactable.hasShiftDown() ? 11 : 10, session.drive(cell).getInt("token"));
