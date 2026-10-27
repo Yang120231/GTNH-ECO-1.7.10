@@ -980,3 +980,6 @@ tooltip.neoecoae.storage_dirve.1=ɹǝןןoɹʇuoɔ ʇsoɥ ɯǝʇsʎsqns ǝbɐɹo
 tooltip.neoecoae.storage_system=ɯǝʇsʎsqns ǝbɐɹoʇs ǝɥʇ ɟo ǝɹoɔ ǝɥ⟘
 upgrade.neoecoae.aluminum_alloy_upgrade=ǝpɐɹbd∩ ʎoןןⱯ ɯnuıɯnןⱯ
 upgrade.neoecoae.black_tungsten_alloy_upgrade=ǝpɐɹbd∩ ʎoןןⱯ uǝʇsbun⟘ ʞɔɐןᗺ
+gui.neoecoae.host.network_frequency.title=ʎɔuǝnbǝɹℲ ʞɹoʍʇǝN ǝןɔʎƆ
+gui.neoecoae.host.network_frequency.current=ʇuǝɹɹnƆ
+gui.neoecoae.host.network_frequency.unassigned=pǝubıssɐu∩

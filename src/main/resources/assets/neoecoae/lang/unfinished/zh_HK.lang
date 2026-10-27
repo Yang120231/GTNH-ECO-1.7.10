@@ -772,3 +772,6 @@ tooltip.neoecoae.storage_dirve.1=可驅動嘅儲存矩陣等級由儲存子系�
 tooltip.neoecoae.storage_system=儲存系統嘅核心
 upgrade.neoecoae.aluminum_alloy_upgrade=鋁合金升級
 upgrade.neoecoae.black_tungsten_alloy_upgrade=黑鎢合金升級
+gui.neoecoae.host.network_frequency.title=切換網絡頻道
+gui.neoecoae.host.network_frequency.current=目前頻道
+gui.neoecoae.host.network_frequency.unassigned=頻道未分配

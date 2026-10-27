@@ -945,5 +945,8 @@
   "gui.neoecoae.guide": "啟指南",
   "container.neoecoae": "ECO 物囊",
   "container.neoecoae.integrated_working_station": "集成工坊",
-  "tooltip.neoecoae.storage.empty_only": "惟空藏矩可拆"
+  "tooltip.neoecoae.storage.empty_only": "惟空藏矩可拆",
+  "gui.neoecoae.host.network_frequency.title": "易網頻",
+  "gui.neoecoae.host.network_frequency.current": "今頻",
+  "gui.neoecoae.host.network_frequency.unassigned": "頻未分"
 }

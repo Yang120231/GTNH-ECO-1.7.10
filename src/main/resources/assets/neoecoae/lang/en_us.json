@@ -1197,5 +1197,8 @@
   "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_PULSE": "Until pulse",
   "gui.neoecoae.workstation.provider.lock_mode.LOCK_WHILE_HIGH": "While high",
   "gui.neoecoae.workstation.provider.lock_mode.LOCK_WHILE_LOW": "While low",
-  "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_RESULT": "Until result"
+  "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_RESULT": "Until result",
+  "gui.neoecoae.host.network_frequency.title": "Cycle Network Frequency",
+  "gui.neoecoae.host.network_frequency.current": "Current frequency",
+  "gui.neoecoae.host.network_frequency.unassigned": "Frequency unassigned"
 }

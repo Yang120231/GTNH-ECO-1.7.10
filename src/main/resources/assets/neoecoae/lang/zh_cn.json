@@ -1199,5 +1199,8 @@
   "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_PULSE": "等待脉冲",
   "gui.neoecoae.workstation.provider.lock_mode.LOCK_WHILE_HIGH": "高电平锁定",
   "gui.neoecoae.workstation.provider.lock_mode.LOCK_WHILE_LOW": "低电平锁定",
-  "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_RESULT": "等待产物"
+  "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_RESULT": "等待产物",
+  "gui.neoecoae.host.network_frequency.title": "切换网络频道",
+  "gui.neoecoae.host.network_frequency.current": "当前频道",
+  "gui.neoecoae.host.network_frequency.unassigned": "频道未分配"
 }

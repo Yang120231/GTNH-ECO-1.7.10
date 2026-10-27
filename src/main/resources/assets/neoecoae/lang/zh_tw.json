@@ -985,5 +985,8 @@
   "gui.neoecoae.guide": "開啟指南",
   "container.neoecoae": "ECO 物品欄",
   "container.neoecoae.integrated_working_station": "整合工作站",
-  "tooltip.neoecoae.storage.empty_only": "只有空儲存矩陣才能拆解"
+  "tooltip.neoecoae.storage.empty_only": "只有空儲存矩陣才能拆解",
+  "gui.neoecoae.host.network_frequency.title": "切換網路頻道",
+  "gui.neoecoae.host.network_frequency.current": "目前頻道",
+  "gui.neoecoae.host.network_frequency.unassigned": "頻道未分配"
 }

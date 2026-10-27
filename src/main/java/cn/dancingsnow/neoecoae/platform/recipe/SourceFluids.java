@@ -15,12 +15,15 @@ public final class SourceFluids {
 
     public static void initialize() {
         if (FluidRegistry.getFluid("neoecoae:cryotheum_solution") == null) {
-            Fluid fluid = new Fluid("neoecoae:cryotheum_solution")
-                .setUnlocalizedName("fluid.neoecoae.cryotheum_solution");
+            Fluid fluid = createCryotheum();
             if (!FluidRegistry.registerFluid(fluid))
                 throw new IllegalStateException("Cannot register core cryotheum solution");
             cryotheum = fluid;
         }
+    }
+
+    static Fluid createCryotheum() {
+        return new Fluid("neoecoae:cryotheum_solution").setUnlocalizedName("neoecoae.cryotheum_solution");
     }
 
     public static Fluid ownCryotheum() {

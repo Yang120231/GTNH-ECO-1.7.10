@@ -839,5 +839,8 @@
   "gui.neoecoae.guide": "ǝpᴉn⅁ uǝdO",
   "container.neoecoae": "ʎɹoʇuǝʌuI OƆƎ",
   "container.neoecoae.integrated_working_station": "uoᴉʇɐʇS ƃuᴉʞɹoＭ pǝʇɐɹƃǝʇuI",
-  "tooltip.neoecoae.storage.empty_only": "pǝlqɯǝssɐsᴉp ǝq uɐɔ xᴉɹʇɐɯ ǝƃɐɹoʇs ʎʇdɯǝ uɐ ʎluO"
+  "tooltip.neoecoae.storage.empty_only": "pǝlqɯǝssɐsᴉp ǝq uɐɔ xᴉɹʇɐɯ ǝƃɐɹoʇs ʎʇdɯǝ uɐ ʎluO",
+  "gui.neoecoae.host.network_frequency.title": "ʎɔuǝnbǝɹℲ ʞɹoʍʇǝN ǝןɔʎƆ",
+  "gui.neoecoae.host.network_frequency.current": "ʇuǝɹɹnƆ",
+  "gui.neoecoae.host.network_frequency.unassigned": "pǝubıssɐu∩"
 }
