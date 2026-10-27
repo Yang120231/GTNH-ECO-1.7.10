@@ -8,7 +8,7 @@ final class GregTechFluidDisplay {
 
     private GregTechFluidDisplay() {}
 
-    static ItemStack create(FluidStack fluid) {
-        return gregtech.api.util.GTUtility.getFluidDisplayStack(fluid, true);
+    static ItemStack create(FluidStack fluid, boolean hideAmount) {
+        return gregtech.api.util.GTUtility.getFluidDisplayStack(fluid, true, hideAmount);
     }
 }

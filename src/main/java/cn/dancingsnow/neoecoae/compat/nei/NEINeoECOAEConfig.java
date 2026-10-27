@@ -48,7 +48,7 @@ public final class NEINeoECOAEConfig implements IConfigureNEI {
             new HandlerInfo.Builder(kind.id(), getName(), NeoECOAE.MODID)
                 .setDisplayStack(new ItemStack(WorkstationMachines.WORKSTATION))
                 .setWidth(166)
-                .setHeight(118)
+                .setHeight(kind.height())
                 .setShowOverlayButton(false)
                 .build());
     }
