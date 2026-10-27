@@ -48,8 +48,8 @@ public final class NativeContent {
     public static void register() {
         if (!ITEMS.isEmpty()) throw new IllegalStateException("ECO content registered twice");
         CoreItemCatalog.registerSimpleItems();
-        ECOCellType item = new ECOCellType(Component.translatable("gui.tooltips.appliedenergistics2.Items"), 315);
-        ECOCellType fluid = new ECOCellType(Component.translatable("gui.tooltips.appliedenergistics2.Fluids"), 25);
+        ECOCellType item = new ECOCellType(Component.translatable("gui.appliedenergistics2.Items"), 315);
+        ECOCellType fluid = new ECOCellType(Component.translatable("gui.appliedenergistics2.Fluids"), 25);
         ECOCellType bulk = new ECOCellType(
             Component.translatable("cell_type.neoecoae.bulk_item")
                 .withColor(0xe7a34b),

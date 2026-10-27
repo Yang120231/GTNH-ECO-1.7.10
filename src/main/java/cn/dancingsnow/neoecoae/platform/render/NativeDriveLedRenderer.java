@@ -29,8 +29,11 @@ public final class NativeDriveLedRenderer extends TileEntitySpecialRenderer {
             color = drive.getCellState()
                 .getStateColor();
         }
+        // The block's facing points toward its back; the cell LED is rendered on
+        // the opposite, player-facing side (matching AE2's CellLedRenderer).
         Direction facing = drive.getBlockState()
-            .getValue(NativeMachineBlock.FACING);
+            .getValue(NativeMachineBlock.FACING)
+            .getOpposite();
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_TEXTURE_BIT);
         GL11.glPushMatrix();
         GL11.glTranslated(x + 0.5, y, z + 0.5);

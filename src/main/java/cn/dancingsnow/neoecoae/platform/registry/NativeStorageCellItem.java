@@ -173,6 +173,16 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
     }
 
     @Override
+    @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
+    public int getColorFromItemStack(ItemStack stack, int pass) {
+        // The infinite resource cell has no tier-light layer, so its status light is layer 1.
+        int statusPass = this instanceof cn.dancingsnow.neoecoae.items.ECOInfiniteResourceCellItem ? 1 : 2;
+        if (pass != statusPass) return 0xffffff;
+        return createCellInventory(stack, null).getStatus()
+            .getStateColor();
+    }
+
+    @Override
     public ItemStack onItemRightClick(ItemStack stack, net.minecraft.world.World world,
         net.minecraft.entity.player.EntityPlayer player) {
         return disassemble(stack, world, player) ? null : stack;
@@ -199,7 +209,7 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
             .isEmpty()) {
             player.addChatMessage(
                 new net.minecraft.util.ChatComponentTranslation(
-                    "gui.appliedenergistics2.OnlyEmptyCellsCanBeDisassembled"));
+                    "tooltip.neoecoae.storage.empty_only"));
             return false;
         }
         IInventory upgrades = getUpgradesInventory(stack);

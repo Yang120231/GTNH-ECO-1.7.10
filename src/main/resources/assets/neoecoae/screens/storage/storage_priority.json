@@ -49,9 +49,9 @@
       "layout": { "position": "absolute", "left": 82, "top": 72, "width": 32, "height": 20 } },
     { "type": "custom", "custom": "priority_button", "step": -1000,
       "layout": { "position": "absolute", "left": 120, "top": 72, "width": 38, "height": 20 } },
-    { "type": "custom", "custom": "help", "key": "gui.ae2.PriorityInsertionHint",
+    { "type": "custom", "custom": "help", "key": "gui.neoecoae.storage_priority.insertion_hint",
       "layout": { "position": "absolute", "left": 8, "top": 98, "width": 160, "height": 12 } },
-    { "type": "custom", "custom": "help", "key": "gui.ae2.PriorityExtractionHint",
+    { "type": "custom", "custom": "help", "key": "gui.neoecoae.storage_priority.extraction_hint",
       "layout": { "position": "absolute", "left": 8, "top": 110, "width": 160, "height": 12 } }
   ]
 }

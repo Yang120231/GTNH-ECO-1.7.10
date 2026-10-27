@@ -193,7 +193,7 @@ public final class NativeStorageInterfacePages {
         }
     }
 
-    private final class FilterButton extends ButtonWidget<FilterButton>
+    private final class FilterButton extends cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<FilterButton>
         implements RecipeViewerGhostIngredientSlot<ItemStack> {
 
         private final int index;
@@ -255,7 +255,6 @@ public final class NativeStorageInterfacePages {
                 GuiDraw.drawFluidTexture(fluid.toStack(1), 1, 1, 16, 16, context.getCurrentDrawingZ());
             else NativePageLayout.texture(ATLAS, 240, 0, 16, 16)
                 .draw(1, 1, 16, 16);
-            if (isHovering()) net.minecraft.client.gui.Gui.drawRect(1, 1, 17, 17, 0x80ffffff);
         }
     }
 }

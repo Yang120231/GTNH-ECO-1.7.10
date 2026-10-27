@@ -25,7 +25,8 @@ import cn.dancingsnow.neoecoae.platform.registry.StorageTiers;
 /** ECO-only view of an AE2 creative cell; AE2 remains responsible for all storage operations. */
 public final class ECOCreativeCell implements IECOStorageCell {
 
-    private static final ECOCellType TYPE = new ECOCellType(Component.translatable("item.ae2.creative_cell"), 1, false);
+    private static final ECOCellType TYPE = new ECOCellType(
+        Component.translatable("item.appliedenergistics2.ItemCreativeStorageCell.name"), 1, false);
     private final StorageCell delegate;
     private final Set<AEKey> configured;
     private final int configSlots;

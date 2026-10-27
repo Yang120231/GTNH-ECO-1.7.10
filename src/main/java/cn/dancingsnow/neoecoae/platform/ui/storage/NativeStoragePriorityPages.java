@@ -87,9 +87,7 @@ public final class NativeStoragePriorityPages {
                     String key = node.get("key")
                         .getAsString();
                     widget = new NativeText(
-                        () -> Component.translatable(
-                            key.endsWith("PriorityInsertionHint") ? "gui.neoecoae.storage_priority.insertion_hint"
-                                : "gui.neoecoae.storage_priority.extraction_hint"),
+                        () -> Component.translatable(key),
                         6f / 9,
                         0x3f3d52);
                     break;

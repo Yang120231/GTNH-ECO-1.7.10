@@ -137,7 +137,7 @@ public final class NativeStoragePages {
         }
         panel.child(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(176, 0,
-                () -> Component.translatable("gui.tooltips.appliedenergistics2.OpenGuide"), guidePanel::openPanel),
+                () -> Component.translatable("gui.neoecoae.guide"), guidePanel::openPanel),
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                 () -> UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"),
                 () -> Component.translatable("gui.neoecoae.multiblock.builder"), builderPanel::openPanel),
@@ -163,7 +163,7 @@ public final class NativeStoragePages {
                 return allowed && super.canTakeStack(player);
             }
         };
-        return new ItemSlot().slot(slot)
+        return new cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot().slot(slot)
             .background((IDrawable) null);
     }
 
@@ -175,12 +175,14 @@ public final class NativeStoragePages {
         return grid;
     }
 
-    private final class CellButton extends ButtonWidget<CellButton> {
+    private final class CellButton extends cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<CellButton> {
 
         private final int index;
 
         CellButton(int index) {
             this.index = index;
+            slotInset(0);
+            highlightWhen(() -> cell().position() != null);
             onMousePressed(button -> (button == 0 || button == 1) && session.click(index, Interactable.hasShiftDown()));
             onMouseScrolled((direction, amount) -> {
                 session.scroll(direction.modifier > 0 ? -amount : amount);
@@ -218,8 +220,6 @@ public final class NativeStoragePages {
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
             if (!ItemStacks.isEmpty(cell().stack()))
                 cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(cell().stack(), 0, 0, context.getCurrentDrawingZ());
-            if (isHovering() && cell().position() != null)
-                net.minecraft.client.gui.Gui.drawRect(0, 0, 16, 16, 0x80ffffff);
         }
     }
 
