@@ -10,6 +10,7 @@ import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
+import appeng.api.networking.IGrid;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationNetworkCluster;
@@ -164,6 +165,7 @@ public final class NELogicalNetworkManager {
                 rebuildComputation(state);
             }
             computationCluster.setNetworkCluster(null);
+            computationCluster.notifyGridCpuChange();
         }
         if (state.crafting.isEmpty() && state.computation.isEmpty()) {
             LEVELS.remove(serverLevel);
@@ -260,6 +262,15 @@ public final class NELogicalNetworkManager {
         }
         state.computationNetworks.keySet()
             .retainAll(activeKeys);
+        // AE2 caches the published placeholder CPUs. Frequency changes do not replace a node,
+        // so explicitly republish after grouping is final to update leaders and pooled capacity.
+        Set<IGrid> notifiedGrids = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (NEComputationCluster cluster : state.computation) {
+            var grid = cluster.getController()
+                .getMainNode()
+                .getGrid();
+            if (grid != null && notifiedGrids.add(grid.nativeGrid())) cluster.notifyGridCpuChange();
+        }
     }
 
     private static void assignCraftingFrequencyIfNeeded(NECraftingCluster cluster, Set<NECraftingCluster> clusters) {

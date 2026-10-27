@@ -11,6 +11,7 @@ import net.minecraft.network.play.server.S35PacketUpdateTileEntity;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.events.MENetworkBootingStatusChange;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.api.networking.events.MENetworkPowerStatusChange;
@@ -183,6 +184,14 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
 
     public void onMainNodeStateChanged(NodeListener.State reason) {
         markForClientUpdate();
+    }
+
+    @MENetworkEventSubscribe
+    public void nativeBootingChanged(MENetworkBootingStatusChange event) {
+        // Repathing can leave channel counts unchanged. In that case AE2 sends no channel
+        // event, but isActive() still changes and logical exchange groups must be rebuilt.
+        getMainNode().stateChanged(NodeListener.State.GRID_BOOT);
+        refreshNativeStorage();
     }
 
     @MENetworkEventSubscribe
