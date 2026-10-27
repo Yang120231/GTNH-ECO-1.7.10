@@ -126,18 +126,39 @@ class LanguageResourcesTest {
                 var prefix = Pattern.compile("Component.translatable\\(\"([^\"]+)\" \\+ (?:key|suffix)")
                     .matcher(source);
                 if (prefix.find()) {
-                    var calls = Pattern.compile("(?<![.\\w])text\\(\\s*\"([^\"]+)\"")
+                    var calls = Pattern
+                        .compile(
+                            "(?<![.\\w])(?:text|tr|label|heading)\\(\\s*\"([^\"]+)\""
+                                + "|(?<![.\\w])(?:stat|coloredStat)\\(\\s*[^,]+,\\s*[^,]+,\\s*\"([^\"]+)\"")
                         .matcher(source);
                     while (calls.find()) {
-                        if (calls.group(1)
-                            .endsWith(".")) continue;
-                        String key = prefix.group(1) + calls.group(1);
+                        String suffix = calls.group(1) == null ? calls.group(2) : calls.group(1);
+                        if (suffix.endsWith(".")) continue;
+                        String key = prefix.group(1) + suffix;
                         if (!available.containsKey(key)) missing.add(path + ": " + key);
                     }
                 }
             }
         }
         assertEquals(Collections.emptyList(), missing);
+    }
+
+    @Test
+    void dynamicallyComposedControllerLabelsExist() throws Exception {
+        Set<String> keys = runtimeEnglish().keySet();
+        for (String label : Arrays
+            .asList("used", "capacity", "free", "busy", "total", "parallel", "multiplier", "threads"))
+            assertTrue(keys.contains("gui.neoecoae.computation.ui.stat." + label), label);
+        for (String mode : Arrays.asList("substitutions", "cycle_planning", "fast_planner")) {
+            assertTrue(keys.contains("gui.neoecoae.computation.ui.switch." + mode), mode);
+            assertTrue(keys.contains("gui.neoecoae.computation.settings." + mode), mode);
+        }
+        for (String kind : Arrays.asList("inputs", "output")) {
+            assertTrue(keys.contains("gui.neoecoae.crafting_interface.preview.search." + kind), kind);
+            assertTrue(keys.contains("gui.neoecoae.crafting_interface.preview.search." + kind + ".tooltip"), kind);
+        }
+        for (String label : Arrays.asList("FromStorage", "Crafting", "Scheduled"))
+            assertTrue(keys.contains("gui.appliedenergistics2." + label), label);
     }
 
     @Test

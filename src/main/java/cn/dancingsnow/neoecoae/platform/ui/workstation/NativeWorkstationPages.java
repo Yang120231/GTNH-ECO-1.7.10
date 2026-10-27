@@ -52,7 +52,9 @@ public final class NativeWorkstationPages {
             new NativeText(() -> Component.translatable("block.neoecoae.integrated_working_station"), 1, 0x403e53)
                 .pos(8, 6)
                 .size(160, 10));
-        NativeItemHandler input = new NativeItemHandler(host.getInputInv());
+        NativeItemHandler input = new NativeItemHandler(
+            host.getInputInv()
+                .toItemHandler());
         // The source panel already contains the slots; null would restore MUI2's default slot texture.
         for (int row = 0; row < 3; row++) for (int column = 0; column < 3; column++) panel.child(
             new NativeItemSlot().slot(new ModularSlot(input, row + column * 3))
@@ -60,7 +62,12 @@ public final class NativeWorkstationPages {
                 .hoverBackground(IDrawable.EMPTY)
                 .pos(35 + column * 18, 23 + row * 18));
         panel.child(
-            new NativeItemSlot().slot(new ModularSlot(new NativeItemHandler(host.getOutputInv()), 0).canPut(false))
+            new NativeItemSlot().slot(
+                new ModularSlot(
+                    new NativeItemHandler(
+                        host.getOutputInv()
+                            .toItemHandler()),
+                    0).canPut(false))
                 .background(IDrawable.EMPTY)
                 .hoverBackground(IDrawable.EMPTY)
                 .pos(122, 42));
@@ -121,8 +128,12 @@ public final class NativeWorkstationPages {
         panel.child(
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
                 false,
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
-                    .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+                    176,
+                    0,
+                    () -> Component.translatable("gui.neoecoae.guide"),
+                    () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                        .open("integrated_working_station", player, guide::openPanel)),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                     () -> NativePageLayout.texture(ATLAS, session.autoExport() ? 128 : 112, 96, 16, 16),
                     () -> Component.translatable("gui.neoecoae.workstation.auto_export"),

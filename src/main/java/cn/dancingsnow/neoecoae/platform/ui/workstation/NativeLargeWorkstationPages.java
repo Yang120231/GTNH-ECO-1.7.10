@@ -143,8 +143,12 @@ public final class NativeLargeWorkstationPages {
         panel.child(
             NativeHostSideBar.left(
                 false,
-                NativeHostSideBar
-                    .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel)));
+                NativeHostSideBar.button(
+                    176,
+                    0,
+                    () -> Component.translatable("gui.neoecoae.guide"),
+                    () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                        .open("large_integrated_working_station", player, guide::openPanel))));
         panel.child(
             new ParentWidget<>().pos(251, 0)
                 .size(23, 30)

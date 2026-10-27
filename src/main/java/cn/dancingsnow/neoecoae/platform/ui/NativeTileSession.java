@@ -2,12 +2,10 @@ package cn.dancingsnow.neoecoae.platform.ui;
 
 import net.minecraft.tileentity.TileEntity;
 
-import com.cleanroommc.modularui.value.sync.SyncHandler;
-
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 
 /** Common world/menu ownership check for source page actions queued onto the server tick. */
-public abstract class NativeTileSession extends SyncHandler {
+public abstract class NativeTileSession extends NativeActionSyncHandler {
 
     private final TileEntity tile;
     private final ServerTasks.Session serverSession = ServerTasks.captureSession();

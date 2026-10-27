@@ -46,8 +46,10 @@ public final class NativeStoragePages {
     private final com.cleanroommc.modularui.api.IPanelHandler guidePanel;
     private int typeOffset;
     private ModularPanel mainPanel;
+    private final EntityPlayer player;
 
     private NativeStoragePages(ECOStorageSystemBlockEntity host, EntityPlayer player, PanelSyncManager sync) {
+        this.player = player;
         config = host.storageUiConfig(player);
         session = new NativeStorageSession(host, config);
         charts = new StorageHostCharts(session::state);
@@ -141,8 +143,12 @@ public final class NativeStoragePages {
         panel.child(
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
                 false,
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
-                    .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guidePanel::openPanel),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+                    176,
+                    0,
+                    () -> Component.translatable("gui.neoecoae.guide"),
+                    () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                        .open("storage_system", player, guidePanel::openPanel)),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                     () -> UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"),
                     () -> Component.translatable("gui.neoecoae.multiblock.builder"),

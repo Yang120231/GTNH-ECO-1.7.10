@@ -5,8 +5,6 @@ import java.util.UUID;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
 
-import com.cleanroommc.modularui.value.sync.SyncHandler;
-
 import cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostUI;
 import cn.dancingsnow.neoecoae.gui.storage.StoragePanelState;
@@ -15,13 +13,14 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.network.RegistryFriendlyByteBuf;
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
+import cn.dancingsnow.neoecoae.platform.ui.NativeActionSyncHandler;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
  * Server-authored source snapshots and bounded physical-drive actions; display positions never become vanilla slots.
  */
-public final class NativeStorageSession extends SyncHandler {
+public final class NativeStorageSession extends NativeActionSyncHandler {
 
     public static final int PAGE_SIZE = 33;
     private final ECOStorageSystemBlockEntity host;

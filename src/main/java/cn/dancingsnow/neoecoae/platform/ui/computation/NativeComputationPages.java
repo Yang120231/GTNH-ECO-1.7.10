@@ -76,8 +76,12 @@ public final class NativeComputationPages {
                 case "computation_toolbar":
                     return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
                         false,
-                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
-                            .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
+                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+                            176,
+                            0,
+                            () -> Component.translatable("gui.neoecoae.guide"),
+                            () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                                .open("computation_system", player, guide::openPanel)),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             () -> com.cleanroommc.modularui.drawable.UITexture
                                 .fullImage("neoecoae:textures/gui/widget/multiblock.png"),
@@ -91,13 +95,12 @@ public final class NativeComputationPages {
                                 session.state()
                                     .getString("selectionMode")),
                             () -> session.action(3, 0)),
-                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                            16,
-                            240,
-                            () -> text(
-                                "frequency",
-                                session.state()
-                                    .getInt("frequency")),
+                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.networkFrequency(
+                            () -> session.state()
+                                .contains("frequency")
+                                    ? session.state()
+                                        .getInt("frequency")
+                                    : -1,
                             () -> session.action(9, 1)),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(

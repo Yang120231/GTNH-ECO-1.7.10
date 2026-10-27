@@ -12,16 +12,28 @@ import com.cleanroommc.modularui.widget.ScrollWidget;
 import com.cleanroommc.modularui.widget.scroll.VerticalScrollData;
 import com.cleanroommc.modularui.widgets.TextWidget;
 
-/** Bundled source guide text remains reachable on the legacy client without GuideME. */
+import cpw.mods.fml.common.Loader;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
+
+/** Open GuideNH when installed, retaining a bundled text fallback for standalone clients. */
 public final class NativeGuidePage {
 
     private NativeGuidePage() {}
 
+    @SideOnly(Side.CLIENT)
+    public static void open(String page, net.minecraft.entity.player.EntityPlayer player, Runnable fallback) {
+        if (Loader.isModLoaded("guidenh")) NativeGuideNh.open(page, player);
+        else fallback.run();
+    }
+
     public static ModularPanel create(String page, IPanelHandler handler) {
         ModularPanel panel = ModularPanel.defaultPanel("neoecoae_guide_" + page, 260, 220);
-        String language = net.minecraft.util.StatCollector.translateToLocal("gui.neoecoae.storage.ui.title");
-        String folder = language.codePoints()
-            .anyMatch(value -> value > 0x2e80) ? "_zh_cn/" : "";
+        String language = cpw.mods.fml.common.FMLCommonHandler.instance()
+            .getSide()
+            .isClient() ? clientLanguage() : "en_US";
+        String folder = language.toLowerCase(java.util.Locale.ROOT)
+            .startsWith("zh_") ? "_zh_cn/" : "";
         String path = "/assets/neoecoae/ae2guide/" + folder + "neoecoae_intro/" + page + ".md";
         var stream = NativeGuidePage.class.getResourceAsStream(path);
         if (stream == null) throw new IllegalArgumentException("Missing bundled guide " + path);
@@ -54,5 +66,10 @@ public final class NativeGuidePage {
                     return true;
                 }));
         return panel;
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static String clientLanguage() {
+        return net.minecraft.client.Minecraft.getMinecraft().gameSettings.language;
     }
 }

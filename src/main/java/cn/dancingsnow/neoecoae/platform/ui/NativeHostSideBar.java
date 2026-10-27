@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui;
 
 import java.util.List;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
@@ -87,25 +88,44 @@ public final class NativeHostSideBar {
     }
 
     public static ButtonWidget<?> button(Supplier<IDrawable> icon, Supplier<Component> tooltip, Runnable action) {
-        return new IconButton(icon, tooltip, action);
+        return new IconButton(icon, tooltip, action, null);
+    }
+
+    public static ButtonWidget<?> networkFrequency(IntSupplier frequency, Runnable action) {
+        return new IconButton(
+            () -> NativePageLayout.texture(ATLAS, 16, 240, 16, 16),
+            () -> Component.translatable("gui.neoecoae.host.network_frequency.title"),
+            action,
+            frequency);
+    }
+
+    static Component frequencyText(int frequency) {
+        return frequency < 1 ? Component.translatable("gui.neoecoae.host.network_frequency.unassigned")
+            : Component.translatable("gui.neoecoae.host.network_frequency.current")
+                .append(": " + frequency);
     }
 
     private static final class IconButton extends NativeButtonWidget<IconButton> {
 
         private final Supplier<IDrawable> icon;
+        private final IntSupplier frequency;
 
-        IconButton(Supplier<IDrawable> icon, Supplier<Component> tooltip, Runnable action) {
+        IconButton(Supplier<IDrawable> icon, Supplier<Component> tooltip, Runnable action, IntSupplier frequency) {
             this.icon = icon;
+            this.frequency = frequency;
             background(IDrawable.EMPTY);
             onMousePressed(button -> {
                 if (button != 0) return false;
                 action.run();
                 return true;
             });
-            tooltipDynamic(
-                lines -> lines.add(
+            tooltipDynamic(lines -> {
+                lines.add(
                     tooltip.get()
-                        .getString()));
+                        .getString());
+                if (frequency != null) lines.newLine()
+                    .add(frequencyText(frequency.getAsInt()).getString());
+            });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
 
@@ -121,6 +141,19 @@ public final class NativeHostSideBar {
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
             icon.get()
                 .draw(context, 0, isHovering() || isPressed() ? 2 : 1, 16, 16, theme.getTheme());
+            if (frequency != null) {
+                int value = frequency.getAsInt();
+                com.cleanroommc.modularui.drawable.GuiDraw.drawRect(9, 9, 8, 8, 0xff282436);
+                NativeUiDraw.text(
+                    Component.literal(value < 1 ? "-" : Integer.toString(value)),
+                    10,
+                    9,
+                    6,
+                    .75f,
+                    0xffffff,
+                    true,
+                    false);
+            }
         }
     }
 }

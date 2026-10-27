@@ -72,8 +72,12 @@ public final class NativeCraftingPages {
         panel.child(
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
                 true,
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
-                    .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+                    176,
+                    0,
+                    () -> Component.translatable("gui.neoecoae.guide"),
+                    () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                        .open("crafting_system", player, guide::openPanel)),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                     () -> com.cleanroommc.modularui.drawable.UITexture
                         .fullImage("neoecoae:textures/gui/widget/multiblock.png"),
@@ -84,13 +88,12 @@ public final class NativeCraftingPages {
                     80,
                     () -> Component.translatable("gui.neoecoae.computation.settings.substitutions"),
                     () -> session.action(5, 0)),
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                    16,
-                    240,
-                    () -> Component.translatable(
-                        "gui.neoecoae.host.network_frequency.cycle",
-                        session.state()
-                            .getInt("frequency")),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.networkFrequency(
+                    () -> session.state()
+                        .contains("frequency")
+                            ? session.state()
+                                .getInt("frequency")
+                            : -1,
                     () -> session.action(4, 1))));
         panel.child(
             new com.cleanroommc.modularui.widget.ParentWidget<>().pos(251, 0)
@@ -131,7 +134,9 @@ public final class NativeCraftingPages {
                 .size(164, rows * 18 + 2)
                 .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.inventoryBorder()));
         cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.inventoryFrames(panel, 4, 29 + rows * 18);
-        var handler = new cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler(host.getInternalInventory());
+        var handler = new cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler(
+            host.getInternalInventory()
+                .toItemHandler());
         for (int index = 0; index < host.getInternalInventory()
             .size(); index++)
             panel.child(

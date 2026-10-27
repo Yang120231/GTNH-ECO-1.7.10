@@ -19,6 +19,9 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+        if (Boolean.getBoolean("neoecoae.launchAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
+            .bus()
+            .register(new cn.dancingsnow.neoecoae.platform.ui.NativeLaunchAcceptance());
         if (Boolean.getBoolean("neoecoae.contentAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
             .register(new NativeContentAcceptance());
