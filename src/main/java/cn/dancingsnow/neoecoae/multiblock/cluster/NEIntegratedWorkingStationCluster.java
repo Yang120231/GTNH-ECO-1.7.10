@@ -1,14 +1,16 @@
 package cn.dancingsnow.neoecoae.multiblock.cluster;
 
-import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
+import net.minecraft.tileentity.TileEntity;
+
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInputHatchBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationOutputHatchBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
-import net.minecraft.tileentity.TileEntity;
 
 /** Cluster state for the fixed 3x2x2 large integrated working station. */
 public class NEIntegratedWorkingStationCluster extends NECluster<NEIntegratedWorkingStationCluster> {
+
     private ECOLargeIntegratedWorkingStationBlockEntity controller;
     private ECOLargeIntegratedWorkingStationInputHatchBlockEntity inputHatch;
     private ECOLargeIntegratedWorkingStationOutputHatchBlockEntity outputHatch;
@@ -75,7 +77,7 @@ public class NEIntegratedWorkingStationCluster extends NECluster<NEIntegratedWor
             inputHatch = value;
         } else if (blockEntity instanceof ECOLargeIntegratedWorkingStationOutputHatchBlockEntity value) {
             outputHatch = value;
-        } else if (blockEntity instanceof ECOMachineInterfaceBlockEntity<?> value) {
+        } else if (blockEntity instanceof ECOMachineInterfaceBlockEntity<?>value) {
             communication = value;
         }
     }

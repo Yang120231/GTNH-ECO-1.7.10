@@ -1,20 +1,31 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
-import appeng.api.networking.crafting.*;
+import appeng.api.networking.crafting.CraftingItemList;
+import appeng.api.networking.crafting.ICraftingJob;
+import appeng.api.networking.crafting.ICraftingLink;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.security.BaseActionSource;
-import appeng.api.storage.data.*;
+import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
+import appeng.api.storage.data.IItemList;
 import appeng.api.util.WorldCoord;
 import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
-import cn.dancingsnow.neoecoae.platform.ae2.key.*;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** AE2 CPU identity: only the imported ECO runtime owns execution and inventory. */
 public final class NativeECOCpu extends CraftingCPUCluster

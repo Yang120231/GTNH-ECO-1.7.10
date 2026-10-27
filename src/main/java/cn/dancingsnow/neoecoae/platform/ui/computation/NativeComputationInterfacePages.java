@@ -24,29 +24,44 @@ public final class NativeComputationInterfacePages {
 
     private NativeComputationInterfacePages() {}
 
-    public static ModularPanel create(ECOMachineInterfaceBlockEntity<?> host, EntityPlayer player, PanelSyncManager sync) {
+    public static ModularPanel create(ECOMachineInterfaceBlockEntity<?> host, EntityPlayer player,
+        PanelSyncManager sync) {
         var session = new NativeFuzzyPlanningSession(host);
         sync.syncValue("computation.filters", session);
         var layout = new NativePageLayout("computation_interface");
-        var panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel.create("neoecoae_computation_interface", layout.width(), layout.height())
+        var panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel
+            .create("neoecoae_computation_interface", layout.width(), layout.height())
             .background(NativePageLayout.texture("neoecoae:textures/guis/nbtbench.png", 0, 0, 176, 253));
         layout.children(panel, node -> {
-            switch (node.get("name").getAsString()) {
-                case "computation_interface_title": return new NativeText(
-                    () -> Component.translatable("block.neoecoae.computation_interface"), 1, 0x3f3d52);
-                case "computation_interface_hint": return new NativeText(
-                    () -> Component.translatable("gui.neoecoae.computation_interface.hint"), 1, 0x6d6a82);
+            switch (node.get("name")
+                .getAsString()) {
+                case "computation_interface_title":
+                    return new NativeText(
+                        () -> Component.translatable("block.neoecoae.computation_interface"),
+                        1,
+                        0x3f3d52);
+                case "computation_interface_hint":
+                    return new NativeText(
+                        () -> Component.translatable("gui.neoecoae.computation_interface.hint"),
+                        1,
+                        0x6d6a82);
                 case "computation_fuzzy_grid":
-                    var grid = new ParentWidget<>().size(162, 126).background(IDrawable.EMPTY);
-                    for (int index = 0; index < 63; index++) grid.child(new Filter(session, player, index).name("fuzzy-filter-" + index)
-                        .pos(index % 9 * 18, index / 9 * 18).size(18));
+                    var grid = new ParentWidget<>().size(162, 126)
+                        .background(IDrawable.EMPTY);
+                    for (int index = 0; index < 63; index++) grid.child(
+                        new Filter(session, player, index).name("fuzzy-filter-" + index)
+                            .pos(index % 9 * 18, index / 9 * 18)
+                            .size(18));
                     return grid;
-                default: throw new IllegalArgumentException("Unknown computation interface node " + node);
+                default:
+                    throw new IllegalArgumentException("Unknown computation interface node " + node);
             }
         });
         for (var child : panel.getChildren()) if ("computation-interface-player-inventory".equals(child.getName())) {
             for (var slot : child.getChildren()) {
-                int index = Integer.parseInt(slot.getName().substring("slot_".length()));
+                int index = Integer.parseInt(
+                    slot.getName()
+                        .substring("slot_".length()));
                 if (index >= 9) ((com.cleanroommc.modularui.widget.Widget<?>) slot)
                     .pos((index - 9) % 9 * 18, (index - 9) / 9 * 18 + 1);
             }
@@ -54,7 +69,9 @@ public final class NativeComputationInterfacePages {
         return panel;
     }
 
-    private static final class Filter extends cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<Filter> implements RecipeViewerGhostIngredientSlot<ItemStack> {
+    private static final class Filter extends cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<Filter>
+        implements RecipeViewerGhostIngredientSlot<ItemStack> {
+
         private final NativeFuzzyPlanningSession session;
         private final int index;
 
@@ -73,7 +90,9 @@ public final class NativeComputationInterfacePages {
             tooltipDynamic(lines -> {
                 var sample = session.sample(index);
                 if (!ItemStacks.isEmpty(sample)) lines.addFromItem(sample);
-                lines.add(Component.translatable("gui.neoecoae.computation_interface.hint").getString());
+                lines.add(
+                    Component.translatable("gui.neoecoae.computation_interface.hint")
+                        .getString());
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }

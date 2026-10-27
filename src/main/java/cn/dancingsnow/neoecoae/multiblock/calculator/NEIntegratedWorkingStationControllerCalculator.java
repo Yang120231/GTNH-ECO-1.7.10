@@ -1,18 +1,17 @@
 package cn.dancingsnow.neoecoae.multiblock.calculator;
 
-import cn.dancingsnow.neoecoae.platform.registry.StorageMachines;
-import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
+import net.minecraft.block.Block;
+import net.minecraft.tileentity.TileEntity;
+
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationBlockEntity;
-import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEIntegratedWorkingStationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
-import net.minecraft.block.Block;
-import net.minecraft.tileentity.TileEntity;
-import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
 
 /** MBCalculator target for the powered large workstation controller. */
 public class NEIntegratedWorkingStationControllerCalculator
@@ -44,41 +43,73 @@ public class NEIntegratedWorkingStationControllerCalculator
         Direction back = front.getOpposite();
         Direction left = front.getCounterClockWise();
         Direction right = left.getOpposite();
-        if (!is(level, controller.relative(left), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
-            || !is(level, controller.relative(right), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)) return false;
-        BlockPos expectedMin = controller.below().relative(left);
-        BlockPos expectedMax = controller.relative(right).relative(back);
+        if (!is(
+            level,
+            controller.relative(left),
+            cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
+            || !is(
+                level,
+                controller.relative(right),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING))
+            return false;
+        BlockPos expectedMin = controller.below()
+            .relative(left);
+        BlockPos expectedMax = controller.relative(right)
+            .relative(back);
         if (Math.min(expectedMin.getX(), expectedMax.getX()) != min.getX()
             || Math.max(expectedMin.getX(), expectedMax.getX()) != max.getX()
             || Math.min(expectedMin.getZ(), expectedMax.getZ()) != min.getZ()
             || Math.max(expectedMin.getZ(), expectedMax.getZ()) != max.getZ()) return false;
         BlockPos lowerCenter = controller.below();
-        if (!is(level, lowerCenter, cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
-            || !is(level, lowerCenter.relative(left), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
-            || !is(level, lowerCenter.relative(right), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)) {
+        if (!is(
+            level,
+            lowerCenter,
+            cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
+            || !is(
+                level,
+                lowerCenter.relative(left),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
+            || !is(
+                level,
+                lowerCenter.relative(right),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)) {
             return false;
         }
 
         BlockPos functionalCenter = lowerCenter.relative(back);
-        if (!is(level, functionalCenter, cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_INTERFACE)
-            || !is(level, functionalCenter.relative(left), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_OUTPUT_HATCH)
-            || !is(level, functionalCenter.relative(right), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_INPUT_HATCH)) {
+        if (!is(
+            level,
+            functionalCenter,
+            cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_INTERFACE)
+            || !is(
+                level,
+                functionalCenter.relative(left),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_OUTPUT_HATCH)
+            || !is(
+                level,
+                functionalCenter.relative(right),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_INPUT_HATCH)) {
             return false;
         }
 
         BlockPos upperFunctionalCenter = controller.relative(back);
-        return is(level, upperFunctionalCenter, cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
-            && is(level, upperFunctionalCenter.relative(left), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
-            && is(level, upperFunctionalCenter.relative(right), cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING);
+        return is(
+            level,
+            upperFunctionalCenter,
+            cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
+            && is(
+                level,
+                upperFunctionalCenter.relative(left),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING)
+            && is(
+                level,
+                upperFunctionalCenter.relative(right),
+                cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING);
     }
 
     @Override
-    public void updateBlockEntities(
-        NEIntegratedWorkingStationCluster cluster,
-        ServerWorldView level,
-        BlockPos min,
-        BlockPos max
-    ) {
+    public void updateBlockEntities(NEIntegratedWorkingStationCluster cluster, ServerWorldView level, BlockPos min,
+        BlockPos max) {
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
             TileEntity blockEntity = level.getBlockEntity(pos);
             if (blockEntity == null || !isValidBlockEntity(blockEntity)) {
@@ -88,7 +119,7 @@ public class NEIntegratedWorkingStationControllerCalculator
             cluster.addBlockEntity(blockEntity);
         }
         for (TileEntity blockEntity : snapshot(cluster)) {
-            if (blockEntity instanceof NEBlockEntity<?, ?> member) {
+            if (blockEntity instanceof NEBlockEntity<?, ?>member) {
                 updateClusterUnchecked(member, cluster);
             } else if (blockEntity instanceof ECOLargeIntegratedWorkingStationBlockEntity member) {
                 member.updateCluster(cluster);
@@ -97,25 +128,28 @@ public class NEIntegratedWorkingStationControllerCalculator
         cluster.updateFormed(true);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     private static void updateClusterUnchecked(NEBlockEntity<?, ?> member, NEIntegratedWorkingStationCluster cluster) {
         ((NEBlockEntity) member).updateCluster(cluster);
     }
 
     private static java.util.List<TileEntity> snapshot(NEIntegratedWorkingStationCluster cluster) {
         java.util.List<TileEntity> result = new java.util.ArrayList<>();
-        cluster.getBlockEntities().forEachRemaining(result::add);
+        cluster.getBlockEntities()
+            .forEachRemaining(result::add);
         return result;
     }
 
     @Override
     public boolean isValidBlockEntity(TileEntity blockEntity) {
         return blockEntity instanceof ECOLargeIntegratedWorkingStationBlockEntity
-            || (blockEntity instanceof NEBlockEntity<?, ?> member
+            || (blockEntity instanceof NEBlockEntity<?, ?>member
                 && member.getCalculator() instanceof NEIntegratedWorkingStationClusterCalculator);
     }
 
-    private static boolean is(ServerWorldView level, BlockPos pos, cn.dancingsnow.neoecoae.platform.minecraft.Holder<Block> block) {
-        return level.getBlockState(pos).is(block);
+    private static boolean is(ServerWorldView level, BlockPos pos,
+        cn.dancingsnow.neoecoae.platform.minecraft.Holder<Block> block) {
+        return level.getBlockState(pos)
+            .is(block);
     }
 }

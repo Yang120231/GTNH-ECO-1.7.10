@@ -28,12 +28,15 @@ public final class NativeLargeWorkstationSession extends NativeSnapshotSession {
 
     @Override
     protected CompoundTag capture() {
-        CompoundTag snapshot = config.snapshot().apply(offset).copy();
+        CompoundTag snapshot = config.snapshot()
+            .apply(offset)
+            .copy();
         ListTag rows = snapshot.getList("tasks", Tag.TAG_COMPOUND);
         ListTag bounded = new ListTag();
         Set<UUID> visible = new HashSet<>();
         for (int i = 0; i < Math.min(NativeLargeWorkstationPages.SNAPSHOT_SIZE, rows.size()); i++) {
-            CompoundTag row = rows.getCompound(i).copy();
+            CompoundTag row = rows.getCompound(i)
+                .copy();
             if (!row.hasUUID("id")) continue;
             UUID id = row.getUUID("id");
             visible.add(id);
@@ -46,7 +49,8 @@ public final class NativeLargeWorkstationSession extends NativeSnapshotSession {
             row.putInt("token", token);
             bounded.add(row);
         }
-        tokens.keySet().retainAll(visible);
+        tokens.keySet()
+            .retainAll(visible);
         snapshot.put("tasks", bounded);
         return snapshot;
     }
@@ -58,23 +62,30 @@ public final class NativeLargeWorkstationSession extends NativeSnapshotSession {
                 offset = Math.max(0, Math.min(509, argument));
                 break;
             case OVERCLOCK:
-                config.toggleOverclocked().run();
+                config.toggleOverclocked()
+                    .run();
                 break;
             case COOLING:
-                config.toggleActiveCooling().run();
+                config.toggleActiveCooling()
+                    .run();
                 break;
             case PREHEAT:
-                config.togglePreheating().run();
+                config.togglePreheating()
+                    .run();
                 break;
             case RETURN:
                 // Re-read the current queue before accepting a click from an older client snapshot.
-                ListTag rows = config.snapshot().apply(offset).getList("tasks", Tag.TAG_COMPOUND);
+                ListTag rows = config.snapshot()
+                    .apply(offset)
+                    .getList("tasks", Tag.TAG_COMPOUND);
                 for (int i = 0; i < Math.min(NativeLargeWorkstationPages.SNAPSHOT_SIZE, rows.size()); i++) {
                     CompoundTag row = rows.getCompound(i);
                     if (!row.hasUUID("id") || !row.getBoolean("returnable")) continue;
                     UUID id = row.getUUID("id");
-                    if (Integer.valueOf(argument).equals(tokens.get(id))) {
-                        config.returnTask().accept(id);
+                    if (Integer.valueOf(argument)
+                        .equals(tokens.get(id))) {
+                        config.returnTask()
+                            .accept(id);
                         break;
                     }
                 }

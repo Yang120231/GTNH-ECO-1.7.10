@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import com.google.gson.JsonParser;
 import com.google.gson.stream.JsonReader;
 
+import appeng.api.config.LockCraftingMode;
 import cn.dancingsnow.neoecoae.impl.storage.ECOStorageInterfaceMode;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.RelativeSide;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.CellState;
@@ -137,6 +138,14 @@ class LanguageResourcesTest {
             }
         }
         assertEquals(Collections.emptyList(), missing);
+    }
+
+    @Test
+    void workstationLockModesHaveRuntimeTranslations() throws Exception {
+        Map<String, String> available = runtimeEnglish();
+        for (LockCraftingMode mode : LockCraftingMode.values()) {
+            assertTrue(available.containsKey("gui.neoecoae.workstation.provider.lock_mode." + mode.name()));
+        }
     }
 
     @Test

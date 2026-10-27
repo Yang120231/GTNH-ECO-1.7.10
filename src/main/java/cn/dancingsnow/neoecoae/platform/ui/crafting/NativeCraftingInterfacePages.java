@@ -38,46 +38,79 @@ public final class NativeCraftingInterfacePages {
 
     private NativeCraftingInterfacePages() {}
 
-    public static ModularPanel create(ECOMachineInterfaceBlockEntity<?> host, EntityPlayer player, PanelSyncManager sync) {
+    public static ModularPanel create(ECOMachineInterfaceBlockEntity<?> host, EntityPlayer player,
+        PanelSyncManager sync) {
         var session = new NativePatternInterfaceSession(host);
         sync.syncValue("crafting.patterns", session);
         var layout = new NativePageLayout("crafting/crafting_interface");
-        var panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel.create("neoecoae_crafting_interface", layout.width(), layout.height())
+        var panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel
+            .create("neoecoae_crafting_interface", layout.width(), layout.height())
             .background(NativePageLayout.texture("neoecoae:textures/guis/pattern_manager.png", 0, 0, 195, 237));
         layout.children(panel, node -> {
-            switch (node.get("custom").getAsString()) {
-                case "title": return new NativeText(() -> Component.translatable("gui.neoecoae.crafting_interface.title"),
-                    1, 0x3f3d52);
-                case "operation_status": return new Widget<>();
-                case "operation_indicator": return new OperationIndicator(session);
-                case "input_search": return search(session, false);
-                case "output_search": return search(session, true);
+            switch (node.get("custom")
+                .getAsString()) {
+                case "title":
+                    return new NativeText(
+                        () -> Component.translatable("gui.neoecoae.crafting_interface.title"),
+                        1,
+                        0x3f3d52);
+                case "operation_status":
+                    return new Widget<>();
+                case "operation_indicator":
+                    return new OperationIndicator(session);
+                case "input_search":
+                    return search(session, false);
+                case "output_search":
+                    return search(session, true);
                 case "pattern_preview":
                     var preview = new Preview().size(PREVIEW_WIDTH, PREVIEW_HEIGHT);
-                    for (int index = 0; index < COLUMNS * ROWS; index++) preview.child(new Pattern(session, index)
-                        .pos(index % COLUMNS * CELL, index / COLUMNS * CELL).size(CELL));
+                    for (int index = 0; index < COLUMNS * ROWS; index++) preview.child(
+                        new Pattern(session, index).pos(index % COLUMNS * CELL, index / COLUMNS * CELL)
+                            .size(CELL));
                     return preview;
-                case "pattern_scrollbar": return new Scrollbar(session).size(14, 108);
-                case "side_controls": return NativeHostSideBar.left(true,
-                    NativeHostSideBar.button(32, 48, () -> Component.translatable("gui.neoecoae.host.crafting.pattern_transfer"),
-                        () -> session.action(4, 0)),
-                    NativeHostSideBar.button(32, 64, () -> Component.translatable("gui.neoecoae.crafting_interface.preview.organize"),
-                        () -> session.action(3, 0)));
-                case "status_label": return new NativeText(() -> {
-                    int rows = session.state().getInt("rows"), offset = session.state().getInt("offset");
-                    return rows == 0 ? Component.translatable("gui.neoecoae.crafting_interface.preview.no_results")
-                        : Component.translatable("gui.neoecoae.crafting_interface.preview.rows", offset + 1, Math.min(rows, offset + 6), rows);
-                }, 1, 0x3f3d52);
-                case "transfer_progress": return new Widget<>();
-                case "player_inventory": return NativePageLayout.playerInventory();
-                default: throw new IllegalArgumentException("Unknown pattern manager node " + node);
+                case "pattern_scrollbar":
+                    return new Scrollbar(session).size(14, 108);
+                case "side_controls":
+                    return NativeHostSideBar.left(
+                        true,
+                        NativeHostSideBar.button(
+                            32,
+                            48,
+                            () -> Component.translatable("gui.neoecoae.host.crafting.pattern_transfer"),
+                            () -> session.action(4, 0)),
+                        NativeHostSideBar.button(
+                            32,
+                            64,
+                            () -> Component.translatable("gui.neoecoae.crafting_interface.preview.organize"),
+                            () -> session.action(3, 0)));
+                case "status_label":
+                    return new NativeText(() -> {
+                        int rows = session.state()
+                            .getInt("rows"),
+                            offset = session.state()
+                                .getInt("offset");
+                        return rows == 0 ? Component.translatable("gui.neoecoae.crafting_interface.preview.no_results")
+                            : Component.translatable(
+                                "gui.neoecoae.crafting_interface.preview.rows",
+                                offset + 1,
+                                Math.min(rows, offset + 6),
+                                rows);
+                    }, 1, 0x3f3d52);
+                case "transfer_progress":
+                    return new Widget<>();
+                case "player_inventory":
+                    return NativePageLayout.playerInventory();
+                default:
+                    throw new IllegalArgumentException("Unknown pattern manager node " + node);
             }
         });
         return panel;
     }
 
     private static TextFieldWidget search(NativePatternInterfaceSession session, boolean output) {
-        return new TextFieldWidget().setMaxLength(128).setTextColor(0xffffffff).background(IDrawable.EMPTY)
+        return new TextFieldWidget().setMaxLength(128)
+            .setTextColor(0xffffffff)
+            .background(IDrawable.EMPTY)
             .disableHoverBackground()
             .padding(2, 0)
             .hintText(
@@ -86,8 +119,11 @@ public final class NativeCraftingInterfacePages {
                     .getString())
             .hintColor(0xffa0a0a0)
             .value(new StringSyncValue(() -> session.search(output), query -> session.search(output, query)))
-            .tooltipDynamic(lines -> lines.add(Component.translatable("gui.neoecoae.crafting_interface.preview.search."
-                + (output ? "output" : "inputs") + ".tooltip").getString()));
+            .tooltipDynamic(
+                lines -> lines.add(
+                    Component.translatable(
+                        "gui.neoecoae.crafting_interface.preview.search." + (output ? "output" : "inputs") + ".tooltip")
+                        .getString()));
     }
 
     /** Draw the continuous grid in the viewport pass, after MUI's sibling background pass. */
@@ -157,20 +193,27 @@ public final class NativeCraftingInterfacePages {
     }
 
     private static final class Pattern extends cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<Pattern> {
+
         private final NativePatternInterfaceSession session;
         private final int index;
+
         Pattern(NativePatternInterfaceSession session, int index) {
-            this.session = session; this.index = index;
+            this.session = session;
+            this.index = index;
             background(IDrawable.EMPTY);
             hoverBackground(IDrawable.EMPTY);
             onMousePressed(button -> {
-                int token = session.entry(index).getInt("token");
+                int token = session.entry(index)
+                    .getInt("token");
                 if (token == 0 || button != 0 && button != 1) return false;
                 session.action(Interactable.hasShiftDown() ? 2 : 1, token);
                 return true;
             });
             onMouseScrolled((direction, amount) -> {
-                session.action(0, session.state().getInt("offset") + (direction.modifier > 0 ? -1 : 1));
+                session.action(
+                    0,
+                    session.state()
+                        .getInt("offset") + (direction.modifier > 0 ? -1 : 1));
                 return true;
             });
             tooltipDynamic(lines -> {
@@ -179,12 +222,15 @@ public final class NativeCraftingInterfacePages {
                 if (!ItemStacks.isEmpty(stack)) lines.addFromItem(stack);
                 if (entry.getInt("token") != 0) {
                     var source = BlockPos.of(entry.getLong("bus"));
-                    lines.add(Component.translatable(
+                    lines.add(
+                        Component
+                            .translatable(
                                 "gui.neoecoae.crafting_interface.preview.source",
                                 source.getX(),
                                 source.getY(),
                                 source.getZ(),
-                                entry.getInt("slot") + 1).getString());
+                                entry.getInt("slot") + 1)
+                            .getString());
                 }
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
@@ -212,23 +258,38 @@ public final class NativeCraftingInterfacePages {
     }
 
     private static final class Scrollbar extends ButtonWidget<Scrollbar> {
+
         private final NativePatternInterfaceSession session;
         private float dragStartY;
         private int dragStartOffset;
+
         Scrollbar(NativePatternInterfaceSession session) {
             this.session = session;
             background(NativePageLayout.texture("neoecoae:textures/guis/pattern_manager.png", 178, 31, 6, 108, 1, 1));
             disableHoverBackground();
             onMouseScrolled((direction, amount) -> {
-                session.action(0, session.state().getInt("offset") + (direction.modifier > 0 ? -1 : 1));
+                session.action(
+                    0,
+                    session.state()
+                        .getInt("offset") + (direction.modifier > 0 ? -1 : 1));
                 return true;
             });
         }
+
         private void drag() {
-            int max = Math.max(0, session.state().getInt("rows") - ROWS);
-            if (max > 0) session.action(0, Math.max(0, Math.min(max,
+            int max = Math.max(
+                0,
+                session.state()
+                    .getInt("rows") - ROWS);
+            if (max > 0) session.action(
+                0,
+                Math.max(
+                    0,
+                    Math.min(
+                        max,
                         dragStartOffset + Math.round((getContext().getMouseY() - dragStartY) * max / THUMB_TRAVEL))));
         }
+
         @Override
         public Result onMousePressed(int button) {
             int max = Math.max(
@@ -248,17 +309,39 @@ public final class NativeCraftingInterfacePages {
                 session.action(0, dragStartOffset);
             }
             // Use the initial row plus pointer displacement, avoiding rounding jumps on long lists.
-            dragStartY = getContext().getMouseY(); return Result.SUCCESS; }
+            dragStartY = getContext().getMouseY();
+            return Result.SUCCESS;
+        }
+
         @Override
-        public void onMouseDrag(int button, long elapsed) { if (button == 0) drag(); }
+        public void onMouseDrag(int button, long elapsed) {
+            if (button == 0) drag();
+        }
+
         @Override
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            int max = Math.max(0, session.state().getInt("rows") - ROWS);
-            int y = max == 0 ? 1 : 1 + Math.min(max, session.state().getInt("offset")) * THUMB_TRAVEL
+            int max = Math.max(
+                0,
+                session.state()
+                    .getInt("rows") - ROWS);
+            int y = max == 0 ? 1
+                : 1 + Math.min(
+                    max,
+                    session.state()
+                        .getInt("offset"))
+                    * THUMB_TRAVEL
                     / max;
-            NativeUiDraw.sprite("neoecoae:textures/gui/vendor/ae2/sprites/big_scroller"
-                + (max == 0 ? "_disabled" : "") + ".png", 0, 0, 12, 15, 1, y, 12, 15);
+            NativeUiDraw.sprite(
+                "neoecoae:textures/gui/vendor/ae2/sprites/big_scroller" + (max == 0 ? "_disabled" : "") + ".png",
+                0,
+                0,
+                12,
+                15,
+                1,
+                y,
+                12,
+                15);
         }
     }
 }

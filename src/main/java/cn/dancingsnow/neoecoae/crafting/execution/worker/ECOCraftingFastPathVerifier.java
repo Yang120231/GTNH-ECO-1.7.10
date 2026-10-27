@@ -111,8 +111,7 @@ final class ECOCraftingFastPathVerifier {
 
     private static cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] copyCraftingContainer(
         cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] source) {
-        cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] copy = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[
-            source.length];
+        cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] copy = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[source.length];
         for (int index = 0; index < source.length; index++) {
             copy[index] = source[index] == null ? new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter()
                 : source[index].copy();

@@ -53,7 +53,10 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         tag.putBoolean("cycles", host.isCyclePlanningEnabled());
         tag.putBoolean("fast", host.isFastPlannerEnabled());
         tag.putInt("frequency", host.getNetworkFrequency());
-        tag.putBoolean("connected", host.getMainNode().isOnline());
+        tag.putBoolean(
+            "connected",
+            host.getMainNode()
+                .isOnline());
         var cluster = host.getCluster();
         boolean validCluster = cluster != null && !cluster.isDestroyed();
         var endgameBlockers = validCluster ? cluster.getEndgameBlockers() : Collections.singletonList("host_count");
@@ -88,11 +91,17 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 identities.put(cpu, token);
                 targets.put(token, cpu);
             }
-            active.sort(java.util.Comparator.<ECOCraftingCPU, Boolean>comparing(cpu -> cpu.getName() == null)
-                .thenComparing(cpu -> cpu.getName() == null ? "" : cpu.getName().getString())
-                .thenComparingInt(identities::get));
+            active.sort(
+                java.util.Comparator.<ECOCraftingCPU, Boolean>comparing(cpu -> cpu.getName() == null)
+                    .thenComparing(
+                        cpu -> cpu.getName() == null ? ""
+                            : cpu.getName()
+                                .getString())
+                    .thenComparingInt(identities::get));
             if (!targets.containsKey(selected)) {
-                var fallback = active.stream().filter(ECOCraftingCPU::isBusy).findFirst()
+                var fallback = active.stream()
+                    .filter(ECOCraftingCPU::isBusy)
+                    .findFirst()
                     .orElse(active.isEmpty() ? null : active.get(0));
                 selected = fallback == null ? 0 : identities.get(fallback);
                 itemOffset = 0;
@@ -136,9 +145,13 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             tag.putInt("driveColumns", columns);
             for (int rowIndex = 0; rowIndex < 2; rowIndex++) for (int column = 0; column < 11; column++) {
                 var rowDrives = new ArrayList<>(rowIndex == 0 ? cluster.getUpperDrives() : cluster.getLowerDrives());
-                rowDrives.sort(java.util.Comparator.<ECOComputationDriveBlockEntity>comparingInt(
-                    cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts::order)
-                    .thenComparingDouble(drive -> drive.getBlockPos().distSqr(host.getBlockPos())));
+                rowDrives.sort(
+                    java.util.Comparator
+                        .<ECOComputationDriveBlockEntity>comparingInt(
+                            cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts::order)
+                        .thenComparingDouble(
+                            drive -> drive.getBlockPos()
+                                .distSqr(host.getBlockPos())));
                 CompoundTag row = new CompoundTag();
                 boolean mirrored = host.getBlockState() != null && host.getBlockState()
                     .getValue(cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.MIRRORED);
@@ -174,9 +187,11 @@ public final class NativeComputationSession extends NativeSnapshotSession {
     private ArrayList<ECOCraftingCPU> displayedCpus() {
         var result = new ArrayList<ECOCraftingCPU>();
         var cluster = host.getCluster();
-        if (cluster == null || !host.getMainNode().isOnline()) return result;
+        if (cluster == null || !host.getMainNode()
+            .isOnline()) return result;
         var members = cluster.getNetworkCluster() == null ? java.util.Collections.singletonList(cluster)
-            : cluster.getNetworkCluster().getMembers();
+            : cluster.getNetworkCluster()
+                .getMembers();
         for (var member : members) {
             if (!member.isActive()) continue;
             result.addAll(member.getActiveCPUs());
@@ -188,28 +203,51 @@ public final class NativeComputationSession extends NativeSnapshotSession {
 
     private cn.dancingsnow.neoecoae.gui.computation.ComputationControllerPanelState artwork() {
         var cluster = host.getCluster();
-        if (!host.isFormed() || cluster == null) return cn.dancingsnow.neoecoae.gui.computation.ComputationControllerPanelState.UNFORMED;
+        if (!host.isFormed() || cluster == null)
+            return cn.dancingsnow.neoecoae.gui.computation.ComputationControllerPanelState.UNFORMED;
         var cores = new ArrayList<>(cluster.getThreadingCores());
-        cores.sort(java.util.Comparator.comparingDouble(core -> core.getBlockPos().distSqr(host.getBlockPos())));
+        cores.sort(
+            java.util.Comparator.comparingDouble(
+                core -> core.getBlockPos()
+                    .distSqr(host.getBlockPos())));
         var parallel = new HashMap<cn.dancingsnow.neoecoae.platform.minecraft.BlockPos, Integer>();
-        for (var core : cluster.getParallelCores()) parallel.put(core.getBlockPos(), core.getTier().getTier());
+        for (var core : cluster.getParallelCores()) parallel.put(
+            core.getBlockPos(),
+            core.getTier()
+                .getTier());
         var upper = new ArrayList<Integer>();
         var middle = new ArrayList<Integer>();
         var lower = new ArrayList<Integer>();
         for (var core : cores) {
-            upper.add(parallel.getOrDefault(core.getBlockPos().above(), 0));
-            middle.add(core.getTier().getTier());
-            lower.add(parallel.getOrDefault(core.getBlockPos().below(), 0));
+            upper.add(
+                parallel.getOrDefault(
+                    core.getBlockPos()
+                        .above(),
+                    0));
+            middle.add(
+                core.getTier()
+                    .getTier());
+            lower.add(
+                parallel.getOrDefault(
+                    core.getBlockPos()
+                        .below(),
+                    0));
         }
-        return cn.dancingsnow.neoecoae.gui.computation.ComputationControllerPanelState.of(host.getTier().getTier(),
-            upper, middle, lower, host.getBlockState().getValue(cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.MIRRORED));
+        return cn.dancingsnow.neoecoae.gui.computation.ComputationControllerPanelState.of(
+            host.getTier()
+                .getTier(),
+            upper,
+            middle,
+            lower,
+            host.getBlockState()
+                .getValue(cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.MIRRORED));
     }
 
     private int statusItemCount;
 
     private ListTag statusItems(ECOCraftingCPU cpu) {
         var entries = new java.util.LinkedHashMap<AEKey, CompoundTag>();
-        String[] names = {"stored", "pending", "active"};
+        String[] names = { "stored", "pending", "active" };
         for (int kind = 0; kind < 3; kind++) for (var value : resources(cpu, kind)) {
             var resource = (CompoundTag) value;
             AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, resource.getCompound("key"));
@@ -227,18 +265,29 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         statusItemCount = sorted.size();
         itemOffset = Math.min(itemOffset, Math.max(0, (sorted.size() + 2) / 3 - 9) * 3);
         ListTag page = new ListTag();
-        for (int index = itemOffset; index < Math.min(sorted.size(), itemOffset + 27); index++) page.add(sorted.get(index));
+        for (int index = itemOffset; index < Math.min(sorted.size(), itemOffset + 27); index++)
+            page.add(sorted.get(index));
         return page;
     }
 
     private CompoundTag cpu(ECOCraftingCPU cpu) {
         CompoundTag row = new CompoundTag();
         row.putBoolean("busy", cpu.isBusy());
-        row.putInt("tier", cpu.getTier().getTier());
-        row.putString("name", cpu.getName() == null ? "" : cpu.getName().getString());
+        row.putInt(
+            "tier",
+            cpu.getTier()
+                .getTier());
+        row.putString(
+            "name",
+            cpu.getName() == null ? ""
+                : cpu.getName()
+                    .getString());
         row.putLong("storage", cpu.getAvailableStorage());
         row.putInt("parallel", cpu.getCoProcessors());
-        row.putString("mode", cpu.getSelectionMode().name());
+        row.putString(
+            "mode",
+            cpu.getSelectionMode()
+                .name());
         var status = cpu.getJobStatus();
         row.putBoolean(
             "suspended",
@@ -265,7 +314,11 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             row.putString("completed", Long.toString(status.progress()));
             row.putString("remaining", Long.toString(Math.max(0, status.totalItems() - status.progress())));
             row.putLong("elapsed", status.elapsedTimeNanos());
-            row.put("outputKey", status.crafting().what().toTagGeneric(RegistryAccess.EMPTY));
+            row.put(
+                "outputKey",
+                status.crafting()
+                    .what()
+                    .toTagGeneric(RegistryAccess.EMPTY));
         }
         cpu.getProgressView()
             .bigOrder()
@@ -329,7 +382,10 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 "amount",
                 entry.getValue()
                     .toString());
-            row.put("key", entry.getKey().toTagGeneric(RegistryAccess.EMPTY));
+            row.put(
+                "key",
+                entry.getKey()
+                    .toTagGeneric(RegistryAccess.EMPTY));
             list.add(row);
         }
         return list;

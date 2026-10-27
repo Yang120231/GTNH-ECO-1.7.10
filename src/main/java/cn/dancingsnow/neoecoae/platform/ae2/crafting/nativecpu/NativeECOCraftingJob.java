@@ -1,13 +1,16 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu;
 
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
-import appeng.api.config.*;
-import appeng.api.networking.crafting.*;
-import appeng.api.storage.data.*;
+import appeng.api.config.CraftingMode;
+import appeng.api.networking.crafting.ICraftingCPU;
+import appeng.api.networking.crafting.ICraftingJob;
+import appeng.api.storage.data.IAEStack;
+import appeng.api.storage.data.IItemList;
 import appeng.crafting.MECraftingInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
-import cn.dancingsnow.neoecoae.platform.ae2.key.*;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** Immutable native terminal facade; the original ECO plan and its execution contract remain intact. */
 @SuppressWarnings({ "rawtypes", "unchecked" })

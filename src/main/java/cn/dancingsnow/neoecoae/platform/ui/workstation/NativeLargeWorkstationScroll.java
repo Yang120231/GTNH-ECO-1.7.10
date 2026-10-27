@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoae.platform.ui.workstation;
 
 /** Continuous task positions, with movement bounded by the rows received from the server. */
 final class NativeLargeWorkstationScroll {
+
     static final int ROW_HEIGHT = 26;
     static final int VIEWPORT_HEIGHT = 76;
     private double offset;
@@ -17,8 +18,9 @@ final class NativeLargeWorkstationScroll {
         target = clamp(target);
         double position = pendingJump ? target : offset;
         // An older reply must not replace the rows beneath a view that has already reversed direction.
-        if (first * ROW_HEIGHT > position || (first + count) * ROW_HEIGHT <
-            Math.min(this.total * ROW_HEIGHT, position + NativeLargeWorkstationPages.PAGE_SIZE * ROW_HEIGHT)) return false;
+        if (first * ROW_HEIGHT > position || (first + count) * ROW_HEIGHT
+            < Math.min(this.total * ROW_HEIGHT, position + NativeLargeWorkstationPages.PAGE_SIZE * ROW_HEIGHT))
+            return false;
         this.first = first;
         this.count = count;
         if (pendingJump) {
@@ -57,16 +59,33 @@ final class NativeLargeWorkstationScroll {
         if (pendingJump) return (int) (target / ROW_HEIGHT);
         double row = offset / ROW_HEIGHT;
         int requested = target >= offset
-            ? Math.min((int) (target / ROW_HEIGHT), (int) Math.floor(row) + NativeLargeWorkstationPages.SNAPSHOT_PADDING)
-            : Math.max((int) (target / ROW_HEIGHT), (int) Math.ceil(row) - NativeLargeWorkstationPages.SNAPSHOT_PADDING);
+            ? Math
+                .min((int) (target / ROW_HEIGHT), (int) Math.floor(row) + NativeLargeWorkstationPages.SNAPSHOT_PADDING)
+            : Math
+                .max((int) (target / ROW_HEIGHT), (int) Math.ceil(row) - NativeLargeWorkstationPages.SNAPSHOT_PADDING);
         return Math.max(0, Math.min(Math.max(0, total - NativeLargeWorkstationPages.PAGE_SIZE), requested));
     }
 
-    double offset() { return offset; }
-    double thumbOffset() { return pendingJump ? target : offset; }
-    double maximum() { return Math.max(0, total - NativeLargeWorkstationPages.PAGE_SIZE) * ROW_HEIGHT; }
-    double rowShift() { return first * ROW_HEIGHT - offset; }
-    int firstVisibleRow() { return (int) (offset / ROW_HEIGHT); }
+    double offset() {
+        return offset;
+    }
+
+    double thumbOffset() {
+        return pendingJump ? target : offset;
+    }
+
+    double maximum() {
+        return Math.max(0, total - NativeLargeWorkstationPages.PAGE_SIZE) * ROW_HEIGHT;
+    }
+
+    double rowShift() {
+        return first * ROW_HEIGHT - offset;
+    }
+
+    int firstVisibleRow() {
+        return (int) (offset / ROW_HEIGHT);
+    }
+
     int lastVisibleRow() {
         return Math.min(total, (int) Math.ceil((offset + VIEWPORT_HEIGHT) / ROW_HEIGHT));
     }

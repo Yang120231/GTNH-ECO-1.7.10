@@ -32,8 +32,10 @@ public final class NativeFuzzyPlanningSession extends NativeTileSession {
         if (!validSession()) return;
         state = new CompoundTag();
         for (int slot = 0; slot < 63; slot++) {
-            var sample = host.getFuzzyPlanningInventory().getStackInSlot(slot);
-            if (!ItemStacks.isEmpty(sample)) state.put(Integer.toString(slot), ItemStacks.save(RegistryAccess.EMPTY, sample));
+            var sample = host.getFuzzyPlanningInventory()
+                .getStackInSlot(slot);
+            if (!ItemStacks.isEmpty(sample))
+                state.put(Integer.toString(slot), ItemStacks.save(RegistryAccess.EMPTY, sample));
         }
         if (init || !state.equals(previous)) {
             previous = state.copy();
@@ -54,11 +56,14 @@ public final class NativeFuzzyPlanningSession extends NativeTileSession {
         if (id != 0) throw new IOException("Invalid fuzzy filter action");
         int slot = buffer.readInt();
         CompoundTag encoded = new RegistryFriendlyByteBuf(buffer, RegistryAccess.EMPTY).readNbt();
-        if (slot < 0 || slot >= 63 || encoded == null || buffer.isReadable()) throw new IOException("Malformed fuzzy filter action");
+        if (slot < 0 || slot >= 63 || encoded == null || buffer.isReadable())
+            throw new IOException("Malformed fuzzy filter action");
         ItemStack sample = ItemStacks.parseOptional(RegistryAccess.EMPTY, encoded);
         if (!encoded.isEmpty() && ItemStacks.isEmpty(sample)) return;
         ItemStack owned = ItemStacks.copyWithCount(sample, 1);
-        edit(() -> host.getFuzzyPlanningInventory().setStackInSlot(slot, owned));
+        edit(
+            () -> host.getFuzzyPlanningInventory()
+                .setStackInSlot(slot, owned));
     }
 
     public void setSample(int slot, ItemStack sample) {

@@ -22,16 +22,28 @@ public final class NativeHostSideBar {
     private NativeHostSideBar() {}
 
     public static ParentWidget<?> left(boolean gray, Widget<?>... buttons) {
-        ParentWidget<?> bar = new ParentWidget<>().pos(-21, 0).size(23, height(buttons.length))
+        ParentWidget<?> bar = new ParentWidget<>().pos(-21, 0)
+            .size(23, height(buttons.length))
             .background(IDrawable.EMPTY);
         for (int index = 0; index < buttons.length; index++) {
             int top = index == 0 ? 0 : 23 + (index - 1) * 22;
             int h = index == 0 ? 30 : index == buttons.length - 1 ? 27 : 24;
             String part = index == 0 ? "up" : index == buttons.length - 1 ? "down" : "middle";
-            ParentWidget<?> segment = new ParentWidget<>().pos(0, top).size(23, h)
-                .background(NativePageLayout.texture("neoecoae:textures/gui/common/side_bar/"
-                    + (gray ? "gray_" : "") + "button_slot_" + part + ".png", 0, 0, 23, h));
-            segment.child(buttons[index].pos(4, index == 0 ? 3 : 2).size(16));
+            ParentWidget<?> segment = new ParentWidget<>().pos(0, top)
+                .size(23, h)
+                .background(
+                    NativePageLayout.texture(
+                        "neoecoae:textures/gui/common/side_bar/" + (gray ? "gray_" : "")
+                            + "button_slot_"
+                            + part
+                            + ".png",
+                        0,
+                        0,
+                        23,
+                        h));
+            segment.child(
+                buttons[index].pos(4, index == 0 ? 3 : 2)
+                    .size(16));
             bar.child(segment);
         }
         return bar;
@@ -44,18 +56,29 @@ public final class NativeHostSideBar {
 
     public static ParentWidget<?> upgrades(int panelWidth, List<? extends Widget<?>> slots) {
         int h = slots.size() * 18;
-        ParentWidget<?> bar = new ParentWidget<>().pos(panelWidth - 2, 0).size(23, h + 12)
-            .background(NativeSpriteTexture.of(cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse(
-                "neoecoae:textures/gui/common/side_bar/mirrored_button_slot_up.png"))
-                .setSprite(0, 0, 23, 30).setBorder(0, 5, 0, 7));
-        bar.child(new Widget<>().pos(0, 5).size(18, h).background((context, x, y, w, height, theme) -> {
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x - 1, y - 1, w + 2, 1, 0xfff2f2f2);
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x - 1, y + height, w + 2, 1, 0xfff2f2f2);
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x - 1, y, 1, height, 0xfff2f2f2);
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x + w, y, 1, height, 0xfff2f2f2);
-        }));
-        for (int index = 0; index < slots.size(); index++) bar.child(slots.get(index).pos(0, 5 + index * 18)
-            .size(18).background(NativePageLayout.texture(ATLAS, 192, 192, 18, 18)));
+        ParentWidget<?> bar = new ParentWidget<>().pos(panelWidth - 2, 0)
+            .size(23, h + 12)
+            .background(
+                NativeSpriteTexture
+                    .of(
+                        cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation
+                            .parse("neoecoae:textures/gui/common/side_bar/mirrored_button_slot_up.png"))
+                    .setSprite(0, 0, 23, 30)
+                    .setBorder(0, 5, 0, 7));
+        bar.child(
+            new Widget<>().pos(0, 5)
+                .size(18, h)
+                .background((context, x, y, w, height, theme) -> {
+                    com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x - 1, y - 1, w + 2, 1, 0xfff2f2f2);
+                    com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x - 1, y + height, w + 2, 1, 0xfff2f2f2);
+                    com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x - 1, y, 1, height, 0xfff2f2f2);
+                    com.cleanroommc.modularui.drawable.GuiDraw.drawRect(x + w, y, 1, height, 0xfff2f2f2);
+                }));
+        for (int index = 0; index < slots.size(); index++) bar.child(
+            slots.get(index)
+                .pos(0, 5 + index * 18)
+                .size(18)
+                .background(NativePageLayout.texture(ATLAS, 192, 192, 18, 18)));
         return bar;
     }
 
@@ -74,8 +97,15 @@ public final class NativeHostSideBar {
         IconButton(Supplier<IDrawable> icon, Supplier<Component> tooltip, Runnable action) {
             this.icon = icon;
             background(IDrawable.EMPTY);
-            onMousePressed(button -> { if (button != 0) return false; action.run(); return true; });
-            tooltipDynamic(lines -> lines.add(tooltip.get().getString()));
+            onMousePressed(button -> {
+                if (button != 0) return false;
+                action.run();
+                return true;
+            });
+            tooltipDynamic(
+                lines -> lines.add(
+                    tooltip.get()
+                        .getString()));
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
 
@@ -89,7 +119,8 @@ public final class NativeHostSideBar {
         @Override
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            icon.get().draw(context, 0, isHovering() || isPressed() ? 2 : 1, 16, 16, theme.getTheme());
+            icon.get()
+                .draw(context, 0, isHovering() || isPressed() ? 2 : 1, 16, 16, theme.getTheme());
         }
     }
 }

@@ -1,34 +1,34 @@
 package cn.dancingsnow.neoecoae.gui.computation;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jetbrains.annotations.Nullable;
+
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
 import cn.dancingsnow.neoecoae.platform.nbt.Tag;
-import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
-import org.jetbrains.annotations.Nullable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Everything the computation controller artwork needs to draw itself.
  *
- * <p>Slot data is stored per <em>cell</em> (screen position, left to right), so mirroring is resolved on the
+ * <p>
+ * Slot data is stored per <em>cell</em> (screen position, left to right), so mirroring is resolved on the
  * server and the client never needs to know about it.
  */
 @com.github.bsideup.jabel.Desugar
-public record ComputationControllerPanelState(
-    boolean formed,
-    int hostTier,
-    int cells,
-    int upperCores,
-    int coreTiers,
-    int lowerCores,
-    List<Member> upperMembers,
-    List<Member> coreMembers,
-    List<Member> lowerMembers
-) {
+public record ComputationControllerPanelState(boolean formed, int hostTier, int cells, int upperCores, int coreTiers,
+    int lowerCores, List<Member> upperMembers, List<Member> coreMembers, List<Member> lowerMembers) {
+
     public static final int SLOT_COUNT = 11;
-    public static final ComputationControllerPanelState UNFORMED =
-        new ComputationControllerPanelState(false, 0, 0, 0, 0, 0);
+    public static final ComputationControllerPanelState UNFORMED = new ComputationControllerPanelState(
+        false,
+        0,
+        0,
+        0,
+        0,
+        0);
 
     private static final int TIER_MASK = 3;
     private static final String FORMED = "formed";
@@ -41,14 +41,22 @@ public record ComputationControllerPanelState(
     /** Explicit presence allows a real member to have tier zero. Texture locations are server-authored. */
     @com.github.bsideup.jabel.Desugar
     public record Member(boolean present, int tier, @Nullable ResourceLocation texture) {
+
         public static final Member ABSENT = new Member(false, 0, null);
     }
 
     /** Legacy callers use zero as the absence sentinel for the upper/lower rows. */
-    public ComputationControllerPanelState(boolean formed, int hostTier, int cells,
-        int upperCores, int coreTiers, int lowerCores) {
-        this(formed, hostTier, cells, upperCores, coreTiers, lowerCores,
-            legacyMembers(cells, upperCores, false), legacyMembers(cells, coreTiers, true),
+    public ComputationControllerPanelState(boolean formed, int hostTier, int cells, int upperCores, int coreTiers,
+        int lowerCores) {
+        this(
+            formed,
+            hostTier,
+            cells,
+            upperCores,
+            coreTiers,
+            lowerCores,
+            legacyMembers(cells, upperCores, false),
+            legacyMembers(cells, coreTiers, true),
             legacyMembers(cells, lowerCores, false));
     }
 
@@ -76,13 +84,8 @@ public record ComputationControllerPanelState(
     }
 
     /** Index {@code 0} is the threading core next to the controller. Slots past {@link #SLOT_COUNT} are not drawn. */
-    public static ComputationControllerPanelState of(
-        int hostTier,
-        List<Integer> upperNearestFirst,
-        List<Integer> coreNearestFirst,
-        List<Integer> lowerNearestFirst,
-        boolean mirrored
-    ) {
+    public static ComputationControllerPanelState of(int hostTier, List<Integer> upperNearestFirst,
+        List<Integer> coreNearestFirst, List<Integer> lowerNearestFirst, boolean mirrored) {
         int upper = 0;
         int core = 0;
         int lower = 0;
@@ -98,13 +101,21 @@ public record ComputationControllerPanelState(
         return new ComputationControllerPanelState(true, hostTier, cells, upper, core, lower);
     }
 
-    public Member upperMember(int cell) { return memberAt(upperMembers, cell); }
-    public Member coreMember(int cell) { return memberAt(coreMembers, cell); }
-    public Member lowerMember(int cell) { return memberAt(lowerMembers, cell); }
+    public Member upperMember(int cell) {
+        return memberAt(upperMembers, cell);
+    }
+
+    public Member coreMember(int cell) {
+        return memberAt(coreMembers, cell);
+    }
+
+    public Member lowerMember(int cell) {
+        return memberAt(lowerMembers, cell);
+    }
 
     /** Unlike of(), absent members are explicit and tier zero remains drawable. */
-    public static ComputationControllerPanelState ofMembers(int hostTier, List<Member> upper,
-        List<Member> core, List<Member> lower, boolean mirrored) {
+    public static ComputationControllerPanelState ofMembers(int hostTier, List<Member> upper, List<Member> core,
+        List<Member> lower, boolean mirrored) {
         List<Member> up = new ArrayList<>(java.util.Collections.nCopies(SLOT_COUNT, Member.ABSENT));
         List<Member> mid = new ArrayList<>(up);
         List<Member> low = new ArrayList<>(up);
@@ -115,7 +126,9 @@ public record ComputationControllerPanelState(
             if (!center.present()) continue;
             Member above = memberAt(upper, slot), below = memberAt(lower, slot);
             cells |= 1 << cell;
-            up.set(cell, above); mid.set(cell, center); low.set(cell, below);
+            up.set(cell, above);
+            mid.set(cell, center);
+            low.set(cell, below);
             upperBits |= cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.clamp(above.tier(), 0, 3) << cell * 2;
             coreBits |= cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.clamp(center.tier(), 0, 3) << cell * 2;
             lowerBits |= cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.clamp(below.tier(), 0, 3) << cell * 2;
@@ -160,7 +173,10 @@ public record ComputationControllerPanelState(
             CompoundTag entry = new CompoundTag();
             entry.putBoolean("present", member.present());
             entry.putInt("tier", member.tier());
-            if (member.texture() != null) entry.putString("texture", member.texture().toString());
+            if (member.texture() != null) entry.putString(
+                "texture",
+                member.texture()
+                    .toString());
             list.add(entry);
         }
         tag.put(name, list);
@@ -172,8 +188,12 @@ public record ComputationControllerPanelState(
         List<Member> members = new ArrayList<>(SLOT_COUNT);
         for (int cell = 0; cell < Math.min(SLOT_COUNT, list.size()); cell++) {
             CompoundTag entry = list.getCompound(cell);
-            members.add(new Member(entry.getBoolean("present"), entry.getInt("tier"),
-                entry.getString("texture").isEmpty() ? null : ResourceLocation.tryParse(entry.getString("texture"))));
+            members.add(
+                new Member(
+                    entry.getBoolean("present"),
+                    entry.getInt("tier"),
+                    entry.getString("texture")
+                        .isEmpty() ? null : ResourceLocation.tryParse(entry.getString("texture"))));
         }
         return members;
     }
@@ -191,8 +211,7 @@ public record ComputationControllerPanelState(
             tag.getInt(LOWER),
             readMembers(tag, "upperMembers", tag.getInt(UPPER), false),
             readMembers(tag, "coreMembers", tag.getInt(CORE), true),
-            readMembers(tag, "lowerMembers", tag.getInt(LOWER), false)
-        );
+            readMembers(tag, "lowerMembers", tag.getInt(LOWER), false));
     }
 
     private static int tierAt(int packed, int cell) {

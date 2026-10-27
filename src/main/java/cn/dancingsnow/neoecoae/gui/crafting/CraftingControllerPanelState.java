@@ -1,32 +1,33 @@
 package cn.dancingsnow.neoecoae.gui.crafting;
 
-import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
-import cn.dancingsnow.neoecoae.platform.fluid.FluidStack;
-
 import java.util.List;
+
+import cn.dancingsnow.neoecoae.platform.fluid.FluidStack;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 /**
  * Everything the F-series controller artwork needs to draw itself.
  *
- * <p>Slot data is stored per <em>cell</em> (screen position, left to right), so mirroring is resolved on the
+ * <p>
+ * Slot data is stored per <em>cell</em> (screen position, left to right), so mirroring is resolved on the
  * server and the client never needs to know about it. Parallel-core tiers are 0 (none) or 1..3 (L4/L6/L9).
  */
 @com.github.bsideup.jabel.Desugar
-public record CraftingControllerPanelState(
-    boolean formed,
-    int hostTier,
-    int fxCells,
-    int upperCores,
-    int lowerCores,
-    boolean coolantOverlay,
-    boolean switchOverlay,
-    int queuePermille,
-    int energyPermille
-) {
+public record CraftingControllerPanelState(boolean formed, int hostTier, int fxCells, int upperCores, int lowerCores,
+    boolean coolantOverlay, boolean switchOverlay, int queuePermille, int energyPermille) {
+
     public static final int SLOT_COUNT = 11;
     public static final int FULL = 1000;
-    public static final CraftingControllerPanelState UNFORMED =
-        new CraftingControllerPanelState(false, 0, 0, 0, 0, false, false, 0, 0);
+    public static final CraftingControllerPanelState UNFORMED = new CraftingControllerPanelState(
+        false,
+        0,
+        0,
+        0,
+        0,
+        false,
+        false,
+        0,
+        0);
 
     private static final int TIER_MASK = 3;
     private static final String FORMED = "formed";
@@ -62,17 +63,9 @@ public record CraftingControllerPanelState(
     }
 
     /** Index {@code 0} is the FX worker next to the controller. Slots past {@link #SLOT_COUNT} are not drawn. */
-    public static CraftingControllerPanelState of(
-        int hostTier,
-        List<Integer> upperNearestFirst,
-        List<Integer> lowerNearestFirst,
-        int fxCount,
-        boolean mirrored,
-        boolean coolantOverlay,
-        boolean switchOverlay,
-        int queuePermille,
-        int energyPermille
-    ) {
+    public static CraftingControllerPanelState of(int hostTier, List<Integer> upperNearestFirst,
+        List<Integer> lowerNearestFirst, int fxCount, boolean mirrored, boolean coolantOverlay, boolean switchOverlay,
+        int queuePermille, int energyPermille) {
         int upper = 0;
         int lower = 0;
         int cells = 0;
@@ -84,7 +77,15 @@ public record CraftingControllerPanelState(
             lower |= tierBits(lowerNearestFirst, slot) << cell * 2;
         }
         return new CraftingControllerPanelState(
-            true, hostTier, cells, upper, lower, coolantOverlay, switchOverlay, queuePermille, energyPermille);
+            true,
+            hostTier,
+            cells,
+            upper,
+            lower,
+            coolantOverlay,
+            switchOverlay,
+            queuePermille,
+            energyPermille);
     }
 
     public static boolean coolantVisible(boolean activeCooling, FluidStack fluid, int amount) {
@@ -132,8 +133,7 @@ public record CraftingControllerPanelState(
             tag.getBoolean(COOLANT),
             tag.getBoolean(SWITCH),
             tag.getInt(QUEUE),
-            tag.getInt(ENERGY)
-        );
+            tag.getInt(ENERGY));
     }
 
     private static int tierAt(int packed, int cell) {

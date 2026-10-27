@@ -67,9 +67,8 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
 
     @Override
     public void provideCrafting(ICraftingProviderHelper helper) {
-        for (IPatternDetails pattern : getAvailablePatterns())
-            if (pattern instanceof NativePatternDetails)
-                helper.addCraftingOption(this, ((NativePatternDetails) pattern).nativeDetails());
+        for (IPatternDetails pattern : getAvailablePatterns()) if (pattern instanceof NativePatternDetails)
+            helper.addCraftingOption(this, ((NativePatternDetails) pattern).nativeDetails());
     }
 
     @Override
@@ -163,8 +162,8 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
 
     @Override
     public boolean shouldDisplay() {
-        return workstationProvider.getConfigManager().getSetting(appeng.api.config.Settings.INTERFACE_TERMINAL)
-            == appeng.api.config.YesNo.YES;
+        return workstationProvider.getConfigManager()
+            .getSetting(appeng.api.config.Settings.INTERFACE_TERMINAL) == appeng.api.config.YesNo.YES;
     }
 
     @Override
@@ -175,7 +174,8 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
     @Override
     public ItemStack getDisplayRep() {
         return getCluster() == null || getCluster().getController() == null ? getSelfRep()
-            : getCluster().getController().getItemFromBlockEntity();
+            : getCluster().getController()
+                .getItemFromBlockEntity();
     }
 
     @Override
@@ -243,8 +243,10 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
     public void addAdditionalDrops(cn.dancingsnow.neoecoae.platform.minecraft.WorldView world, BlockPos pos,
         List<ItemStack> drops) {
         super.addAdditionalDrops(world, pos, drops);
-        for (int slot = 0; slot < workstationProvider.getPatternInv().getSizeInventory(); slot++) {
-            ItemStack stack = workstationProvider.getPatternInv().getStackInSlot(slot);
+        for (int slot = 0; slot < workstationProvider.getPatternInv()
+            .getSizeInventory(); slot++) {
+            ItemStack stack = workstationProvider.getPatternInv()
+                .getStackInSlot(slot);
             if (stack != null) drops.add(stack.copy());
         }
         for (int slot = 0; slot < getUpgrades().getSizeInventory(); slot++) {

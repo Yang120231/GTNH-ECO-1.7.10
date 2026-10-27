@@ -38,12 +38,12 @@ public final class NativeComputationArtwork extends Widget<NativeComputationArtw
         var state = ComputationControllerPanelState.fromTag(values.getCompound("artwork"));
         NativeUiDraw.text(text("title"), 44, 10, 92, 1, 0x3f3d52, false, false);
         NativeUiDraw.text(text("control_heading"), 9, 90, 65, .75f, 0x3f3d52, false, false);
-        String[] switches = {"substitutions", "cycle_planning", "fast_planner"};
-        for (int index = 0; index < 3; index++) NativeUiDraw.text(text("switch." + switches[index]),
-            6 + index * 23, 104, 23, .75f, 0x3f3d52, true, false);
-        String[] panels = {"cpu", "threads", "parallel"};
-        for (int index = 0; index < 3; index++) NativeUiDraw.text(text(panels[index]),
-            80 + index * 57, 91, 50, .75f, 0x3f3d52, false, false);
+        String[] switches = { "substitutions", "cycle_planning", "fast_planner" };
+        for (int index = 0; index < 3; index++)
+            NativeUiDraw.text(text("switch." + switches[index]), 6 + index * 23, 104, 23, .75f, 0x3f3d52, true, false);
+        String[] panels = { "cpu", "threads", "parallel" };
+        for (int index = 0; index < 3; index++)
+            NativeUiDraw.text(text(panels[index]), 80 + index * 57, 91, 50, .75f, 0x3f3d52, false, false);
         if (state.formed()) {
             if (state.hostTier() > 0) sprite((state.hostTier() - 1) * 13, 0, 13, 18, 23, 5);
             int u = 17 + (Math.max(1, state.hostTier()) - 1) * 16;
@@ -56,9 +56,12 @@ public final class NativeComputationArtwork extends Widget<NativeComputationArtw
             if (!state.hasCell(cell)) continue;
             int x = 49 + cell * 18;
             sprite(0, 52, 16, 52, x, 30);
-            if (state.upperMember(cell).present()) sprite(17 + (Math.max(1, state.upperTier(cell)) - 1) * 12, 67, 10, 5, x + 3, 47);
-            if (state.coreMember(cell).present()) sprite(17 + (Math.max(1, state.coreTier(cell)) - 1) * 12, 53, 10, 6, x + 3, 53);
-            if (state.lowerMember(cell).present()) sprite(17 + (Math.max(1, state.lowerTier(cell)) - 1) * 12, 61, 10, 6, x + 3, 60);
+            if (state.upperMember(cell)
+                .present()) sprite(17 + (Math.max(1, state.upperTier(cell)) - 1) * 12, 67, 10, 5, x + 3, 47);
+            if (state.coreMember(cell)
+                .present()) sprite(17 + (Math.max(1, state.coreTier(cell)) - 1) * 12, 53, 10, 6, x + 3, 53);
+            if (state.lowerMember(cell)
+                .present()) sprite(17 + (Math.max(1, state.lowerTier(cell)) - 1) * 12, 61, 10, 6, x + 3, 60);
         }
         long total = values.getLong("bytes"), free = values.getLong("freeBytes"), used = Math.max(0, total - free);
         int usedThreads = values.getInt("usedThreads"), threads = values.getInt("threads");
@@ -68,7 +71,11 @@ public final class NativeComputationArtwork extends Widget<NativeComputationArtw
         row(0, 2, "free", free == 0 && total > 0 ? 0xd95b25 : 0x2f8a4b, bytes(free));
         row(1, 0, "busy", 0x915dcd, counts(usedThreads));
         row(1, 1, "total", 0x3f3d52, counts(threads));
-        row(1, 2, "free", threads == usedThreads && threads > 0 ? 0xd95b25 : 0x2f8a4b,
+        row(
+            1,
+            2,
+            "free",
+            threads == usedThreads && threads > 0 ? 0xd95b25 : 0x2f8a4b,
             counts(Math.max(0, threads - usedThreads)));
         row(2, 0, "parallel", 0xb738a2, counts(parallel));
         row(2, 1, "multiplier", multiplier > 1 ? 0xd95b25 : 0x3f3d52, "x" + multiplier);
@@ -85,12 +92,20 @@ public final class NativeComputationArtwork extends Widget<NativeComputationArtw
             if (values.getBoolean("fast")) status(3, pink, 228, 178);
             if (multiplier > 1) status(values.getInt("highSwitches") > 0 && !pink ? 5 : 4, pink, 180, 203);
         }
-        info(text(connected ? "stat.online" : "stat.offline"), connected ? 0x7be495 : 0xff7a6b,
-            text("panel.frequency", values.getInt("frequency")), 0xb4e2ff, 147);
+        info(
+            text(connected ? "stat.online" : "stat.offline"),
+            connected ? 0x7be495 : 0xff7a6b,
+            text("panel.frequency", values.getInt("frequency")),
+            0xb4e2ff,
+            147);
         if (values.getInt("normalSwitches") == 0 && values.getInt("highSwitches") == 0)
             info(text("panel.switch_none"), 0xe4e4ee, text("panel.network", multiplier), 0xb4b6cc, 197);
-        else info(text("panel.switch_normal", values.getInt("normalSwitches")), pink ? 0xff8fdd : 0xb4e2ff,
-            text("panel.switch_high_energy", values.getInt("highSwitches")), 0xff7a6b, 197);
+        else info(
+            text("panel.switch_normal", values.getInt("normalSwitches")),
+            pink ? 0xff8fdd : 0xb4e2ff,
+            text("panel.switch_high_energy", values.getInt("highSwitches")),
+            0xff7a6b,
+            197);
     }
 
     @SideOnly(Side.CLIENT)
@@ -109,10 +124,20 @@ public final class NativeComputationArtwork extends Widget<NativeComputationArtw
         int x = 83 + panel * 57, y = 102 + row * 7;
         float room = 44 - font.getStringWidth(title.getString()) * .75f - 2;
         String value = candidates[candidates.length - 1];
-        for (String candidate : candidates) if (font.getStringWidth(candidate) * .75f <= room) { value = candidate; break; }
+        for (String candidate : candidates) if (font.getStringWidth(candidate) * .75f <= room) {
+            value = candidate;
+            break;
+        }
         NativeUiDraw.text(title, x, y, 44, .75f, 0x5e5c72, false, false);
-        NativeUiDraw.text(Component.literal(value), x + 44 - font.getStringWidth(value) * .75f, y,
-            Math.max(1, font.getStringWidth(value)), .75f, color, false, false);
+        NativeUiDraw.text(
+            Component.literal(value),
+            x + 44 - font.getStringWidth(value) * .75f,
+            y,
+            Math.max(1, font.getStringWidth(value)),
+            .75f,
+            color,
+            false,
+            false);
     }
 
     @SideOnly(Side.CLIENT)
@@ -122,24 +147,36 @@ public final class NativeComputationArtwork extends Widget<NativeComputationArtw
     }
 
     @SideOnly(Side.CLIENT)
-    private static void status(int index, boolean pink, int x, int y) { sprite(index * 12, pink ? 116 : 104, 12, 12, x, y); }
+    private static void status(int index, boolean pink, int x, int y) {
+        sprite(index * 12, pink ? 116 : 104, 12, 12, x, y);
+    }
 
     @SideOnly(Side.CLIENT)
-    private static void sprite(int u, int v, int w, int h, int x, int y) { NativeUiDraw.sprite(ATLAS, u, v, w, h, x, y, w, h); }
+    private static void sprite(int u, int v, int w, int h, int x, int y) {
+        NativeUiDraw.sprite(ATLAS, u, v, w, h, x, y, w, h);
+    }
 
     private static Component text(String key, Object... arguments) {
         return Component.translatable("gui.neoecoae.computation.ui." + key, arguments);
     }
 
-    private static double ratio(long used, long total) { return total <= 0 ? 0 : Math.min(1, Math.max(0, used / (double) total)); }
+    private static double ratio(long used, long total) {
+        return total <= 0 ? 0 : Math.min(1, Math.max(0, used / (double) total));
+    }
 
-    private static String[] counts(long count) { return new String[] {Long.toString(count), HostText.ae2Amount(count)}; }
+    private static String[] counts(long count) {
+        return new String[] { Long.toString(count), HostText.ae2Amount(count) };
+    }
 
     private static String[] bytes(long bytes) {
         String full = NEByteFormatter.format(bytes);
         int space = full.lastIndexOf(' ');
-        String compact = new java.math.BigDecimal(full.substring(0, space).replace(",", ""))
-            .setScale(1, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() + full.substring(space);
-        return new String[] {full, compact, compact.replace(" ", "")};
+        String compact = new java.math.BigDecimal(
+            full.substring(0, space)
+                .replace(",", "")).setScale(1, java.math.RoundingMode.HALF_UP)
+                    .stripTrailingZeros()
+                    .toPlainString()
+            + full.substring(space);
+        return new String[] { full, compact, compact.replace(" ", "") };
     }
 }

@@ -25,7 +25,8 @@ public final class NativePageLayout {
         var stream = NativePageLayout.class.getResourceAsStream("/assets/neoecoae/screens/" + path + ".json");
         if (stream == null) throw new IllegalArgumentException("Missing source page: " + path);
         try (var input = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-            JsonObject document = new JsonParser().parse(input).getAsJsonObject();
+            JsonObject document = new JsonParser().parse(input)
+                .getAsJsonObject();
             root = document.has("root") ? document.getAsJsonObject("root") : document;
         } catch (java.io.IOException error) {
             throw new IllegalStateException("Cannot read source page: " + path, error);
@@ -50,16 +51,24 @@ public final class NativePageLayout {
 
     public void place(Widget<?> widget, JsonObject node) {
         int[] containing = containing(root, node, width(), height());
-        place(widget, node, containing == null ? width() : containing[0], containing == null ? height() : containing[1]);
+        place(
+            widget,
+            node,
+            containing == null ? width() : containing[0],
+            containing == null ? height() : containing[1]);
     }
 
     private static int[] containing(JsonObject parent, JsonObject wanted, int width, int height) {
         if (!parent.has("children")) return null;
         for (var value : parent.getAsJsonArray("children")) {
             JsonObject child = value.getAsJsonObject();
-            if (child == wanted) return new int[] {width, height};
+            if (child == wanted) return new int[] { width, height };
             JsonObject box = child.has("layout") ? child.getAsJsonObject("layout") : new JsonObject();
-            int[] found = containing(child, wanted, dimension(box, "width", width, width), dimension(box, "height", height, height));
+            int[] found = containing(
+                child,
+                wanted,
+                dimension(box, "width", width, width),
+                dimension(box, "height", height, height));
             if (found != null) return found;
         }
         return null;
@@ -81,7 +90,10 @@ public final class NativePageLayout {
     }
 
     private static JsonObject find(JsonObject parent, String id) {
-        if (parent.has("id") && id.equals(parent.get("id").getAsString())) return parent;
+        if (parent.has("id") && id.equals(
+            parent.get("id")
+                .getAsString()))
+            return parent;
         if (parent.has("children")) for (var child : parent.getAsJsonArray("children")) {
             JsonObject found = find(child.getAsJsonObject(), id);
             if (found != null) return found;
@@ -95,10 +107,13 @@ public final class NativePageLayout {
 
     /** Each containing block owns its children's right/bottom anchors, as in the source JSON loader. */
     public static void place(Widget<?> widget, JsonObject node, int parentWidth, int parentHeight) {
-        if (node.has("id")) widget.name(node.get("id").getAsString());
+        if (node.has("id")) widget.name(
+            node.get("id")
+                .getAsString());
         if (!node.has("layout")) return;
         Bounds box = bounds(node, parentWidth, parentHeight);
-        widget.pos(box.x(), box.y()).size(box.width(), box.height());
+        widget.pos(box.x(), box.y())
+            .size(box.width(), box.height());
     }
 
     public static Bounds bounds(JsonObject node, int parentWidth, int parentHeight) {
@@ -114,9 +129,12 @@ public final class NativePageLayout {
 
     private static int dimension(JsonObject box, String key, int parent, int fallback) {
         if (!box.has(key)) return fallback;
-        String value = box.get(key).getAsString();
+        String value = box.get(key)
+            .getAsString();
         return value.endsWith("%") ? Math.round(parent * Float.parseFloat(value.substring(0, value.length() - 1)) / 100)
-            : Math.round(box.get(key).getAsFloat());
+            : Math.round(
+                box.get(key)
+                    .getAsFloat());
     }
 
     /** Native widgets keep their real slot/action synchronization; the source tree owns geometry. */
@@ -129,7 +147,8 @@ public final class NativePageLayout {
         if (!definition.has("children")) return;
         for (var value : definition.getAsJsonArray("children")) {
             JsonObject node = value.getAsJsonObject();
-            String type = node.has("type") ? node.get("type").getAsString() : "element";
+            String type = node.has("type") ? node.get("type")
+                .getAsString() : "element";
             Widget<?> widget;
             switch (type) {
                 case "element":
@@ -137,8 +156,18 @@ public final class NativePageLayout {
                     break;
                 case "texture":
                     var sprite = node.getAsJsonArray("sprite");
-                    widget = new Widget<>().background(texture(node.get("texture").getAsString(),
-                        sprite.get(0).getAsInt(), sprite.get(1).getAsInt(), sprite.get(2).getAsInt(), sprite.get(3).getAsInt()));
+                    widget = new Widget<>().background(
+                        texture(
+                            node.get("texture")
+                                .getAsString(),
+                            sprite.get(0)
+                                .getAsInt(),
+                            sprite.get(1)
+                                .getAsInt(),
+                            sprite.get(2)
+                                .getAsInt(),
+                            sprite.get(3)
+                                .getAsInt()));
                     break;
                 case "player_inventory":
                     widget = playerInventory();
@@ -152,8 +181,12 @@ public final class NativePageLayout {
             parent.child(widget);
             if (type.equals("element") && widget instanceof ParentWidget<?>) {
                 JsonObject box = node.has("layout") ? node.getAsJsonObject("layout") : new JsonObject();
-                children((ParentWidget<?>) widget, node, dimension(box, "width", width, width),
-                    dimension(box, "height", height, height), binding);
+                children(
+                    (ParentWidget<?>) widget,
+                    node,
+                    dimension(box, "width", width, width),
+                    dimension(box, "height", height, height),
+                    binding);
             }
         }
     }

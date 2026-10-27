@@ -1,16 +1,36 @@
 package cn.dancingsnow.neoecoae.platform.registry;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import net.minecraft.block.Block;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts.Role;
-import cn.dancingsnow.neoecoae.blocks.entity.*;
-import cn.dancingsnow.neoecoae.blocks.entity.computation.*;
-import cn.dancingsnow.neoecoae.blocks.entity.crafting.*;
-import cn.dancingsnow.neoecoae.multiblock.calculator.*;
-import cn.dancingsnow.neoecoae.multiblock.cluster.*;
-import cn.dancingsnow.neoecoae.platform.minecraft.*;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineCasingBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationCoolingControllerBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationNetworkSwitchBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationParallelCoreBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationTransmitterBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingNetworkSwitchBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingParallelCoreBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingVentBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingWorkerBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEntity;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NECraftingClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.Holder;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 /** Complete physical crafting/computation hardware factories. */

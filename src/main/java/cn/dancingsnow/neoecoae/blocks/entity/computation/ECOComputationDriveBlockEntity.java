@@ -1,13 +1,19 @@
 package cn.dancingsnow.neoecoae.blocks.entity.computation;
 
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
-import cn.dancingsnow.neoecoae.multiblock.calculator.*;
-import cn.dancingsnow.neoecoae.multiblock.cluster.*;
-import cn.dancingsnow.neoecoae.platform.inventory.*;
-import cn.dancingsnow.neoecoae.platform.minecraft.*;
-import cn.dancingsnow.neoecoae.platform.nbt.*;
-import cn.dancingsnow.neoecoae.platform.registry.*;
-import cn.dancingsnow.neoecoae.platform.sync.*;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
+import cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory;
+import cn.dancingsnow.neoecoae.platform.inventory.InternalInventoryHost;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
+import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
+import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
+import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
+import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
+import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationCluster, ECOComputationDriveBlockEntity>
     implements ManagedHolder, InternalInventoryHost {
@@ -72,7 +78,9 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
         super.updateState(updateExposed);
         if (level == null || level.isClientSide() || notLoaded() || isServerStopping() || isRemoved()) return;
         var controller = cluster == null ? null : cluster.getController();
-        int tier = controller == null ? 0 : controller.getTier().getTier();
+        int tier = controller == null ? 0
+            : controller.getTier()
+                .getTier();
         if (renderTier != tier) {
             renderTier = tier;
             markForClientUpdate();

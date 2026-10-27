@@ -26,7 +26,9 @@ import cn.dancingsnow.neoecoae.platform.registry.StorageTiers;
 public final class ECOCreativeCell implements IECOStorageCell {
 
     private static final ECOCellType TYPE = new ECOCellType(
-        Component.translatable("item.appliedenergistics2.ItemCreativeStorageCell.name"), 1, false);
+        Component.translatable("item.appliedenergistics2.ItemCreativeStorageCell.name"),
+        1,
+        false);
     private final StorageCell delegate;
     private final Set<AEKey> configured;
     private final int configSlots;

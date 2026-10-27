@@ -1,19 +1,32 @@
 package cn.dancingsnow.neoecoae.blocks.entity.crafting;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 
-import cn.dancingsnow.neoecoae.api.me.provider.*;
+import cn.dancingsnow.neoecoae.api.me.provider.ECOBatchDispatchContext;
+import cn.dancingsnow.neoecoae.api.me.provider.ECOFastPathDispatchProvider;
+import cn.dancingsnow.neoecoae.api.me.provider.ECOJobAwareCraftingProvider;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
-import cn.dancingsnow.neoecoae.crafting.execution.fastpath.*;
-import cn.dancingsnow.neoecoae.multiblock.calculator.*;
-import cn.dancingsnow.neoecoae.multiblock.cluster.*;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.*;
-import cn.dancingsnow.neoecoae.platform.ae2.key.*;
-import cn.dancingsnow.neoecoae.platform.inventory.*;
-import cn.dancingsnow.neoecoae.platform.minecraft.*;
-import cn.dancingsnow.neoecoae.platform.nbt.*;
-import cn.dancingsnow.neoecoae.platform.registry.*;
-import cn.dancingsnow.neoecoae.platform.sync.*;
+import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedFastPathRecipe;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NECraftingClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeSourceCraftingMedium;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
+import cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory;
+import cn.dancingsnow.neoecoae.platform.inventory.InternalInventoryHost;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
+import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
+import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
+import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCluster, ECOCraftingPatternBusBlockEntity>
     implements ManagedHolder, InternalInventoryHost, ECOJobAwareCraftingProvider, ECOFastPathDispatchProvider,

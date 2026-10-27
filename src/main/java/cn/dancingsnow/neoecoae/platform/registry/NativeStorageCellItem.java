@@ -207,9 +207,8 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
             null);
         if (!inventory.getAvailableStacks()
             .isEmpty()) {
-            player.addChatMessage(
-                new net.minecraft.util.ChatComponentTranslation(
-                    "tooltip.neoecoae.storage.empty_only"));
+            player
+                .addChatMessage(new net.minecraft.util.ChatComponentTranslation("tooltip.neoecoae.storage.empty_only"));
             return false;
         }
         IInventory upgrades = getUpgradesInventory(stack);

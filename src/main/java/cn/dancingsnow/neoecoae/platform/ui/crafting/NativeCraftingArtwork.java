@@ -34,27 +34,34 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
         background(cn.dancingsnow.neoecoae.platform.ui.NativePageLayout.texture(BACKGROUND, 0, 0, 253, 214));
         for (int index = 0; index < 11; index++) {
             final int cell = index;
-            child(new cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<>().slotInset(0)
-                .setEnabledIf(widget -> {
-                    var state = CraftingControllerPanelState.fromTag(session.state().getCompound("artwork"));
-                    return state.formed() && state.hasFx(cell);
-                })
-                .playClickSound(false)
-                .onMousePressed(button -> false)
-                .tooltipDynamic(lines -> {
-                    var cells = session.state().getList("displayCells", 10);
-                    if (cell >= cells.size()) return;
-                    var entry = cells.getCompound(cell);
-                    var stack = ItemStacks.parseOptional(RegistryAccess.EMPTY, entry.getCompound("item"));
-                    if (ItemStacks.isEmpty(stack)) return;
-                    lines.addFromItem(stack);
-                    if (!entry.getString("amount").isEmpty()) lines.add(
-                        text("amount_short").getString() + ": "
-                            + cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter.formatTooltip(
-                                new java.math.BigInteger(entry.getString("amount")), 1));
-                })
-                .onUpdateListener(widget -> widget.markTooltipDirty())
-                .pos(49 + cell * 18, 38).size(16));
+            child(
+                new cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<>().slotInset(0)
+                    .setEnabledIf(widget -> {
+                        var state = CraftingControllerPanelState.fromTag(
+                            session.state()
+                                .getCompound("artwork"));
+                        return state.formed() && state.hasFx(cell);
+                    })
+                    .playClickSound(false)
+                    .onMousePressed(button -> false)
+                    .tooltipDynamic(lines -> {
+                        var cells = session.state()
+                            .getList("displayCells", 10);
+                        if (cell >= cells.size()) return;
+                        var entry = cells.getCompound(cell);
+                        var stack = ItemStacks.parseOptional(RegistryAccess.EMPTY, entry.getCompound("item"));
+                        if (ItemStacks.isEmpty(stack)) return;
+                        lines.addFromItem(stack);
+                        if (!entry.getString("amount")
+                            .isEmpty())
+                            lines.add(
+                                text("amount_short").getString() + ": "
+                                    + cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter
+                                        .formatTooltip(new java.math.BigInteger(entry.getString("amount")), 1));
+                    })
+                    .onUpdateListener(widget -> widget.markTooltipDirty())
+                    .pos(49 + cell * 18, 38)
+                    .size(16));
         }
     }
 
@@ -64,8 +71,8 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
         CompoundTag values = session.state();
         CraftingControllerPanelState state = CraftingControllerPanelState.fromTag(values.getCompound("artwork"));
         label("title", 44, 10, 105, 1, false);
-        NativeUiDraw.text(Component.literal(performance(values.getLong("averageNanos"))),
-            210, 10, 39, 1, PRIMARY, true, true);
+        NativeUiDraw
+            .text(Component.literal(performance(values.getLong("averageNanos"))), 210, 10, 39, 1, PRIMARY, true, true);
         heading("control_heading", 9, 68, 43);
         heading("cooling_short", 10, 84, 15);
         heading("overclock_short", 37, 84, 15);
@@ -88,54 +95,103 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
             if (state.upperTier(cell) > 0) sprite(1 + (state.upperTier(cell) - 1) * 12, 53, 10, 6, x + 3, 32);
             if (state.lowerTier(cell) > 0) sprite(1 + (state.lowerTier(cell) - 1) * 12, 59, 10, 5, x + 3, 55);
             CompoundTag entry = cell < cells.size() ? cells.getCompound(cell) : new CompoundTag();
-            NativeUiDraw.item(ItemStacks.parseOptional(RegistryAccess.EMPTY, entry.getCompound("item")),
-                x, 38, context.getCurrentDrawingZ());
-            if (!entry.getString("amount").isEmpty()) NativeUiDraw.text(
-                Component.literal(cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter
-                    .formatSI(new java.math.BigInteger(entry.getString("amount")), 1)), x, 48, 16, .5f, PRIMARY, false, true);
+            NativeUiDraw.item(
+                ItemStacks.parseOptional(RegistryAccess.EMPTY, entry.getCompound("item")),
+                x,
+                38,
+                context.getCurrentDrawingZ());
+            if (!entry.getString("amount")
+                .isEmpty())
+                NativeUiDraw.text(
+                    Component.literal(
+                        cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter
+                            .formatSI(new java.math.BigInteger(entry.getString("amount")), 1)),
+                    x,
+                    48,
+                    16,
+                    .5f,
+                    PRIMARY,
+                    false,
+                    true);
         }
         stat(65, 0, "queue_count_short", HostText.ae2Amount(values.getLong("queued")));
-        stat(65, 1, "queue_capacity_short", values.getLong("batchCapacity") == Long.MAX_VALUE ? "∞"
-            : HostText.ae2Amount(values.getLong("batchCapacity")));
+        stat(
+            65,
+            1,
+            "queue_capacity_short",
+            values.getLong("batchCapacity") == Long.MAX_VALUE ? "∞"
+                : HostText.ae2Amount(values.getLong("batchCapacity")));
         coloredStat(65, 2, "queue_used_short", percent(state.queuePermille()), 0xb4e2ff);
-        coloredStat(118, 0, "parallel_count_short", values.getBoolean("virtual") ? "∞" : HostText.ae2Amount(values.getLong("parallel")), 0xffc2ed);
-        stat(118, 1, "parallel_limit_short", values.getBoolean("virtual") ? "∞"
-            : HostText.ae2Amount(Math.max(0, values.getLong("parallel") - values.getLong("overflow"))));
+        coloredStat(
+            118,
+            0,
+            "parallel_count_short",
+            values.getBoolean("virtual") ? "∞" : HostText.ae2Amount(values.getLong("parallel")),
+            0xffc2ed);
+        stat(
+            118,
+            1,
+            "parallel_limit_short",
+            values.getBoolean("virtual") ? "∞"
+                : HostText.ae2Amount(Math.max(0, values.getLong("parallel") - values.getLong("overflow"))));
         if (values.getBoolean("virtual")) {
             stat(118, 2, "virtual_crafting_short");
             stat(118, 3, "runtime_ticks_short", values.getInt("executionTicks"));
         } else {
             stat(118, 2, "parallel_overflow_short", HostText.ae2Amount(values.getLong("overflow")));
-            coloredStat(118, 3, "parallel_overflow_percent_short", percent(CraftingControllerPanelState.permille(
-                values.getLong("overflow"), Math.max(1, values.getLong("parallel") - values.getLong("overflow")))),
+            coloredStat(
+                118,
+                3,
+                "parallel_overflow_percent_short",
+                percent(
+                    CraftingControllerPanelState.permille(
+                        values.getLong("overflow"),
+                        Math.max(1, values.getLong("parallel") - values.getLong("overflow")))),
                 values.getLong("overflow") > 0 ? 0xffdb99 : PRIMARY);
         }
         bar(66, 114, state.queuePermille(), 8, 115);
         bar(121, 114, CraftingControllerPanelState.permille(1, values.getInt("executionTicks")), 8, 122);
         int energy = Math.round(46 * reveal(state.energyPermille() / 1000d));
         if (energy > 0) sprite(0, 161 - energy, 8, energy, 176, 124 - energy);
-        fluid(values, "coolantFluid", values.getLong("coolant"), values.getLong("coolantCapacity"), 195, 209,
+        fluid(
+            values,
+            "coolantFluid",
+            values.getLong("coolant"),
+            values.getLong("coolantCapacity"),
+            195,
+            209,
             context.getCurrentDrawingZ());
         fluid(values, "outputFluid", -1, values.getInt("outputCapacity"), 226, 240, context.getCurrentDrawingZ());
         boolean virtual = values.getBoolean("virtual");
         if (values.getBoolean("overclock")) sprite(0, virtual ? 77 : 65, 12, 12, 180, 136);
         if (values.getBoolean("cooling")) sprite(12, virtual ? 77 : 65, 12, 12, 180, 161);
-        if (state.switchOverlay()) sprite(virtual ? 24 : values.getInt("highSwitches") > 0 ? 36 : 24,
-            virtual ? 77 : 65, 12, 12, 180, 186);
-        info(text("fx_short", values.getInt("activeWorkers"), values.getInt("physicalWorkers")),
-            text("ft_short", HostText.ae2Amount(values.getLong("parallel"))), 130);
-        var coolant = net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(values.getCompound("coolantFluid").nativeTag());
-        info(coolant == null ? Component.translatable("gui.neoecoae.native_fluid.empty") : Component.literal(coolant.getLocalizedName()),
-            text("coolant_overclock", Math.max(0, values.getInt("coolantOverclock"))), 155);
+        if (state.switchOverlay())
+            sprite(virtual ? 24 : values.getInt("highSwitches") > 0 ? 36 : 24, virtual ? 77 : 65, 12, 12, 180, 186);
+        info(
+            text("fx_short", values.getInt("activeWorkers"), values.getInt("physicalWorkers")),
+            text("ft_short", HostText.ae2Amount(values.getLong("parallel"))),
+            130);
+        var coolant = net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(
+            values.getCompound("coolantFluid")
+                .nativeTag());
+        info(
+            coolant == null ? Component.translatable("gui.neoecoae.native_fluid.empty")
+                : Component.literal(coolant.getLocalizedName()),
+            text("coolant_overclock", Math.max(0, values.getInt("coolantOverclock"))),
+            155);
         if (values.getInt("normalSwitches") == 0 && values.getInt("highSwitches") == 0)
             info(text("switch_none"), text("network_multiplier", values.getInt("multiplier")), 180);
-        else info(text("switch_normal", values.getInt("normalSwitches")),
-            text("switch_high_energy", values.getInt("highSwitches")), 180);
+        else info(
+            text("switch_normal", values.getInt("normalSwitches")),
+            text("switch_high_energy", values.getInt("highSwitches")),
+            180);
     }
 
     @SideOnly(Side.CLIENT)
     private void fluid(CompoundTag values, String key, long amount, long capacity, int x, int ticks, float z) {
-        var fluid = net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(values.getCompound(key).nativeTag());
+        var fluid = net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(
+            values.getCompound(key)
+                .nativeTag());
         long actual = amount >= 0 ? amount : fluid == null ? 0 : fluid.amount;
         int height = Math.round(46 * reveal(capacity <= 0 ? 0 : Math.min(1, actual / (double) capacity)));
         if (fluid != null && height > 0) GuiDraw.drawFluidTexture(fluid, x + 1, 124 - height, 18, height, z);
@@ -167,7 +223,9 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
     }
 
     @SideOnly(Side.CLIENT)
-    private static void heading(String key, int x, int y, int width) { label(key, x, y, width, .75f, true); }
+    private static void heading(String key, int x, int y, int width) {
+        label(key, x, y, width, .75f, true);
+    }
 
     @SideOnly(Side.CLIENT)
     private static void stat(int x, int row, String key, Object... arguments) {
@@ -179,7 +237,10 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
         String template = text(key, "\u0001").getString();
         int split = template.indexOf('\u0001');
         Component line = split < 0 ? Component.literal(template)
-            : Component.literal(template.substring(0, split)).append(Component.literal(value).withColor(color))
+            : Component.literal(template.substring(0, split))
+                .append(
+                    Component.literal(value)
+                        .withColor(color))
                 .append(template.substring(split + 1));
         NativeUiDraw.text(line, x, 81 + row * 8, 49, .75f, PRIMARY, false, true);
     }
@@ -194,11 +255,15 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
         return Component.translatable("gui.neoecoae.crafting.ui." + key, arguments);
     }
 
-    private static String percent(int permille) { return Math.round(permille / 10f) + "%"; }
+    private static String percent(int permille) {
+        return Math.round(permille / 10f) + "%";
+    }
 
     private static String performance(long nanos) {
         long micros = Math.round(Math.max(0L, nanos) / 1000d);
-        return micros < 1000 ? micros + " us" : new java.text.DecimalFormat("#,##0.###",
-            java.text.DecimalFormatSymbols.getInstance(java.util.Locale.ROOT)).format(nanos / 1_000_000d) + " ms";
+        return micros < 1000 ? micros + " us"
+            : new java.text.DecimalFormat(
+                "#,##0.###",
+                java.text.DecimalFormatSymbols.getInstance(java.util.Locale.ROOT)).format(nanos / 1_000_000d) + " ms";
     }
 }

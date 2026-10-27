@@ -69,8 +69,7 @@ public final class NativeStoragePriorityPages {
                 case "priority_button":
                     int step = node.get("step")
                         .getAsInt();
-                    widget = new NativeAe2Button(
-                        () -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)))
+                    widget = new NativeAe2Button(() -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)))
                         .onMousePressed(button -> {
                             if (button != 0) return false;
                             session.change(step);
@@ -86,10 +85,7 @@ public final class NativeStoragePriorityPages {
                 case "help":
                     String key = node.get("key")
                         .getAsString();
-                    widget = new NativeText(
-                        () -> Component.translatable(key),
-                        6f / 9,
-                        0x3f3d52);
+                    widget = new NativeText(() -> Component.translatable(key), 6f / 9, 0x3f3d52);
                     break;
                 default:
                     throw new IllegalArgumentException("Unbound source priority node: " + custom);

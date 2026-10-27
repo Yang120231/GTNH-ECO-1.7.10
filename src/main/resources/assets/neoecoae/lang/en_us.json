@@ -1185,5 +1185,17 @@
   "neoecoae.workstation.coolant": "Cooling capacity: %s",
   "neoecoae.workstation.overclock": "Maximum overclock: %s",
   "neoecoae.workstation.fluid_input": "In: %s, %s mB",
-  "neoecoae.workstation.fluid_output": "Out: %s, %s mB"
+  "neoecoae.workstation.fluid_output": "Out: %s, %s mB",
+  "gui.neoecoae.multiblock_build.title": "Multiblock Builder",
+  "gui.neoecoae.workstation.provider.patterns": "Patterns: %s / %s",
+  "gui.neoecoae.workstation.provider.locked_slot": "Unlock this slot with a capacity upgrade",
+  "gui.neoecoae.workstation.provider.blocking": "Blocking: %s",
+  "gui.neoecoae.workstation.provider.terminal": "Terminal: %s",
+  "gui.neoecoae.enabled": "Enabled",
+  "gui.neoecoae.disabled": "Disabled",
+  "gui.neoecoae.workstation.provider.lock_mode.NONE": "No lock",
+  "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_PULSE": "Until pulse",
+  "gui.neoecoae.workstation.provider.lock_mode.LOCK_WHILE_HIGH": "While high",
+  "gui.neoecoae.workstation.provider.lock_mode.LOCK_WHILE_LOW": "While low",
+  "gui.neoecoae.workstation.provider.lock_mode.LOCK_UNTIL_RESULT": "Until result"
 }

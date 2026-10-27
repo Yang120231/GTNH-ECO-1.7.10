@@ -6,15 +6,16 @@ import static org.mockito.Mockito.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
+
 import org.junit.jupiter.api.Test;
 
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
-
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
@@ -23,6 +24,7 @@ import cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 
 class NativePatternInterfaceSessionTest {
+
     private static ECOCraftingPatternBusBlockEntity bus(int x) {
         var bus = mock(ECOCraftingPatternBusBlockEntity.class);
         when(bus.getBlockPos()).thenReturn(new BlockPos(x, 0, 0));
@@ -49,12 +51,25 @@ class NativePatternInterfaceSessionTest {
         var session = session(cluster);
         var initial = session.capture();
         assertEquals(14, initial.getInt("rows"));
-        assertEquals(54, initial.getList("page", 10).size());
-        int token = initial.getList("page", 10).getCompound(0).getInt("token");
+        assertEquals(
+            54,
+            initial.getList("page", 10)
+                .size());
+        int token = initial.getList("page", 10)
+            .getCompound(0)
+            .getInt("token");
         Collections.reverse(buses);
-        assertEquals(token, session.capture().getList("page", 10).getCompound(0).getInt("token"));
+        assertEquals(
+            token,
+            session.capture()
+                .getList("page", 10)
+                .getCompound(0)
+                .getInt("token"));
         session.apply(0, Integer.MAX_VALUE);
-        assertEquals(8, session.capture().getInt("offset"));
+        assertEquals(
+            8,
+            session.capture()
+                .getInt("offset"));
     }
 
     @Test
@@ -63,8 +78,13 @@ class NativePatternInterfaceSessionTest {
         var bus = bus(1);
         when(cluster.getPatternDomainBuses()).thenReturn(Collections.singletonList(bus));
         var session = session(cluster);
-        int token = session.capture().getList("page", 10).getCompound(0).getInt("token");
-        when(bus.getInternalInventory().getStackInSlot(0)).thenReturn(new ItemStack(TestItems.STONE));
+        int token = session.capture()
+            .getList("page", 10)
+            .getCompound(0)
+            .getInt("token");
+        when(
+            bus.getInternalInventory()
+                .getStackInSlot(0)).thenReturn(new ItemStack(TestItems.STONE));
         assertDoesNotThrow(() -> session.apply(1, token));
         when(cluster.getPatternDomainBuses()).thenReturn(Collections.emptyList());
         assertDoesNotThrow(() -> session.apply(2, token));

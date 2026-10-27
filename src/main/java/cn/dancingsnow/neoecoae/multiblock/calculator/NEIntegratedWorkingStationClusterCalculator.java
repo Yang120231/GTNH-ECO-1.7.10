@@ -1,17 +1,14 @@
 package cn.dancingsnow.neoecoae.multiblock.calculator;
 
-import cn.dancingsnow.neoecoae.platform.registry.StorageMachines;
+import net.minecraft.block.Block;
+import net.minecraft.tileentity.TileEntity;
+
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEIntegratedWorkingStationCluster;
-import java.util.Optional;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
-import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.Holder;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
-import net.minecraft.block.Block;
-import net.minecraft.tileentity.TileEntity;
-import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
 
 /** Verifies the fixed 3x2x2 large integrated working station footprint. */
 public class NEIntegratedWorkingStationClusterCalculator
@@ -68,7 +65,7 @@ public class NEIntegratedWorkingStationClusterCalculator
 
     @Override
     public boolean isValidBlockEntity(TileEntity blockEntity) {
-        return blockEntity instanceof NEBlockEntity<?, ?> ne
+        return blockEntity instanceof NEBlockEntity<?, ?>ne
             && ne.getCalculator() instanceof NEIntegratedWorkingStationClusterCalculator;
     }
 }

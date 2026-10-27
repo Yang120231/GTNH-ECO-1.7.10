@@ -6,7 +6,6 @@ import net.minecraft.entity.player.EntityPlayer;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.widget.Interactable;
-import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
@@ -15,7 +14,6 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
-import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.slot.ItemSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.google.gson.JsonObject;
@@ -60,7 +58,9 @@ public final class NativeStoragePages {
         priorityPanel = sync.syncedPanel(
             "storage.priority.window",
             true,
-            (panelSync, handler) -> NativeStoragePriorityPages.create(priority, handler).relative(mainPanel).pos(6, 6));
+            (panelSync, handler) -> NativeStoragePriorityPages.create(priority, handler)
+                .relative(mainPanel)
+                .pos(6, 6));
         var builder = new cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSession(
             host.storageBuildUiConfig(player));
         sync.syncValue("storage.builder", builder);
@@ -69,8 +69,11 @@ public final class NativeStoragePages {
             true,
             (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderPages
                 .create(builder, handler));
-        guidePanel = sync.syncedPanel("storage.guide", true,
-            (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage.create("storage_system", handler));
+        guidePanel = sync.syncedPanel(
+            "storage.guide",
+            true,
+            (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                .create("storage_system", handler));
     }
 
     public static ModularPanel controller(ECOStorageSystemBlockEntity host, EntityPlayer player,
@@ -135,14 +138,22 @@ public final class NativeStoragePages {
             layout.place(widget, node);
             panel.child(widget);
         }
-        panel.child(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
-            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(176, 0,
-                () -> Component.translatable("gui.neoecoae.guide"), guidePanel::openPanel),
-            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                () -> UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"),
-                () -> Component.translatable("gui.neoecoae.multiblock.builder"), builderPanel::openPanel),
-            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(144, 64,
-                () -> Component.translatable("gui.neoecoae.storage_priority.open"), priorityPanel::openPanel).name("storage-priority")));
+        panel.child(
+            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
+                false,
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                    .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guidePanel::openPanel),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+                    () -> UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"),
+                    () -> Component.translatable("gui.neoecoae.multiblock.builder"),
+                    builderPanel::openPanel),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                    .button(
+                        144,
+                        64,
+                        () -> Component.translatable("gui.neoecoae.storage_priority.open"),
+                        priorityPanel::openPanel)
+                    .name("storage-priority")));
         return panel;
     }
 
@@ -218,8 +229,8 @@ public final class NativeStoragePages {
         @Override
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            if (!ItemStacks.isEmpty(cell().stack()))
-                cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(cell().stack(), 0, 0, context.getCurrentDrawingZ());
+            if (!ItemStacks.isEmpty(cell().stack())) cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw
+                .item(cell().stack(), 0, 0, context.getCurrentDrawingZ());
         }
     }
 
@@ -304,8 +315,12 @@ public final class NativeStoragePages {
                         atlas(sx, 19, 13, 8, (w - 13) / 2, 1, 13, 8);
                         atlas(sx, 43, 13, 8, (w - 13) / 2, h - 9, 13, 8);
                     }
-                    cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(config.hostItem().get(),
-                        (w - 16) / 2, (h - 16) / 2, context.getCurrentDrawingZ());
+                    cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(
+                        config.hostItem()
+                            .get(),
+                        (w - 16) / 2,
+                        (h - 16) / 2,
+                        context.getCurrentDrawingZ());
                     break;
                 case "storage_capacity_bar":
                     drawCapacity(state, w, h);
@@ -329,7 +344,8 @@ public final class NativeStoragePages {
                     if (state.unbounded()) atlas(16, 52, 24, 10, 0, 0, w, h);
                     break;
                 case "storage_infinite_animation":
-                    if (state.infinite()) cn.dancingsnow.neoecoae.platform.ui.NativeAnimatedTexture.infinity(0, 0, w, h);
+                    if (state.infinite())
+                        cn.dancingsnow.neoecoae.platform.ui.NativeAnimatedTexture.infinity(0, 0, w, h);
                     break;
                 case "storage_information":
                     UITexture.fullImage("neoecoae:textures/gui/common/side_bar/mirrored_button_slot_up.png")
@@ -433,7 +449,8 @@ public final class NativeStoragePages {
         for (var segment : StorageHostCharts.capacitySegments(state, width)) {
             var texture = segment.texture() == null ? StoragePanelTextures.swatch(segment.swatch(), segment.color())
                 : cn.dancingsnow.neoecoae.platform.ui.NativeSpriteTexture.of(segment.texture())
-                    .setSprite(0, 0, 8, 8).setBorder(1, 0, 1, 0);
+                    .setSprite(0, 0, 8, 8)
+                    .setBorder(1, 0, 1, 0);
             texture.draw(x, 0, segment.width(), height);
             x += segment.width();
         }
@@ -448,7 +465,8 @@ public final class NativeStoragePages {
                 .get(typeOffset + row);
             int y = row * 29;
             atlas(0, 104, 68, 29, 0, y, 68, 29);
-            if (type.icon() == null) StoragePanelTextures.resourceIcon(type.swatch(), type.color()).draw(2, y + 2, 6, 6);
+            if (type.icon() == null) StoragePanelTextures.resourceIcon(type.swatch(), type.color())
+                .draw(2, y + 2, 6, 6);
             else UITexture.fullImage(
                 type.icon()
                     .toString())

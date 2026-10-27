@@ -80,15 +80,23 @@ class NativeComputationSessionTest {
         var blocked = session.capture();
         assertFalse(blocked.getBoolean("endgameActive"));
         assertEquals(8, blocked.getInt("networkHosts"));
-        assertEquals("drives", blocked.getList("endgameBlockers", 8).getString(0));
+        assertEquals(
+            "drives",
+            blocked.getList("endgameBlockers", 8)
+                .getString(0));
         when(cluster.getEndgameBlockers()).thenReturn(Collections.emptyList());
         var active = session.capture();
         assertTrue(active.getBoolean("endgameActive"));
-        assertTrue(active.getList("endgameBlockers", 8).isEmpty());
+        assertTrue(
+            active.getList("endgameBlockers", 8)
+                .isEmpty());
         when(cluster.getEndgameBlockers()).thenReturn(Collections.singletonList("high_energy_switch"));
         var changed = session.capture();
         assertFalse(changed.getBoolean("endgameActive"));
-        assertEquals("high_energy_switch", changed.getList("endgameBlockers", 8).getString(0));
+        assertEquals(
+            "high_energy_switch",
+            changed.getList("endgameBlockers", 8)
+                .getString(0));
     }
 
     @Test
@@ -98,13 +106,21 @@ class NativeComputationSessionTest {
         when(cluster.getEndgameBlockers()).thenReturn(Collections.emptyList());
         var controller = host(cluster);
         var session = new NativeComputationSession(controller);
-        assertTrue(session.capture().getBoolean("endgameActive"));
+        assertTrue(
+            session.capture()
+                .getBoolean("endgameActive"));
         when(controller.getCluster()).thenReturn(null);
         var removed = session.capture();
         assertFalse(removed.getBoolean("endgameActive"));
         assertEquals(1, removed.getInt("networkHosts"));
-        assertEquals(1, removed.getList("endgameBlockers", 8).size());
-        assertEquals("host_count", removed.getList("endgameBlockers", 8).getString(0));
+        assertEquals(
+            1,
+            removed.getList("endgameBlockers", 8)
+                .size());
+        assertEquals(
+            "host_count",
+            removed.getList("endgameBlockers", 8)
+                .getString(0));
     }
 
     @Test
@@ -182,7 +198,10 @@ class NativeComputationSessionTest {
         when(remote.getActiveCPUs()).thenReturn(Collections.singletonList(running));
         when(remote.isActive()).thenReturn(true);
         var session = new NativeComputationSession(host(local));
-        int token = session.capture().getList("cpus", 10).getCompound(0).getInt("token");
+        int token = session.capture()
+            .getList("cpus", 10)
+            .getCompound(0)
+            .getInt("token");
         session.apply(6, token);
         verify(running.getLogic()).setJobSuspended(true);
         when(network.getMembers()).thenReturn(Collections.singletonList(local));

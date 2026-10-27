@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts.Role;
@@ -16,6 +15,7 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 /** Preserve queued long quantities, tank contents and provider settings in one mined machine item. */
 public final class NativeWorkstationBlock extends NativeMachineBlock {
+
     public NativeWorkstationBlock(BlockEntityType<?> type, Role role, String model) {
         super(type, role, model);
         if (role == Role.CRAFTING_WORKER) {
@@ -50,11 +50,18 @@ public final class NativeWorkstationBlock extends NativeMachineBlock {
     @Override
     public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase entity, ItemStack stack) {
         super.onBlockPlacedBy(world, x, y, z, entity, stack);
-        if (world.isRemote || stack == null || !stack.hasTagCompound()
-            || !stack.getTagCompound().hasKey("BlockEntityTag", 10)) return;
+        if (world.isRemote || stack == null
+            || !stack.hasTagCompound()
+            || !stack.getTagCompound()
+                .hasKey("BlockEntityTag", 10))
+            return;
         if (world.getTileEntity(x, y, z) instanceof NativeNetworkBlockEntity) {
             NativeNetworkBlockEntity tile = (NativeNetworkBlockEntity) world.getTileEntity(x, y, z);
-            tile.loadTag(new CompoundTag(stack.getTagCompound().getCompoundTag("BlockEntityTag")), RegistryAccess.EMPTY);
+            tile.loadTag(
+                new CompoundTag(
+                    stack.getTagCompound()
+                        .getCompoundTag("BlockEntityTag")),
+                RegistryAccess.EMPTY);
             tile.saveChanges();
         }
     }

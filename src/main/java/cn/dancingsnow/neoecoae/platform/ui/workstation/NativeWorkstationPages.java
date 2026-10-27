@@ -22,8 +22,8 @@ import cn.dancingsnow.neoecoae.platform.ae2.grid.RelativeSide;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.ui.NativeFluidSlot;
-import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler;
+import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeOwnedFluidSync;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
@@ -49,7 +49,8 @@ public final class NativeWorkstationPages {
                 NativePageLayout
                     .texture("neoecoae:textures/guis/workstation/integrated_working_station.png", 0, 0, 176, 190));
         panel.child(
-            new NativeText(() -> Component.translatable("block.neoecoae.integrated_working_station"), 1, 0x403e53).pos(8, 6)
+            new NativeText(() -> Component.translatable("block.neoecoae.integrated_working_station"), 1, 0x403e53)
+                .pos(8, 6)
                 .size(160, 10));
         NativeItemHandler input = new NativeItemHandler(host.getInputInv());
         // The source panel already contains the slots; null would restore MUI2's default slot texture.
@@ -101,24 +102,37 @@ public final class NativeWorkstationPages {
         NativeNetworkToolbox toolbox = NativeNetworkToolbox.find(player);
         panel.child(SlotGroupWidget.playerInventory((index, slot) -> {
             slot = toolbox != null && index == toolbox.playerSlot() ? new LockedToolSlot() : new NativeItemSlot();
-            return slot.background(IDrawable.EMPTY).hoverBackground(IDrawable.EMPTY);
+            return slot.background(IDrawable.EMPTY)
+                .hoverBackground(IDrawable.EMPTY);
         })
             .pos(7, 105));
         if (toolbox != null) toolbox.attach(panel);
 
-        IPanelHandler outputs = sync
-            .syncedPanel("workstation.outputs", true, (panelSync, handler) -> outputPanel(session, handler).relative(panel).pos(6, 6));
-        var guide = sync.syncedPanel("workstation.guide", true,
-            (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage.create("integrated_working_station", handler));
-        panel.child(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
-            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(176, 0,
-                () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
-            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                () -> NativePageLayout.texture(ATLAS, session.autoExport() ? 128 : 112, 96, 16, 16),
-                () -> Component.translatable("gui.neoecoae.workstation.auto_export"), session::toggleExport),
-            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                () -> UITexture.fullImage("neoecoae:textures/gui/widget/outputs.png"),
-                () -> text("allow_outputs"), outputs::openPanel).name("workstation-outputs")));
+        IPanelHandler outputs = sync.syncedPanel(
+            "workstation.outputs",
+            true,
+            (panelSync, handler) -> outputPanel(session, handler).relative(panel)
+                .pos(6, 6));
+        var guide = sync.syncedPanel(
+            "workstation.guide",
+            true,
+            (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
+                .create("integrated_working_station", handler));
+        panel.child(
+            cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
+                false,
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                    .button(176, 0, () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
+                    () -> NativePageLayout.texture(ATLAS, session.autoExport() ? 128 : 112, 96, 16, 16),
+                    () -> Component.translatable("gui.neoecoae.workstation.auto_export"),
+                    session::toggleExport),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                    .button(
+                        () -> UITexture.fullImage("neoecoae:textures/gui/widget/outputs.png"),
+                        () -> text("allow_outputs"),
+                        outputs::openPanel)
+                    .name("workstation-outputs")));
         return panel;
     }
 
@@ -208,8 +222,8 @@ public final class NativeWorkstationPages {
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
             ItemStack adjacent = session.adjacentItem(actual);
-            if (!ItemStacks.isEmpty(adjacent)) cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(
-                adjacent, 2, 2, context.getCurrentDrawingZ());
+            if (!ItemStacks.isEmpty(adjacent))
+                cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(adjacent, 2, 2, context.getCurrentDrawingZ());
         }
     }
 

@@ -39,7 +39,8 @@ public final class EcoModelRenderer {
         try {
             for (BakedQuad quad : quads) {
                 if (quad.isCullable()) {
-                    int side = 1 << quad.getCullDirection().ordinal();
+                    int side = 1 << quad.getCullDirection()
+                        .ordinal();
                     if ((checkedSides & side) == 0) {
                         checkedSides |= side;
                         if (shouldCull(world, x, y, z, block, quad.getCullDirection())) culledSides |= side;

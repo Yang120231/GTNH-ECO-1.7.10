@@ -11,7 +11,9 @@ public class NativeFluidSlot extends FluidSlot {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public int getSlotHoverColor() { return 0; }
+    public int getSlotHoverColor() {
+        return 0;
+    }
 
     @Override
     @SideOnly(Side.CLIENT)

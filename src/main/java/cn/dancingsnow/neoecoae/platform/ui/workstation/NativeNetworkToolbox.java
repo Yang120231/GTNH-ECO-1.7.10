@@ -5,7 +5,6 @@ import net.minecraft.item.ItemStack;
 
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
-import com.cleanroommc.modularui.widgets.slot.ItemSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import appeng.api.implementations.items.INetworkToolItem;

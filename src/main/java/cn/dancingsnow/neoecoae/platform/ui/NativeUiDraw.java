@@ -20,14 +20,16 @@ public final class NativeUiDraw {
     public static void sprite(String atlas, int u, int v, int sw, int sh, int x, int y, int w, int h) {
         if (w <= 0 || h <= 0 || sw <= 0 || sh <= 0) return;
         org.lwjgl.opengl.GL11.glColor4f(1, 1, 1, 1);
-        NativePageLayout.texture(atlas, u, v, sw, sh).draw(x, y, w, h);
+        NativePageLayout.texture(atlas, u, v, sw, sh)
+            .draw(x, y, w, h);
     }
 
     public static void text(Component value, float x, float y, float width, float preferredScale, int color,
         boolean centered, boolean shadow) {
         if (value == null || width <= 0) return;
         var font = Minecraft.getMinecraft().fontRenderer;
-        String text = value.nativeText().getFormattedText();
+        String text = value.nativeText()
+            .getFormattedText();
         if (text.isEmpty()) return;
         float scale = Math.min(preferredScale, width / Math.max(1, font.getStringWidth(text)));
         float left = x + (centered ? (width - font.getStringWidth(text) * scale) / 2 : 0);
@@ -36,9 +38,11 @@ public final class NativeUiDraw {
         try {
             org.lwjgl.opengl.GL11.glTranslatef(left, y, 0);
             org.lwjgl.opengl.GL11.glScalef(scale, scale, 1);
-            int[] cursor = {0};
+            int[] cursor = { 0 };
             value.visit((style, segment) -> {
-                int actual = style.getColor() == null ? color : style.getColor().getValue();
+                int actual = style.getColor() == null ? color
+                    : style.getColor()
+                        .getValue();
                 if (shadow) font.drawStringWithShadow(segment, cursor[0], 0, actual);
                 else font.drawString(segment, Math.round(cursor[0]), 0, actual);
                 cursor[0] += font.getStringWidth(segment);

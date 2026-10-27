@@ -14,7 +14,6 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
-import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.google.gson.JsonObject;
 
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
@@ -124,13 +123,13 @@ public final class NativeStorageInterfacePages {
                 return Component.translatable("gui.neoecoae.storage_interface.network")
                     .append(": ")
                     .append(
-                        Component.translatable(
-                            "gui.neoecoae.storage_interface." + (session.online() ? "connected" : "disconnected"))
+                        Component
+                            .translatable(
+                                "gui.neoecoae.storage_interface." + (session.online() ? "connected" : "disconnected"))
                             .withColor(session.online() ? 0x258345 : 0xb53643));
             case "transfer_status":
-                return Component.translatable(
-                    "gui.neoecoae.storage_interface.transfer",
-                    HostText.ae2Amount(session.transferred()));
+                return Component
+                    .translatable("gui.neoecoae.storage_interface.transfer", HostText.ae2Amount(session.transferred()));
             case "filter_caption":
                 return Component.translatable("gui.neoecoae.storage_interface.filter.title");
             case "filter_hint":
@@ -141,18 +140,19 @@ public final class NativeStorageInterfacePages {
     }
 
     private ParentWidget<?> toolbar() {
-        return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
-            settingButton(true), settingButton(false));
+        return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+            .left(false, settingButton(true), settingButton(false));
     }
 
     private ButtonWidget<?> settingButton(boolean creative) {
         return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-            () -> UITexture.fullImage("neoecoae:textures/gui/widget/"
-                + (creative ? "ignore_creative_" : "exclude_storage_bus_")
-                + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? "on" : "off") + ".png"),
-            () -> Component.translatable("gui.neoecoae.storage_interface."
-                + (creative ? "ignore_creative" : "exclude_storage_bus")
-                + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? ".on" : ".off")),
+            () -> UITexture.fullImage(
+                "neoecoae:textures/gui/widget/" + (creative ? "ignore_creative_" : "exclude_storage_bus_")
+                    + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? "on" : "off")
+                    + ".png"),
+            () -> Component.translatable(
+                "gui.neoecoae.storage_interface." + (creative ? "ignore_creative" : "exclude_storage_bus")
+                    + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? ".on" : ".off")),
             creative ? session::toggleCreative : session::toggleStorageBus);
     }
 
@@ -188,7 +188,12 @@ public final class NativeStorageInterfacePages {
             boolean selected = isPressed() || session.mode() == mode;
             int height = selected ? 17 : 18;
             NativePageLayout
-                .texture(ATLAS, (mode.ordinal() + (isHovering() || isPressed() ? 3 : 0)) * 16, selected ? 159 : 140, 16, height)
+                .texture(
+                    ATLAS,
+                    (mode.ordinal() + (isHovering() || isPressed() ? 3 : 0)) * 16,
+                    selected ? 159 : 140,
+                    16,
+                    height)
                 .draw(0, 18 - height, 16, height);
         }
     }

@@ -38,8 +38,9 @@ public final class NativeAe2Button extends NativeButtonWidget<NativeAe2Button> {
     public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
         boolean enabled = active.getAsBoolean();
         String state = !enabled ? "_disabled" : isHovering() || isPressed() ? "_highlighted" : "";
-        NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/sprites/button" + state + ".png",
-            0, 0, 200, 20, 3, 3).draw(context, 0, 0, getArea().width, getArea().height, theme.getTheme());
+        NativePageLayout
+            .texture("neoecoae:textures/gui/vendor/ae2/sprites/button" + state + ".png", 0, 0, 200, 20, 3, 3)
+            .draw(context, 0, 0, getArea().width, getArea().height, theme.getTheme());
     }
 
     @Override
@@ -49,7 +50,7 @@ public final class NativeAe2Button extends NativeButtonWidget<NativeAe2Button> {
         boolean highlighted = isHovering() || isPressed();
         int offset = !enabled ? 2 : highlighted ? 1 : 0;
         int color = !enabled ? 0x413f54 : highlighted ? 0x517497 : 0xf2f2f2;
-        NativeUiDraw.text(label.get(), 2, (getArea().height - 9) / 2 + offset,
-            getArea().width - 4, 1, color, true, false);
+        NativeUiDraw
+            .text(label.get(), 2, (getArea().height - 9) / 2 + offset, getArea().width - 4, 1, color, true, false);
     }
 }

@@ -52,9 +52,13 @@ final class NativeComputationDriveModels {
         boolean formed = state.getValue(NativeMachineBlock.FORMED);
         int driveTier = drive.getRenderTier();
         var memory = ECOComputationCells.describe(drive.getCellStack());
-        boolean connected = formed && memory != null && driveTier >= memory.tier().getTier();
+        boolean connected = formed && memory != null
+            && driveTier >= memory.tier()
+                .getTier();
         if (memory != null) EcoModelRenderer.renderWorld(
-            cells[tierIndex(memory.tier().getTier())][connected ? 1 : 0],
+            cells[tierIndex(
+                memory.tier()
+                    .getTier())][connected ? 1 : 0],
             facing,
             icons,
             world,
@@ -64,7 +68,8 @@ final class NativeComputationDriveModels {
             block,
             renderer);
         if (!formed) return;
-        int cableTier = connected ? memory.tier().getTier() : driveTier;
+        int cableTier = connected ? memory.tier()
+            .getTier() : driveTier;
         EcoModelRenderer.renderWorld(
             cables[tierIndex(cableTier)][connected ? 1 : 0][drive.isLowerDrive() ? 1 : 0],
             facing,

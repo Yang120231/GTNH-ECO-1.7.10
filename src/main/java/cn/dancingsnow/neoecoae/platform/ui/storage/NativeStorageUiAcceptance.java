@@ -32,8 +32,8 @@ public final class NativeStorageUiAcceptance extends CommandBase {
     private ServerTasks.Session serverSession;
     private int stage, ticks;
     private boolean finished;
-    private final cn.dancingsnow.neoecoae.platform.ui.NativeUiParityAcceptance parity = Boolean.getBoolean("neoecoae.uiParityAcceptance")
-        ? new cn.dancingsnow.neoecoae.platform.ui.NativeUiParityAcceptance() : null;
+    private final cn.dancingsnow.neoecoae.platform.ui.NativeUiParityAcceptance parity = Boolean.getBoolean(
+        "neoecoae.uiParityAcceptance") ? new cn.dancingsnow.neoecoae.platform.ui.NativeUiParityAcceptance() : null;
     private final NativeStorageUiNetworkAcceptance network = Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")
         ? new NativeStorageUiNetworkAcceptance(() -> open("interface"), this::verifyNetworkResult)
         : null;

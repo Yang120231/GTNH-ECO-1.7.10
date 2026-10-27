@@ -39,7 +39,9 @@ public class CommonProxy {
             .register(cn.dancingsnow.neoecoae.impl.storage.ECOCreativeCell.Handler.INSTANCE);
         cn.dancingsnow.neoecoae.platform.registry.NativeContent.connectAe2();
         cn.dancingsnow.neoecoae.compat.ae2.AE2PatternOptimizationIntegration.init();
-        appeng.api.AEApi.instance().registries().interfaceTerminal()
+        appeng.api.AEApi.instance()
+            .registries()
+            .interfaceTerminal()
             .register(cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.Interface.class);
         cn.dancingsnow.neoecoae.platform.recipe.StorageRecipes.register();
     }
