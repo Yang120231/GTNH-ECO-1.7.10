@@ -5,7 +5,9 @@ import java.util.Set;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Group;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -62,8 +64,27 @@ public abstract class CraftingCpuPublicationMixin {
         if (machine instanceof ECOComputationSystemBlockEntity) updateList = true;
     }
 
-    @Inject(method = NativeCpuTargets.PLAN, at = @At("HEAD"), cancellable = true, require = 1)
+    @Group(name = "neoecoae$planningEntry", min = 1, max = 1)
+    @Inject(method = NativeCpuTargets.PLAN, at = @At("HEAD"), cancellable = true, require = 0)
     private void neoecoae$plan(net.minecraft.world.World world, IGrid requestedGrid,
+        appeng.api.networking.security.BaseActionSource source, appeng.api.storage.data.IAEStack<?> output,
+        appeng.api.config.CraftingMode mode, appeng.api.networking.crafting.ICraftingCallback callback,
+        org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingJob>> cir) {
+        neoecoae$beginPlan(world, requestedGrid, source, output, mode, callback, cir);
+    }
+
+    @Group(name = "neoecoae$planningEntry", min = 1, max = 1)
+    @Inject(method = NativeCpuTargets.PLAN_WITH_LITE_MODE, at = @At("HEAD"), cancellable = true, require = 0)
+    private void neoecoae$planWithLiteMode(net.minecraft.world.World world, IGrid requestedGrid,
+        appeng.api.networking.security.BaseActionSource source, appeng.api.storage.data.IAEStack<?> output,
+        appeng.api.config.CraftingMode mode, boolean liteMode,
+        appeng.api.networking.crafting.ICraftingCallback callback,
+        org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingJob>> cir) {
+        if (!liteMode) neoecoae$beginPlan(world, requestedGrid, source, output, mode, callback, cir);
+    }
+
+    @Unique
+    private void neoecoae$beginPlan(net.minecraft.world.World world, IGrid requestedGrid,
         appeng.api.networking.security.BaseActionSource source, appeng.api.storage.data.IAEStack<?> output,
         appeng.api.config.CraftingMode mode, appeng.api.networking.crafting.ICraftingCallback callback,
         org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingJob>> cir) {

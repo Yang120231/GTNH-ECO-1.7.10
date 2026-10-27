@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -9,31 +10,51 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.zip.ZipFile;
 
 import org.junit.jupiter.api.Test;
 
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeCpuTargets;
 
-/** Verify actual pinned dependency bytecode without loading its game-only static initialization. */
+/** Verify dependency bytecode without loading AE2's game-only static initialization. */
 class NativeCpuTargetsContractTest {
 
     @Test
     void requiredNativeHooksExistInPinnedJar() throws IOException {
         Set<String> methods = readMethods("/appeng/me/cache/CraftingGridCache.class");
-        for (String descriptor : Arrays.asList(
-            NativeCpuTargets.PUBLISH,
-            NativeCpuTargets.ADD,
-            NativeCpuTargets.REMOVE,
-            NativeCpuTargets.PLAN,
-            NativeCpuTargets.SUBMIT))
-            assertTrue(
-                methods.contains(descriptor),
-                "Pinned AE2 jar does not contain required mixin target " + descriptor);
+        assertRequiredHooks(methods);
+        assertTrue(methods.contains(NativeCpuTargets.PLAN), "Pinned AE2 must exercise the legacy planning entry");
+    }
+
+    @Test
+    void requiredNativeHooksExistInInstalledCompatibilityJar() throws IOException {
+        String path = System.getenv("NEOECOAE_AE2_COMPAT_JAR");
+        assumeTrue(path != null && !path.isEmpty(), "Set NEOECOAE_AE2_COMPAT_JAR to validate an installed AE2 JAR");
+        try (ZipFile jar = new ZipFile(path)) {
+            var entry = jar.getEntry("appeng/me/cache/CraftingGridCache.class");
+            assertNotNull(entry, "Compatibility JAR is missing CraftingGridCache");
+            assertRequiredHooks(readMethods(jar.getInputStream(entry)));
+        }
+    }
+
+    private static void assertRequiredHooks(Set<String> methods) {
+        for (String descriptor : Arrays
+            .asList(NativeCpuTargets.PUBLISH, NativeCpuTargets.ADD, NativeCpuTargets.REMOVE, NativeCpuTargets.SUBMIT))
+            assertTrue(methods.contains(descriptor), "AE2 JAR does not contain required mixin target " + descriptor);
+        long planningEntries = Arrays.asList(NativeCpuTargets.PLAN, NativeCpuTargets.PLAN_WITH_LITE_MODE)
+            .stream()
+            .filter(methods::contains)
+            .count();
+        assertEquals(1, planningEntries, "Exactly one supported planning entry must match the injection group");
     }
 
     private static Set<String> readMethods(String resource) throws IOException {
         InputStream stream = NativeCpuTargetsContractTest.class.getResourceAsStream(resource);
         assertNotNull(stream, "Missing pinned native dependency");
+        return readMethods(stream);
+    }
+
+    private static Set<String> readMethods(InputStream stream) throws IOException {
         try (DataInputStream input = new DataInputStream(stream)) {
             assertEquals(0xcafebabe, input.readInt());
             input.readUnsignedShort();
