@@ -292,7 +292,7 @@
   "gui.neoecoae.host.computation.parallel_count": "ʇunoƆ ןǝןןɐɹɐԀ",
   "gui.neoecoae.host.computation.thread_usage": "ǝbɐs∩ pɐǝɹɥ⟘",
   "gui.neoecoae.host.crafting.coolant": "ʇuɐןooƆ",
-  "gui.neoecoae.host.crafting.host_line": "%d ɥɔʇɐᗺ · %d ʎʇıɔɐdɐƆ ןǝןןɐɹɐԀ ⟘Ⅎ · %1$s",
+  "gui.neoecoae.host.crafting.host_line": "%3$d ɥɔʇɐᗺ · %2$d ʎʇıɔɐdɐƆ ןǝןןɐɹɐԀ ⟘Ⅎ · %1$s",
   "gui.neoecoae.host.crafting.host_type.high_energy": "ʎbɹǝuƎ-ɥbıH",
   "gui.neoecoae.host.crafting.host_type.normal": "ןɐɯɹoN",
   "gui.neoecoae.host.crafting.overflow": "ʍoןɟɹǝʌO",
@@ -524,7 +524,7 @@
   "jade.neoecoae.fast_planner.disabled": "pǝןqɐsıᗡ buıuuɐןԀ ʇsɐℲ OƆƎ",
   "jade.neoecoae.fast_planner.enabled": "pǝןqɐuƎ buıuuɐןԀ ʇsɐℲ OƆƎ",
   "jade.neoecoae.high_energy_switch": "(s)ǝbuɐɥɔxǝ ʎbɹǝuǝ-ɥbıɥ",
-  "jade.neoecoae.network_composition": "%2$s %d+%1$s %d :ʞɹoʍʇǝN",
+  "jade.neoecoae.network_composition": "%4$s %3$d+%2$s %1$d :ʞɹoʍʇǝN",
   "jade.neoecoae.normal_switch": "(s)ǝbuɐɥɔxǝ ןɐɯɹou",
   "jade.neoecoae.overclock_disabled": "pǝןqɐsıᗡ ʞɔoןɔɹǝʌO",
   "jade.neoecoae.overclock_status": "%d\\%d :ʞɔoןɔɹǝʌO ǝʌıʇɔǝɟɟƎ \\ ןɐɔıʇǝɹoǝɥ⟘",
@@ -833,5 +833,11 @@
   "gui.neoecoae.workstation.fe_value": "Network FE consumption: %s FE/t; reserved: %s FE",
   "gui.neoecoae.workstation.fe_requirement": "Network FE requires Applied Flux; missing FE can be paid with equivalent AE.",
   "gui.neoecoae.workstation.task_duration": "Processing time: %s / %s ticks",
-  "tile.neoecoae.platform_blue_ice.name": "ǝɔI ǝnlᗺ"
+  "tile.neoecoae.platform_blue_ice.name": "ǝɔI ǝnlᗺ",
+  "gui.neoecoae.multiblock.length_label": "Length",
+  "gui.neoecoae.structure_terminal.length_range": "Min: %s  Max: %s",
+  "gui.neoecoae.guide": "ǝpᴉn⅁ uǝdO",
+  "container.neoecoae": "ʎɹoʇuǝʌuI OƆƎ",
+  "container.neoecoae.integrated_working_station": "uoᴉʇɐʇS ƃuᴉʞɹoＭ pǝʇɐɹƃǝʇuI",
+  "tooltip.neoecoae.storage.empty_only": "pǝlqɯǝssɐsᴉp ǝq uɐɔ xᴉɹʇɐɯ ǝƃɐɹoʇs ʎʇdɯǝ uɐ ʎluO"
 }

@@ -939,5 +939,11 @@
   "gui.neoecoae.workstation.fe_value": "網路 FE 消耗：%s FE/t；待結算：%s FE",
   "gui.neoecoae.workstation.fe_requirement": "網中 FE 供能須有 Applied Flux；FE 不足或未裝時，可用等價 AE 代償。",
   "gui.neoecoae.workstation.task_duration": "加工時間：%s / %s tick",
-  "tile.neoecoae.platform_blue_ice.name": "蒼冰"
+  "tile.neoecoae.platform_blue_ice.name": "蒼冰",
+  "gui.neoecoae.multiblock.length_label": "長",
+  "gui.neoecoae.structure_terminal.length_range": "最小：%s  最大：%s",
+  "gui.neoecoae.guide": "啟指南",
+  "container.neoecoae": "ECO 物囊",
+  "container.neoecoae.integrated_working_station": "集成工坊",
+  "tooltip.neoecoae.storage.empty_only": "惟空藏矩可拆"
 }

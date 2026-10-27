@@ -1170,5 +1170,20 @@
   "gui.neoecoae.native_computation.pause": "Suspend",
   "gui.neoecoae.native_computation.cancel": "Cancel task",
   "gui.neoecoae.native_computation.cpu_list_title": "Crafting CPUs",
-  "gui.neoecoae.native_fluid.empty": "Empty"
+  "gui.neoecoae.native_fluid.empty": "Empty",
+  "gui.neoecoae.multiblock.length_label": "Length",
+  "gui.neoecoae.structure_terminal.length_range": "Min: %s  Max: %s",
+  "gui.neoecoae.guide": "Open Guide",
+  "container.neoecoae": "ECO Inventory",
+  "container.neoecoae.integrated_working_station": "Integrated Working Station",
+  "tooltip.neoecoae.storage.empty_only": "Only an empty storage matrix can be disassembled",
+  "neoecoae.workstation.integrated": "ECO Integrated Workstation",
+  "neoecoae.workstation.large": "ECO Large Integrated Workstation",
+  "neoecoae.workstation.cooling": "ECO Workstation Cooling",
+  "neoecoae.workstation.energy": "Total energy: %s AE",
+  "neoecoae.workstation.ticks": "Base processing time: %s ticks",
+  "neoecoae.workstation.coolant": "Cooling capacity: %s",
+  "neoecoae.workstation.overclock": "Maximum overclock: %s",
+  "neoecoae.workstation.fluid_input": "In: %s, %s mB",
+  "neoecoae.workstation.fluid_output": "Out: %s, %s mB"
 }
