@@ -2,15 +2,20 @@ package cn.dancingsnow.neoecoae.blocks.entity.computation;
 
 import cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
-import cn.dancingsnow.neoecoae.multiblock.calculator.*;
-import cn.dancingsnow.neoecoae.multiblock.cluster.*;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
+import cn.dancingsnow.neoecoae.multiblock.network.NEFrequencyAllocator;
 import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode;
-import cn.dancingsnow.neoecoae.platform.inventory.*;
-import cn.dancingsnow.neoecoae.platform.minecraft.*;
-import cn.dancingsnow.neoecoae.platform.nbt.*;
-import cn.dancingsnow.neoecoae.platform.registry.*;
-import cn.dancingsnow.neoecoae.platform.sync.*;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
+import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
+import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
+import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
+import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
+import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOComputationSystemBlockEntity
     extends NEBlockEntity<NEComputationCluster, ECOComputationSystemBlockEntity>
@@ -19,7 +24,7 @@ public class ECOComputationSystemBlockEntity
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     private final StorageTierDescriptor tier;
     @Persisted
-    private int networkFrequency = 0;
+    private int networkFrequency = NEFrequencyAllocator.DEFAULT_FREQUENCY;
     @Persisted
     private int cpuSelectionMode;
     @Persisted
@@ -69,20 +74,24 @@ public class ECOComputationSystemBlockEntity
     }
 
     public boolean hasNetworkFrequency() {
-        return networkFrequency > 0 && networkFrequency <= 4096;
+        return networkFrequency >= 1 && networkFrequency <= NEFrequencyAllocator.FREQUENCY_COUNT;
     }
 
     public int getNetworkFrequency() {
-        return networkFrequency;
+        return hasNetworkFrequency() ? networkFrequency : NEFrequencyAllocator.DEFAULT_FREQUENCY;
     }
 
     public void assignNetworkFrequency(int value) {
-        networkFrequency = value;
+        if (hasNetworkFrequency()) return;
+        networkFrequency = NEFrequencyAllocator.normalize(value);
         setChanged();
+        markForClientUpdate();
     }
 
     public void setNetworkFrequency(int value) {
-        assignNetworkFrequency(Math.max(1, Math.min(4096, value)));
+        networkFrequency = NEFrequencyAllocator.normalize(value);
+        setChanged();
+        markForClientUpdate();
         if (cluster != null) NELogicalNetworkManager.refresh(cluster);
     }
 
@@ -208,8 +217,9 @@ public class ECOComputationSystemBlockEntity
             while (members.hasNext()) {
                 var member = members.next();
                 if (member instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>)
-                    result.addAll(((cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>) member)
-                        .getFuzzyPlanningItemIds());
+                    result.addAll(
+                        ((cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity<?>) member)
+                            .getFuzzyPlanningItemIds());
             }
         }
         return result;

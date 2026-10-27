@@ -38,6 +38,7 @@ class NativeBuilderSessionTest {
         var missing = capture(config);
         assertEquals("not_enough_items", missing.getString("status"));
         assertFalse(missing.getBoolean("canBuild"));
+        assertTrue(missing.getBoolean("editable"));
         assertEquals(
             0,
             missing.getList("materials", 10)
@@ -69,6 +70,7 @@ class NativeBuilderSessionTest {
         var blocked = capture(config(player, plan(Collections.singletonList(BlockPos.ZERO)), false, false));
         assertEquals("conflicts_detected", blocked.getString("status"));
         assertFalse(blocked.getBoolean("canBuild"));
+        assertTrue(blocked.getBoolean("editable"));
         assertEquals("0, 0, 0", blocked.getString("conflictPositions"));
     }
 
@@ -78,11 +80,14 @@ class NativeBuilderSessionTest {
         var formed = capture(config(player, null, true, true));
         assertEquals("controller_formed", formed.getString("status"));
         assertFalse(formed.getBoolean("canBuild"));
+        assertFalse(formed.getBoolean("editable"));
         var running = capture(config(player, plan(Collections.emptyList()), false, true));
         assertEquals("build_in_progress", running.getString("status"));
         assertTrue(running.getBoolean("building"));
         assertFalse(running.getBoolean("canBuild"));
+        assertFalse(running.getBoolean("editable"));
         assertEquals("no_definition", capture(config(player, null, false, false)).getString("status"));
+        assertFalse(capture(config(player, null, false, false)).getBoolean("editable"));
     }
 
     @Test
@@ -128,10 +133,12 @@ class NativeBuilderSessionTest {
             mock(TileEntity.class),
             player,
             () -> 5,
+            1,
+            64,
+            value -> {},
+            delta -> {},
             () -> true,
             value -> {},
-            () -> {},
-            () -> {},
             () -> {},
             () -> formed,
             () -> building,

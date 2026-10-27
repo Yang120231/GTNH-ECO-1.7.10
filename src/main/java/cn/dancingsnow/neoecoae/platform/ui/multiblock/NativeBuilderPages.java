@@ -1,182 +1,220 @@
 package cn.dancingsnow.neoecoae.platform.ui.multiblock;
 
+import java.util.regex.Pattern;
+
 import com.cleanroommc.modularui.api.IPanelHandler;
-import com.cleanroommc.modularui.drawable.GuiDraw;
-import com.cleanroommc.modularui.drawable.GuiTextures;
-import com.cleanroommc.modularui.drawable.UITexture;
+import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
+import com.cleanroommc.modularui.value.StringValue;
+import com.cleanroommc.modularui.widget.ParentWidget;
+import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
+import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import com.google.gson.JsonObject;
 
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
-import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
+import cn.dancingsnow.neoecoae.platform.ui.NativeAe2Button;
+import cn.dancingsnow.neoecoae.platform.ui.NativeButtonWidget;
+import cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel;
+import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
+import cn.dancingsnow.neoecoae.platform.ui.NativeSpriteTexture;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-/** Source builder controls/material table in a native draggable panel sized for the 1.7 client. */
+/** The 1.20.1 four-row builder layout and artwork, shared by all three native host menus. */
 public final class NativeBuilderPages {
 
     private NativeBuilderPages() {}
 
     public static ModularPanel create(NativeBuilderSession session, IPanelHandler handler) {
-        ModularPanel panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel.create("neoecoae_multiblock_builder", 286, 221)
-            .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.panel());
-        panel.child(new com.cleanroommc.modularui.widget.Widget<>().pos(4, 29).size(116, 188)
-            .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.panel()));
-        panel.child(new com.cleanroommc.modularui.widget.Widget<>().pos(124, 29).size(152, 104)
-            .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.panel()));
-        panel.child(
-            label("builder").pos(8, 6)
-                .size(240, 12));
-        panel.child(
-            new ButtonWidget<>().pos(264, 4)
-                .size(16)
-                .overlay(GuiTextures.CROSS_TINY)
-                .onMousePressed(button -> {
-                    if (button != 0) return false;
-                    handler.closePanel();
-                    return true;
-                }));
-        panel.child(
-            label("parameters").pos(7, 32)
-                .size(110, 10));
-        panel.child(
-            button("-", () -> session.changeLength(-1)).pos(7, 45)
-                .size(18)
-                .setEnabledIf(widget -> !session.building()));
-        panel.child(
-            new NativeText(() -> text("length", session.length()), 1, 0x3f3d52).pos(27, 49)
-                .size(54, 10));
-        panel.child(
-            button("+", () -> session.changeLength(1)).pos(83, 45)
-                .size(18)
-                .setEnabledIf(widget -> !session.building()));
-        panel.child(
-            label("mirror").pos(7, 71)
-                .size(42, 10));
-        panel.child(
-            buttonKey("mirror.off", () -> session.mirror(false)).pos(51, 67)
-                .size(32, 18)
-                .setEnabledIf(widget -> !session.building() && session.mirrored()));
-        panel.child(
-            buttonKey("mirror.on", () -> session.mirror(true)).pos(85, 67)
-                .size(32, 18)
-                .setEnabledIf(widget -> !session.building() && !session.mirrored()));
-        panel.child(
-            label("live_result").pos(7, 89)
-                .size(110, 10));
-        String[] metrics = { "missing", "conflicts", "reused", "required_items" };
-        String[] names = { "missing", "conflicts", "reused", "required" };
-        for (int index = 0; index < metrics.length; index++) {
-            final int value = index;
-            panel.child(
-                new NativeText(() -> text(metrics[value], session.metric(names[value])), 1, 0x3f3d52).pos(7, 102 + index * 13)
-                    .size(110, 10));
-        }
-        panel.child(
-            new NativeText(() -> text("status." + session.status()), 1, 0x3f3d52).pos(7, 154)
-                .size(110, 9));
-        panel.child(label("actions").pos(7, 167).size(110, 9));
-        panel.child(
-            buttonKey("build", session::build).pos(7, 180)
-                .size(104, 20)
-                .setEnabledIf(widget -> session.canBuild()));
-        panel.child(
-            label("auto_preview_hint").pos(7, 204)
-                .size(110, 9));
-        panel.child(
-            label("materials").pos(127, 32)
-                .size(150, 10));
-        for (int index = 0; index < 24; index++) panel.child(
-            new Material(session, index).pos(128 + index % 8 * 18, 47 + index / 8 * 18)
-                .size(18));
-        panel.child(
-            label("conflict_preview").pos(127, 107)
-                .size(150, 10));
-        panel.child(
-            new NativeText(() -> text("conflicts", session.metric("conflicts")), 1, 0x3f3d52).pos(127, 121)
-                .size(150, 12)
-                .tooltipDynamic(tooltip -> {
-                    if (session.metric("conflicts") == 0) tooltip.add(text("no_conflicts").getString());
-                    else {
-                        tooltip.add(text("conflict_positions").getString());
-                        tooltip.add(session.conflicts());
-                        if (session.metric("otherConflicts") > 0)
-                            tooltip.add(text("more_conflicts", session.metric("otherConflicts")).getString());
-                    }
-                }));
+        NativePageLayout layout = new NativePageLayout("common/multiblock_build");
+        ModularPanel panel = NativeMachinePanel.create("neoecoae_multiblock_builder", layout.width(), layout.height())
+            .background(
+                NativeSpriteTexture.of(ResourceLocation.parse("neoecoae:textures/guis/priority.png"))
+                    .setSprite(0, 0, 176, 125)
+                    .setBorder(1, 1, 1, 3));
+        LengthField length = new LengthField(session);
+        children(panel, layout, layout.root(), session, handler, length);
         return panel;
     }
 
-    private static NativeText label(String key) {
-        return new NativeText(() -> text(key), 1, 0x236f80);
+    private static void children(ParentWidget<?> parent, NativePageLayout layout, JsonObject definition,
+        NativeBuilderSession session, IPanelHandler handler, LengthField length) {
+        if (!definition.has("children")) return;
+        for (var value : definition.getAsJsonArray("children")) {
+            JsonObject node = value.getAsJsonObject();
+            Widget<?> widget;
+            String type = node.get("type")
+                .getAsString();
+            if (type.equals("label")) {
+                widget = new NativeText(
+                    () -> Component.translatable(
+                        node.get("text")
+                            .getAsString()),
+                    1,
+                    0x413f54);
+            } else if (type.equals("element") || node.get("name")
+                .getAsString()
+                .equals("drag_bar")) {
+                    ParentWidget<?> group = new ParentWidget<>();
+                    children(group, layout, node, session, handler, length);
+                    widget = group;
+                } else {
+                    switch (node.get("name")
+                        .getAsString()) {
+                        case "back":
+                            widget = new ButtonWidget<>()
+                                .background(
+                                    NativePageLayout
+                                        .texture("neoecoae:textures/gui/vendor/ae2/states.png", 160, 192, 20, 20))
+                                .overlay(
+                                    NativePageLayout
+                                        .texture("neoecoae:textures/gui/vendor/ae2/states.png", 96, 16, 16, 16))
+                                .onMousePressed(button -> {
+                                    if (button != 0) return false;
+                                    length.commit();
+                                    handler.closePanel();
+                                    return true;
+                                })
+                                .tooltipDynamic(tooltip -> tooltip.add(text("close_builder").getString()));
+                            break;
+                        case "length_field":
+                            widget = length;
+                            break;
+                        case "length_step":
+                            int step = node.get("step")
+                                .getAsInt();
+                            widget = new NativeAe2Button(
+                                () -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)))
+                                    .activeWhen(session::editable)
+                                    .onMousePressed(button -> {
+                                        if (button != 0) return false;
+                                        length.commit();
+                                        session.changeLength(step);
+                                        return true;
+                                    });
+                            break;
+                        case "mirror":
+                            widget = new MirrorSwitch(session);
+                            break;
+                        case "build":
+                            widget = new NativeAe2Button(() -> text("build")).activeWhen(session::editable)
+                                .onMousePressed(button -> {
+                                    if (button != 0) return false;
+                                    length.commit();
+                                    session.build();
+                                    return true;
+                                })
+                                .tooltipDynamic(tooltip -> tooltip.add(text("status." + session.status()).getString()))
+                                .onUpdateListener(control -> control.markTooltipDirty());
+                            break;
+                        default:
+                            throw new IllegalArgumentException("Unbound source builder node: " + node);
+                    }
+                }
+            layout.place(widget, node);
+            parent.child(widget);
+        }
     }
 
     private static Component text(String key, Object... args) {
         return Component.translatable("gui.neoecoae.multiblock." + key, args);
     }
 
-    private static ButtonWidget<?> button(String label, Runnable action) {
-        return cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.button().child(new NativeText(() -> Component.literal(label)))
-            .onMousePressed(button -> {
-                if (button != 0) return false;
-                action.run();
-                return true;
-            });
-    }
-
-    private static ButtonWidget<?> buttonKey(String key, Runnable action) {
-        return cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.button().child(new NativeText(() -> text(key)))
-            .onMousePressed(button -> {
-                if (button != 0) return false;
-                action.run();
-                return true;
-            });
-    }
-
-    private static final class Material extends ButtonWidget<Material> {
+    private static final class LengthField extends TextFieldWidget {
 
         private final NativeBuilderSession session;
-        private final int index;
 
-        Material(NativeBuilderSession session, int index) {
+        private LengthField(NativeBuilderSession session) {
             this.session = session;
-            this.index = index;
-            tooltipDynamic(tooltip -> {
-                var stack = session.material(index);
-                if (!ItemStacks.isEmpty(stack)) tooltip.addFromItem(stack)
-                    .newLine()
-                    .add(session.available(index) + " / " + session.required(index));
-            });
-            onUpdateListener(widget -> widget.markTooltipDirty());
+            setMaxLength(10);
+            setPattern(Pattern.compile("[0-9]*"));
+            setTextColor(0xfff2f2f2);
+            value(
+                new StringValue.Dynamic(
+                    () -> String.valueOf(session.length()),
+                    text -> { if (session.editable()) session.setLength(text); }));
+            tooltipDynamic(
+                tooltip -> tooltip.add(
+                    Component
+                        .translatable(
+                            "gui.neoecoae.structure_terminal.length_range",
+                            session.minLength(),
+                            session.maxLength())
+                        .getString()));
+        }
+
+        private void commit() {
+            // MUI2 normally removes focus after the click callback. Commit first so a later focus-loss
+            // packet cannot overwrite the length step or arrive after the build action.
+            if (isFocused()) getContext().removeFocus();
+        }
+
+        @Override
+        public Result onMousePressed(int button) {
+            return session.editable() ? super.onMousePressed(button) : Result.IGNORE;
+        }
+
+        @Override
+        public Result onKeyPressed(char character, int keyCode) {
+            return session.editable() ? super.onKeyPressed(character, keyCode) : Result.IGNORE;
+        }
+
+        @Override
+        public void onUpdate() {
+            if (!session.editable()) commit();
+            super.onUpdate();
         }
 
         @Override
         @SideOnly(Side.CLIENT)
         public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            UITexture.fullImage("neoecoae:textures/gui/common/slot.png")
-                .draw(0, 0, 18, 18);
+            NativePageLayout
+                .texture(
+                    "neoecoae:textures/gui/vendor/ae2/text_field.png",
+                    0,
+                    !session.editable() ? 12 : isFocused() ? 24 : 0,
+                    128,
+                    12,
+                    1,
+                    0)
+                .draw(0, 0, getArea().width, getArea().height);
+        }
+    }
+
+    private static final class MirrorSwitch extends NativeButtonWidget<MirrorSwitch> {
+
+        private final NativeBuilderSession session;
+
+        private MirrorSwitch(NativeBuilderSession session) {
+            this.session = session;
+            background(IDrawable.EMPTY);
+            hoverBackground(IDrawable.EMPTY);
+            onMousePressed(button -> {
+                if (button != 0 || !session.editable()) return false;
+                session.mirror(!session.mirrored());
+                return true;
+            });
+            tooltipDynamic(
+                tooltip -> tooltip.add(text("mirror." + (session.mirrored() ? "on" : "off") + ".tooltip").getString()));
+            onUpdateListener(control -> control.markTooltipDirty());
         }
 
         @Override
         @SideOnly(Side.CLIENT)
-        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            var stack = session.material(index);
-            if (ItemStacks.isEmpty(stack)) return;
-            GuiDraw.drawItem(stack, 1, 1, 16, 16, context.getCurrentDrawingZ());
-            com.cleanroommc.modularui.utils.Platform.setupDrawFont();
-            var font = net.minecraft.client.Minecraft.getMinecraft().fontRenderer;
-            String count = String.valueOf(session.required(index));
-            org.lwjgl.opengl.GL11.glPushMatrix();
-            try {
-                org.lwjgl.opengl.GL11.glTranslatef(17 - font.getStringWidth(count) * .5f, 12, 100);
-                org.lwjgl.opengl.GL11.glScalef(.5f, .5f, 1);
-                font.drawStringWithShadow(count, 0, 0, session.enough(index) ? 0x55ff55 : 0xff5555);
-            } finally {
-                org.lwjgl.opengl.GL11.glPopMatrix();
-            }
+        public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            NativePageLayout
+                .texture(
+                    "neoecoae:textures/gui/vendor/ae2/checkbox.png",
+                    session.editable() && (isHovering() || isPressed()) ? 22 : 0,
+                    session.mirrored() ? 40 : 28,
+                    22,
+                    12)
+                .draw(0, 0, getArea().width, getArea().height);
         }
     }
 }

@@ -53,6 +53,18 @@ public final class NativeBuilderSession extends NativeTileSession {
         return state.getBoolean("canBuild");
     }
 
+    public boolean editable() {
+        return config.minLength() < config.maxLength() && state.getBoolean("editable");
+    }
+
+    public int minLength() {
+        return config.minLength();
+    }
+
+    public int maxLength() {
+        return config.maxLength();
+    }
+
     public ItemStack material(int index) {
         return ItemStacks.parseOptional(RegistryAccess.EMPTY, materialTag(index).getCompound("stack"));
     }
@@ -115,6 +127,7 @@ public final class NativeBuilderSession extends NativeTileSession {
             building = config.buildInProgress()
                 .getAsBoolean();
         tag.putBoolean("building", building);
+        tag.putBoolean("editable", !formed && !building && plan != null);
         boolean creative = config.player().capabilities.isCreativeMode;
         List<RequiredItem> required = plan == null ? java.util.Collections.emptyList() : plan.getRequiredItems();
         ListTag materials = new ListTag();
@@ -187,16 +200,37 @@ public final class NativeBuilderSession extends NativeTileSession {
     @Override
     public void readOnServer(int id, PacketBuffer buffer) throws IOException {
         Runnable action;
-        if (id == 0) action = config.decreaseLength();
-        else if (id == 1) action = config.increaseLength();
+        if (id == 0) action = () -> config.changeLength()
+            .accept(-1);
+        else if (id == 1) action = () -> config.changeLength()
+            .accept(1);
         else if (id == 2) {
             boolean mirror = buffer.readBoolean();
             action = () -> config.setMirrored()
                 .accept(mirror);
         } else if (id == 3) action = config.build();
-        else throw new IOException("Unknown builder action: " + id);
+        else if (id == 4) {
+            int length = buffer.readInt();
+            action = () -> config.setLength()
+                .accept(
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+                        .clamp(length, config.minLength(), config.maxLength()));
+        } else if (id == 5) {
+            int delta = buffer.readInt();
+            if (delta != -10 && delta != -1 && delta != 1 && delta != 10)
+                throw new IOException("Invalid builder length step: " + delta);
+            action = () -> config.changeLength()
+                .accept(delta);
+        } else throw new IOException("Unknown builder action: " + id);
         if (buffer.isReadable()) throw new IOException("Trailing builder action bytes");
         edit(() -> {
+            if (config.formed()
+                .getAsBoolean()
+                || config.buildInProgress()
+                    .getAsBoolean()
+                || config.previewPlan()
+                    .get() == null)
+                return;
             action.run();
             nextCapture = 0;
         });
@@ -204,7 +238,18 @@ public final class NativeBuilderSession extends NativeTileSession {
 
     @SideOnly(Side.CLIENT)
     public void changeLength(int delta) {
-        syncToServer(delta < 0 ? 0 : 1);
+        syncToServer(5, output -> output.writeInt(delta));
+    }
+
+    @SideOnly(Side.CLIENT)
+    public void setLength(String text) {
+        try {
+            int length = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+                .clamp(Long.parseLong(text), minLength(), maxLength());
+            syncToServer(4, output -> output.writeInt(length));
+        } catch (NumberFormatException ignored) {
+            // Clearing or partially editing the field preserves the selected length.
+        }
     }
 
     @SideOnly(Side.CLIENT)

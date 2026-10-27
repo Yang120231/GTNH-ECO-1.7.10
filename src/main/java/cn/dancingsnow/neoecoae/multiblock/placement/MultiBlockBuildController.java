@@ -55,13 +55,23 @@ public final class MultiBlockBuildController {
         changeBuildLength(player, -1);
     }
 
-    private void changeBuildLength(EntityPlayer player, int delta) {
+    public void changeBuildLength(EntityPlayer player, int delta) {
+        setBuildLength(
+            player,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.clamp(
+                (long) host.getSelectedBuildLength() + delta,
+                host.getMinBuildLength(),
+                host.getMaxBuildLength()));
+    }
+
+    public void setBuildLength(EntityPlayer player, int length) {
         if (!host.canPlayerInteract(player) || host.isBuildInProgress()) {
             return;
         }
-        host.setSelectedBuildLength(
-            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
-                .clamp(host.getSelectedBuildLength() + delta, host.getMinBuildLength(), host.getMaxBuildLength()));
+        int clamped = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+            .clamp(length, host.getMinBuildLength(), host.getMaxBuildLength());
+        if (clamped == host.getSelectedBuildLength()) return;
+        host.setSelectedBuildLength(clamped);
         host.buildStateChanged();
     }
 
