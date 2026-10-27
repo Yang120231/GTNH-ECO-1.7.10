@@ -9,13 +9,22 @@ import com.google.gson.JsonObject;
 /** The core source fluid is a real Forge identity, usable by tanks and native AE2 fluid keys. */
 public final class SourceFluids {
 
+    private static Fluid cryotheum;
+
     private SourceFluids() {}
 
     public static void initialize() {
         if (FluidRegistry.getFluid("neoecoae:cryotheum_solution") == null) {
-            if (!FluidRegistry.registerFluid(new Fluid("neoecoae:cryotheum_solution")))
+            Fluid fluid = new Fluid("neoecoae:cryotheum_solution")
+                .setUnlocalizedName("fluid.neoecoae.cryotheum_solution");
+            if (!FluidRegistry.registerFluid(fluid))
                 throw new IllegalStateException("Cannot register core cryotheum solution");
+            cryotheum = fluid;
         }
+    }
+
+    public static Fluid ownCryotheum() {
+        return cryotheum;
     }
 
     public static Fluid fluid(String id) {
