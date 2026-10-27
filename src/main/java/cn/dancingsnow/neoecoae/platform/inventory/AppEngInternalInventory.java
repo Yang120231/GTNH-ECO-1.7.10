@@ -12,11 +12,12 @@ import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedValue;
 
 /** One authoritative inventory for native automation, MUI2 slots and persisted managed fields. */
-public class AppEngInternalInventory implements IInventory, IItemHandlerModifiable, ManagedValue {
+public class AppEngInternalInventory implements IInventory, ManagedValue {
 
     private final InternalInventoryHost host;
     private final ItemStack[] contents;
     private final int limit;
+    private final IItemHandlerModifiable itemHandler = new ItemHandler();
 
     public AppEngInternalInventory(InternalInventoryHost host, int slots, int limit) {
         if (slots < 0 || limit < 1) throw new IllegalArgumentException("Invalid inventory size");
@@ -26,14 +27,13 @@ public class AppEngInternalInventory implements IInventory, IItemHandlerModifiab
     }
 
     public IItemHandlerModifiable toItemHandler() {
-        return this;
+        return itemHandler;
     }
 
     public int size() {
         return contents.length;
     }
 
-    @Override
     public int getSlots() {
         return contents.length;
     }
@@ -48,26 +48,22 @@ public class AppEngInternalInventory implements IInventory, IItemHandlerModifiab
         return contents[slot];
     }
 
-    @Override
     public void setStackInSlot(int slot, ItemStack stack) {
         check(slot);
         contents[slot] = ItemStacks.isEmpty(stack) ? null : stack;
         host.onChangeInventory(this, slot);
     }
 
-    @Override
     public int getSlotLimit(int slot) {
         check(slot);
         return limit;
     }
 
-    @Override
     public boolean isItemValid(int slot, ItemStack stack) {
         check(slot);
         return !ItemStacks.isEmpty(stack);
     }
 
-    @Override
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
         check(slot);
         if (ItemStacks.isEmpty(stack) || !isItemValid(slot, stack)) return stack;
@@ -80,7 +76,6 @@ public class AppEngInternalInventory implements IInventory, IItemHandlerModifiab
         return ItemStacks.copyWithCount(stack, stack.stackSize - accepted);
     }
 
-    @Override
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
         check(slot);
         ItemStack current = contents[slot];
@@ -177,5 +172,45 @@ public class AppEngInternalInventory implements IInventory, IItemHandlerModifiab
     @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack) {
         return isItemValid(slot, stack);
+    }
+
+    // IInventory.getStackInSlot is renamed to func_70301_a in a release JAR. A separate
+    // adapter keeps the custom interface's method name intact while its delegate call remaps.
+    private final class ItemHandler implements IItemHandlerModifiable {
+
+        @Override
+        public int getSlots() {
+            return AppEngInternalInventory.this.getSlots();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return AppEngInternalInventory.this.getStackInSlot(slot);
+        }
+
+        @Override
+        public void setStackInSlot(int slot, ItemStack stack) {
+            AppEngInternalInventory.this.setStackInSlot(slot, stack);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return AppEngInternalInventory.this.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return AppEngInternalInventory.this.isItemValid(slot, stack);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            return AppEngInternalInventory.this.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            return AppEngInternalInventory.this.extractItem(slot, amount, simulate);
+        }
     }
 }
