@@ -45,6 +45,7 @@ dependencies {
     // Native adapters compile against the investigation's pinned APIs.
     compileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     compileOnly(gtnhDevJar("ModularUI2", modularUi2Version))
+    compileOnly(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
     // The pinned MUI2 handler API extends optional ModularUI 1 interfaces before FML strips absent-mod parents.
     compileOnly(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     // The native GT bridge is loaded only after FML confirms gregtech is installed.

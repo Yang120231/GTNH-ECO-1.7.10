@@ -14,7 +14,7 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAECluster> {
 
     private static final ThreadLocal<IAECluster> MODIFICATION = new ThreadLocal<>();
-    private final T target;
+    protected final T target;
     private final StorageFaults faults = new StorageFaults();
 
     protected MBCalculator(T target) {
@@ -30,7 +30,7 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
         else MODIFICATION.set(cluster);
     }
 
-    public final void calculateMultiblock(ServerWorldView level, BlockPos location) {
+    public void calculateMultiblock(ServerWorldView level, BlockPos location) {
         if (isModificationInProgress() || !target.isValid() || !level.hasChunkAt(location)) return;
         try {
             BlockPos min = location, max = location;

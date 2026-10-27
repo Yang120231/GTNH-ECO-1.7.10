@@ -246,19 +246,6 @@
         "height": 46,
         "paddingAll": 0
       }
-    },
-    {
-      "type": "custom",
-      "id": "large-workstation-module-card",
-      "custom": "module_card",
-      "layout": {
-        "position": "absolute",
-        "left": 227,
-        "top": 42,
-        "width": 16,
-        "height": 16,
-        "paddingAll": 0
-      }
     }
   ]
 }

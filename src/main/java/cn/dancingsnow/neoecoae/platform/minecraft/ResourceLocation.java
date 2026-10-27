@@ -7,7 +7,11 @@ public final class ResourceLocation extends net.minecraft.util.ResourceLocation 
     }
 
     public static ResourceLocation fromNamespaceAndPath(String namespace, String path) {
-        if (!namespace.matches("[a-z0-9_.-]+") || !path.matches("[a-z0-9/._-]+"))
+        // 1.7.10 registries predate the modern lowercase-only resource-location
+        // contract.  Several legacy mods (including the pinned GTNH AE2 build)
+        // expose item names such as "ItemBlankPattern".  Keep those names
+        // round-trippable so persisted AE keys can be written and read back.
+        if (!namespace.matches("[A-Za-z0-9_.-]+") || !path.matches("[A-Za-z0-9/._-]+"))
             throw new IllegalArgumentException("Invalid resource identifier");
         return new ResourceLocation(namespace, path);
     }

@@ -78,6 +78,13 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
             || name.equals("crafting_high_energy_network_switch")
             || name.equals("computation_network_switch")
             || name.equals("computation_high_energy_network_switch")
+            || name.equals("storage_interface")
+            || name.equals("crafting_interface")
+            || name.equals("computation_interface")
+            || name.equals("large_integrated_working_station_casing")
+            || name.equals("large_integrated_working_station_interface")
+            || name.equals("large_integrated_working_station_input_hatch")
+            || name.equals("large_integrated_working_station_output_hatch")
             || name.equals("input_hatch")
             || name.equals("output_hatch");
         ResourceLocation location = new ResourceLocation("neoecoae", "blockstates/" + block.model() + ".json");

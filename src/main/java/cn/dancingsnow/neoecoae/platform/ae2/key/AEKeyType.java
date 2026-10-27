@@ -51,8 +51,8 @@ public final class AEKeyType {
 
     public cn.dancingsnow.neoecoae.platform.minecraft.Component getDescription() {
         return cn.dancingsnow.neoecoae.platform.minecraft.Component.translatable(
-            channel == StorageChannel.ITEMS ? "gui.tooltips.appliedenergistics2.Items"
-                : "gui.tooltips.appliedenergistics2.Fluids");
+            channel == StorageChannel.ITEMS ? "gui.appliedenergistics2.Items"
+                : "gui.appliedenergistics2.Fluids");
     }
 
     public StorageChannel nativeChannel() {

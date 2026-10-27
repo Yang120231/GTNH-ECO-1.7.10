@@ -6,8 +6,14 @@ import static org.mockito.Mockito.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.world.World;
 import org.junit.jupiter.api.Test;
+
+import appeng.api.implementations.ICraftingPatternItem;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.storage.data.IAEItemStack;
 
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
@@ -64,5 +70,48 @@ class NativePatternInterfaceSessionTest {
         assertDoesNotThrow(() -> session.apply(2, token));
         verify(bus.getInternalInventory(), never()).extractItem(anyInt(), anyInt(), anyBoolean());
         verify(bus.getInternalInventory(), never()).insertItem(anyInt(), any(), anyBoolean());
+    }
+
+    @Test
+    void patternPreviewShowsThePrimaryProductWithoutReplacingThePhysicalPattern() {
+        var details = mock(ICraftingPatternDetails.class);
+        var output = mock(IAEItemStack.class);
+        var product = new ItemStack(TestItems.DIAMOND, 4);
+        product.setStackDisplayName("Primary output");
+        when(output.getItemStack()).thenReturn(product);
+        when(details.getOutputs()).thenReturn(new IAEItemStack[] { null, output });
+        var pattern = new ItemStack(new PreviewPattern(details));
+        pattern.setStackDisplayName("Physical pattern");
+        var original = pattern.copy();
+
+        assertSame(product, session(mock(NECraftingCluster.class)).displayStack(pattern));
+        assertTrue(ItemStack.areItemStacksEqual(original, pattern));
+    }
+
+    @Test
+    void emptyAndMalformedPatternsRemainVisibleAndRemovable() {
+        var session = session(mock(NECraftingCluster.class));
+        assertNull(session.displayStack(null));
+        var ordinary = new ItemStack(TestItems.STONE);
+        assertSame(ordinary, session.displayStack(ordinary));
+        var details = mock(ICraftingPatternDetails.class);
+        var pattern = new ItemStack(new PreviewPattern(details));
+        assertSame(pattern, session.displayStack(pattern));
+        when(details.getOutputs()).thenThrow(new IllegalArgumentException("Malformed pattern"));
+        assertSame(pattern, session.displayStack(pattern));
+    }
+
+    private static final class PreviewPattern extends Item implements ICraftingPatternItem {
+
+        private final ICraftingPatternDetails details;
+
+        PreviewPattern(ICraftingPatternDetails details) {
+            this.details = details;
+        }
+
+        @Override
+        public ICraftingPatternDetails getPatternForItem(ItemStack stack, World world) {
+            return details;
+        }
     }
 }

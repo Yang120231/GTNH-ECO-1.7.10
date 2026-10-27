@@ -159,7 +159,7 @@ public final class NativePageLayout {
     }
 
     public static SlotGroupWidget playerInventory() {
-        return SlotGroupWidget.playerInventory((index, slot) -> slot.background(IDrawable.EMPTY));
+        return SlotGroupWidget.playerInventory((index, slot) -> new NativeItemSlot().background(IDrawable.EMPTY));
     }
 
     public static UITexture texture(String id, int x, int y, int width, int height) {

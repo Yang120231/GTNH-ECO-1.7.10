@@ -80,18 +80,34 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
         tag.putInt("occupied", occupied);
         tag.putInt("recovered", recovered);
         tag.putInt("remaining", remaining);
+        tag.putBoolean("online", host.isTargetOnline());
         var page = new ListTag();
         for (int index = offset * 9; index < Math.min(matches.size(), offset * 9 + 54); index++) {
             var target = matches.get(index);
             var row = new CompoundTag();
             row.putInt("token", target.token);
             row.put("stack", ItemStacks.save(RegistryAccess.EMPTY, target.expected));
+            row.put("display", ItemStacks.save(RegistryAccess.EMPTY, displayStack(target.expected)));
             row.putLong("bus", target.bus.getBlockPos().asLong());
             row.putInt("slot", target.slot);
             page.add(row);
         }
         tag.put("page", page);
         return tag;
+    }
+
+    /** Match the modern pattern slot: show its primary product while retaining the physical pattern for clicks. */
+    ItemStack displayStack(ItemStack stack) {
+        if (ItemStacks.isEmpty(stack) || !(stack.getItem() instanceof appeng.api.implementations.ICraftingPatternItem))
+            return stack;
+        try {
+            var pattern = ((appeng.api.implementations.ICraftingPatternItem) stack.getItem())
+                .getPatternForItem(stack, host.getWorldObj());
+            if (pattern != null && pattern.getOutputs() != null) for (var output : pattern.getOutputs()) {
+                if (output != null && !ItemStacks.isEmpty(output.getItemStack())) return output.getItemStack();
+            }
+        } catch (RuntimeException invalid) { /* Keep malformed patterns visible so players can remove them. */ }
+        return stack;
     }
 
     private String terms(Target target, boolean output) {

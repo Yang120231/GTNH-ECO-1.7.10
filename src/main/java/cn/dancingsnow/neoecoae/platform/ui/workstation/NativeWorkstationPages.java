@@ -15,14 +15,14 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
-import com.cleanroommc.modularui.widgets.slot.FluidSlot;
-import com.cleanroommc.modularui.widgets.slot.ItemSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import cn.dancingsnow.neoecoae.blocks.entity.ECOIntegratedWorkingStationBlockEntity;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.RelativeSide;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
+import cn.dancingsnow.neoecoae.platform.ui.NativeFluidSlot;
+import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler;
 import cn.dancingsnow.neoecoae.platform.ui.NativeOwnedFluidSync;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
@@ -54,12 +54,12 @@ public final class NativeWorkstationPages {
         NativeItemHandler input = new NativeItemHandler(host.getInputInv());
         // The source panel already contains the slots; null would restore MUI2's default slot texture.
         for (int row = 0; row < 3; row++) for (int column = 0; column < 3; column++) panel.child(
-            new ItemSlot().slot(new ModularSlot(input, row + column * 3))
+            new NativeItemSlot().slot(new ModularSlot(input, row + column * 3))
                 .background(IDrawable.EMPTY)
                 .hoverBackground(IDrawable.EMPTY)
                 .pos(35 + column * 18, 23 + row * 18));
         panel.child(
-            new ItemSlot().slot(new ModularSlot(new NativeItemHandler(host.getOutputInv()), 0).canPut(false))
+            new NativeItemSlot().slot(new ModularSlot(new NativeItemHandler(host.getOutputInv()), 0).canPut(false))
                 .background(IDrawable.EMPTY)
                 .hoverBackground(IDrawable.EMPTY)
                 .pos(122, 42));
@@ -100,7 +100,7 @@ public final class NativeWorkstationPages {
                 .size(160, 10));
         NativeNetworkToolbox toolbox = NativeNetworkToolbox.find(player);
         panel.child(SlotGroupWidget.playerInventory((index, slot) -> {
-            if (toolbox != null && index == toolbox.playerSlot()) slot = new LockedToolSlot();
+            slot = toolbox != null && index == toolbox.playerSlot() ? new LockedToolSlot() : new NativeItemSlot();
             return slot.background(IDrawable.EMPTY).hoverBackground(IDrawable.EMPTY);
         })
             .pos(7, 105));
@@ -112,7 +112,7 @@ public final class NativeWorkstationPages {
             (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage.create("integrated_working_station", handler));
         panel.child(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(false,
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(176, 0,
-                () -> Component.translatable("gui.tooltips.appliedenergistics2.OpenGuide"), guide::openPanel),
+                () -> Component.translatable("gui.neoecoae.guide"), guide::openPanel),
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                 () -> NativePageLayout.texture(ATLAS, session.autoExport() ? 128 : 112, 96, 16, 16),
                 () -> Component.translatable("gui.neoecoae.workstation.auto_export"), session::toggleExport),
@@ -213,7 +213,7 @@ public final class NativeWorkstationPages {
         }
     }
 
-    private static final class Gauge extends FluidSlot {
+    private static final class Gauge extends NativeFluidSlot {
 
         @Override
         @SideOnly(Side.CLIENT)
@@ -249,7 +249,7 @@ public final class NativeWorkstationPages {
         }
     }
 
-    private static final class LockedToolSlot extends ItemSlot {
+    private static final class LockedToolSlot extends NativeItemSlot {
 
         @Override
         public void onInit() {

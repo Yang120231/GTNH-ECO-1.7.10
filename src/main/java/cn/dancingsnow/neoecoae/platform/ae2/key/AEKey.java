@@ -88,4 +88,19 @@ public abstract class AEKey {
         if (stack instanceof IAEFluidStack) return AEFluidKey.of(((IAEFluidStack) stack).getFluidStack());
         return null;
     }
+
+    /** Remove mutable NBT while retaining the native item variant or fluid identity for provider blocking. */
+    public AEKey dropSecondary() {
+        if (this instanceof AEItemKey) {
+            net.minecraft.item.ItemStack stack = ((AEItemKey) this).toStack(1);
+            stack.setTagCompound(null);
+            return AEItemKey.of(stack);
+        }
+        if (this instanceof AEFluidKey) {
+            net.minecraftforge.fluids.FluidStack stack = ((AEFluidKey) this).toStack(1);
+            stack.tag = null;
+            return AEFluidKey.of(stack);
+        }
+        return this;
+    }
 }

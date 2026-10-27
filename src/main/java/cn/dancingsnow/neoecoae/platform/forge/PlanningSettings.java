@@ -17,6 +17,7 @@ public final class PlanningSettings {
     public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
     public static int ecoFastPathCacheSize = 512;
     public static boolean postCraftingEvent;
+    public static boolean largeWorkstationTemperatureEnabled = true;
 
     private PlanningSettings() {}
 
@@ -68,6 +69,11 @@ public final class PlanningSettings {
             "crafting",
             false,
             "Post native crafting events; source rules then disable FastPath batching");
+        largeWorkstationTemperatureEnabled = config.getBoolean(
+            "largeWorkstationTemperatureEnabled",
+            "workstation",
+            true,
+            "Enable large-workstation preheating and temperature protection; disabled uses coolant tiers instead");
         if (config.hasChanged()) config.save();
     }
 }

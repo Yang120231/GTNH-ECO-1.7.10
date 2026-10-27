@@ -5,7 +5,7 @@ import net.minecraft.item.ItemStack;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
-import com.cleanroommc.modularui.widget.Widget;
+import com.cleanroommc.modularui.widget.ParentWidget;
 
 import cn.dancingsnow.neoecoae.gui.common.HostText;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerPanelState;
@@ -18,7 +18,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /** Direct rendering of CraftingControllerArtwork: every rectangle uses the source's native pixel coordinates. */
-public final class NativeCraftingArtwork extends Widget<NativeCraftingArtwork> {
+public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtwork> {
 
     private static final String BACKGROUND = "neoecoae:textures/guis/crafting_controller.png";
     private static final String ATLAS = "neoecoae:textures/guis/crafting_widgets.png";
@@ -32,6 +32,30 @@ public final class NativeCraftingArtwork extends Widget<NativeCraftingArtwork> {
         this.hostItem = hostItem;
         size(253, 214);
         background(cn.dancingsnow.neoecoae.platform.ui.NativePageLayout.texture(BACKGROUND, 0, 0, 253, 214));
+        for (int index = 0; index < 11; index++) {
+            final int cell = index;
+            child(new cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<>().slotInset(0)
+                .setEnabledIf(widget -> {
+                    var state = CraftingControllerPanelState.fromTag(session.state().getCompound("artwork"));
+                    return state.formed() && state.hasFx(cell);
+                })
+                .playClickSound(false)
+                .onMousePressed(button -> false)
+                .tooltipDynamic(lines -> {
+                    var cells = session.state().getList("displayCells", 10);
+                    if (cell >= cells.size()) return;
+                    var entry = cells.getCompound(cell);
+                    var stack = ItemStacks.parseOptional(RegistryAccess.EMPTY, entry.getCompound("item"));
+                    if (ItemStacks.isEmpty(stack)) return;
+                    lines.addFromItem(stack);
+                    if (!entry.getString("amount").isEmpty()) lines.add(
+                        text("amount_short").getString() + ": "
+                            + cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter.formatTooltip(
+                                new java.math.BigInteger(entry.getString("amount")), 1));
+                })
+                .onUpdateListener(widget -> widget.markTooltipDirty())
+                .pos(49 + cell * 18, 38).size(16));
+        }
     }
 
     @Override

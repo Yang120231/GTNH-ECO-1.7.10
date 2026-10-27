@@ -4,10 +4,11 @@ import net.minecraft.tileentity.TileEntity;
 
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
-import com.cleanroommc.modularui.widgets.slot.FluidSlot;
 
 import cn.dancingsnow.neoecoae.platform.fluid.FluidTank;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
+import cn.dancingsnow.neoecoae.platform.ui.NativeFluidSlot;
+import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeOwnedFluidSync;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
@@ -21,10 +22,10 @@ public final class NativeFluidHatchPages {
             .background(NativeUiStyle.panel());
         panel.child(new NativeText(() -> Component.translatable("block.neoecoae." + (input ? "input" : "output") + "_hatch"),
             1, 0x3f3d52).pos(4, 4).size(162, 9));
-        panel.child(new FluidSlot().syncHandler(new NativeOwnedFluidSync(host, tank.nativeTank(), input, true))
+        panel.child(new NativeFluidSlot().syncHandler(new NativeOwnedFluidSync(host, tank.nativeTank(), input, true))
             .background(NativeUiStyle.inventoryBorder()).alwaysShowFull(false).pos(76, 25).size(18));
         NativeUiStyle.inventoryFrames(panel, 4, 55);
-        panel.child(SlotGroupWidget.playerInventory((index, slot) -> slot.background(NativeUiStyle.slot()))
+        panel.child(SlotGroupWidget.playerInventory((index, slot) -> new NativeItemSlot().background(NativeUiStyle.slot()))
             .pos(4, 55));
         return panel;
     }

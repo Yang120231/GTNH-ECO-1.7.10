@@ -6,15 +6,13 @@ import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
-import com.cleanroommc.modularui.widgets.slot.ItemSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
-import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
-import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
+import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachineWidgets;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
@@ -64,14 +62,18 @@ public final class NativeCraftingPages {
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(64, 80,
                 () -> Component.translatable("gui.neoecoae.computation.settings.substitutions"), () -> session.action(5, 0)),
             cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(16, 240,
-                () -> Component.translatable("gui.neoecoae.host.network.frequency", session.state().getInt("frequency")),
+                () -> Component.translatable("gui.neoecoae.host.network_frequency.cycle", session.state().getInt("frequency")),
                 () -> session.action(4, 1))));
-        panel.child(new com.cleanroommc.modularui.widget.Widget<>().pos(251, 0).size(23, 30)
+        panel.child(new com.cleanroommc.modularui.widget.ParentWidget<>().pos(251, 0).size(23, 30)
             .background(com.cleanroommc.modularui.drawable.UITexture.fullImage(
                 "neoecoae:textures/gui/common/side_bar/gray_mirrored_button_slot_up.png"))
-            .overlay(com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/information.png"))
+            .child(
+                    new com.cleanroommc.modularui.widget.Widget<>().pos(0, 3)
+                        .size(21, 21)
+                        .background(com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/information.png"))
+                        .hoverBackground(com.cleanroommc.modularui.drawable.UITexture.fullImage("neoecoae:textures/gui/widget/information_highlight.png"))
             .tooltipDynamic(lines -> lines.add(Component.translatable(session.state().getBoolean("connected")
-                ? "gui.neoecoae.host.network.connected" : "gui.neoecoae.host.network.disconnected").getString())));
+                ? "gui.neoecoae.host.network.connected" : "gui.neoecoae.host.network.disconnected").getString()))));
         return panel;
     }
 
@@ -90,12 +92,12 @@ public final class NativeCraftingPages {
             new PatternSlot().slot(new ModularSlot(handler, index))
                 .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.slot())
                 .pos(4 + index % 9 * 18, 22 + index / 9 * 18));
-        panel.child(SlotGroupWidget.playerInventory((index, slot) -> slot.background(
+        panel.child(SlotGroupWidget.playerInventory((index, slot) -> new NativeItemSlot().background(
             cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.slot())).pos(4, 29 + rows * 18));
         return panel;
     }
 
-    private static final class PatternSlot extends ItemSlot {
+    private static final class PatternSlot extends NativeItemSlot {
         @Override
         @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
         public void draw(com.cleanroommc.modularui.screen.viewport.ModularGuiContext context,
@@ -115,10 +117,10 @@ public final class NativeCraftingPages {
                 .size(162, 12));
         InvWrapper handler = new InvWrapper(inventory);
         for (int index = 0; index < inventory.getSizeInventory(); index++) panel.child(
-            new ItemSlot().slot(new ModularSlot(handler, index))
+            new NativeItemSlot().slot(new ModularSlot(handler, index))
                 .pos(7 + index % columns * 18, 21 + index / columns * 18));
         panel.child(
-            SlotGroupWidget.playerInventory(false)
+            SlotGroupWidget.playerInventory((index, slot) -> new NativeItemSlot())
                 .pos(7, 35 + rows * 18));
         return panel;
     }
