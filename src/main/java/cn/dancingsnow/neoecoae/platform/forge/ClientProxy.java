@@ -14,6 +14,8 @@ public class ClientProxy extends CommonProxy {
         cn.dancingsnow.neoecoae.platform.render.NativeModelItems.install();
         net.minecraftforge.common.MinecraftForge.EVENT_BUS
             .register(new cn.dancingsnow.neoecoae.platform.render.NativeFluidRendering());
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS
+            .register(new cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient());
     }
 
     @Override

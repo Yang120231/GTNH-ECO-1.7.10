@@ -18,6 +18,7 @@ public final class PlanningSettings {
     public static int ecoFastPathCacheSize = 512;
     public static boolean postCraftingEvent;
     public static boolean largeWorkstationTemperatureEnabled = true;
+    public static int patternUploadButtonOffsetX = 51, patternUploadButtonOffsetY = 9;
 
     private PlanningSettings() {}
 
@@ -74,6 +75,20 @@ public final class PlanningSettings {
             "workstation",
             true,
             "Enable large-workstation preheating and temperature protection; disabled uses coolant tiers instead");
+        patternUploadButtonOffsetX = config.getInt(
+            "patternUploadButtonOffsetX",
+            "pattern_upload",
+            51,
+            -512,
+            512,
+            "Horizontal offset of the upload buttons from the pattern terminal encode button");
+        patternUploadButtonOffsetY = config.getInt(
+            "patternUploadButtonOffsetY",
+            "pattern_upload",
+            9,
+            -512,
+            512,
+            "Vertical offset of the upload buttons from the pattern terminal encode button");
         if (config.hasChanged()) config.save();
     }
 }

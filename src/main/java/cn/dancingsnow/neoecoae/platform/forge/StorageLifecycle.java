@@ -58,5 +58,6 @@ public final class StorageLifecycle {
         NativeWorldStorage.close(server);
         ECOInfiniteStorageDomains.onServerStopped(server);
         ECOStorageCells.clearRuntimeState();
+        cn.dancingsnow.neoecoae.platform.ae2.upload.PatternUploadService.stopped();
     }
 }
