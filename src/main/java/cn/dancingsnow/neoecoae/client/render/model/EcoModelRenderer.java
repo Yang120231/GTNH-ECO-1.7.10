@@ -1,9 +1,13 @@
 package cn.dancingsnow.neoecoae.client.render.model;
 
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
 import net.minecraft.block.Block;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.util.IIcon;
@@ -11,6 +15,7 @@ import net.minecraft.world.IBlockAccess;
 import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
 import cn.dancingsnow.neoecoae.platform.render.ModelRenderBridge;
@@ -75,12 +80,13 @@ public final class EcoModelRenderer {
 
     public static void renderInventoryBlock(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
         GL11.glPushMatrix();
-        GL11.glDisable(GL11.GL_CULL_FACE);
-        GL11.glRotated(180.0D, 0.0D, 1.0D, 0.0D);
-        GL11.glTranslated(-0.5D, -0.5D, -0.5D);
-        renderInventoryQuads(model, facing, icons);
-        GL11.glEnable(GL11.GL_CULL_FACE);
-        GL11.glPopMatrix();
+        try {
+            GL11.glRotated(180.0D, 0.0D, 1.0D, 0.0D);
+            GL11.glTranslated(-0.5D, -0.5D, -0.5D);
+            renderInventoryQuads(model, facing, icons);
+        } finally {
+            GL11.glPopMatrix();
+        }
     }
 
     public static void renderItemModel(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
@@ -120,8 +126,48 @@ public final class EcoModelRenderer {
     }
 
     private static void renderInventoryQuads(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons) {
+        GL11.glPushAttrib(
+            GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        try {
+            GL11.glDisable(GL11.GL_CULL_FACE);
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.1F);
+
+            // ItemRenderer disables depth writes for blocks with a translucent world pass.
+            // Their solid model faces still need depth writes to hide the rear faces.
+            GL11.glDepthMask(true);
+            GL11.glDisable(GL11.GL_BLEND);
+            renderInventoryQuads(model.getQuads(facing, ModelRenderLayer.CUTOUT), icons);
+
+            List<BakedQuad> translucent = model.getQuads(facing, ModelRenderLayer.TRANSLUCENT);
+            if (!translucent.isEmpty()) {
+                GL11.glDepthMask(false);
+                GL11.glEnable(GL11.GL_BLEND);
+                OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO);
+                renderInventoryQuads(sortBackToFront(translucent), icons);
+            }
+        } finally {
+            GL11.glPopAttrib();
+        }
+    }
+
+    private static List<BakedQuad> sortBackToFront(List<BakedQuad> quads) {
+        if (quads.size() < 2) return quads;
+        FloatBuffer matrix = BufferUtils.createFloatBuffer(16);
+        GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, matrix);
+        double depthX = matrix.get(2), depthY = matrix.get(6), depthZ = matrix.get(10);
+        List<BakedQuad> sorted = new ArrayList<>(quads);
+        // View-space Z increases toward the camera, including held-item rotations.
+        sorted.sort(
+            Comparator.comparingDouble(
+                quad -> depthX * quad.getSampleX() + depthY * quad.getSampleY() + depthZ * quad.getSampleZ()));
+        return sorted;
+    }
+
+    private static void renderInventoryQuads(List<BakedQuad> quads, Map<String, IIcon> icons) {
+        if (quads.isEmpty()) return;
         Tessellator tessellator = Tessellator.instance;
-        List<BakedQuad> quads = model.getQuads(facing);
         tessellator.startDrawingQuads();
         for (BakedQuad quad : quads) {
             IIcon icon = icons.get(quad.getTexture());
