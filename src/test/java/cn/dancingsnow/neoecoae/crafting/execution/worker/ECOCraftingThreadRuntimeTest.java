@@ -163,6 +163,27 @@ class ECOCraftingThreadRuntimeTest {
         assertEquals(0, fixture.delivered);
     }
 
+    @Test
+    void speculativePatternMaterializationDoesNotConsumeFallbackInputs() {
+        var fixture = new Fixture();
+        var inputs = new KeyCounter();
+        inputs.add(fixture.input, 1);
+        var execution = ECOExtractedPatternExecution.slow(fixture.pattern, new KeyCounter[] { inputs });
+
+        doAnswer(call -> {
+            KeyCounter[] table = call.getArgument(0);
+            table[0].remove(fixture.input, 1);
+            IMolecularAssemblerSupportedPattern.CraftingGridAccessor accessor = call.getArgument(1);
+            accessor.set(0, fixture.input.toStack(1));
+            return null;
+        }).when(fixture.pattern)
+            .fillCraftingGrid(any(), any());
+        when(fixture.pattern.assemble(any(), eq(fixture.world))).thenReturn(null);
+
+        assertFalse(fixture.thread.pushPattern(execution, fixture.controller, fixture.job));
+        assertEquals(1L, execution.craftingContainer()[0].get(fixture.input));
+    }
+
     private static final class Fixture {
 
         final AEItemKey input = AEItemKey.of(TestItems.RAW_IRON);

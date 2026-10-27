@@ -78,7 +78,11 @@ final class ECOCraftingFastPathVerifier {
         IMolecularAssemblerSupportedPattern pattern = execution.molecularPattern();
         if (pattern == null) return null;
         craftingInventory.clearContent();
-        pattern.fillCraftingGrid(execution.craftingContainer(), craftingInventory::setItem);
+        // Pattern materialization is speculative. NativeCraftingPattern consumes one entry from each
+        // counter while it maps the sparse AE2 inputs into the physical 3x3 grid. The execution context
+        // is also reused by the ordinary fallback when this probe rejects the fast path, so passing its
+        // shared counters directly would erase the inputs before the fallback can dispatch them.
+        pattern.fillCraftingGrid(copyCraftingContainer(execution.craftingContainer()), craftingInventory::setItem);
         List<ItemStack> beforeSlots = snapshotSlots();
         var positionedInput = craftingInventory.asPositionedCraftInput();
         ItemStack output = pattern.assemble(positionedInput.input(), worker.getNativeLevel());
@@ -103,6 +107,17 @@ final class ECOCraftingFastPathVerifier {
             inputs,
             remaining,
             reason);
+    }
+
+    private static cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] copyCraftingContainer(
+        cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] source) {
+        cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[] copy = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter[
+            source.length];
+        for (int index = 0; index < source.length; index++) {
+            copy[index] = source[index] == null ? new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter()
+                : source[index].copy();
+        }
+        return copy;
     }
 
     private String verifyAndCache(ECOExtractedPatternExecution execution, ItemStack output, List<ItemStack> inputs,
