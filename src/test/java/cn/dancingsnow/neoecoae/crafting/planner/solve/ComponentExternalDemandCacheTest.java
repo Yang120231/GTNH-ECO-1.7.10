@@ -85,7 +85,9 @@ class ComponentExternalDemandCacheTest {
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(feasible.details(), 1L),
             result.state()
                 .patternTimes());
-        verify(solver, times(4)).solve(
+        // The original shortage is calculated once. Quantity proofs discard the two equivalent
+        // blocked goal prefixes before numeric planning, then the fuel route succeeds.
+        verify(solver, times(2)).solve(
             same(network),
             any(),
             any(PlannerInventorySnapshot.class),
