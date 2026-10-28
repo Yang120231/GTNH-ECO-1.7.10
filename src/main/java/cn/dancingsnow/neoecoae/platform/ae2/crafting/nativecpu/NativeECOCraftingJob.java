@@ -50,6 +50,22 @@ public final class NativeECOCraftingJob implements ICraftingJob {
         return plan;
     }
 
+    /**
+     * Submit-ready copy for the report's Shift force start: missing inputs become awaited items (1.21 force start).
+     * A complete plan, or a failed planning attempt, is returned unchanged.
+     */
+    public NativeECOCraftingJob forced() {
+        if (plan == null || !plan.simulation()) return this;
+        return new NativeECOCraftingJob(
+            new cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOForcedCraftingPlan(plan),
+            output,
+            snapshot,
+            error,
+            world,
+            grid,
+            session);
+    }
+
     @Override
     public boolean isSimulation() {
         return plan == null || plan.simulation();

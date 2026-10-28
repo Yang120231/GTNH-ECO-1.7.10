@@ -28,6 +28,11 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         this.cpu = java.util.Objects.requireNonNull(cpu);
     }
 
+    /** The source CPU, for read-only presentation such as the crafting report's tier glyph. */
+    public ECOCraftingCPU cpu() {
+        return cpu;
+    }
+
     @Override
     public World world() {
         return cpu.getLevel();

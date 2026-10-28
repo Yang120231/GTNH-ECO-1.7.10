@@ -31,7 +31,8 @@ public final class NativeLateMixins implements ILateMixinLoader {
                 "StorageBusMountMixin",
                 "CraftingCpuPublicationMixin",
                 "PatternTermEncodeMixin",
-                "NetworkMonitorMixin"));
+                "NetworkMonitorMixin",
+                "ContainerCraftConfirmAccessor"));
         // The NEI route capture only exists on the physical client.
         if (FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("NotEnoughItems")) mixins.add("NeiPatternRouteMixin");
