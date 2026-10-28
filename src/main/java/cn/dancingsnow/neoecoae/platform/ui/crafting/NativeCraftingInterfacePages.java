@@ -26,6 +26,7 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
+import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -266,7 +267,7 @@ public final class NativeCraftingInterfacePages {
         Scrollbar(NativePatternInterfaceSession session) {
             this.session = session;
             background(NativePageLayout.texture("neoecoae:textures/guis/pattern_manager.png", 178, 31, 6, 108, 1, 1));
-            disableHoverBackground();
+            NativeUiStyle.plainHover(this);
             onMouseScrolled((direction, amount) -> {
                 session.action(
                     0,

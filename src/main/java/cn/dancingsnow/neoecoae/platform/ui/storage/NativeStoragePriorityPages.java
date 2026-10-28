@@ -54,6 +54,7 @@ public final class NativeStoragePriorityPages {
                     widget = new ButtonWidget<>()
                         .background(
                             NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 160, 192, 20, 20))
+                        .disableHoverBackground()
                         .overlay(
                             NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 96, 16, 16, 16))
                         .onMousePressed(button -> {

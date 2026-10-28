@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
@@ -44,6 +45,17 @@ public final class NativeUiStyle {
                     .parse("neoecoae:textures/gui/common/button" + (highlighted ? "_highlighted" : "") + ".png"))
             .setSprite(0, 0, 20, 20)
             .setBorder(2, highlighted ? 3 : 2, 2, 5);
+    }
+
+    /**
+     * Keeps a self-drawn ECO hitbox (scrollbar, scroll viewport, AE2 tab button) visually inert on hover. MUI2 2.3.49
+     * falls back to the button theme's hovered background, the vanilla {@code mc_button_hovered} sprite, whenever the
+     * hover background is unset, stretching a light-blue box over the whole hitbox. 1.21 draws only AE2's own sprites
+     * and changes nothing on hover, so the normal background is kept and the theme is never consulted.
+     */
+    public static <W extends Widget<W>> W plainHover(W widget) {
+        if (widget.getBackground() == null) widget.background(IDrawable.EMPTY);
+        return widget.hoverBackground(IDrawable.NONE);
     }
 
     public static ButtonWidget<?> button() {
