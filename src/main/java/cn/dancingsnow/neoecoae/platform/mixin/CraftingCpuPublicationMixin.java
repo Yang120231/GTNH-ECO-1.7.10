@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Desc;
 import org.spongepowered.asm.mixin.injection.Group;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -71,7 +72,17 @@ public abstract class CraftingCpuPublicationMixin {
     }
 
     @Group(name = "neoecoae$planningEntry", min = 1, max = 1)
-    @Inject(method = NativeCpuTargets.PLAN, at = @At("HEAD"), cancellable = true, require = 0)
+    // @Desc keeps optional overloads exact even when development refmap remapping enables permissive matching.
+    @Inject(
+        target = @Desc(
+            value = "beginCraftingJob",
+            ret = java.util.concurrent.Future.class,
+            args = { net.minecraft.world.World.class, IGrid.class,
+                appeng.api.networking.security.BaseActionSource.class, appeng.api.storage.data.IAEStack.class,
+                appeng.api.config.CraftingMode.class, appeng.api.networking.crafting.ICraftingCallback.class }),
+        at = @At("HEAD"),
+        cancellable = true,
+        require = 0)
     private void neoecoae$plan(net.minecraft.world.World world, IGrid requestedGrid,
         appeng.api.networking.security.BaseActionSource source, appeng.api.storage.data.IAEStack<?> output,
         appeng.api.config.CraftingMode mode, appeng.api.networking.crafting.ICraftingCallback callback,
@@ -80,7 +91,17 @@ public abstract class CraftingCpuPublicationMixin {
     }
 
     @Group(name = "neoecoae$planningEntry", min = 1, max = 1)
-    @Inject(method = NativeCpuTargets.PLAN_WITH_LITE_MODE, at = @At("HEAD"), cancellable = true, require = 0)
+    @Inject(
+        target = @Desc(
+            value = "beginCraftingJob",
+            ret = java.util.concurrent.Future.class,
+            args = { net.minecraft.world.World.class, IGrid.class,
+                appeng.api.networking.security.BaseActionSource.class, appeng.api.storage.data.IAEStack.class,
+                appeng.api.config.CraftingMode.class, boolean.class,
+                appeng.api.networking.crafting.ICraftingCallback.class }),
+        at = @At("HEAD"),
+        cancellable = true,
+        require = 0)
     private void neoecoae$planWithLiteMode(net.minecraft.world.World world, IGrid requestedGrid,
         appeng.api.networking.security.BaseActionSource source, appeng.api.storage.data.IAEStack<?> output,
         appeng.api.config.CraftingMode mode, boolean liteMode,

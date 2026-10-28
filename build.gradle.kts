@@ -54,6 +54,7 @@ dependencies {
     compileOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
     // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
     compileOnly(project.extra["mixinProviderSpec"] as String)
+    testImplementation(project.extra["mixinProviderSpec"] as String)
     testImplementation(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     testImplementation(gtnhDevJar("ModularUI2", modularUi2Version))
     testImplementation(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }

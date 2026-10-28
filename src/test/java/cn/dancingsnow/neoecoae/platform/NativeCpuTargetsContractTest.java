@@ -9,10 +9,20 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.zip.ZipFile;
 
 import org.junit.jupiter.api.Test;
+import org.spongepowered.asm.lib.ClassReader;
+import org.spongepowered.asm.lib.tree.AnnotationNode;
+import org.spongepowered.asm.lib.tree.ClassNode;
+import org.spongepowered.asm.lib.tree.MethodNode;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.selectors.ITargetSelector;
+import org.spongepowered.asm.mixin.injection.selectors.ITargetSelectorByName;
+import org.spongepowered.asm.mixin.injection.selectors.dynamic.DynamicSelectorDesc;
+import org.spongepowered.asm.util.Annotations;
 
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeCpuTargets;
 
@@ -24,6 +34,16 @@ class NativeCpuTargetsContractTest {
         Set<String> methods = readMethods("/appeng/me/cache/CraftingGridCache.class");
         assertRequiredHooks(methods);
         assertTrue(methods.contains(NativeCpuTargets.PLAN), "Pinned AE2 must exercise the legacy planning entry");
+    }
+
+    @Test
+    void optionalPlanningSelectorsStayExactDuringPermissiveRemapping() throws IOException {
+        Set<String> pinnedMethods = readMethods("/appeng/me/cache/CraftingGridCache.class");
+        assertPlanningSelectors(pinnedMethods, NativeCpuTargets.PLAN);
+        Set<String> liteMethods = new HashSet<>(pinnedMethods);
+        liteMethods.remove(NativeCpuTargets.PLAN);
+        liteMethods.add(NativeCpuTargets.PLAN_WITH_LITE_MODE);
+        assertPlanningSelectors(liteMethods, NativeCpuTargets.PLAN_WITH_LITE_MODE);
     }
 
     @Test
@@ -50,6 +70,41 @@ class NativeCpuTargetsContractTest {
             .filter(methods::contains)
             .count();
         assertEquals(1, planningEntries, "Exactly one supported planning entry must match the injection group");
+    }
+
+    private static void assertPlanningSelectors(Set<String> methods, String expectedTarget) throws IOException {
+        ClassNode mixin = new ClassNode();
+        try (InputStream stream = NativeCpuTargetsContractTest.class
+            .getResourceAsStream("/cn/dancingsnow/neoecoae/platform/mixin/CraftingCpuPublicationMixin.class")) {
+            assertNotNull(stream);
+            new ClassReader(stream).accept(mixin, ClassReader.SKIP_CODE);
+        }
+        int handlers = 0;
+        Set<String> matched = new HashSet<>();
+        for (MethodNode method : mixin.methods) {
+            if (!method.name.equals("neoecoae$plan") && !method.name.equals("neoecoae$planWithLiteMode")) continue;
+            handlers++;
+            AnnotationNode inject = Annotations.getVisible(method, Inject.class);
+            assertNotNull(inject);
+            List<AnnotationNode> descriptors = Annotations.getValue(inject, "target");
+            assertNotNull(descriptors, "Optional planning hooks must use strict @Desc selectors");
+            assertEquals(1, descriptors.size());
+            ITargetSelector selector = DynamicSelectorDesc.parse(Annotations.handleOf(descriptors.get(0)), null)
+                .configure(ITargetSelector.Configure.SELECT_MEMBER);
+            ITargetSelector permissive = selector.configure(ITargetSelector.Configure.PERMISSIVE);
+            assertSame(selector, permissive, "Development remapping must not discard the overload descriptor");
+            for (String candidate : methods) {
+                int args = candidate.indexOf('(');
+                if (((ITargetSelectorByName) permissive)
+                    .matches(
+                        "appeng/me/cache/CraftingGridCache",
+                        candidate.substring(0, args),
+                        candidate.substring(args))
+                    .isExactMatch()) assertTrue(matched.add(candidate), "Only one planning handler may match");
+            }
+        }
+        assertEquals(2, handlers);
+        assertEquals(java.util.Collections.singleton(expectedTarget), matched);
     }
 
     private static Set<String> readMethods(String resource) throws IOException {
