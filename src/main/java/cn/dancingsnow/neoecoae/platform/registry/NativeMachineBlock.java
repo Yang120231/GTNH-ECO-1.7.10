@@ -64,9 +64,18 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
         return model;
     }
 
+    /**
+     * The shipped names use the source {@code block.neoecoae.<id>} keys. Forge's {@code setBlockName} would expose
+     * {@code tile.neoecoae.<id>} to every caller of the no-stack getters (AE2 stack names, crafting providers, ...).
+     */
+    @Override
+    public String getUnlocalizedName() {
+        return "block.neoecoae." + model;
+    }
+
     @Override
     public String getLocalizedName() {
-        return net.minecraft.util.StatCollector.translateToLocal("block.neoecoae." + type.id() + ".name");
+        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName() + ".name");
     }
 
     @Override

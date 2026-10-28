@@ -42,9 +42,15 @@ public class NativeSimpleModelBlock extends Block implements NativeStateBlock, N
         return properties.id;
     }
 
+    /** Same source key as {@link NativeMachineBlock#getUnlocalizedName()}, never Forge's {@code tile.} prefix. */
+    @Override
+    public String getUnlocalizedName() {
+        return "block.neoecoae." + model();
+    }
+
     @Override
     public String getLocalizedName() {
-        return net.minecraft.util.StatCollector.translateToLocal("block.neoecoae." + model() + ".name");
+        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName() + ".name");
     }
 
     @Override
