@@ -23,6 +23,7 @@ public final class NativeECOCraftingJob implements ICraftingJob {
     private final net.minecraft.world.World world;
     private final appeng.api.networking.IGrid grid;
     private final cn.dancingsnow.neoecoae.platform.network.ServerTasks.Session session;
+    private volatile Boolean nativeCpuSupport;
 
     NativeECOCraftingJob(ICraftingPlan plan, IAEStack<?> output, MECraftingInventory snapshot, String error,
         net.minecraft.world.World world, appeng.api.networking.IGrid grid,
@@ -38,6 +39,11 @@ public final class NativeECOCraftingJob implements ICraftingJob {
 
     public boolean belongsTo(net.minecraft.world.World world, appeng.api.networking.IGrid grid) {
         return this.world == world && this.grid == grid && session.isRunning();
+    }
+
+    /** Planned against this grid in the running server session; required before any native CPU stages it. */
+    public boolean belongsToGrid(appeng.api.networking.IGrid grid) {
+        return this.grid == grid && session.isRunning();
     }
 
     public ICraftingPlan sourcePlan() {
@@ -69,9 +75,24 @@ public final class NativeECOCraftingJob implements ICraftingJob {
         return CompletableFuture.completedFuture(this);
     }
 
+    /**
+     * Whether a native AE2 CPU can run this plan unchanged: an ordinary ECO DAG made only of native patterns.
+     * Cycle, exact-order and fuzzy-input plans still require the ECO runtime.
+     */
+    public boolean supportsNativeCpus() {
+        Boolean supported = nativeCpuSupport;
+        if (supported == null) {
+            supported = plan != null
+                && cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuSupport.supportsPlan(plan);
+            nativeCpuSupport = supported;
+        }
+        return supported;
+    }
+
     @Override
     public boolean supportsCPUCluster(ICraftingCPU cpu) {
-        return cpu instanceof NativeECOCpu;
+        if (cpu instanceof NativeECOCpu) return true;
+        return cpu instanceof appeng.me.cluster.implementations.CraftingCPUCluster && supportsNativeCpus();
     }
 
     @Override
@@ -88,11 +109,47 @@ public final class NativeECOCraftingJob implements ICraftingJob {
         return error;
     }
 
+    /**
+     * Native AE2 CPU fallback: stages the plan's task vector exactly like AE2's own jobs. ECO CPUs never reach
+     * this path because their identity submits the original plan to the ECO runtime.
+     */
     @Override
     public void startCrafting(MECraftingInventory storage, ICraftingCPU cpu,
         appeng.api.networking.security.BaseActionSource source) {
-        throw new IllegalStateException(
+        if (cpu instanceof NativeECOCpu) throw new IllegalStateException(
             "ECO execution contracts must be submitted through their native ECO CPU identity");
+        if (!(cpu instanceof appeng.me.cluster.implementations.CraftingCPUCluster) || !supportsNativeCpus())
+            // AE2 rolls back the staged CPU state for a branch failure, including its merge path.
+            throw new appeng.crafting.CraftBranchFailure(output, output.getStackSize());
+        var cluster = (appeng.me.cluster.implementations.CraftingCPUCluster) cpu;
+        for (var task : plan.patternTimes()
+            .entrySet())
+            cluster.addCrafting(
+                ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails) task.getKey()).nativeDetails(),
+                task.getValue());
+        for (var entry : plan.usedItems()) pull(
+            storage,
+            cluster,
+            entry.getKey()
+                .toNative(entry.getLongValue()));
+        for (var entry : plan.emittedItems()) cluster.addEmitable(
+            entry.getKey()
+                .toNative(entry.getLongValue()));
+    }
+
+    private static void pull(MECraftingInventory storage, appeng.me.cluster.implementations.CraftingCPUCluster cluster,
+        IAEStack<?> stack) {
+        long wanted = stack.getStackSize();
+        if (wanted <= 0) return;
+        IAEStack<?> extracted = storage.extractItems(stack.copy(), appeng.api.config.Actionable.MODULATE);
+        long got = extracted == null ? 0 : extracted.getStackSize();
+        if (got < wanted) {
+            if (!cluster.isMissingMode()) throw new appeng.crafting.CraftBranchFailure(stack, wanted);
+            cluster.addEmitable(
+                stack.copy()
+                    .setStackSize(wanted - got));
+        }
+        if (extracted != null && got > 0) cluster.addStorage(extracted);
     }
 
     @Override

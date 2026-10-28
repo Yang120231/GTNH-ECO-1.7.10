@@ -18,6 +18,8 @@ import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeCpuTargets;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpuSelection;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob;
 
 /** Include live ECO CPU identities in the exact set used for scheduling, link recovery and output routing. */
 @Mixin(value = CraftingGridCache.class, remap = false)
@@ -31,6 +33,10 @@ public abstract class CraftingCpuPublicationMixin {
     protected Set<CraftingCPUCluster> craftingCPUClusters;
     @Shadow
     protected boolean updateList;
+
+    /** Reused per tick so releasing finished ECO CPUs allocates nothing in steady state. */
+    @Unique
+    private final Set<Object> neoecoae$owners = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
 
     @Shadow
     public abstract void addLink(appeng.crafting.CraftingLink link);
@@ -46,8 +52,8 @@ public abstract class CraftingCpuPublicationMixin {
                 var cluster = host.getCluster();
                 if (cluster == null || cluster.isDestroyed() || !seen.add(cluster)) continue;
                 cluster.pruneInactiveCPUs();
-                if (cluster.isNetworkRepresentative() && cluster.getActiveCPUCount() < cluster.getMaxThreads()
-                    && cluster.getAvailableStorage() > 0)
+                // Same rule as 1.21's getCpus: the representative lists its placeholder while a thread is free.
+                if (cluster.shouldPublishPlaceholder())
                     craftingCPUClusters.add((CraftingCPUCluster) cluster.nativeCPU(cluster.getFakeCPU()));
                 for (var cpu : cluster.getActiveCPUs()) {
                     CraftingCPUCluster nativeCpu = (CraftingCPUCluster) cluster.nativeCPU(cpu);
@@ -99,37 +105,18 @@ public abstract class CraftingCpuPublicationMixin {
         appeng.api.networking.crafting.ICraftingRequester requester, appeng.api.networking.crafting.ICraftingCPU target,
         boolean prioritizePower, appeng.api.networking.security.BaseActionSource source, boolean follow,
         org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<appeng.api.networking.crafting.ICraftingLink> cir) {
-        if (!(job instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob)) return;
-        if (job.isSimulation()) {
-            cir.setReturnValue(null);
-            return;
-        }
-        java.util.List<cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu> candidates = new java.util.ArrayList<>();
-        for (CraftingCPUCluster cpu : craftingCPUClusters)
-            if (cpu instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu
-                && (target == null || target == cpu)
-                && cpu.isActive()
-                && !cpu.isBusy()
-                && cpu.getAvailableStorage() >= job.getByteTotal()
-                && (source.isPlayer() ? cpu.getCraftingAllowMode() != appeng.api.config.CraftingAllow.ONLY_NONPLAYER
-                    : cpu.getCraftingAllowMode() != appeng.api.config.CraftingAllow.ONLY_PLAYER))
-                candidates.add((cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu) cpu);
-        candidates.sort(
-            java.util.Comparator
-                .comparingInt(
-                    (cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu cpu) -> cpu.getCoProcessors())
-                .thenComparingLong(cpu -> cpu.getAvailableStorage()));
-        if (prioritizePower) java.util.Collections.reverse(candidates);
-        appeng.api.networking.crafting.ICraftingLink link = null;
-        for (var cpu : candidates) {
-            link = cpu.submitJob(grid, job, source, requester);
-            if (link != null) {
-                if (follow && source instanceof appeng.api.networking.security.PlayerSource)
-                    cpu.togglePlayerFollowStatus(
-                        ((appeng.api.networking.security.PlayerSource) source).player.getCommandSenderName());
-                break;
-            }
-        }
-        cir.setReturnValue(link);
+        if (!(job instanceof NativeECOCraftingJob)) return;
+        NativeECOCraftingJob ecoJob = (NativeECOCraftingJob) job;
+        // A native-safe plan explicitly sent to a native AE2 CPU runs through AE2's own path unchanged.
+        if (!job.isSimulation() && NativeECOCpuSelection.deferToNative(ecoJob, target, grid)) return;
+        cir.setReturnValue(
+            NativeECOCpuSelection
+                .submit(craftingCPUClusters, grid, ecoJob, requester, target, prioritizePower, source, follow));
+    }
+
+    /** Mirrors 1.21: after AE2 advanced every CPU, release ECO CPUs whose job ended during this tick. */
+    @Inject(method = NativeCpuTargets.UPDATE_TICK, at = @At("TAIL"), require = 1)
+    private void neoecoae$releaseFinished(CallbackInfo ci) {
+        if (NativeECOCpuSelection.releaseFinished(craftingCPUClusters, neoecoae$owners)) updateList = true;
     }
 }

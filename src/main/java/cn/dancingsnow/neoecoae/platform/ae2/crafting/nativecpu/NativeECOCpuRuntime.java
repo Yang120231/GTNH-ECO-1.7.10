@@ -95,4 +95,29 @@ public interface NativeECOCpuRuntime extends ECOCraftingOutputRouter {
 
     /** Supplies the same stable native CPU identity used when restoring CraftingLink/Nexus state. */
     void bindNativeCPU(CraftingCPUCluster cpu);
+
+    /** Admission pool a submission to this identity really lands in; CPUs sharing it are tried once. */
+    default Object submissionPool() {
+        return this;
+    }
+
+    /** Whether the owning pool can still spawn a CPU for a new job (a free thread). */
+    default boolean hasFreeThread() {
+        return true;
+    }
+
+    /** Preferred-first CPU selection after the selection-mode filter. */
+    default boolean isPreferredFor(BaseActionSource source) {
+        return false;
+    }
+
+    /** Owner whose finished CPUs are released together; released once per crafting-cache tick. */
+    default Object lifecycleOwner() {
+        return this;
+    }
+
+    /** Releases finished CPUs of the owner; true when the published CPU set changed. */
+    default boolean releaseFinishedCpus() {
+        return false;
+    }
 }

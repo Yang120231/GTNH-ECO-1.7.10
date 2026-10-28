@@ -42,4 +42,21 @@ public interface ECOCraftingCPUHost {
     cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions getPlanningOptions();
 
     ECOCraftingCPU findCPU(ICraftingPlan plan);
+
+    /** Releases CPUs whose job finished; true when the published CPU set changed. Idempotent. */
+    boolean pruneInactiveCPUs();
+
+    /** Admission pool that {@link #submitJob} really submits into (a computation network or this host). */
+    default Object submissionPool() {
+        return this;
+    }
+
+    /** Whether a new job can still get a thread from {@link #submissionPool()}. */
+    default boolean hasFreeThread() {
+        return true;
+    }
+
+    default boolean isPreferredFor(IActionSource source) {
+        return false;
+    }
 }

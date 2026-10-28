@@ -38,8 +38,12 @@ class NativeCpuTargetsContractTest {
     }
 
     private static void assertRequiredHooks(Set<String> methods) {
-        for (String descriptor : Arrays
-            .asList(NativeCpuTargets.PUBLISH, NativeCpuTargets.ADD, NativeCpuTargets.REMOVE, NativeCpuTargets.SUBMIT))
+        for (String descriptor : Arrays.asList(
+            NativeCpuTargets.PUBLISH,
+            NativeCpuTargets.UPDATE_TICK,
+            NativeCpuTargets.ADD,
+            NativeCpuTargets.REMOVE,
+            NativeCpuTargets.SUBMIT))
             assertTrue(methods.contains(descriptor), "AE2 JAR does not contain required mixin target " + descriptor);
         long planningEntries = Arrays.asList(NativeCpuTargets.PLAN, NativeCpuTargets.PLAN_WITH_LITE_MODE)
             .stream()

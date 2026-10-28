@@ -6,5 +6,7 @@ public enum CraftingSubmitErrorCode {
     CPU_OFFLINE,
     CPU_TOO_SMALL,
     INCOMPLETE_PLAN,
-    MISSING_INGREDIENT
+    MISSING_INGREDIENT,
+    /** No CPU thread could take the job, matching AE2's NO_CPU_FOUND. */
+    NO_CPU_FOUND
 }
