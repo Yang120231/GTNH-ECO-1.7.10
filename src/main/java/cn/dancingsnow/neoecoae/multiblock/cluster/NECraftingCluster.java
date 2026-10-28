@@ -129,7 +129,10 @@ public class NECraftingCluster extends NECluster<NECraftingCluster> {
         return networkCluster != null ? networkCluster : this;
     }
 
-    /** Buses visible from this host's crafting interface. */
+    /**
+     * Buses visible from this host's pattern interface and upload targets. Not the advertised set: each bus
+     * publishes only its own patterns to AE2 and reaches the group's workers through dispatch instead.
+     */
     public List<ECOCraftingPatternBusBlockEntity> getPatternDomainBuses() {
         return networkCluster == null ? patternBuses : networkCluster.getPatternBuses();
     }
