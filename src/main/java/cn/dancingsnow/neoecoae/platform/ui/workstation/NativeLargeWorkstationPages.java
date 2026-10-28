@@ -39,6 +39,7 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar;
 import cn.dancingsnow.neoecoae.platform.ui.NativeOwnedFluidSync;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
+import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -336,7 +337,7 @@ public final class NativeLargeWorkstationPages {
         Tasks(NativeLargeWorkstationSession session) {
             this.session = session;
             this.scroll = scrollFor(session);
-            background(IDrawable.EMPTY);
+            NativeUiStyle.plainHover(this);
             onMouseScrolled((direction, amount) -> {
                 scroll.scrollBy((direction.modifier > 0 ? -1 : 1) * amount);
                 request(session, scroll);
@@ -492,7 +493,7 @@ public final class NativeLargeWorkstationPages {
         QueueScrollbar(NativeLargeWorkstationSession session) {
             this.session = session;
             scroll = scrollFor(session);
-            background(IDrawable.EMPTY);
+            NativeUiStyle.plainHover(this);
             onMouseScrolled((direction, amount) -> {
                 scroll.scrollBy((direction.modifier > 0 ? -1 : 1) * amount);
                 request(session, scroll);
