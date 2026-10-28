@@ -27,6 +27,7 @@ public class CommonProxy {
             .bus()
             .register(lifecycle);
         cn.dancingsnow.neoecoae.platform.network.PatternUploadPackets.register();
+        cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets.register();
         cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadUiFactory.register();
         cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
