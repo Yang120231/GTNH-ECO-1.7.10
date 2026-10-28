@@ -96,6 +96,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private GuiButton cancel;
     private GuiButton retry;
     private GuiButton back;
+    private GuiButton graph;
     private boolean lastSubmissionForced;
     @Nullable
     private Integer selectedCycleComponent;
@@ -149,6 +150,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         buttonList.add(start);
         buttonList.add(retry);
         buttonList.add(back);
+        graph = new GuiButton(5, guiLeft + 60, guiTop + 232, 102, 20, I18n.format("gui.neoecoae.crafting_graph.open"));
+        buttonList.add(graph);
         tableScroll.setLeft(218)
             .setTop(TABLE_Y)
             .setHeight(160);
@@ -181,6 +184,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         if (selectedCycleComponent != null && (report == null || report.cycles.items()
             .stream()
             .noneMatch(entry -> entry.componentId() == selectedCycleComponent))) selectedCycleComponent = null;
+        // The graph is fetched on demand for the plan of the current report version.
+        graph.enabled = state.reportReady && report != null;
     }
 
     private String cpuButtonLabel() {
@@ -673,12 +678,25 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         else if (button == cancel) goBack();
         else if (button == retry) submit(lastSubmissionForced);
         else if (button == back) ECOCraftConfirmPackets.clearError(container.windowId);
+        else if (button == graph) openGraph();
     }
 
     private void submit(boolean forced) {
         if (state.error == null && !start.enabled) return;
         lastSubmissionForced = forced;
         ECOCraftConfirmPackets.start(container.windowId, forced);
+    }
+
+    /** Opens the planning graph of the plan on screen; Back in the graph returns here with the same container. */
+    private void openGraph() {
+        if (report == null || !state.reportReady) return;
+        mc.displayGuiScreen(
+            new cn.dancingsnow.neoecoae.client.gui.graph.ECOCraftingGraphScreen(
+                this,
+                container,
+                state.reportVersion,
+                selectedCycleComponent,
+                report.cycles.items()));
     }
 
     private void goBack() {
