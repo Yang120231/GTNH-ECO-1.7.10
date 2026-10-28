@@ -34,7 +34,12 @@ public class NECraftingNetworkCluster {
     public static final long VIRTUAL_CRAFTING_POWER_PER_TICK = 10_000_000L;
 
     private final List<NECraftingCluster> members = new ArrayList<>();
-    /** Changes when membership or one member's pattern-bus inventory changes. */
+    /**
+     * Changes when membership changes or a bus joins a member. It versions the shared pattern area seen by the
+     * pattern interface and upload targets only. AE2 advertising does not depend on it: every bus publishes just
+     * its own slots, so regrouping never changes what any provider advertises and needs no AE2 re-index, while
+     * dispatch reachability is re-read from the live membership on every push.
+     */
     private long patternDomainGeneration;
     private final ReferenceSet<ECOCraftingWorkerBlockEntity> availableWorkerSnapshot = new ReferenceOpenHashSet<>();
     private long availabilitySnapshotTick = Long.MIN_VALUE;
@@ -259,7 +264,7 @@ public class NECraftingNetworkCluster {
         return patternDomainGeneration;
     }
 
-    /** Invalidates interface mappings when a bus is added after the network was formed. */
+    /** Invalidates interface/upload mappings when a bus is added after the network was formed. */
     public void invalidatePatternDomain() {
         patternDomainGeneration++;
     }
