@@ -206,68 +206,131 @@ public final class ECOInfiniteStorageData extends SavedData {
 
     @Override
     public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        if (unreadable || incompleteLegacy) throw new IllegalStateException("Refusing to save an incomplete domain");
-        tag.putInt("version", CURRENT_VERSION);
-        ListTag entries = new ListTag();
-        amounts.forEach((key, amount) -> {
-            CompoundTag entry = new CompoundTag();
-            entry.put("key", codec == null ? key.toTagGeneric(registries) : codec.encode(key));
-            entry.put("amount", amount.write());
-            Restore restore = restores.get(key);
-            if (restore != null) {
-                entry.putUUID("restore", restore.transaction());
-                ListTag targets = new ListTag();
-                restore.targets()
-                    .forEach(id -> targets.add(NbtUtils.createUUID(id)));
-                entry.put("restoreTargets", targets);
-                ListTag plan = new ListTag();
-                restore.plan()
-                    .forEach((id, amounts) -> {
-                        CompoundTag target = new CompoundTag();
-                        target.putUUID("target", id);
-                        target.putLong("before", amounts.before());
-                        target.putLong("after", amounts.after());
-                        target.putLong("transferred", amounts.transferred());
-                        plan.add(target);
-                    });
-                entry.put("restorePlan", plan);
-                if (!restore.failure()
-                    .isEmpty()) entry.putString("restoreFailure", restore.failure());
-            }
-            entries.add(entry);
-        });
-        rawEntries.forEach(entry -> entries.add(entry.copy()));
-        tag.put("entries", entries);
-        ListTag receipts = new ListTag();
-        migrationReceipts.forEach(id -> receipts.add(NbtUtils.createUUID(id)));
-        tag.put("migrations", receipts);
-        if (!unresolvedMetadata.isEmpty()) tag.put("unresolvedMetadata", unresolvedMetadata.copy());
-        tag.putLong("journalSequence", journalSequence);
-        return tag;
+        return capture(registries).write(tag, registries);
     }
 
     /**
-     * Same contract as vanilla {@link SavedData#save(File, HolderLookup.Provider)}: serialize on the server thread,
-     * write atomically on the IO worker. Unreadable or partially imported domains are never written, and a failed
-     * write keeps the domain due for the next save.
+     * Server-thread copy of everything {@link #save(CompoundTag, HolderLookup.Provider)} writes. Building the NBT of a
+     * 100k-key domain takes tens of milliseconds, so the file path captures primitives here and encodes on the IO
+     * worker. Item and fluid keys only read their immutable identity and the registry name table; any other key type
+     * (or a test codec) is encoded during the capture.
+     */
+    private Snapshot capture(HolderLookup.Provider registries) {
+        if (unreadable || incompleteLegacy) throw new IllegalStateException("Refusing to save an incomplete domain");
+        int size = amounts.size();
+        AEKey[] keys = new AEKey[size];
+        long[] values = new long[size];
+        CompoundTag[] encoded = new CompoundTag[size];
+        Map<AEKey, java.math.BigInteger> big = new HashMap<>();
+        int[] index = { 0 };
+        amounts.visitVisible((key, amount) -> {
+            int i = index[0]++;
+            keys[i] = key;
+            values[i] = amount;
+            if (amount == Long.MAX_VALUE) {
+                HugeAmount exact = amounts.get(key);
+                if (exact.isBig()) big.put(key, exact.toBigInteger());
+            }
+            if (codec != null) encoded[i] = codec.encode(key);
+            else if (!(key instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey)
+                && !(key instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey))
+                encoded[i] = key.toTagGeneric(registries);
+        });
+        Map<AEKey, Restore> restoreCopies = new HashMap<>();
+        restores.forEach(
+            (key, restore) -> restoreCopies.put(
+                key,
+                new Restore(
+                    restore.transaction(),
+                    new java.util.LinkedHashSet<>(restore.targets()),
+                    restore.failure(),
+                    new java.util.LinkedHashMap<>(restore.plan()))));
+        List<CompoundTag> raw = new ArrayList<>(rawEntries.size());
+        rawEntries.forEach(entry -> raw.add(entry.copy()));
+        return new Snapshot(
+            keys,
+            values,
+            encoded,
+            big,
+            restoreCopies,
+            raw,
+            new ArrayList<>(migrationReceipts),
+            unresolvedMetadata.isEmpty() ? null : unresolvedMetadata.copy(),
+            journalSequence);
+    }
+
+    @com.github.bsideup.jabel.Desugar
+    private record Snapshot(AEKey[] keys, long[] values, CompoundTag[] encoded, Map<AEKey, java.math.BigInteger> big,
+        Map<AEKey, Restore> restores, List<CompoundTag> raw, List<UUID> receipts, CompoundTag unresolved,
+        long journalSequence) {
+
+        CompoundTag write(CompoundTag tag, HolderLookup.Provider registries) {
+            tag.putInt("version", CURRENT_VERSION);
+            ListTag entries = new ListTag();
+            for (int i = 0; i < keys.length; i++) {
+                AEKey key = keys[i];
+                CompoundTag entry = new CompoundTag();
+                entry.put("key", encoded[i] != null ? encoded[i] : key.toTagGeneric(registries));
+                java.math.BigInteger exact = big.get(key);
+                entry.put("amount", (exact == null ? HugeAmount.of(values[i]) : HugeAmount.of(exact)).write());
+                Restore restore = restores.get(key);
+                if (restore != null) {
+                    entry.putUUID("restore", restore.transaction());
+                    ListTag targets = new ListTag();
+                    restore.targets()
+                        .forEach(id -> targets.add(NbtUtils.createUUID(id)));
+                    entry.put("restoreTargets", targets);
+                    ListTag plan = new ListTag();
+                    restore.plan()
+                        .forEach((id, amounts) -> {
+                            CompoundTag target = new CompoundTag();
+                            target.putUUID("target", id);
+                            target.putLong("before", amounts.before());
+                            target.putLong("after", amounts.after());
+                            target.putLong("transferred", amounts.transferred());
+                            plan.add(target);
+                        });
+                    entry.put("restorePlan", plan);
+                    if (!restore.failure()
+                        .isEmpty()) entry.putString("restoreFailure", restore.failure());
+                }
+                entries.add(entry);
+            }
+            raw.forEach(entries::add);
+            tag.put("entries", entries);
+            ListTag receiptTags = new ListTag();
+            receipts.forEach(id -> receiptTags.add(NbtUtils.createUUID(id)));
+            tag.put("migrations", receiptTags);
+            if (unresolved != null) tag.put("unresolvedMetadata", unresolved);
+            tag.putLong("journalSequence", journalSequence);
+            return tag;
+        }
+    }
+
+    /**
+     * Same contract as vanilla {@link SavedData#save(File, HolderLookup.Provider)}: capture on the server thread,
+     * encode and write atomically on the IO worker. Unreadable or partially imported domains are never written, and a
+     * failed encode or write keeps the domain due for the next save.
      */
     @Override
     public void save(File file, HolderLookup.Provider registries) {
         if (unreadable || incompleteLegacy) return;
         if (!isDirty() && writeFailure == null) return;
-        CompoundTag root = new CompoundTag();
+        Snapshot snapshot;
         try {
-            root.put("data", save(new CompoundTag(), registries));
+            snapshot = capture(registries);
         } catch (RuntimeException e) {
             LogManager.getLogger(ECOInfiniteStorageData.class)
                 .error("Cannot serialize infinite domain {}", file, e);
             writeFailure = e.toString();
             return;
         }
-        NbtUtils.addCurrentDataVersion(root);
         Path target = file.toPath();
         IOUtilities.withIOWorker(() -> {
             try {
+                CompoundTag root = new CompoundTag();
+                root.put("data", snapshot.write(new CompoundTag(), registries));
+                NbtUtils.addCurrentDataVersion(root);
                 IOUtilities.writeNbtCompressed(root, target);
                 // The snapshot records journalSequence, so a journal left behind by a crash here is harmless.
                 Files.deleteIfExists(journalPath(target.toAbsolutePath()));

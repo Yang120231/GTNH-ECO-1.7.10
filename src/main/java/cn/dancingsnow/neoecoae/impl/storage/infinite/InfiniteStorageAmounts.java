@@ -14,6 +14,10 @@ final class InfiniteStorageAmounts {
     private final Object2LongOpenHashMap<AEKey> amounts = new Object2LongOpenHashMap<>();
     private final Map<AEKey, BigInteger> overflow = new Object2ObjectOpenHashMap<>();
 
+    int size() {
+        return amounts.size();
+    }
+
     long visible(AEKey key) {
         return amounts.getLong(key);
     }
