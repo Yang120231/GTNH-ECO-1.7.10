@@ -52,6 +52,22 @@ class ECODriveLedSyncTest {
         verify(drive, times(2)).markForUpdate();
     }
 
+    /** onReady's re-read: the node's first report arrives before it is ready, and a running grid sends no other. */
+    @Test
+    void readyReReadRecoversAnOnlineNodeThatReportedBeforeItWasReady() throws Exception {
+        when(node.isOnline()).thenReturn(false);
+        drive.onMainNodeStateChanged(NodeListener.State.GRID_BOOT);
+        assertFalse(drive.isOnline());
+        verify(drive, never()).markForUpdate();
+
+        when(node.isOnline()).thenReturn(true);
+        Method refresh = ECODriveBlockEntity.class.getDeclaredMethod("refreshOnline");
+        refresh.setAccessible(true);
+        refresh.invoke(drive);
+        assertTrue(drive.isOnline());
+        verify(drive, times(1)).markForUpdate();
+    }
+
     @Test
     void mountingSyncsTheClientOnlyWhenItChanges() throws Exception {
         Method update = ECODriveBlockEntity.class.getDeclaredMethod("updateMountState", boolean.class);

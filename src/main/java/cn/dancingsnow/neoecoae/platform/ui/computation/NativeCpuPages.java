@@ -232,6 +232,8 @@ public final class NativeCpuPages {
                     .add(cpu.getString("output"))
                     .add(NEByteFormatter.format(cpu.getLong("storage")))
                     .add(cpu.getString("requested") + " / " + cpu.getString("remaining"));
+                String bigOrder = bigOrderStatus(cpu);
+                if (!bigOrder.isEmpty()) lines.add(bigOrder);
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
@@ -401,6 +403,24 @@ public final class NativeCpuPages {
     private static CompoundTag selected(NativeComputationSession session) {
         return session.state()
             .getCompound("selected");
+    }
+
+    /**
+     * Parent progress of a big order on this CPU (state and waiting reason), or empty for an ordinary job. The
+     * requested and remaining amounts in the row are already the parent's exact totals.
+     */
+    static String bigOrderStatus(CompoundTag row) {
+        String state = row.getString("state");
+        if (state.isEmpty()) return "";
+        String text = Component.translatable("gui.neoecoae.big_order." + state.toLowerCase(java.util.Locale.ROOT))
+            .getString();
+        String reason = row.getString("waiting");
+        if (reason.isEmpty()) return text;
+        String key = "gui.neoecoae.big_order.reason." + reason.toLowerCase(java.util.Locale.ROOT);
+        String translated = Component.translatable(key)
+            .getString();
+        // Failures carry the executor's own message instead of a reason code.
+        return text + ": " + (translated.equals(key) ? reason : translated);
     }
 
     private static String name(CompoundTag row) {

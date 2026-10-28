@@ -96,6 +96,150 @@ class RouteAvailabilityPruningTest {
                 .anyMatch(d -> d.code() == PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED));
     }
 
+    @Test
+    void positiveButInsufficientLeafDoesNotEnumerate4096UnhelpfulRoutes() throws Exception {
+        InventoryTestBootstrap.initialize();
+        var keys = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+            .listOf(
+                TestItems.RAW_IRON,
+                TestItems.STONE,
+                TestItems.DIRT,
+                TestItems.SAND,
+                TestItems.GLASS,
+                TestItems.COBBLESTONE,
+                TestItems.NETHERRACK,
+                TestItems.END_STONE,
+                TestItems.OBSIDIAN,
+                TestItems.CLAY_BALL,
+                TestItems.FLINT,
+                TestItems.COAL,
+                TestItems.CHARCOAL)
+            .stream()
+            .map(AEItemKey::of)
+            .collect(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.toList());
+        var index = new LinkedHashMap<AEKey, List<IPatternDetails>>();
+        for (int i = 0; i < keys.size() - 1; i++) {
+            index.put(
+                keys.get(i),
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+                    .listOf(pattern(keys.get(i), keys.get(i + 1)), pattern(keys.get(i), keys.get(i + 1))));
+        }
+        var goal = AEItemKey.of(TestItems.BRICK);
+        var scarce = AEItemKey.of(TestItems.DIAMOND);
+        index.put(goal, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(pattern(goal, keys.get(0), scarce)));
+        var service = mock(ICraftingService.class);
+        when(service.getCraftingFor(any())).thenAnswer(
+            call -> index.getOrDefault(call.getArgument(0), cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+        var stock = new KeyCounter();
+        stock.add(keys.get(keys.size() - 1), 1_000_000_000L);
+        stock.add(scarce, 1L);
+        var session = new ECOCraftingPlannerService().createSession(service, goal, stock, true);
+        var budget = session.getClass()
+            .getDeclaredField("planningBudget");
+        budget.setAccessible(true);
+        budget.set(session, new ECOPlanningBudget(ECOCancellation.NONE, 10_000, Long.MAX_VALUE, () -> 0));
+        var result = session.plan(1_000_000_000L, false, ECOCancellation.NONE);
+        assertEquals(
+            PlanningStatus.MISSING_ITEMS,
+            result.status(),
+            result.trace()
+                .diagnostics()
+                .toString());
+        assertEquals(
+            PlannerAmount.of(999_999_999L),
+            result.exactMissingItems()
+                .get(scarce));
+        assertTrue(
+            result.plan()
+                .bytes() > 0);
+        assertTrue(
+            result.trace()
+                .diagnostics()
+                .stream()
+                .anyMatch(d -> d.code() == PlannerDiagnostic.Code.ROUTE_QUANTITY_BOUND));
+        assertFalse(
+            result.trace()
+                .diagnostics()
+                .stream()
+                .anyMatch(d -> d.code() == PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED));
+        assertEquals(1L, stock.get(scarce));
+    }
+
+    @Test
+    void billionOrderWithSubstitutionKeepsWideMissingReportWithoutEnumeratingRoutes() throws Exception {
+        InventoryTestBootstrap.initialize();
+        var keys = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+            .listOf(
+                TestItems.RAW_IRON,
+                TestItems.STONE,
+                TestItems.DIRT,
+                TestItems.SAND,
+                TestItems.GLASS,
+                TestItems.COBBLESTONE,
+                TestItems.NETHERRACK,
+                TestItems.END_STONE,
+                TestItems.OBSIDIAN,
+                TestItems.CLAY_BALL,
+                TestItems.FLINT,
+                TestItems.COAL,
+                TestItems.CHARCOAL)
+            .stream()
+            .map(AEItemKey::of)
+            .collect(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.toList());
+        var index = new LinkedHashMap<AEKey, List<IPatternDetails>>();
+        for (int i = 0; i < keys.size() - 1; i++) index.put(
+            keys.get(i),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+                .listOf(pattern(keys.get(i), keys.get(i + 1)), pattern(keys.get(i), keys.get(i + 1))));
+        var goal = AEItemKey.of(TestItems.BRICK);
+        var scarce = AEItemKey.of(TestItems.DIAMOND);
+        var finish = pattern(goal, keys.get(0), scarce);
+        when(finish.getInputs()[0].getPossibleInputs())
+            .thenReturn(new GenericStack[] { new GenericStack(keys.get(0), 1), new GenericStack(keys.get(1), 1) });
+        when(finish.getInputs()[1].getMultiplier()).thenReturn(Long.MAX_VALUE);
+        index.put(goal, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(finish));
+        var service = mock(ICraftingService.class);
+        when(service.getCraftingFor(any())).thenAnswer(
+            call -> index.getOrDefault(call.getArgument(0), cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+        var stock = new KeyCounter();
+        stock.add(keys.get(keys.size() - 1), 1_000_000_000L);
+        stock.add(scarce, 1L);
+        var session = new ECOCraftingPlannerService().createSession(service, goal, stock, true);
+        var budget = session.getClass()
+            .getDeclaredField("planningBudget");
+        budget.setAccessible(true);
+        budget.set(session, new ECOPlanningBudget(ECOCancellation.NONE, 50_000, Long.MAX_VALUE, () -> 0));
+        var result = session.plan(1_000_000_000L, false, ECOCancellation.NONE);
+        assertEquals(
+            PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE,
+            result.status(),
+            result.trace()
+                .diagnostics()
+                .toString());
+        var expected = PlannerAmount.of(Long.MAX_VALUE)
+            .multiply(1_000_000_000L)
+            .subtract(PlannerAmount.ONE);
+        assertEquals(
+            expected,
+            result.exactMissingItems()
+                .get(scarce));
+        assertTrue(
+            result.plan()
+                .simulation());
+        assertTrue(
+            result.trace()
+                .diagnostics()
+                .stream()
+                .anyMatch(d -> d.code() == PlannerDiagnostic.Code.ROUTE_QUANTITY_BOUND));
+        assertFalse(
+            result.trace()
+                .diagnostics()
+                .stream()
+                .anyMatch(
+                    d -> d.code() == PlannerDiagnostic.Code.INTERNAL_ERROR
+                        || d.code() == PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED));
+    }
+
     private static IPatternDetails pattern(AEKey output, AEKey... inputs) {
         var pattern = mock(IPatternDetails.class);
         var raw = new ArrayList<IPatternDetails.IInput>();

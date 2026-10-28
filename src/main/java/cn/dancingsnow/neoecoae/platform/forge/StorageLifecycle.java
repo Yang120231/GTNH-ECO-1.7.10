@@ -41,6 +41,8 @@ public final class StorageLifecycle {
         if (event.phase == TickEvent.Phase.END) {
             cn.dancingsnow.neoecoae.platform.network.ServerTasks.tick();
             cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.tick();
+            cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker.tick();
+            cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingGraphSync.tick();
             PortingFoundationFixture.tick();
             PortingStorageHostFixture.tick();
             PortingPlanningFixture.tick();
@@ -58,6 +60,8 @@ public final class StorageLifecycle {
     public static void stopped() {
         MinecraftServer server = MinecraftServer.getServer();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.clear();
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker.clear();
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingGraphSync.clear();
         cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.clearAll();
         ECOCellMutationBatch.flushTickDeferred();
         ECOCellMutationBatch.clearThreadState();

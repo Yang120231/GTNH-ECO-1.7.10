@@ -404,6 +404,17 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         return isInfiniteMode() && infiniteDomainId != null ? infiniteDomainId.toString() : "";
     }
 
+    /** Same total the host screen shows, unabbreviated. */
+    public java.math.BigInteger getTotalUsedBytes() {
+        return statistics.getTotalUsedBytes();
+    }
+
+    /** {@code null} when the capacity is unbounded. */
+    @Nullable
+    public java.math.BigInteger getTotalCapacityBytes() {
+        return statistics.getTotalCapacityBytes();
+    }
+
     public boolean canInsertStorageCell(ItemStack stack) {
         if (!isInfiniteMode()) return !ECOInfiniteStorageMember.isSealed(stack);
         if (ECOInfiniteStorageMember.isMigrating(stack)) {

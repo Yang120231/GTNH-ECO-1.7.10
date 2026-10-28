@@ -107,7 +107,9 @@ public abstract class CraftingCpuPublicationMixin {
         appeng.api.config.CraftingMode mode, boolean liteMode,
         appeng.api.networking.crafting.ICraftingCallback callback,
         org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<java.util.concurrent.Future<appeng.api.networking.crafting.ICraftingJob>> cir) {
-        if (!liteMode) neoecoae$beginPlan(world, requestedGrid, source, output, mode, callback, cir);
+        // Lite only picks AE2's own CraftingJobFast, and every newer overload funnels here with the client's lite
+        // default; deferring to it would bypass ECO for all requests, so the ECO fast-planner switch takes precedence.
+        neoecoae$beginPlan(world, requestedGrid, source, output, mode, callback, cir);
     }
 
     @Unique

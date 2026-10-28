@@ -110,6 +110,11 @@ class CycleRouteCompletenessReviewTest {
             a,
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(a, 1L),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(a, 2L));
+        var unchanged = pattern(
+            21,
+            missing,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(missing, 1L),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(missing, 1L));
         var network = network(
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(
                 goal,
@@ -117,17 +122,20 @@ class CycleRouteCompletenessReviewTest {
                 a,
                 cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(growth),
                 missing,
-                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(unchanged)));
         var graph = graph(network);
         var initial = new ActiveRouteSelector().selectWithChoices(
             graph.source(),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
             ECOCancellation.NONE);
-        // Presence alone cannot prune this quantity deficit. Preserve coverage of budget cuts
-        // during real alternatives now that a completely absent leaf is proved unreachable early.
+        // The zero-net cycle leaves the optimistic quantity bound infinite, while physical replay still
+        // needs four additional units. Keep exercising real budget cuts rather than a newly proven shortage.
         var stock = new KeyCounter();
         stock.add(a, 1L);
         stock.add(missing, 1L);
+        assertNull(
+            RouteQuantityProof
+                .insufficientOutput(network, PlannerInventorySnapshot.of(stock), 1L, ECOCancellation.NONE));
         var work = new java.util.concurrent.atomic.AtomicLong();
         var completed = new ComponentPlanner(new AcyclicCraftingSolver(), new BoundedCycleSolver())
             .plan(network, initial, stock, 1L, true, work::incrementAndGet);
@@ -212,6 +220,135 @@ class CycleRouteCompletenessReviewTest {
     private final AEKey goal = key("goal");
 
     @ParameterizedTest
+    @ValueSource(ints = { 0, 80 })
+    void wideMaterialReportSurvivesAnExhaustedAlternativeBudget(int extraWork) throws Exception {
+        cn.dancingsnow.neoecoae.platform.InventoryTestBootstrap.initialize();
+        var missing = key("wide-water");
+        var finishes = new ArrayList<CompiledPattern>();
+        for (int i = 0; i < 20; i++) finishes.add(
+            pattern(
+                i,
+                goal,
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(a, 2L, missing, Long.MAX_VALUE),
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(goal, 1L)));
+        var growth = pattern(
+            20,
+            a,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(a, 1L),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(a, 2L));
+        // The real fast planner cannot use this opaque route. The proof must keep it optimistic,
+        // so it cannot short-circuit this particular budget-exhaustion regression as a shortage.
+        var opaque = pattern(
+            21,
+            goal,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(goal, 1L));
+        var unknown = new CompiledPattern(
+            opaque.id(),
+            opaque.details(),
+            goal,
+            PlannerAmount.ONE,
+            opaque.inputs(),
+            opaque.outputs(),
+            false,
+            "UNKNOWN_INPUT_CONTRACT",
+            false,
+            opaque.semantics());
+        finishes.add(unknown);
+        var network = network(
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(
+                goal,
+                finishes,
+                a,
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(growth),
+                missing,
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+        var graph = graph(network);
+        var initial = new ActiveRouteSelector().selectWithChoices(
+            graph.source(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
+            ECOCancellation.NONE);
+        var stock = new KeyCounter();
+        stock.add(a, 1L);
+        stock.add(missing, 1L);
+        var work = new java.util.concurrent.atomic.AtomicLong();
+        var completed = new ComponentPlanner(new AcyclicCraftingSolver(), new BoundedCycleSolver())
+            .plan(network, initial, stock, 2L, true, work::incrementAndGet);
+        assertEquals(PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE, completed.status());
+        var expectedMissing = completed.state()
+            .missingAmounts()
+            .get(missing);
+        assertEquals(
+            PlannerAmount.of(
+                java.math.BigInteger.valueOf(Long.MAX_VALUE)
+                    .multiply(java.math.BigInteger.valueOf(2))
+                    .subtract(java.math.BigInteger.ONE)),
+            expectedMissing);
+        var session = new cn.dancingsnow.neoecoae.crafting.planner.ECOCraftingPlannerService().createSession(
+            mock(cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService.class),
+            goal,
+            stock,
+            true);
+        var fields = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.<String, Object>mapOf(
+            "compiled",
+            network,
+            "condensation",
+            graph,
+            "activeSelection",
+            initial,
+            "compiledContractGeneration",
+            cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime.reloadGeneration(),
+            "planningBudget",
+            new cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudget(
+                ECOCancellation.NONE,
+                work.get() + extraWork,
+                Long.MAX_VALUE,
+                () -> 0L));
+        for (var entry : fields.entrySet()) {
+            var field = session.getClass()
+                .getDeclaredField(entry.getKey());
+            field.setAccessible(true);
+            field.set(session, entry.getValue());
+        }
+        var result = session.plan(2L, false, ECOCancellation.NONE);
+        assertEquals(
+            PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE,
+            result.status(),
+            result.trace()
+                .diagnostics()
+                .toString());
+        assertEquals(
+            expectedMissing,
+            result.exactMissingItems()
+                .get(missing));
+        assertFalse(
+            result.exactPatternTimes()
+                .isEmpty());
+        assertTrue(
+            result.plan()
+                .simulation());
+        assertTrue(
+            result.trace()
+                .diagnostics()
+                .stream()
+                .anyMatch(d -> d.code() == PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED));
+        assertFalse(
+            result.trace()
+                .diagnostics()
+                .stream()
+                .anyMatch(d -> d.code() == PlannerDiagnostic.Code.INTERNAL_ERROR));
+        var snapshot = cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshotFactory.create(result);
+        assertTrue(
+            snapshot.nodes()
+                .stream()
+                .anyMatch(
+                    n -> n.key()
+                        .equals(missing)
+                        && n.missingBigInteger()
+                            .equals(expectedMissing.toBigInteger())));
+    }
+
+    @ParameterizedTest
     @ValueSource(ints = { 1, 2, 4, 256 })
     void bothCyclicRoutesMustBeSwitchedTogether(int budget) throws Exception {
         var missing = key("missing");
@@ -278,14 +415,16 @@ class CycleRouteCompletenessReviewTest {
             1L,
             false,
             ECOCancellation.NONE);
+        // Proofs prune both prefixes that still consume the absent material, so only the preferred
+        // report and the joint feasible assignment need full numeric planning.
         assertEquals(
-            budget >= 4 ? PlanningStatus.SUCCESS : PlanningStatus.CYCLE_UNRESOLVED,
+            budget >= 2 ? PlanningStatus.SUCCESS : PlanningStatus.CYCLE_UNRESOLVED,
             result.status(),
             result.trace()
                 .diagnostics()
                 .toString());
         assertEquals(
-            budget < 4,
+            budget < 2,
             result.trace()
                 .diagnostics()
                 .stream()

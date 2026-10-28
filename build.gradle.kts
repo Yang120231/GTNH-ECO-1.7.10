@@ -52,6 +52,8 @@ dependencies {
     compileOnly(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     // The native GT bridge is loaded only after FML confirms gregtech is installed.
     compileOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
+    // The WAILA provider is reached only through WAILA's own IMC callback.
+    compileOnly(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
     // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
     compileOnly(project.extra["mixinProviderSpec"] as String)
     testImplementation(project.extra["mixinProviderSpec"] as String)

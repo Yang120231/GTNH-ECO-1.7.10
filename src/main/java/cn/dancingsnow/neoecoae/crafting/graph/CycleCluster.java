@@ -1,0 +1,12 @@
+package cn.dancingsnow.neoecoae.crafting.graph;
+
+import java.util.List;
+
+/** Client-only weakly connected group of SCCs; component IDs remain authoritative and distinct. */
+@com.github.bsideup.jabel.Desugar
+public record CycleCluster(int clusterId, List<Integer> componentIds, List<InterCycleFlow> flows) {
+
+    public CycleCluster {
+
+    }
+}

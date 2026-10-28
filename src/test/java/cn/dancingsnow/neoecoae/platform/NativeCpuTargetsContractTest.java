@@ -15,9 +15,12 @@ import java.util.zip.ZipFile;
 
 import org.junit.jupiter.api.Test;
 import org.spongepowered.asm.lib.ClassReader;
+import org.spongepowered.asm.lib.Opcodes;
 import org.spongepowered.asm.lib.tree.AnnotationNode;
 import org.spongepowered.asm.lib.tree.ClassNode;
+import org.spongepowered.asm.lib.tree.MethodInsnNode;
 import org.spongepowered.asm.lib.tree.MethodNode;
+import org.spongepowered.asm.lib.tree.VarInsnNode;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.selectors.ITargetSelector;
 import org.spongepowered.asm.mixin.injection.selectors.ITargetSelectorByName;
@@ -44,6 +47,34 @@ class NativeCpuTargetsContractTest {
         liteMethods.remove(NativeCpuTargets.PLAN);
         liteMethods.add(NativeCpuTargets.PLAN_WITH_LITE_MODE);
         assertPlanningSelectors(liteMethods, NativeCpuTargets.PLAN_WITH_LITE_MODE);
+    }
+
+    /**
+     * Newer AE2 routes every request through the lite overload with the client's lite default (on in GTNH), so the
+     * handler must hand all of them to ECO instead of branching on the flag.
+     */
+    @Test
+    void liteModeRequestsStillReachTheEcoPlanner() throws IOException {
+        ClassNode mixin = new ClassNode();
+        try (InputStream stream = NativeCpuTargetsContractTest.class
+            .getResourceAsStream("/cn/dancingsnow/neoecoae/platform/mixin/CraftingCpuPublicationMixin.class")) {
+            assertNotNull(stream);
+            new ClassReader(stream).accept(mixin, 0);
+        }
+        MethodNode handler = mixin.methods.stream()
+            .filter(method -> method.name.equals("neoecoae$planWithLiteMode"))
+            .findFirst()
+            .orElseThrow(AssertionError::new);
+        // Locals: this, world, grid, source, output, mode, liteMode.
+        int liteMode = 6;
+        boolean readsLiteMode = false, plans = false;
+        for (var instruction : handler.instructions.toArray()) {
+            if (instruction instanceof VarInsnNode variable && variable.getOpcode() == Opcodes.ILOAD
+                && variable.var == liteMode) readsLiteMode = true;
+            if (instruction instanceof MethodInsnNode call && call.name.equals("neoecoae$beginPlan")) plans = true;
+        }
+        assertFalse(readsLiteMode, "Lite requests must not bypass the ECO planner");
+        assertTrue(plans);
     }
 
     @Test

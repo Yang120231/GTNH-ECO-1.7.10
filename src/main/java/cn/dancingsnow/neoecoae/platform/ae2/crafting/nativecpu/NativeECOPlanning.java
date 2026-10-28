@@ -87,6 +87,11 @@ public final class NativeECOPlanning {
         return hosts.isEmpty() ? null : hosts.get(0);
     }
 
+    /** Whether a confirmation container's planning future was produced by this ECO route. */
+    public static boolean isEcoPlanning(Future<?> future) {
+        return future instanceof Pending;
+    }
+
     public static Future<ICraftingJob> begin(World world, IGrid grid, BaseActionSource source, IAEStack<?> output,
         ICraftingCallback callback) {
         if (world == null || world.isRemote
