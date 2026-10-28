@@ -269,6 +269,7 @@
   "gui.neoecoae.computation.ui.switch.substitutions.desc": "规划时允许使用已开启替代的样板。",
   "gui.neoecoae.computation.ui.switch.cycle_planning.desc": "允许规划含有循环的配方路线。",
   "gui.neoecoae.computation.ui.switch.fast_planner.desc": "使用 ECO 快速规划器处理合成请求。",
+  "gui.neoecoae.computation.ui.switch.smart_doubling.desc": "关闭时，每次提交量受实际并行数限制，最高 16,384 份。",
   "gui.neoecoae.computation.ui.parallel_full": "满配进度",
   "gui.neoecoae.computation.ui.parallel_shared": "每个线程都享有全部并行数。",
   "gui.neoecoae.computation.ui.title": "可拓展计算子系统",

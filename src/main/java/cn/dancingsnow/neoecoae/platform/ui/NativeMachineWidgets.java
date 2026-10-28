@@ -75,10 +75,15 @@ public final class NativeMachineWidgets {
                 action.run();
                 return true;
             });
-            tooltipDynamic(
-                lines -> lines.add(
-                    tooltip.get()
-                        .getString()));
+            tooltipDynamic(lines -> {
+                String[] parts = tooltip.get()
+                    .getString()
+                    .split("\n");
+                for (int index = 0; index < parts.length; index++) {
+                    if (index > 0) lines.newLine();
+                    lines.add(parts[index]);
+                }
+            });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
 

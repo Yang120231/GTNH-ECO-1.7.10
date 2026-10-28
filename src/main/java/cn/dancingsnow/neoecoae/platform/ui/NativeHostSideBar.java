@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui;
 
 import java.util.List;
+import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
@@ -88,15 +89,44 @@ public final class NativeHostSideBar {
     }
 
     public static ButtonWidget<?> button(Supplier<IDrawable> icon, Supplier<Component> tooltip, Runnable action) {
-        return new IconButton(icon, tooltip, action, null);
+        return new IconButton(icon, () -> java.util.Collections.singletonList(tooltip.get()), button -> {
+            if (button != 0) return false;
+            action.run();
+            return true;
+        }, null);
     }
 
-    public static ButtonWidget<?> networkFrequency(IntSupplier frequency, Runnable action) {
+    /** A toolbar button whose tooltip may span several (optionally coloured) lines. */
+    public static ButtonWidget<?> multilineButton(Supplier<IDrawable> icon, Supplier<List<Component>> tooltip,
+        Runnable action) {
+        return new IconButton(icon, tooltip, button -> {
+            if (button != 0) return false;
+            action.run();
+            return true;
+        }, null);
+    }
+
+    /** Left click moves to the next frequency and right click to the previous one, as in the source toolbar. */
+    public static ButtonWidget<?> networkFrequency(IntSupplier frequency, IntConsumer adjust) {
         return new IconButton(
             () -> NativePageLayout.texture(ATLAS, 16, 240, 16, 16),
-            () -> Component.translatable("gui.neoecoae.host.network_frequency.title"),
-            action,
+            () -> java.util.Collections.singletonList(frequencyTooltip(frequency.getAsInt())),
+            button -> {
+                int delta = frequencyDelta(button);
+                if (delta == 0) return false;
+                adjust.accept(delta);
+                return true;
+            },
             frequency);
+    }
+
+    static int frequencyDelta(int mouseButton) {
+        return mouseButton == 0 ? 1 : mouseButton == 1 ? -1 : 0;
+    }
+
+    static Component frequencyTooltip(int frequency) {
+        return frequency < 1 ? Component.translatable("gui.neoecoae.host.network_frequency.cycle.unassigned")
+            : Component.translatable("gui.neoecoae.host.network_frequency.cycle", frequency);
     }
 
     static Component frequencyText(int frequency) {
@@ -105,26 +135,41 @@ public final class NativeHostSideBar {
                 .append(": " + frequency);
     }
 
+    /** Tooltip text keeping the component's own RGB colour, which 1.7 chat styles cannot express. */
+    public static com.cleanroommc.modularui.api.drawable.IKey tooltipLine(Component line) {
+        var parts = new java.util.ArrayList<com.cleanroommc.modularui.api.drawable.IKey>();
+        line.visit((style, segment) -> {
+            if (!segment.isEmpty()) {
+                var key = com.cleanroommc.modularui.api.drawable.IKey.str(segment);
+                var color = style.getColor();
+                parts.add(color == null ? key : key.color(0xff000000 | color.getValue()));
+            }
+            return java.util.Optional.empty();
+        }, Component.TextStyle.EMPTY);
+        if (parts.isEmpty()) return com.cleanroommc.modularui.api.drawable.IKey.str(line.getString());
+        return parts.size() == 1 ? parts.get(0)
+            : com.cleanroommc.modularui.api.drawable.IKey
+                .comp(parts.toArray(new com.cleanroommc.modularui.api.drawable.IKey[0]));
+    }
+
     private static final class IconButton extends NativeButtonWidget<IconButton> {
 
         private final Supplier<IDrawable> icon;
         private final IntSupplier frequency;
 
-        IconButton(Supplier<IDrawable> icon, Supplier<Component> tooltip, Runnable action, IntSupplier frequency) {
+        IconButton(Supplier<IDrawable> icon, Supplier<List<Component>> tooltip,
+            java.util.function.IntPredicate press, IntSupplier frequency) {
             this.icon = icon;
             this.frequency = frequency;
             background(IDrawable.EMPTY);
-            onMousePressed(button -> {
-                if (button != 0) return false;
-                action.run();
-                return true;
-            });
+            onMousePressed(press::test);
             tooltipDynamic(lines -> {
-                lines.add(
-                    tooltip.get()
-                        .getString());
-                if (frequency != null) lines.newLine()
-                    .add(frequencyText(frequency.getAsInt()).getString());
+                boolean first = true;
+                for (Component line : tooltip.get()) {
+                    if (!first) lines.newLine();
+                    first = false;
+                    lines.add(tooltipLine(line));
+                }
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }

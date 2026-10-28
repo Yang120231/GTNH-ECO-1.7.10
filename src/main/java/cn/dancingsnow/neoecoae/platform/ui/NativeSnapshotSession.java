@@ -38,12 +38,22 @@ public abstract class NativeSnapshotSession extends NativeTileSession {
             .getTotalWorldTime();
         if (!init && tick < nextCapture) return;
         nextCapture = tick + 5;
+        publish(init);
+    }
+
+    private void publish(boolean force) {
         state = capture();
-        if (init || !state.equals(previous)) {
+        if (force || !state.equals(previous)) {
             previous = state.copy();
             CompoundTag snapshot = state;
             syncToClient(0, buffer -> new RegistryFriendlyByteBuf(buffer, RegistryAccess.EMPTY).writeNbt(snapshot));
         }
+    }
+
+    /** Applies one validated action and republishes at once, so the player never waits for the next 5-tick capture. */
+    final void applyAndPublish(int action, int argument) {
+        apply(action, argument);
+        publish(false);
     }
 
     @Override
@@ -58,7 +68,7 @@ public abstract class NativeSnapshotSession extends NativeTileSession {
     public final void readOnServer(int id, PacketBuffer buffer) throws IOException {
         if (id != 0 || buffer.readableBytes() != 8) throw new IOException("Invalid machine action");
         int action = buffer.readInt(), argument = buffer.readInt();
-        edit(() -> apply(action, argument));
+        edit(() -> applyAndPublish(action, argument));
     }
 
     @SideOnly(Side.CLIENT)
