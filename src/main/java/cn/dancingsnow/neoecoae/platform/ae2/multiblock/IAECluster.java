@@ -18,6 +18,11 @@ public interface IAECluster extends appeng.me.cluster.IAECluster {
 
     Iterator<? extends TileEntity> getBlockEntities();
 
+    /** Modern AE2's teardown flag; rv3's cluster contract has no equivalent. */
+    default boolean isDestroyed() {
+        return false;
+    }
+
     @Override
     default Iterator<IGridHost> getTiles() {
         List<IGridHost> hosts = new ArrayList<>();

@@ -225,20 +225,54 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         return link == null ? null : link.nativeLink();
     }
 
+    /**
+     * Every published identity (placeholder, running or finished CPU) submits through its cluster, so network
+     * pooling, thread spawning and byte reservation always apply. A CPU whose job ended is never handed a
+     * new plan; the cluster spawns a fresh CPU on a free thread instead.
+     */
     @Override
     public ICraftingLink submit(ICraftingPlan plan, BaseActionSource source, ICraftingRequester requester) {
         var grid = grid();
         if (grid == null) return null;
-        var result = cpu.getOwner() == null ? cpu.getCluster()
-            .submitJob(grid, plan, IActionSource.of(source), requester)
-            : cpu.getLogic()
-                .trySubmitJob(grid, plan, IActionSource.of(source), requester);
+        var result = cpu.getCluster()
+            .submitJob(grid, plan, IActionSource.of(source), requester);
         if (!result.successful()) return null;
-        ECOCraftingCPU assigned = cpu.getOwner() == null ? cpu.getCluster()
-            .findCPU(plan) : cpu;
+        ECOCraftingCPU assigned = cpu.getCluster()
+            .findCPU(plan);
         var link = result.link() == null && assigned != null ? assigned.getLogic()
             .getLastLink() : result.link();
         return link == null ? null : link.nativeLink();
+    }
+
+    @Override
+    public Object submissionPool() {
+        return cpu.getCluster()
+            .submissionPool();
+    }
+
+    @Override
+    public boolean hasFreeThread() {
+        return cpu.getCluster()
+            .hasFreeThread();
+    }
+
+    @Override
+    public boolean isPreferredFor(BaseActionSource source) {
+        return cpu.getCluster()
+            .isPreferredFor(IActionSource.of(source));
+    }
+
+    @Override
+    public Object lifecycleOwner() {
+        // One release per switch group: every member shares the group's published placeholder.
+        return cpu.getCluster()
+            .submissionPool();
+    }
+
+    @Override
+    public boolean releaseFinishedCpus() {
+        return cpu.getCluster()
+            .pruneSubmissionPool();
     }
 
     @Override

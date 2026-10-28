@@ -58,17 +58,43 @@ final class ECOCraftingProviderDispatcher {
             || ECOParallelCraftingProviders.find(provider) != null;
     }
 
-    Result dispatchCandidate(ECOCraftingDispatchRequest request, List<ICraftingProvider> providers,
+    /** Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384). */
+    private long dispatchLimit() {
+        if (owner == null || owner.cpu == null) return Long.MAX_VALUE;
+        var host = owner.cpu.getCluster();
+        var controller = host instanceof cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster
+            ? ((cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster) host).getController()
+            : null;
+        return controller == null ? Long.MAX_VALUE
+            : cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity
+                .smartDoublingDispatchLimit(controller.isSmartDoublingEnabled(), owner.cpu.getCoProcessors());
+    }
+
+    Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, List<ICraftingProvider> providers,
         ECOCraftingDispatchBudget budget, IEnergyGrid energyService, ECODispatchStallDiagnostics diagnostics,
         Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
+        long limit = dispatchLimit();
+        var request = originalRequest.allowedCrafts() <= limit ? originalRequest
+            : new ECOCraftingDispatchRequest(
+                originalRequest.job(),
+                originalRequest.candidate(),
+                originalRequest.pattern(),
+                originalRequest.inputs(),
+                originalRequest.outputs(),
+                originalRequest.remainders(),
+                limit,
+                originalRequest.inventory(),
+                originalRequest.level());
         double singlePower = CraftingCpuHelper.calculatePatternPower(request.inputs());
 
         for (var provider : providers) {
 
             boolean blocking = NativeProviderAdapters.isEnabled(provider);
             if (!blocking && request.job().exactOrder) {
-                var exact = fastPath
-                    .tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt);
+                var exact = limit == Long.MAX_VALUE
+                    ? fastPath.tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt)
+                    : fastPath
+                        .tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt, limit);
                 if (exact != null) return Result
                     .accepted(cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(exact), true);
                 if (request.job().suspended) return Result.none();

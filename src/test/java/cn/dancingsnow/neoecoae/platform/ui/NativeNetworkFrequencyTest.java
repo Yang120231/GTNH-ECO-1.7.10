@@ -40,10 +40,28 @@ class NativeNetworkFrequencyTest {
                     unassigned,
                     NativeHostSideBar.frequencyText(0)
                         .getString());
+                for (int frequency = 1; frequency <= 4; frequency++) {
+                    String tooltip = NativeHostSideBar.frequencyTooltip(frequency)
+                        .getString();
+                    assertTrue(tooltip.contains(Integer.toString(frequency)), locale + ": " + tooltip);
+                    assertFalse(tooltip.contains("gui."), locale + ": " + tooltip);
+                }
+                assertFalse(
+                    NativeHostSideBar.frequencyTooltip(-1)
+                        .getString()
+                        .contains("gui."),
+                    locale);
             }
         } finally {
             StringTranslate.replaceWith(original);
         }
+    }
+
+    @Test
+    void leftClickAdvancesRightClickGoesBackAndOtherButtonsAreIgnored() {
+        assertEquals(1, NativeHostSideBar.frequencyDelta(0));
+        assertEquals(-1, NativeHostSideBar.frequencyDelta(1));
+        assertEquals(0, NativeHostSideBar.frequencyDelta(2));
     }
 
     private static Map<String, String> language(String locale) throws Exception {

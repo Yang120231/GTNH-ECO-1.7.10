@@ -61,11 +61,18 @@ public final class NativeCraftingPages {
                     () -> session.state()
                         .getBoolean(overclock ? "overclock" : "cooling"),
                     () -> session.action(overclock ? 0 : 1, 0),
-                    () -> Component.translatable(
-                        "gui.neoecoae.crafting." + (overclock ? "overclock" : "active_cooling")
-                            + "."
-                            + (session.state()
-                                .getBoolean(overclock ? "overclock" : "cooling") ? "on" : "off")));
+                    () -> {
+                        Component mode = Component.translatable(
+                            "gui.neoecoae.crafting." + (overclock ? "overclock" : "active_cooling")
+                                + "."
+                                + (session.state()
+                                    .getBoolean(overclock ? "overclock" : "cooling") ? "on" : "off"));
+                        return session.state()
+                            .getBoolean("modeBlocked")
+                                ? mode.append("\n")
+                                    .append(Component.translatable("gui.neoecoae.crafting.mode_switch_blocked"))
+                                : mode;
+                    });
             }
             throw new IllegalArgumentException("Unknown source crafting node: " + custom);
         });
@@ -83,10 +90,19 @@ public final class NativeCraftingPages {
                         .fullImage("neoecoae:textures/gui/widget/multiblock.png"),
                     () -> Component.translatable("gui.neoecoae.multiblock.builder"),
                     builder::openPanel),
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                    64,
-                    80,
-                    () -> Component.translatable("gui.neoecoae.computation.settings.substitutions"),
+                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.multilineButton(
+                    () -> NativePageLayout.texture(
+                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.ATLAS,
+                        session.state()
+                            .getBoolean("substitutionsIgnored") ? 80 : 64,
+                        80,
+                        16,
+                        16),
+                    () -> substitutionTooltip(
+                        session.state()
+                            .getBoolean("substitutionsIgnored"),
+                        session.state()
+                            .getInt("substitutionPatterns")),
                     () -> session.action(5, 0)),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.networkFrequency(
                     () -> session.state()
@@ -94,7 +110,7 @@ public final class NativeCraftingPages {
                             ? session.state()
                                 .getInt("frequency")
                             : -1,
-                    () -> session.action(4, 1))));
+                    delta -> session.action(4, delta))));
         panel.child(
             new com.cleanroommc.modularui.widget.ParentWidget<>().pos(251, 0)
                 .size(23, 30)
@@ -110,13 +126,21 @@ public final class NativeCraftingPages {
                         .hoverBackground(
                             com.cleanroommc.modularui.drawable.UITexture
                                 .fullImage("neoecoae:textures/gui/widget/information_highlight.png"))
-                        .tooltipDynamic(
-                            lines -> lines.add(
+                        .tooltip(tooltip -> tooltip.setAutoUpdate(true))
+                        .tooltipDynamic(lines -> {
+                            lines.add(
                                 Component.translatable(
                                     session.state()
                                         .getBoolean("connected") ? "gui.neoecoae.host.network.connected"
                                             : "gui.neoecoae.host.network.disconnected")
-                                    .getString()))));
+                                    .getString());
+                            var status = session.state()
+                                .getList("maintenance", 8);
+                            for (int index = 0; index < status.size(); index++) lines.newLine()
+                                .add(
+                                    cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                                        .tooltipLine(Component.fromJson(status.getString(index))));
+                        })));
         return panel;
     }
 
@@ -180,6 +204,15 @@ public final class NativeCraftingPages {
             SlotGroupWidget.playerInventory((index, slot) -> new NativeItemSlot())
                 .pos(7, 35 + rows * 18));
         return panel;
+    }
+
+    /** CraftingPlanningModeButton's tooltip: the action the click performs, then the grid's substitution patterns. */
+    static java.util.List<Component> substitutionTooltip(boolean ignoring, int patterns) {
+        return java.util.Arrays.asList(
+            Component.translatable(
+                ignoring ? "gui.neoecoae.crafting.planning.ignore_substitutions.on"
+                    : "gui.neoecoae.crafting.planning.ignore_substitutions.off"),
+            Component.translatable("gui.neoecoae.crafting.planning.substitution_pattern_count", Math.max(0, patterns)));
     }
 
     private static Component text(String key, Object... arguments) {

@@ -227,6 +227,70 @@ class NativeNetworkSwitchTest {
     }
 
     @Test
+    void unassignedHostJoiningAFullFrequencyIsAllocatedTheNextOne() {
+        ServerWorldView level = level();
+        ManagedNode node = node();
+        when(node.isOnline()).thenReturn(true);
+        ECOCraftingSystemBlockEntity newcomer = null;
+        for (int index = 0; index < 9; index++) {
+            var controller = controller(ECOCraftingSystemBlockEntity.class, level, node, index);
+            when(controller.hasNetworkSwitch()).thenReturn(true);
+            when(controller.hasNormalNetworkSwitch()).thenReturn(true);
+            boolean assigned = index < 8;
+            when(controller.hasNetworkFrequency()).thenReturn(assigned);
+            when(controller.getNetworkFrequency()).thenReturn(1);
+            var cluster = new NECraftingCluster(BlockPos.ZERO, BlockPos.ZERO);
+            doCallRealMethod().when(controller)
+                .updateCluster(cluster);
+            controller.updateCluster(cluster);
+            cluster.addBlockEntity(controller);
+            NELogicalNetworkManager.attach(cluster);
+            if (!assigned) newcomer = controller;
+        }
+        verify(newcomer).assignNetworkFrequency(2);
+    }
+
+    @Test
+    void overflowingFrequencyPartitionsByHostPositionRegardlessOfAttachOrder() {
+        ServerWorldView level = level();
+        ManagedNode node = node();
+        when(node.isOnline()).thenReturn(true);
+        List<NECraftingCluster> clusters = new ArrayList<>();
+        // Attach in reverse position order; hash-set iteration used to decide who overflowed.
+        for (int index = 9; index >= 0; index--) {
+            var controller = controller(ECOCraftingSystemBlockEntity.class, level, node, index);
+            when(controller.hasNetworkSwitch()).thenReturn(true);
+            when(controller.hasNormalNetworkSwitch()).thenReturn(true);
+            when(controller.hasNetworkFrequency()).thenReturn(true);
+            when(controller.getNetworkFrequency()).thenReturn(1);
+            var cluster = new NECraftingCluster(BlockPos.ZERO, BlockPos.ZERO);
+            doCallRealMethod().when(controller)
+                .updateCluster(cluster);
+            controller.updateCluster(cluster);
+            cluster.addBlockEntity(controller);
+            NELogicalNetworkManager.attach(cluster);
+            clusters.add(0, cluster);
+        }
+        var first = clusters.get(0)
+            .getNetworkCluster();
+        assertNotNull(first);
+        for (int index = 0; index < 8; index++) assertSame(
+            first,
+            clusters.get(index)
+                .getNetworkCluster(),
+            "The eight lowest positions form the first partition");
+        var overflow = clusters.get(8)
+            .getNetworkCluster();
+        assertNotNull(overflow);
+        assertNotSame(first, overflow);
+        assertSame(
+            overflow,
+            clusters.get(9)
+                .getNetworkCluster());
+        assertTrue(first.isLeader(clusters.get(0)));
+    }
+
+    @Test
     void computationFrequencyUsesTheSameFourChannelsAsCrafting() {
         var host = mock(ECOComputationSystemBlockEntity.class, CALLS_REAL_METHODS);
         host.setNetworkFrequency(4);

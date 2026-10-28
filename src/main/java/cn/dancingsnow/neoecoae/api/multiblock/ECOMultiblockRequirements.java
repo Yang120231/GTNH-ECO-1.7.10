@@ -25,6 +25,8 @@ public final class ECOMultiblockRequirements {
         "classic_visible",
         "has_cell",
         "lit",
+        // Controllers derive these from the installed switch; "network_switch" is the actual property name.
+        "network_switch",
         "normal_network_switch",
         "high_energy_network_switch");
     private static final ECOExtensionRegistry<Provider> REGISTRY = new ECOExtensionRegistry<>();

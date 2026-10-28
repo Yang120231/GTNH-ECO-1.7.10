@@ -47,6 +47,14 @@ final class ECOCraftingFastPathDispatcher {
     @Nullable
     java.math.BigInteger tryExactDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
         double singlePower, IEnergyGrid energyService, Consumer<ICraftingProvider> recordAttempt) {
+        return tryExactDispatch(request, provider, singlePower, energyService, recordAttempt, null);
+    }
+
+    /** {@code dispatchLimit} caps one exact dispatch when smart doubling is off, as in 1.21. */
+    @Nullable
+    java.math.BigInteger tryExactDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
+        double singlePower, IEnergyGrid energyService, Consumer<ICraftingProvider> recordAttempt,
+        @Nullable Long dispatchLimit) {
         if (!request.job().exactOrder
             || !(request.inventory() instanceof cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory inventory)) {
             exactDiagnostic(request, provider, "not-an-exact-inventory", null);
@@ -59,7 +67,8 @@ final class ECOCraftingFastPathDispatcher {
         }
         var initialRequest = request.job().tasks.get(request.pattern())
             .remainingExact();
-        var requested = initialRequest;
+        var requested = dispatchLimit == null ? initialRequest
+            : initialRequest.min(java.math.BigInteger.valueOf(dispatchLimit));
         exactDiagnostic(request, provider, "requested", requested);
         var runtime = request.job().executionRuntime;
         if (runtime != null) requested = runtime.exactAllowance(request.candidate(), requested);

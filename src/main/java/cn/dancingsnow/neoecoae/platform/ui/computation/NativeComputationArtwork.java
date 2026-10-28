@@ -2,8 +2,11 @@ package cn.dancingsnow.neoecoae.platform.ui.computation;
 
 import net.minecraft.item.ItemStack;
 
+import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
+import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 
 import cn.dancingsnow.neoecoae.crafting.display.format.NEByteFormatter;
@@ -16,26 +19,153 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /** ComputationControllerArtwork's native canvas, with the source's figures, glyphs and 7px statistic rows. */
-public final class NativeComputationArtwork extends Widget<NativeComputationArtwork> {
+public final class NativeComputationArtwork extends ParentWidget<NativeComputationArtwork> {
 
     private static final String BACKGROUND = "neoecoae:textures/guis/eco_cpu_controller.png";
     private static final String ATLAS = "neoecoae:textures/guis/cpu_widget.png";
     private final NativeComputationSession session;
     private final ItemStack hostItem;
+    private static final String[] SWITCH_KEYS = { "substitutions", "cycle_planning", "fast_planner" };
+    private static final String[] SWITCH_FIELDS = { "substitutions", "cycles", "fast" };
     private long opened;
+    private CompoundTag parsedFrom;
+    private ComputationControllerPanelState parsed = ComputationControllerPanelState.UNFORMED;
 
     public NativeComputationArtwork(NativeComputationSession session, ItemStack hostItem) {
         this.session = session;
         this.hostItem = hostItem;
         size(253, 231);
         background(cn.dancingsnow.neoecoae.platform.ui.NativePageLayout.texture(BACKGROUND, 0, 0, 253, 231));
+        // The source's nine hover regions: exact statistics, switch states, connection, multiplier and host item.
+        region(78, 99, 54, 43, lines -> lines(lines, storageTooltip(session.state())));
+        region(135, 99, 54, 43, lines -> lines(lines, threadTooltip(session.state())));
+        region(192, 99, 54, 43, lines -> lines(lines, parallelTooltip(session.state())));
+        for (int index = 0; index < 3; index++) {
+            final int toggle = index;
+            region(178 + index * 24, 176, 16, 16, lines -> lines(lines, switchTooltip(session.state(), toggle)));
+        }
+        region(178, 151, 66, 16, lines -> lines(lines, connectionTooltip(session.state())));
+        region(178, 201, 66, 16, lines -> lines(lines, multiplierTooltip(session.state())));
+        region(9, 39, 16, 34, lines -> { if (hostItem != null) lines.addFromItem(hostItem); });
+    }
+
+    private void region(int x, int y, int w, int h, java.util.function.Consumer<RichTooltip> tooltip) {
+        child(
+            new Widget<>().pos(x, y)
+                .size(w, h)
+                .background(IDrawable.EMPTY)
+                .tooltip(value -> value.setAutoUpdate(true))
+                .tooltipDynamic(tooltip::accept)
+                .setEnabledIf(widget -> panelState().formed() || x == 9));
+    }
+
+    private static void lines(RichTooltip tooltip, java.util.List<Component> lines) {
+        for (int index = 0; index < lines.size(); index++) {
+            if (index > 0) tooltip.newLine();
+            tooltip.add(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.tooltipLine(lines.get(index)));
+        }
+    }
+
+    static java.util.List<Component> storageTooltip(CompoundTag values) {
+        long total = values.getLong("bytes"), free = values.getLong("freeBytes"), used = Math.max(0, total - free);
+        return java.util.Arrays.asList(
+            Component.translatable("gui.neoecoae.host.computation.cpu_storage")
+                .append(": ")
+                .append(HostText.fullByteProgress(used, total)),
+            Component.translatable("gui.neoecoae.host.computation.free_memory")
+                .append(": ")
+                .append(
+                    Component.literal(HostText.expandedNumber(free) + " B")
+                        .withColor(HostText.VALUE)),
+            Component.translatable("gui.neoecoae.computation.ui.stat.usage")
+                .append(": ")
+                .append(
+                    Component.literal(HostText.percent(used, total))
+                        .withColor(HostText.usedValueColor(used, total))));
+    }
+
+    static java.util.List<Component> threadTooltip(CompoundTag values) {
+        int used = values.getInt("usedThreads"), total = values.getInt("threads");
+        return java.util.Arrays.asList(
+            Component.translatable("gui.neoecoae.host.computation.thread_usage")
+                .append(": ")
+                .append(
+                    HostText.usedOfTotal(
+                        HostText.usedPart(HostText.expandedNumber(used), used, total),
+                        " / ",
+                        HostText.totalPart(HostText.expandedNumber(total)))),
+            Component.translatable("gui.neoecoae.computation.ui.stat.free")
+                .append(": " + HostText.expandedNumber(Math.max(0, total - used))),
+            Component.translatable("gui.neoecoae.computation.ui.stat.usage")
+                .append(": ")
+                .append(
+                    Component.literal(HostText.percent(used, total))
+                        .withColor(HostText.usedValueColor(used, total))));
+    }
+
+    static java.util.List<Component> parallelTooltip(CompoundTag values) {
+        int parallel = values.getInt("parallel"), full = values.getInt("fullParallel");
+        return java.util.Arrays.asList(
+            Component.translatable("gui.neoecoae.host.computation.parallel_count")
+                .append(": " + HostText.expandedNumber(parallel)),
+            Component.translatable("gui.neoecoae.computation.ui.parallel_full")
+                .append(": ")
+                .append(
+                    Component.literal(HostText.percent(parallel, full))
+                        .withColor(HostText.usedValueColor(parallel, full))),
+            Component.translatable("gui.neoecoae.computation.ui.parallel_shared")
+                .withColor(0xAAAAAA),
+            Component.translatable("gui.neoecoae.computation.ui.stat.multiplier")
+                .append(": x" + Math.max(1, values.getInt("multiplier"))),
+            Component.translatable("gui.neoecoae.computation.ui.stat.threads")
+                .append(": " + HostText.expandedNumber(values.getInt("threads"))));
+    }
+
+    static java.util.List<Component> switchTooltip(CompoundTag values, int index) {
+        boolean on = values.getBoolean(SWITCH_FIELDS[index]);
+        return java.util.Arrays.asList(
+            Component.translatable("gui.neoecoae.computation.settings." + SWITCH_KEYS[index]),
+            Component
+                .translatable(on ? "gui.neoecoae.computation.ui.switch.on" : "gui.neoecoae.computation.ui.switch.off")
+                .withColor(on ? 0x55FF55 : 0xAAAAAA),
+            Component.translatable("gui.neoecoae.computation.ui.switch." + SWITCH_KEYS[index] + ".desc")
+                .withColor(0xAAAAAA));
+    }
+
+    static java.util.List<Component> connectionTooltip(CompoundTag values) {
+        int frequency = values.contains("frequency") ? values.getInt("frequency") : -1;
+        return java.util.Arrays.asList(
+            Component.translatable(
+                values.getBoolean("connected") ? "gui.neoecoae.host.network.connected"
+                    : "gui.neoecoae.host.network.disconnected"),
+            frequency < 1 ? Component.translatable("gui.neoecoae.host.network_frequency.cycle.unassigned")
+                : Component.translatable("gui.neoecoae.host.network_frequency.cycle", frequency));
+    }
+
+    static java.util.List<Component> multiplierTooltip(CompoundTag values) {
+        return java.util.Arrays.asList(
+            Component
+                .translatable("gui.neoecoae.computation.ui.panel.network", Math.max(1, values.getInt("multiplier"))),
+            Component.translatable("gui.neoecoae.computation.ui.panel.switch_normal", values.getInt("normalSwitches")),
+            Component
+                .translatable("gui.neoecoae.computation.ui.panel.switch_high_energy", values.getInt("highSwitches")));
+    }
+
+    /** Parsed once per snapshot rather than once per frame. */
+    ComputationControllerPanelState panelState() {
+        CompoundTag values = session.state();
+        if (values != parsedFrom) {
+            parsed = ComputationControllerPanelState.fromTag(values.getCompound("artwork"));
+            parsedFrom = values;
+        }
+        return parsed;
     }
 
     @Override
     @SideOnly(Side.CLIENT)
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
         CompoundTag values = session.state();
-        var state = ComputationControllerPanelState.fromTag(values.getCompound("artwork"));
+        var state = panelState();
         NativeUiDraw.text(text("title"), 44, 10, 92, 1, 0x3f3d52, false, false);
         NativeUiDraw.text(text("control_heading"), 9, 90, 65, .75f, 0x3f3d52, false, false);
         String[] switches = { "substitutions", "cycle_planning", "fast_planner" };

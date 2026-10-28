@@ -34,6 +34,20 @@ public final class NativeCraftingSession extends NativeSnapshotSession {
         tag.putInt("frequency", host.getNetworkFrequency());
         tag.putBoolean("overclock", host.isOverclocked());
         tag.putBoolean("cooling", host.isActiveCooling());
+        tag.putBoolean("modeBlocked", host.isModeSwitchBlockedNoticeActive());
+        var settings = cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings.of(
+            host.getMainNode()
+                .getGrid());
+        tag.putBoolean(
+            "substitutionsIgnored",
+            settings != null && settings.neoecoae$hasComputationHost()
+                ? settings.neoecoae$isIgnoringPatternSubstitutions()
+                : host.isLocallyIgnoringPatternSubstitutions());
+        tag.putInt("substitutionPatterns", settings == null ? 0 : settings.neoecoae$getSubstitutionPatternCount());
+        ListTag maintenance = new ListTag();
+        for (var line : host.getMaintenanceStatusLines())
+            maintenance.add(cn.dancingsnow.neoecoae.platform.nbt.StringTag.valueOf(line.toJson()));
+        tag.put("maintenance", maintenance);
         tag.putInt("overclockTimes", host.getOverclockTimes());
         tag.putInt("effectiveOverclock", host.getEffectiveOverclockTimes());
         tag.putLong("coolant", host.getDisplayedCoolantAmount());
@@ -94,7 +108,6 @@ public final class NativeCraftingSession extends NativeSnapshotSession {
                 "patternBuses",
                 cluster.getPatternBuses()
                     .size());
-            tag.putInt("multiplier", cluster.getNetworkMultiplier());
             for (var worker : cluster.getWorkers()) for (var thread : worker.getCraftingThreads()) {
                 capacity++;
                 if (!thread.isBusy()) continue;
@@ -251,8 +264,9 @@ public final class NativeCraftingSession extends NativeSnapshotSession {
                 var settings = cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings.of(
                     host.getMainNode()
                         .getGrid());
-                if (settings != null) settings
+                if (settings != null && settings.neoecoae$hasComputationHost()) settings
                     .neoecoae$setIgnoringPatternSubstitutions(!settings.neoecoae$isIgnoringPatternSubstitutions());
+                else host.applyNetworkIgnoringPatternSubstitutions(!host.isLocallyIgnoringPatternSubstitutions());
                 break;
             default:
                 throw new IllegalArgumentException("Unknown crafting page action: " + action);

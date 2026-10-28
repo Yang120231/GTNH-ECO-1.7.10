@@ -23,8 +23,9 @@ public class ECOComputationSystemBlockEntity
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     private final StorageTierDescriptor tier;
+    // New hosts start unassigned so the allocator can place them; saved hosts keep their persisted value.
     @Persisted
-    private int networkFrequency = NEFrequencyAllocator.DEFAULT_FREQUENCY;
+    private int networkFrequency = NEFrequencyAllocator.UNASSIGNED;
     @Persisted
     private int cpuSelectionMode;
     @Persisted
@@ -33,6 +34,8 @@ public class ECOComputationSystemBlockEntity
     private boolean cyclePlanningEnabled = true;
     @Persisted
     private boolean fastPlannerEnabled = true;
+    @Persisted
+    private boolean smartDoublingEnabled = true;
     @Persisted
     private int selectedBuildLength = 11;
     @Persisted
@@ -161,6 +164,80 @@ public class ECOComputationSystemBlockEntity
         setChanged();
     }
 
+    public boolean isSmartDoublingEnabled() {
+        return smartDoublingEnabled;
+    }
+
+    public void setSmartDoublingEnabled(boolean value) {
+        smartDoublingEnabled = value;
+        setChanged();
+    }
+
+    /** Largest ordinary dispatch ECO may submit at once; unlimited while smart doubling is enabled. */
+    public static long smartDoublingDispatchLimit(boolean smartDoubling, long coProcessors) {
+        return smartDoubling ? Long.MAX_VALUE : Math.min(16_384L, Math.max(1L, coProcessors));
+    }
+
+    /**
+     * The grid's planner settings when at least one active computation host backs them; otherwise {@code null},
+     * and this host's own fields are the effective values (the same fallback 1.21 uses without a grid).
+     */
+    @org.jetbrains.annotations.Nullable
+    public ECOCraftingNetworkSettings networkSettings() {
+        var node = getMainNode();
+        var settings = node == null ? null : ECOCraftingNetworkSettings.of(node.getGrid());
+        return settings != null && settings != this && settings.neoecoae$hasComputationHost() ? settings : null;
+    }
+
+    public boolean isNetworkIgnoringPatternSubstitutions() {
+        var settings = networkSettings();
+        return settings != null ? settings.neoecoae$isIgnoringPatternSubstitutions() : ignorePatternSubstitutions;
+    }
+
+    public boolean isNetworkCyclePlanningEnabled() {
+        var settings = networkSettings();
+        return settings != null ? settings.neoecoae$isCyclePlanningEnabled() : cyclePlanningEnabled;
+    }
+
+    public boolean isNetworkFastPlannerEnabled() {
+        var settings = networkSettings();
+        return settings != null ? settings.neoecoae$isFastPlannerEnabled() : fastPlannerEnabled;
+    }
+
+    public boolean isNetworkSmartDoublingEnabled() {
+        var settings = networkSettings();
+        return settings != null ? settings.neoecoae$isSmartDoublingEnabled() : smartDoublingEnabled;
+    }
+
+    /** Toggles the grid-wide value: every computation host on the grid receives it, including this one. */
+    public void toggleNetworkIgnoringPatternSubstitutions() {
+        boolean value = !isNetworkIgnoringPatternSubstitutions();
+        var settings = networkSettings();
+        if (settings != null) settings.neoecoae$setIgnoringPatternSubstitutions(value);
+        setIgnoringPatternSubstitutions(value);
+    }
+
+    public void toggleNetworkCyclePlanning() {
+        boolean value = !isNetworkCyclePlanningEnabled();
+        var settings = networkSettings();
+        if (settings != null) settings.neoecoae$setCyclePlanningEnabled(value);
+        setCyclePlanningEnabled(value);
+    }
+
+    public void toggleNetworkFastPlanner() {
+        boolean value = !isNetworkFastPlannerEnabled();
+        var settings = networkSettings();
+        if (settings != null) settings.neoecoae$setFastPlannerEnabled(value);
+        setFastPlannerEnabled(value);
+    }
+
+    public void toggleNetworkSmartDoubling() {
+        boolean value = !isNetworkSmartDoublingEnabled();
+        var settings = networkSettings();
+        if (settings != null) settings.neoecoae$setSmartDoublingEnabled(value);
+        setSmartDoublingEnabled(value);
+    }
+
     @Override
     public boolean neoecoae$isIgnoringPatternSubstitutions() {
         return ignorePatternSubstitutions;
@@ -174,6 +251,7 @@ public class ECOComputationSystemBlockEntity
     @Override
     public void onMainNodeStateChanged(cn.dancingsnow.neoecoae.platform.ae2.grid.NodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
+        adoptGridPlannerSettings();
         if (cluster != null) {
             cluster.notifyGridCpuChange();
             NELogicalNetworkManager.refreshAfterGridChange(cluster);
@@ -183,7 +261,35 @@ public class ECOComputationSystemBlockEntity
     @Override
     protected void onMainNodeGridChanged() {
         super.onMainNodeGridChanged();
+        adoptGridPlannerSettings();
         if (cluster != null) NELogicalNetworkManager.refreshAfterGridChange(cluster);
+    }
+
+    /**
+     * 1.21 keeps planner settings on the grid itself. Here they live on each host and are broadcast on change, so
+     * a host that comes online in a grid with other active hosts adopts their values instead of overriding the
+     * grid whenever it happens to sort first.
+     */
+    void adoptGridPlannerSettings() {
+        if (level == null || level.isClientSide() || !getMainNode().isOnline()) return;
+        var grid = getMainNode().getGrid();
+        if (grid == null) return;
+        for (var other : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning
+            .hosts(grid.nativeGrid())) {
+            if (other == this) continue;
+            boolean changed = ignorePatternSubstitutions != other.ignorePatternSubstitutions
+                || cyclePlanningEnabled != other.cyclePlanningEnabled
+                || fastPlannerEnabled != other.fastPlannerEnabled
+                || smartDoublingEnabled != other.smartDoublingEnabled;
+            if (changed) {
+                ignorePatternSubstitutions = other.ignorePatternSubstitutions;
+                cyclePlanningEnabled = other.cyclePlanningEnabled;
+                fastPlannerEnabled = other.fastPlannerEnabled;
+                smartDoublingEnabled = other.smartDoublingEnabled;
+                setChanged();
+            }
+            return;
+        }
     }
 
     public void neoecoae$setIgnoringPatternSubstitutions(boolean v) {
@@ -191,7 +297,18 @@ public class ECOComputationSystemBlockEntity
     }
 
     public int neoecoae$getSubstitutionPatternCount() {
-        return 0;
+        var settings = networkSettings();
+        return settings == null ? 0 : settings.neoecoae$getSubstitutionPatternCount();
+    }
+
+    @Override
+    public boolean neoecoae$isSmartDoublingEnabled() {
+        return smartDoublingEnabled;
+    }
+
+    @Override
+    public void neoecoae$setSmartDoublingEnabled(boolean v) {
+        setSmartDoublingEnabled(v);
     }
 
     public boolean neoecoae$isFastPlannerEnabled() {

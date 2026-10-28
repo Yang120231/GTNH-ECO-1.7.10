@@ -101,7 +101,17 @@ public final class NativeComputationPages {
                                     ? session.state()
                                         .getInt("frequency")
                                     : -1,
-                            () -> session.action(9, 1)),
+                            delta -> session.action(9, delta)),
+                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                            .multilineButton(
+                                () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(
+                                    "neoecoae:textures/gui/computation/eco_batching" + (session.state()
+                                        .getBoolean("smartDoubling") ? "" : "_off") + ".png"),
+                                () -> smartDoublingTooltip(
+                                    session.state()
+                                        .getBoolean("smartDoubling")),
+                                () -> session.action(15, 0))
+                            .name("computation-smart-doubling"),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(
                                 "neoecoae:textures/gui/widget/cpu_selector" + (view.list ? "" : "_closed") + ".png"),
@@ -224,6 +234,15 @@ public final class NativeComputationPages {
                     .size(16));
         }
         return grid;
+    }
+
+    static java.util.List<Component> smartDoublingTooltip(boolean on) {
+        return java.util.Arrays.asList(
+            Component.translatable("gui.neoecoae.crafting.smart_doubling"),
+            Component.translatable("gui.neoecoae.computation.ui.switch." + (on ? "on" : "off"))
+                .withColor(on ? 0x55FF55 : 0xAAAAAA),
+            Component.translatable("gui.neoecoae.computation.ui.switch.smart_doubling.desc")
+                .withColor(0xAAAAAA));
     }
 
     private static Component text(String key, Object... arguments) {

@@ -153,6 +153,8 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
     @Override
     public void onNeighborBlockChange(World world, int x, int y, int z, Block neighbor) {
         TileEntity tile = world.getTileEntity(x, y, z);
+        // Forge 1.7.10 does not say which neighbor changed; passing our own position asks the calculator to
+        // inspect all six neighbors (see MBCalculator#updateMultiblockAfterNeighborUpdate).
         if (!world.isRemote && tile instanceof IAEMultiBlock)
             ((IAEMultiBlock<?>) tile).updateMultiBlock(new BlockPos(x, y, z));
     }
@@ -160,7 +162,15 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
     @Override
     public void breakBlock(World world, int x, int y, int z, Block block, int metadata) {
         TileEntity tile = world.getTileEntity(x, y, z);
-        if (!world.isRemote && tile instanceof IAEMultiBlock) ((IAEMultiBlock<?>) tile).breakCluster();
+        // Network switches are not structural parts in the source: removing or swapping one only reforms the
+        // host (tile invalidation destroys the cluster and neighbors recalculate), keeping its running jobs.
+        if (!world.isRemote && tile instanceof IAEMultiBlock && !isNetworkSwitch(tile))
+            ((IAEMultiBlock<?>) tile).breakCluster();
         super.breakBlock(world, x, y, z, block, metadata);
+    }
+
+    private static boolean isNetworkSwitch(TileEntity tile) {
+        return tile instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingNetworkSwitchBlockEntity
+            || tile instanceof cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationNetworkSwitchBlockEntity;
     }
 }

@@ -31,6 +31,12 @@ public class ECOCraftingCPU implements ICraftingCPU {
         nativeIdentity = java.util.Objects.requireNonNull(nativeCPU);
     }
 
+    /** The native identity already bound to this CPU, without creating one. */
+    @Nullable
+    public appeng.api.networking.crafting.ICraftingCPU boundNativeCPU() {
+        return nativeIdentity;
+    }
+
     public appeng.api.networking.crafting.ICraftingCPU nativeCPU() {
         return nativeIdentity == null ? cluster.nativeCPU(this) : nativeIdentity;
     }

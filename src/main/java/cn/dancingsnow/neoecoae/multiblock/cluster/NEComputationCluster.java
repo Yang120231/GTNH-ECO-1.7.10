@@ -190,6 +190,35 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return networkCluster != null ? networkCluster.getTotalStorageCapacity() : getTotalStorage();
     }
 
+    /** Whether a new job can still spawn a CPU in this host's admission pool (network or standalone). */
+    @Override
+    public boolean hasFreeThread() {
+        return getActiveCPUCount() < getMaxThreads();
+    }
+
+    @Override
+    public Object submissionPool() {
+        return networkCluster != null ? networkCluster : this;
+    }
+
+    @Override
+    public boolean pruneSubmissionPool() {
+        if (networkCluster == null) return pruneInactiveCPUs();
+        boolean changed = false;
+        for (NEComputationCluster member : networkCluster.getMembers()) {
+            if (member.pruneInactiveCPUs()) changed = true;
+        }
+        return changed;
+    }
+
+    /**
+     * Whether AE2 should list this host's placeholder CPU: the group representative while a thread is free,
+     * exactly as the 1.21 baseline publishes it. Free bytes are not required; a too-small CPU is still listed.
+     */
+    public boolean shouldPublishPlaceholder() {
+        return isNetworkRepresentative() && hasFreeThread();
+    }
+
     public int getActiveCPUCount() {
         if (networkCluster == null) {
             return getActiveCPUs().size();
@@ -316,6 +345,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     /** Applies preferred-first CPU selection after the selection-mode filter. */
+    @Override
     public boolean isPreferredFor(IActionSource actionSource) {
         return switch (selectionMode) {
             case ANY -> false;
@@ -367,6 +397,8 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         if (this.networkCluster != null) {
             return this.networkCluster.submitJob(grid, job, src, requestingMachine);
         }
+        // Finished jobs must not keep their thread or bytes until the next crafting-cache tick.
+        pruneInactiveCPUs();
         if (!this.isActive()) {
             return CraftingSubmitResult.CPU_OFFLINE;
         }
@@ -374,7 +406,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
             return CraftingSubmitResult.CPU_TOO_SMALL;
         }
         ICraftingSubmitResult result = trySpawnLocalJob(grid, job, src, requestingMachine);
-        return result == null ? CraftingSubmitResult.CPU_BUSY : result;
+        return result == null ? CraftingSubmitResult.NO_CPU_FOUND : result;
     }
 
     /**
@@ -471,24 +503,42 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return cpus;
     }
 
-    public void pruneInactiveCPUs() {
-        List<ICraftingPlan> killList = new ArrayList<>();
-        for (Map.Entry<ICraftingPlan, ECOCraftingCPU> entry : new ArrayList<>(activeCpus.entrySet())) {
+    /**
+     * Releases every CPU whose job has ended (thread slot, byte reservation and native identity) and tells the
+     * grid to rebuild its CPU list. Called every crafting-cache tick and before each submission; it allocates
+     * nothing and posts nothing when no job finished.
+     *
+     * @return true when at least one CPU was released.
+     */
+    @Override
+    public boolean pruneInactiveCPUs() {
+        List<ICraftingPlan> killList = null;
+        for (Map.Entry<ICraftingPlan, ECOCraftingCPU> entry : activeCpus.entrySet()) {
             ECOCraftingCPU cpu = entry.getValue();
             if (!cpu.getLogic()
                 .hasJob()
                 && !cpu.getLogic()
                     .isMarkedForDeletion()
                 && !cpu.hasRemainingItems()) {
+                if (killList == null) killList = new ArrayList<>();
                 killList.add(entry.getKey());
             }
         }
+        boolean changed = releaseOrphanedNativeCPUs();
+        if (killList == null) return changed;
         for (ICraftingPlan iCraftingPlan : killList) {
             killCpu(iCraftingPlan, false);
         }
-        if (!killList.isEmpty()) {
-            updateGridForChangedCpu();
-        }
+        updateGridForChangedCpu();
+        return true;
+    }
+
+    /** Drops native identities of CPUs that never got (or no longer have) a registered plan, e.g. failed restores. */
+    private boolean releaseOrphanedNativeCPUs() {
+        int expected = activeCpus.size() + (fakeCpu != null && nativeCpus.containsKey(fakeCpu) ? 1 : 0);
+        if (nativeCpus.size() <= expected) return false;
+        return nativeCpus.keySet()
+            .removeIf(cpu -> cpu != fakeCpu && !activeCpus.containsValue(cpu));
     }
 
     /**
@@ -548,6 +598,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
             }
             this.activeCpus.remove(plan);
             this.bigOrderPlans.remove(plan);
+            this.nativeCpus.remove(cpu);
         }
         if (recalculate) {
             this.recalculateRemainingStorage();
@@ -615,13 +666,28 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return networkCluster;
     }
 
-    private final java.util.Map<ECOCraftingCPU, cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu> nativeCpus = new java.util.IdentityHashMap<>();
+    private final java.util.Map<ECOCraftingCPU, appeng.api.networking.crafting.ICraftingCPU> nativeCpus = new java.util.IdentityHashMap<>();
 
     public appeng.api.networking.crafting.ICraftingCPU nativeCPU(ECOCraftingCPU cpu) {
-        return nativeCpus.computeIfAbsent(
-            cpu,
-            key -> new cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu(
-                new cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingNativeRuntime(key)));
+        var existing = nativeCpus.get(cpu);
+        if (existing != null) return existing;
+        // A released CPU keeps the identity its links refer to; never mint a second one for it.
+        var bound = cpu.boundNativeCPU();
+        if (bound != null) return bound;
+        var created = createNativeCPU(cpu);
+        nativeCpus.put(cpu, created);
+        return created;
+    }
+
+    /** Creates the AE2 identity of an ECO CPU; the identity binds itself to the CPU on construction. */
+    protected appeng.api.networking.crafting.ICraftingCPU createNativeCPU(ECOCraftingCPU cpu) {
+        return new cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu(
+            new cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingNativeRuntime(cpu));
+    }
+
+    /** Whether this host still holds a native identity for the CPU; released CPUs must not. */
+    public boolean hasNativeCPU(ECOCraftingCPU cpu) {
+        return nativeCpus.containsKey(cpu);
     }
 
     public net.minecraft.world.World getLevel() {
@@ -638,8 +704,16 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions.from(controller);
     }
 
+    /** Finds the CPU running a plan anywhere in this host's admission pool (every network member). */
+    @Override
     public ECOCraftingCPU findCPU(ICraftingPlan plan) {
-        return activeCpus.get(plan);
+        ECOCraftingCPU own = activeCpus.get(plan);
+        if (own != null || networkCluster == null) return own;
+        for (NEComputationCluster member : networkCluster.getMembers()) {
+            ECOCraftingCPU cpu = member.activeCpus.get(plan);
+            if (cpu != null) return cpu;
+        }
+        return null;
     }
 
     public java.util.List<ECOComputationDriveBlockEntity> getDrives() {

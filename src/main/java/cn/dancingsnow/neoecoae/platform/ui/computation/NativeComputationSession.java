@@ -49,9 +49,15 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             host.getTier()
                 .getPanelTierName()
                 .getString());
-        tag.putBoolean("substitutions", !host.isIgnoringPatternSubstitutions());
-        tag.putBoolean("cycles", host.isCyclePlanningEnabled());
-        tag.putBoolean("fast", host.isFastPlannerEnabled());
+        tag.putBoolean("substitutions", !host.isNetworkIgnoringPatternSubstitutions());
+        tag.putBoolean("cycles", host.isNetworkCyclePlanningEnabled());
+        tag.putBoolean("fast", host.isNetworkFastPlannerEnabled());
+        tag.putBoolean("smartDoubling", host.isNetworkSmartDoublingEnabled());
+        tag.putInt("substitutionPatterns", host.neoecoae$getSubstitutionPatternCount());
+        tag.putString(
+            "selectionMode",
+            host.getCpuSelectionMode()
+                .name());
         tag.putInt("frequency", host.getNetworkFrequency());
         tag.putBoolean(
             "connected",
@@ -246,28 +252,57 @@ public final class NativeComputationSession extends NativeSnapshotSession {
     private int statusItemCount;
 
     private ListTag statusItems(ECOCraftingCPU cpu) {
-        var entries = new java.util.LinkedHashMap<AEKey, CompoundTag>();
-        String[] names = { "stored", "pending", "active" };
-        for (int kind = 0; kind < 3; kind++) for (var value : resources(cpu, kind)) {
-            var resource = (CompoundTag) value;
-            AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, resource.getCompound("key"));
-            if (key == null) continue;
-            CompoundTag row = entries.computeIfAbsent(key, ignored -> {
-                CompoundTag result = new CompoundTag();
-                result.put("key", resource.getCompound("key"));
-                result.putString("name", resource.getString("name"));
-                return result;
-            });
-            row.putString(names[kind], resource.getString("amount"));
-        }
-        var sorted = new ArrayList<>(entries.values());
-        sorted.sort(java.util.Comparator.comparing(row -> row.getString("name")));
+        var resources = statusResources(cpu);
+        var names = new HashMap<AEKey, String>();
+        var sorted = new ArrayList<>(resources.keySet());
+        for (AEKey key : sorted) names.put(key, key.getDisplayName());
+        sorted.sort(java.util.Comparator.comparing(names::get));
         statusItemCount = sorted.size();
         itemOffset = Math.min(itemOffset, Math.max(0, (sorted.size() + 2) / 3 - 9) * 3);
+        String[] kinds = { "stored", "pending", "active" };
         ListTag page = new ListTag();
-        for (int index = itemOffset; index < Math.min(sorted.size(), itemOffset + 27); index++)
-            page.add(sorted.get(index));
+        for (int index = itemOffset; index < Math.min(sorted.size(), itemOffset + 27); index++) {
+            AEKey key = sorted.get(index);
+            CompoundTag row = new CompoundTag();
+            row.put("key", key.toTagGeneric(RegistryAccess.EMPTY));
+            row.putString("name", names.get(key));
+            java.math.BigInteger[] amounts = resources.get(key);
+            for (int kind = 0; kind < 3; kind++)
+                if (amounts[kind] != null) row.putString(kinds[kind], amounts[kind].toString());
+            page.add(row);
+        }
         return page;
+    }
+
+    /**
+     * Stored, pending and active amounts of every resource of one CPU, gathered with a single item walk. Exact
+     * previews win over the long counters, which only fill keys the previews do not cover.
+     */
+    static java.util.LinkedHashMap<AEKey, java.math.BigInteger[]> statusResources(ECOCraftingCPU cpu) {
+        var logic = cpu.getLogic();
+        var result = new java.util.LinkedHashMap<AEKey, java.math.BigInteger[]>();
+        java.util.List<Map<AEKey, java.math.BigInteger>> previews = java.util.Arrays
+            .asList(logic.getExactStoredPreview(), logic.getExactPendingPreview(), logic.getExactActivePreview());
+        for (int kind = 0; kind < 3; kind++) {
+            var preview = previews.get(kind);
+            if (preview == null) continue;
+            for (var entry : preview.entrySet())
+                result.computeIfAbsent(entry.getKey(), ignored -> new java.math.BigInteger[3])[kind] = entry.getValue();
+        }
+        var all = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter();
+        logic.getAllItems(all);
+        for (var entry : all) {
+            AEKey key = entry.getKey();
+            long[] amounts = { logic.getStored(key), logic.getPendingOutputs(key), logic.getWaitingFor(key) };
+            for (int kind = 0; kind < 3; kind++) {
+                if (amounts[kind] <= 0) continue;
+                var preview = previews.get(kind);
+                if (preview != null && preview.containsKey(key)) continue;
+                var row = result.computeIfAbsent(key, ignored -> new java.math.BigInteger[3]);
+                if (row[kind] == null) row[kind] = java.math.BigInteger.valueOf(amounts[kind]);
+            }
+        }
+        return result;
     }
 
     private CompoundTag cpu(ECOCraftingCPU cpu) {
@@ -344,68 +379,27 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         return row;
     }
 
-    private ListTag resources(ECOCraftingCPU cpu, int kind) {
-        Map<AEKey, java.math.BigInteger> resources = new HashMap<>(
-            kind == 0 ? cpu.getLogic()
-                .getExactStoredPreview()
-                : kind == 1 ? cpu.getLogic()
-                    .getExactPendingPreview()
-                    : cpu.getLogic()
-                        .getExactActivePreview());
-        var all = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter();
-        cpu.getLogic()
-            .getAllItems(all);
-        for (var entry : all) {
-            AEKey key = entry.getKey();
-            long amount = kind == 0 ? cpu.getLogic()
-                .getStored(key)
-                : kind == 1 ? cpu.getLogic()
-                    .getPendingOutputs(key)
-                    : cpu.getLogic()
-                        .getWaitingFor(key);
-            if (amount > 0) resources.putIfAbsent(key, java.math.BigInteger.valueOf(amount));
-        }
-        ListTag list = new ListTag();
-        var sorted = new ArrayList<>(resources.entrySet());
-        sorted.sort(
-            java.util.Comparator.comparing(
-                entry -> entry.getKey()
-                    .getDisplayName()));
-        for (int index = 0; index < sorted.size(); index++) {
-            var entry = sorted.get(index);
-            CompoundTag row = new CompoundTag();
-            row.putString(
-                "name",
-                entry.getKey()
-                    .getDisplayName());
-            row.putString(
-                "amount",
-                entry.getValue()
-                    .toString());
-            row.put(
-                "key",
-                entry.getKey()
-                    .toTagGeneric(RegistryAccess.EMPTY));
-            list.add(row);
-        }
-        return list;
-    }
-
     @Override
     protected void apply(int action, int argument) {
         var cluster = host.getCluster();
         switch (action) {
             case 0:
-                host.setIgnoringPatternSubstitutions(!host.isIgnoringPatternSubstitutions());
+                host.toggleNetworkIgnoringPatternSubstitutions();
                 break;
             case 1:
-                host.setCyclePlanningEnabled(!host.isCyclePlanningEnabled());
+                host.toggleNetworkCyclePlanning();
                 break;
             case 2:
-                host.setFastPlannerEnabled(!host.isFastPlannerEnabled());
+                host.toggleNetworkFastPlanner();
                 break;
             case 3:
                 if (cluster != null) cluster.cycleSelectionMode();
+                else {
+                    var modes = cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode.values();
+                    host.setCpuSelectionMode(
+                        modes[(host.getCpuSelectionMode()
+                            .ordinal() + 1) % modes.length]);
+                }
                 break;
             case 4:
                 offset = Math.max(0, Math.min(65528, argument));
@@ -429,7 +423,9 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 itemOffset = Math.max(0, Math.min(65528, argument));
                 break;
             case 9:
-                host.setNetworkFrequency(host.getNetworkFrequency() + Integer.signum(argument));
+                host.setNetworkFrequency(
+                    cn.dancingsnow.neoecoae.multiblock.network.NEFrequencyAllocator
+                        .normalize(host.getNetworkFrequency() + Integer.signum(argument)));
                 break;
             case 10:
                 clickDrive(argument, false);
@@ -445,6 +441,9 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 break;
             case 14:
                 itemOffset = Math.max(0, Math.min(65520, argument));
+                break;
+            case 15:
+                host.toggleNetworkSmartDoubling();
                 break;
             default:
                 throw new IllegalArgumentException("Unknown computation page action: " + action);
