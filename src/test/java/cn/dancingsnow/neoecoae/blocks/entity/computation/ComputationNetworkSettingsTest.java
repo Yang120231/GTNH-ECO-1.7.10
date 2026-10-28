@@ -75,6 +75,70 @@ class ComputationNetworkSettingsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void hostComingOnlineAdoptsTheSettingsOfTheOtherActiveHosts() throws Exception {
+        IGrid grid = mock(IGrid.class);
+        var existing = onlineHost(grid, 0);
+        var joining = onlineHost(grid, -5);
+        existing.setIgnoringPatternSubstitutions(true);
+        existing.setCyclePlanningEnabled(false);
+        existing.setFastPlannerEnabled(true);
+        existing.setSmartDoublingEnabled(false);
+        joining.setIgnoringPatternSubstitutions(false);
+        joining.setCyclePlanningEnabled(true);
+        joining.setFastPlannerEnabled(false);
+        joining.setSmartDoublingEnabled(true);
+        IGridNode first = activeNode(existing), second = activeNode(joining);
+        IMachineSet machines = mock(IMachineSet.class);
+        when(machines.iterator()).thenAnswer(
+            invocation -> Arrays.asList(first, second)
+                .iterator());
+        IReadOnlyCollection<Class<? extends IGridHost>> classes = mock(IReadOnlyCollection.class);
+        when(classes.iterator()).thenAnswer(
+            invocation -> Collections.<Class<? extends IGridHost>>singletonList(ECOComputationSystemBlockEntity.class)
+                .iterator());
+        when(grid.getMachinesClasses()).thenReturn(classes);
+        when(grid.getMachines(ECOComputationSystemBlockEntity.class)).thenReturn(machines);
+
+        // The joining host sorts first, so without adoption it would silently become the grid's value.
+        joining.adoptGridPlannerSettings();
+        assertTrue(joining.isIgnoringPatternSubstitutions());
+        assertFalse(joining.isCyclePlanningEnabled());
+        assertTrue(joining.isFastPlannerEnabled());
+        assertFalse(joining.isSmartDoublingEnabled());
+
+        existing.adoptGridPlannerSettings();
+        assertTrue(existing.isIgnoringPatternSubstitutions(), "Converged hosts stay unchanged");
+        assertFalse(existing.isSmartDoublingEnabled());
+    }
+
+    private static ECOComputationSystemBlockEntity onlineHost(IGrid grid, int x) throws Exception {
+        ECOComputationSystemBlockEntity host = mock(ECOComputationSystemBlockEntity.class, CALLS_REAL_METHODS);
+        var node = mock(cn.dancingsnow.neoecoae.platform.ae2.grid.ManagedNode.class);
+        when(node.isOnline()).thenReturn(true);
+        when(node.getGrid()).thenReturn(cn.dancingsnow.neoecoae.platform.ae2.grid.GridView.of(grid));
+        doReturn(node).when(host)
+            .getMainNode();
+        doReturn(mock(cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster.class)).when(host)
+            .getCluster();
+        doReturn(new cn.dancingsnow.neoecoae.platform.minecraft.BlockPos(x, 0, 0)).when(host)
+            .getBlockPos();
+        doNothing().when(host)
+            .setChanged();
+        var level = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity.class.getDeclaredField("level");
+        level.setAccessible(true);
+        level.set(host, mock(cn.dancingsnow.neoecoae.platform.minecraft.WorldView.class));
+        return host;
+    }
+
+    private static IGridNode activeNode(ECOComputationSystemBlockEntity host) {
+        IGridNode node = mock(IGridNode.class);
+        when(node.getMachine()).thenReturn(host);
+        when(node.isActive()).thenReturn(true);
+        return node;
+    }
+
+    @Test
     void smartDoublingOffCapsDispatchAtActualParallelism() {
         assertEquals(Long.MAX_VALUE, ECOComputationSystemBlockEntity.smartDoublingDispatchLimit(true, 5));
         assertEquals(5, ECOComputationSystemBlockEntity.smartDoublingDispatchLimit(false, 5));

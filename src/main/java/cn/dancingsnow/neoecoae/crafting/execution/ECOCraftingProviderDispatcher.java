@@ -91,8 +91,10 @@ final class ECOCraftingProviderDispatcher {
 
             boolean blocking = NativeProviderAdapters.isEnabled(provider);
             if (!blocking && request.job().exactOrder) {
-                var exact = fastPath
-                    .tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt);
+                var exact = limit == Long.MAX_VALUE
+                    ? fastPath.tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt)
+                    : fastPath
+                        .tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt, limit);
                 if (exact != null) return Result
                     .accepted(cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(exact), true);
                 if (request.job().suspended) return Result.none();

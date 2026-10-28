@@ -113,9 +113,10 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
     @Persisted
     @DescSynced
     private boolean mirrorBuild;
+    // New hosts start unassigned so the allocator can place them; saved hosts keep their persisted value.
     @Persisted
     @DescSynced
-    private int networkFrequency = NEFrequencyAllocator.DEFAULT_FREQUENCY;
+    private int networkFrequency = NEFrequencyAllocator.UNASSIGNED;
     @DescSynced
     private boolean buildInProgress;
 
@@ -473,7 +474,11 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         if (grid == null) {
             return false;
         }
-        IEnergyGrid energyService = grid.getEnergyService();
+        return extractExactly(grid.getEnergyService(), amount);
+    }
+
+    /** Extracts exactly {@code amount} AE (config-multiplied) or nothing, refunding a partial extraction. */
+    static boolean extractExactly(IEnergyGrid energyService, double amount) {
         // Simulate first: a partial extraction would burn power without buying a single tick of progress.
         if (energyService.extractAEPower(amount, Actionable.SIMULATE, PowerMultiplier.CONFIG) < amount - 0.01D) {
             return false;
@@ -484,7 +489,9 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         }
         if (Double.isFinite(charged) && charged > 0.0D) {
             try {
-                double overflow = energyService.injectPower(charged, Actionable.MODULATE);
+                // extractAEPower(CONFIG) reports the divided amount; injectPower takes raw grid energy.
+                double overflow = energyService
+                    .injectPower(PowerMultiplier.CONFIG.multiply(charged), Actionable.MODULATE);
                 if (!Double.isFinite(overflow) || overflow > 0.01D) {
                     LOGGER.error(
                         "ECO virtual crafting energy refund was incomplete: overflow {} of {}",
@@ -868,9 +875,8 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         if (!isOverclocked()) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.overclock"));
         if (!isActiveCooling()) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.cooling"));
         if (!hasVirtualCraftingCoolant()) lines.add(
-            Component.translatable(
-                "gui.neoecoae.crafting.virtual_reason.coolant_type",
-                getVirtualCraftingCoolantNames()));
+            Component
+                .translatable("gui.neoecoae.crafting.virtual_reason.coolant_type", getVirtualCraftingCoolantNames()));
         NECraftingNetworkCluster network = cluster == null ? null : cluster.getNetworkCluster();
         int hostCount = getCraftingNetworkMemberCount();
         if (hostCount != NEFrequencyAllocator.HOST_LIMIT) lines.add(

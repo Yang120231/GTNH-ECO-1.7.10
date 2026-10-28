@@ -23,8 +23,9 @@ public class ECOComputationSystemBlockEntity
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     private final StorageTierDescriptor tier;
+    // New hosts start unassigned so the allocator can place them; saved hosts keep their persisted value.
     @Persisted
-    private int networkFrequency = NEFrequencyAllocator.DEFAULT_FREQUENCY;
+    private int networkFrequency = NEFrequencyAllocator.UNASSIGNED;
     @Persisted
     private int cpuSelectionMode;
     @Persisted
@@ -250,6 +251,7 @@ public class ECOComputationSystemBlockEntity
     @Override
     public void onMainNodeStateChanged(cn.dancingsnow.neoecoae.platform.ae2.grid.NodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
+        adoptGridPlannerSettings();
         if (cluster != null) {
             cluster.notifyGridCpuChange();
             NELogicalNetworkManager.refreshAfterGridChange(cluster);
@@ -259,7 +261,35 @@ public class ECOComputationSystemBlockEntity
     @Override
     protected void onMainNodeGridChanged() {
         super.onMainNodeGridChanged();
+        adoptGridPlannerSettings();
         if (cluster != null) NELogicalNetworkManager.refreshAfterGridChange(cluster);
+    }
+
+    /**
+     * 1.21 keeps planner settings on the grid itself. Here they live on each host and are broadcast on change, so
+     * a host that comes online in a grid with other active hosts adopts their values instead of overriding the
+     * grid whenever it happens to sort first.
+     */
+    void adoptGridPlannerSettings() {
+        if (level == null || level.isClientSide() || !getMainNode().isOnline()) return;
+        var grid = getMainNode().getGrid();
+        if (grid == null) return;
+        for (var other : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning
+            .hosts(grid.nativeGrid())) {
+            if (other == this) continue;
+            boolean changed = ignorePatternSubstitutions != other.ignorePatternSubstitutions
+                || cyclePlanningEnabled != other.cyclePlanningEnabled
+                || fastPlannerEnabled != other.fastPlannerEnabled
+                || smartDoublingEnabled != other.smartDoublingEnabled;
+            if (changed) {
+                ignorePatternSubstitutions = other.ignorePatternSubstitutions;
+                cyclePlanningEnabled = other.cyclePlanningEnabled;
+                fastPlannerEnabled = other.fastPlannerEnabled;
+                smartDoublingEnabled = other.smartDoublingEnabled;
+                setChanged();
+            }
+            return;
+        }
     }
 
     public void neoecoae$setIgnoringPatternSubstitutions(boolean v) {
