@@ -667,6 +667,8 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         if (hostMode == mode) return;
         hostMode = mode;
         infiniteModeController.hostModeChanged();
+        // The host mode drives the controller's appearance; 1.21's LDLib pushes it automatically.
+        if (level != null && !level.isClientSide()) markForUpdate();
     }
 
     boolean consumeInfiniteComponentsDirty() {
