@@ -263,6 +263,10 @@ public class NEComputationNetworkCluster {
         if (!anyActive) {
             return CraftingSubmitResult.CPU_OFFLINE;
         }
+        // Finished jobs must not keep pooled threads or bytes until the next crafting-cache tick.
+        for (NEComputationCluster member : members) {
+            member.pruneInactiveCPUs();
+        }
         if (job.bytes() > getPooledAvailableStorage()) {
             return CraftingSubmitResult.CPU_TOO_SMALL;
         }
@@ -278,6 +282,6 @@ public class NEComputationNetworkCluster {
                 lastResult = result;
             }
         }
-        return lastResult == null ? CraftingSubmitResult.CPU_BUSY : lastResult;
+        return lastResult == null ? CraftingSubmitResult.NO_CPU_FOUND : lastResult;
     }
 }

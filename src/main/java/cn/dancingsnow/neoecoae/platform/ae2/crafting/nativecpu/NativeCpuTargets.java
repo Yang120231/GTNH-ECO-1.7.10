@@ -6,6 +6,8 @@ public final class NativeCpuTargets {
     private NativeCpuTargets() {}
 
     public static final String PUBLISH = "updateCPUClusters()V";
+    /** Crafting-cache tick; ECO CPUs finished during it are released at its tail. */
+    public static final String UPDATE_TICK = "onUpdateTick()V";
     public static final String ADD = "addNode(Lappeng/api/networking/IGridNode;Lappeng/api/networking/IGridHost;)V";
     public static final String REMOVE = "removeNode(Lappeng/api/networking/IGridNode;Lappeng/api/networking/IGridHost;)V";
     public static final String PLAN = "beginCraftingJob(Lnet/minecraft/world/World;Lappeng/api/networking/IGrid;Lappeng/api/networking/security/BaseActionSource;Lappeng/api/storage/data/IAEStack;Lappeng/api/config/CraftingMode;Lappeng/api/networking/crafting/ICraftingCallback;)Ljava/util/concurrent/Future;";

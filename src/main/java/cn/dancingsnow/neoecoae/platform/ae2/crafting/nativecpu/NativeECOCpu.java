@@ -57,6 +57,10 @@ public final class NativeECOCpu extends CraftingCPUCluster
         });
     }
 
+    public NativeECOCpuRuntime runtime() {
+        return runtime;
+    }
+
     @Override
     public appeng.api.config.CraftingAllow getCraftingAllowMode() {
         return runtime.selectionMode();

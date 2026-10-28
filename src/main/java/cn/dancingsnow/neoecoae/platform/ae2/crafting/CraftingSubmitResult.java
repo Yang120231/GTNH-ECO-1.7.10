@@ -12,6 +12,7 @@ public record CraftingSubmitResult(boolean successful, @Nullable ICraftingLink l
     public static final CraftingSubmitResult CPU_BUSY = failed(CraftingSubmitErrorCode.CPU_BUSY);
     public static final CraftingSubmitResult CPU_OFFLINE = failed(CraftingSubmitErrorCode.CPU_OFFLINE);
     public static final CraftingSubmitResult CPU_TOO_SMALL = failed(CraftingSubmitErrorCode.CPU_TOO_SMALL);
+    public static final CraftingSubmitResult NO_CPU_FOUND = failed(CraftingSubmitErrorCode.NO_CPU_FOUND);
     public static final CraftingSubmitResult INCOMPLETE_PLAN = failed(CraftingSubmitErrorCode.INCOMPLETE_PLAN);
 
     private static CraftingSubmitResult failed(CraftingSubmitErrorCode error) {
