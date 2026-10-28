@@ -27,6 +27,20 @@ public final class PlanningSettings {
         config.load();
         storageSystemMaxLength = config
             .getInt("storageSystemMaxLength", "multiblock", 15, 4, Integer.MAX_VALUE, "Maximum storage-system length");
+        craftingSystemMaxLength = config.getInt(
+            "craftingSystemMaxLength",
+            "multiblock",
+            15,
+            5,
+            Integer.MAX_VALUE,
+            "Maximum allowed length of the crafting system multiblock, measured in blocks");
+        computationSystemMaxLength = config.getInt(
+            "computationSystemMaxLength",
+            "multiblock",
+            15,
+            5,
+            Integer.MAX_VALUE,
+            "Maximum allowed length of the computation system multiblock, measured in blocks");
         ecoPlanningMaxMillis = config.getInt(
             "ecoPlanningMaxMillis",
             "crafting",
