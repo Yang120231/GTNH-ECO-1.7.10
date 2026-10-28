@@ -7,6 +7,7 @@ import cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
 import cn.dancingsnow.neoecoae.gui.common.HostPanelTier;
 import cn.dancingsnow.neoecoae.gui.common.HostText;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
+import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 
 public final class StorageCellGrid {
 
@@ -31,43 +32,30 @@ public final class StorageCellGrid {
                 case StorageHostUI.CellEntry.KIND_FLUID -> "gui.neoecoae.storage.legacy.cell_info.fluid";
                 default -> "gui.neoecoae.storage.legacy.cell_info.other";
             });
-            lines.add(Component.translatable("gui.neoecoae.storage.legacy.cell_info", name, tierName(cell)));
+            lines.add(
+                ItemStacks.isEmpty(cell.stack())
+                    ? Component.translatable("gui.neoecoae.storage.legacy.cell_info", name, tierName(cell))
+                    : Component.literal(
+                        cell.stack()
+                            .getDisplayName()));
+            long byteCapacity = cell.infinite() || cell.totalBytes() == Long.MAX_VALUE ? -1 : cell.totalBytes();
+            lines.add(
+                Component.translatable(
+                    "gui.neoecoae.storage.legacy.cell_bytes",
+                    HostText.usedPart(HostText.fullBytes(cell.usedBytes()), cell.usedBytes(), byteCapacity),
+                    HostText.totalPart(fullCapacity(byteCapacity))));
             lines.add(
                 Component.translatable(
                     "gui.neoecoae.storage.legacy.cell_types",
                     HostText.usedPart(HostText.ae2Amount(cell.usedTypes()), cell.usedTypes(), cell.totalTypes()),
                     HostText.totalPart(capacity(cell.totalTypes()))));
-            lines.add(
-                Component.translatable(
-                    "gui.neoecoae.storage.legacy.cell_bytes",
-                    HostText.usedPart(HostText.fullBytes(cell.usedBytes()), cell.usedBytes(), cell.totalBytes()),
-                    HostText.totalPart(fullCapacity(cell.totalBytes()))));
-            lines.add(
-                Component.translatable(
-                    "gui.neoecoae.storage.ui.cell_state." + (!cell.online() || !state.formed() ? "offline"
-                        : cell.infinite() ? "infinite"
-                            : cell.state()
-                                .name()
-                                .toLowerCase(java.util.Locale.ROOT))));
             if (cell.extractionBlockReason() != null) lines.add(
                 cell.extractionBlockReason()
                     .copy()
                     .withColor(0xFF5555));
-            else lines.add(
-                Component.translatable("gui.neoecoae.storage.ui.take_cell")
-                    .withColor(HostText.MUTED));
         } else {
             lines.add(Component.translatable("gui.neoecoae.storage.ui.cell_state.absent"));
-            if (cell(index).position() != null) {
-                lines.add(
-                    Component.translatable("gui.neoecoae.storage.ui.insert_cell")
-                        .withColor(HostText.MUTED));
-            }
         }
-        lines.add(pageText(state, columns * 3));
-        lines.add(
-            Component.translatable("gui.neoecoae.storage.ui.scroll_cells")
-                .withColor(HostText.MUTED));
         return lines;
     }
 

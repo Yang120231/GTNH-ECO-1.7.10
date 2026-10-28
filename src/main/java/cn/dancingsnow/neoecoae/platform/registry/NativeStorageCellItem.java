@@ -33,6 +33,12 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
         setMaxStackSize(1);
     }
 
+    /** Avoid translating the base key before vanilla appends its legacy .name suffix. */
+    @Override
+    public String getItemStackDisplayName(ItemStack stack) {
+        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+    }
+
     @Override
     public net.minecraft.item.EnumRarity getRarity(ItemStack stack) {
         return CoreItemCatalog.rarity(this);

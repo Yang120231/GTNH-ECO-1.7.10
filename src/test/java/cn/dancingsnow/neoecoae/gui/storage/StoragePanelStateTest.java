@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
@@ -27,6 +28,59 @@ import cn.dancingsnow.neoecoae.platform.nbt.CustomData;
 import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 
 class StoragePanelStateTest {
+
+    @Test
+    void installedCellTooltipUsesSourceNameBytesAndTypesWithoutTheOldFooter() {
+        ItemStack disk = new ItemStack(TestItems.DIAMOND).setStackDisplayName("My storage matrix");
+        CellEntry entry = new CellEntry(7, 3, CellEntry.KIND_ITEM, 4, 315, 131_114, 268_435_456, false)
+            .atDrive(new BlockPos(1, 2, 3), disk, null);
+        StoragePanelState state = StoragePanelState.capture(config(Collections.singletonList(entry), false), 0, 33);
+        List<Component> tooltip = new StorageCellGrid(() -> state, 11).tooltip(0);
+        assertEquals(3, tooltip.size(), "Do not prepend the item tooltip or repeat paging and interaction hints");
+        assertEquals(Component.literal("My storage matrix"), tooltip.get(0));
+        assertEquals(
+            Component.translatable(
+                "gui.neoecoae.storage.legacy.cell_bytes",
+                HostText.usedPart("131,114", 131_114, 268_435_456),
+                HostText.totalPart("268,435,456")),
+            tooltip.get(1));
+        assertEquals(
+            Component.translatable(
+                "gui.neoecoae.storage.legacy.cell_types",
+                HostText.usedPart("4", 4, 315),
+                HostText.totalPart("315")),
+            tooltip.get(2));
+    }
+
+    @Test
+    void cellTooltipKeepsExtractionLocksAndShowsUnboundedBytesAsInfinity() {
+        ItemStack disk = new ItemStack(TestItems.DIAMOND).setStackDisplayName("Sealed matrix");
+        Component lock = Component.translatable("tooltip.neoecoae.storage.infinite_member_locked");
+        CellEntry entry = new CellEntry(7, 3, CellEntry.KIND_ITEM, 4, 315, 131_114, Long.MAX_VALUE, false)
+            .atDrive(new BlockPos(1, 2, 3), disk, lock);
+        StoragePanelState state = StoragePanelState.capture(config(Collections.singletonList(entry), false), 0, 33);
+        List<Component> tooltip = new StorageCellGrid(() -> state, 11).tooltip(0);
+        assertEquals(4, tooltip.size());
+        assertEquals(
+            Component.translatable(
+                "gui.neoecoae.storage.legacy.cell_bytes",
+                HostText.usedPart("131,114", 131_114, -1),
+                HostText.totalPart("\u221e")),
+            tooltip.get(1));
+        assertEquals(
+            lock.copy()
+                .withColor(0xFF5555),
+            tooltip.get(3));
+    }
+
+    @Test
+    void absentCellTooltipMatchesTheSingleSourceStatusLine() {
+        StoragePanelState state = StoragePanelState
+            .capture(config(Collections.singletonList(CellEntry.EMPTY), false), 0, 33);
+        assertEquals(
+            Collections.singletonList(Component.translatable("gui.neoecoae.storage.ui.cell_state.absent")),
+            new StorageCellGrid(() -> state, 11).tooltip(0));
+    }
 
     @Test
     void addonTierNameSurvivesPagingAndTransportWithoutBeingInferredFromItsNumber() {

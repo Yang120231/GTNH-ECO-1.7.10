@@ -206,12 +206,12 @@ public final class NativeStoragePages {
                 return true;
             });
             tooltipDynamic(tooltip -> {
-                var cell = cell();
-                if (!ItemStacks.isEmpty(cell.stack())) tooltip.addFromItem(cell.stack());
-                for (Component line : cells.tooltip(index)) tooltip.add(
-                    line.nativeText()
-                        .getFormattedText())
-                    .newLine();
+                boolean first = true;
+                for (Component line : cells.tooltip(index)) {
+                    if (!first) tooltip.newLine();
+                    first = false;
+                    tooltip.add(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.tooltipLine(line));
+                }
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }

@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -21,6 +22,7 @@ import java.util.Set;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.StringTranslate;
 
 import org.junit.jupiter.api.Test;
@@ -71,6 +73,37 @@ class NativeContentTranslationTest {
             }
         }
         assertEquals(Collections.emptyList(), missing);
+    }
+
+    @Test
+    void nativeItemDisplayNamesTranslateTheSuffixedKeyOnlyOnce() throws Exception {
+        Field instance = StringTranslate.class.getDeclaredField("instance");
+        instance.setAccessible(true);
+        Field languageList = StringTranslate.class.getDeclaredField("languageList");
+        languageList.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, String> original = new HashMap<>((Map<String, String>) languageList.get(instance.get(null)));
+        Map<String, Item> items = new LinkedHashMap<>();
+        items.put("eco_item_storage_cell_256m", new NativeStorageCellItem(StorageTier.L9, null, null, false));
+        items.put("energized_crystal", new NativeMaterialItem("energized_crystal"));
+        try {
+            for (String locale : Arrays.asList("en_US", "zh_CN", "zh_HK", "zh_TW", "lzh", "en_UD")) {
+                Map<String, String> translations = lang(locale);
+                StringTranslate.replaceWith(translations);
+                for (var entry : items.entrySet()) {
+                    Item item = entry.getValue()
+                        .setUnlocalizedName(NativeContent.translationName(entry.getKey()));
+                    ItemStack stack = new ItemStack(item);
+                    String expected = translations.get(item.getUnlocalizedName(stack) + ".name");
+                    assertNotNull(expected, locale + ": " + entry.getKey());
+                    assertEquals(expected, stack.getDisplayName(), locale + ": " + entry.getKey());
+                    stack.setStackDisplayName("My cell");
+                    assertEquals("My cell", stack.getDisplayName(), "Custom names must remain intact");
+                }
+            }
+        } finally {
+            StringTranslate.replaceWith(original);
+        }
     }
 
     @Test

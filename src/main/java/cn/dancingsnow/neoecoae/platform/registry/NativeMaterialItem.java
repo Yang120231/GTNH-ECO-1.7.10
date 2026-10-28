@@ -15,6 +15,11 @@ public class NativeMaterialItem extends Item {
     }
 
     @Override
+    public String getItemStackDisplayName(net.minecraft.item.ItemStack stack) {
+        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+    }
+
+    @Override
     public int getSpriteNumber() {
         return this instanceof cn.dancingsnow.neoecoae.api.computation.IECOComputationCellItem ? 0
             : super.getSpriteNumber();
