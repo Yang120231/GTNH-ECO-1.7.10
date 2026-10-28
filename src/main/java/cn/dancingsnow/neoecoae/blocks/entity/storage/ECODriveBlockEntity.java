@@ -288,6 +288,9 @@ public class ECODriveBlockEntity extends
     @Override
     public void onReady() {
         super.onReady();
+        // AE2 attaches the node and reports its first state before the managed node is marked ready, so that report
+        // always reads offline. A grid that is already running posts no further event, so re-read it once here.
+        if (level != null && !level.isClientSide()) refreshOnline();
         updateState();
     }
 
@@ -297,6 +300,10 @@ public class ECODriveBlockEntity extends
             return;
         }
         super.onMainNodeStateChanged(reason);
+        refreshOnline();
+    }
+
+    private void refreshOnline() {
         boolean wasOnline = online;
         online = getMainNode().isOnline();
         setChanged();
