@@ -336,6 +336,12 @@ final class ECOInfiniteStorageModeController {
     }
 
     private void sealTransferSources(ServerWorldView serverLevel, UUID domainId) {
+        try (var ignored = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.coalesce()) {
+            sealTransferSourcesCoalesced(serverLevel, domainId);
+        }
+    }
+
+    private void sealTransferSourcesCoalesced(ServerWorldView serverLevel, UUID domainId) {
         Set<UUID> prepared = new HashSet<>();
         for (ECODriveBlockEntity drive : host.getCluster()
             .getDrives()) {
@@ -424,11 +430,13 @@ final class ECOInfiniteStorageModeController {
         }
         UUID domainId = host.infiniteDomainId();
         if (host.getCluster() != null && domainId != null) {
-            for (ECODriveBlockEntity drive : host.getCluster()
-                .getDrives()) {
-                if (ECOInfiniteStorageMember.isMemberOf(drive.getCellStack(), domainId)) {
-                    drive.convertInfiniteMemberToNormalStorage(domainId);
-                    IStorageProvider.requestUpdate(drive.getMainNode());
+            try (var ignored = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.coalesce()) {
+                for (ECODriveBlockEntity drive : host.getCluster()
+                    .getDrives()) {
+                    if (ECOInfiniteStorageMember.isMemberOf(drive.getCellStack(), domainId)) {
+                        drive.convertInfiniteMemberToNormalStorage(domainId);
+                        IStorageProvider.requestUpdate(drive.getMainNode());
+                    }
                 }
             }
         }

@@ -3,8 +3,6 @@ package cn.dancingsnow.neoecoae.platform.registry;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import java.lang.reflect.Field;
-import java.util.List;
 import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -67,11 +65,8 @@ class NativeStorageDriveInteractionTest {
     }
 
     @AfterEach
-    @SuppressWarnings("unchecked")
-    void unregisterHandler() throws ReflectiveOperationException {
-        Field handlers = ECOStorageCells.class.getDeclaredField("handlers");
-        handlers.setAccessible(true);
-        ((List<IECOCellHandler>) handlers.get(null)).remove(handler);
+    void unregisterHandler() {
+        ECOStorageCells.unregister(handler);
     }
 
     private boolean click() {

@@ -14,8 +14,11 @@ public final class StorageLifecycle {
 
     @SubscribeEvent
     public void save(WorldEvent.Save event) {
-        if (!event.world.isRemote && event.world.provider.dimensionId == 0)
+        // Every dimension's chunks follow the overworld in one save pass, so their drives' cells are written here.
+        if (!event.world.isRemote && event.world.provider.dimensionId == 0) {
+            ECOCellMutationBatch.flushTickDeferred();
             NativeWorldStorage.save(MinecraftServer.getServer());
+        }
     }
 
     @SubscribeEvent
@@ -34,6 +37,7 @@ public final class StorageLifecycle {
 
     @SubscribeEvent
     public void tick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.START) cn.dancingsnow.neoecoae.platform.network.ServerThread.capture();
         if (event.phase == TickEvent.Phase.END) {
             cn.dancingsnow.neoecoae.platform.network.ServerTasks.tick();
             cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.tick();
@@ -44,6 +48,8 @@ public final class StorageLifecycle {
                 cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.tick(
                     (cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView) cn.dancingsnow.neoecoae.platform.minecraft.WorldView
                         .of(world));
+            ECOCellMutationBatch.flushTickDeferred();
+            cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.flushTick();
             ECOCellMutationBatch.retry();
             ECOCellMutationBatch.assertClean();
         }
@@ -53,8 +59,11 @@ public final class StorageLifecycle {
         MinecraftServer server = MinecraftServer.getServer();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.clear();
         cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.clearAll();
+        ECOCellMutationBatch.flushTickDeferred();
         ECOCellMutationBatch.clearThreadState();
         ECOCellMutationBatch.drainRetries();
+        cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.clear();
+        cn.dancingsnow.neoecoae.platform.network.ServerThread.clear();
         NativeWorldStorage.close(server);
         ECOInfiniteStorageDomains.onServerStopped(server);
         ECOStorageCells.clearRuntimeState();

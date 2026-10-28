@@ -73,15 +73,26 @@ public final class CellComponents {
             entry.putLong("amount", value.amount());
             entries.add(entry);
         }
-        CompoundTag root = root(stack).copy();
-        root.put(CONTENTS, entries);
-        stack.setTagCompound(root.nativeTag());
+        stack.setTagCompound(withContents(stack, entries).nativeTag());
     }
 
     public static void clearStacks(ItemStack stack) {
-        CompoundTag root = root(stack).copy();
-        root.remove(CONTENTS);
+        CompoundTag root = withContents(stack, null);
         stack.setTagCompound(root.isEmpty() ? null : root.nativeTag());
+    }
+
+    /** Copies every other component; the replaced contents list can be large and is never copied. */
+    private static CompoundTag withContents(ItemStack stack, ListTag entries) {
+        net.minecraft.nbt.NBTTagCompound fresh = new net.minecraft.nbt.NBTTagCompound();
+        if (stack.hasTagCompound()) {
+            net.minecraft.nbt.NBTTagCompound old = stack.getTagCompound();
+            for (Object name : old.func_150296_c()) if (!CONTENTS.equals(name)) fresh.setTag(
+                (String) name,
+                old.getTag((String) name)
+                    .copy());
+        }
+        if (entries != null) fresh.setTag(CONTENTS, entries.nativeTag());
+        return new CompoundTag(fresh);
     }
 
     public static CustomData readCustomData(ItemStack stack) {

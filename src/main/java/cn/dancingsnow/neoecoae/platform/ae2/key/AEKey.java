@@ -84,7 +84,7 @@ public abstract class AEKey {
     }
 
     public static AEKey fromNative(IAEStack<?> stack) {
-        if (stack instanceof IAEItemStack) return AEItemKey.of(((IAEItemStack) stack).getItemStack());
+        if (stack instanceof IAEItemStack) return AEItemKey.ofNative((IAEItemStack) stack);
         if (stack instanceof IAEFluidStack) return AEFluidKey.of(((IAEFluidStack) stack).getFluidStack());
         return null;
     }

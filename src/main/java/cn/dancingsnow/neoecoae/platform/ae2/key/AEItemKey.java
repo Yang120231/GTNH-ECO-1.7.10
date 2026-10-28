@@ -1,29 +1,56 @@
 package cn.dancingsnow.neoecoae.platform.ae2.key;
 
-import java.util.Objects;
-
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
 import appeng.api.storage.data.IAEItemStack;
+import appeng.util.item.AESharedNBT;
 import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 public final class AEItemKey extends AEKey {
 
+    // Content hashes of rv3's interned tags; weak identity keys, so lookups never walk NBT.
+    private static final java.util.concurrent.ConcurrentMap<NBTTagCompound, Integer> SHARED_TAG_HASHES = new com.google.common.collect.MapMaker()
+        .weakKeys()
+        .makeMap();
+
+    /** Private, never handed out and never mutated: callers only ever receive copies. */
     private final ItemStack identity;
     private final int hash;
+    // Lazily built native view; {@link #toNative} copies it instead of re-interning the tag per call.
+    private IAEItemStack nativeTemplate;
 
-    private AEItemKey(ItemStack stack) {
-        identity = stack.copy();
-        identity.stackSize = 1;
-        hash = Objects.hash(identity.getItem(), identity.getItemDamage(), identity.getTagCompound());
+    private AEItemKey(ItemStack identity, int tagHash, IAEItemStack nativeTemplate) {
+        this.identity = identity;
+        this.nativeTemplate = nativeTemplate;
+        hash = (31 * identity.getItem()
+            .hashCode() + identity.getItemDamage()) * 31 + tagHash;
     }
 
     public static AEItemKey of(ItemStack stack) {
-        return stack == null || stack.getItem() == null ? null : new AEItemKey(stack);
+        if (stack == null || stack.getItem() == null) return null;
+        ItemStack identity = stack.copy();
+        identity.stackSize = 1;
+        NBTTagCompound tag = identity.getTagCompound();
+        return new AEItemKey(identity, tag == null ? 0 : tag.hashCode(), null);
+    }
+
+    /** Network ingress: rv3 stacks carry an interned tag, so neither the stack nor its NBT is copied. */
+    static AEItemKey ofNative(IAEItemStack stack) {
+        Object raw = stack.getTagCompound();
+        if (stack.getItem() == null
+            || raw != null && !(raw instanceof NBTTagCompound && AESharedNBT.isShared((NBTTagCompound) raw)))
+            return of(stack.getItemStack());
+        NBTTagCompound tag = (NBTTagCompound) raw;
+        ItemStack identity = new ItemStack(stack.getItem(), 1, stack.getItemDamage());
+        if (tag != null) identity.setTagCompound(tag);
+        return new AEItemKey(
+            identity,
+            tag == null ? 0 : SHARED_TAG_HASHES.computeIfAbsent(tag, NBTTagCompound::hashCode),
+            stack.copy());
     }
 
     public static AEItemKey of(Item item) {
@@ -89,13 +116,16 @@ public final class AEItemKey extends AEKey {
 
     @Override
     public String getDisplayName() {
-        return identity.getDisplayName();
+        // Some items build display names from their NBT; never let them see the shared tag.
+        return toStack().getDisplayName();
     }
 
     @Override
     public IAEItemStack toNative(long amount) {
-        IAEItemStack stack = AEItemStack.create(toStack());
-        return stack == null ? null : stack.setStackSize(amount);
+        IAEItemStack template = nativeTemplate;
+        if (template == null) nativeTemplate = template = AEItemStack.create(toStack());
+        return template.copy()
+            .setStackSize(amount);
     }
 
     @Override
@@ -134,9 +164,13 @@ public final class AEItemKey extends AEKey {
 
     @Override
     public boolean equals(Object other) {
-        return other instanceof AEItemKey && identity.getItem() == ((AEItemKey) other).identity.getItem()
-            && identity.getItemDamage() == ((AEItemKey) other).identity.getItemDamage()
-            && Objects.equals(identity.getTagCompound(), ((AEItemKey) other).identity.getTagCompound());
+        if (this == other) return true;
+        if (!(other instanceof AEItemKey)) return false;
+        AEItemKey key = (AEItemKey) other;
+        if (hash != key.hash || identity.getItem() != key.identity.getItem()
+            || identity.getItemDamage() != key.identity.getItemDamage()) return false;
+        NBTTagCompound tag = identity.getTagCompound(), otherTag = key.identity.getTagCompound();
+        return tag == otherTag || tag != null && tag.equals(otherTag);
     }
 
     @Override

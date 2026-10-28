@@ -71,6 +71,7 @@ public class ECODriveBlockEntity extends
     private ItemStack cachedCellStack;
     @Nullable
     private IECOStorageCell cachedCellInventory;
+    private boolean persistenceSyncQueued;
 
     public ECODriveBlockEntity(BlockEntityType<ECODriveBlockEntity> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState, cn.dancingsnow.neoecoae.multiblock.calculator.NEStorageClusterCalculator::new);
@@ -83,6 +84,7 @@ public class ECODriveBlockEntity extends
             return;
         }
         if (cellStack != null && !isItemValid(cellStack)) return;
+        flushPendingCell();
         ECOStorageSystemBlockEntity controller = getStorageController();
         if (controller != null) controller.rememberInfiniteMembers();
         ECOStorageCells.releaseCellInventory(this.cellStack, this);
@@ -185,6 +187,7 @@ public class ECODriveBlockEntity extends
     @Override
     public void addAdditionalDrops(WorldView level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
+        flushPendingCell();
         if (cellStack != null) {
             drops.add(cellStack);
         }
@@ -208,14 +211,33 @@ public class ECODriveBlockEntity extends
         cachedCellInventory = null;
     }
 
+    /** The cached cell may hold this tick's AE2 mutations; write them before anything observes the stack. */
+    private void flushPendingCell() {
+        cn.dancingsnow.neoecoae.impl.storage.ECOCellMutationBatch.flushDeferred(cachedCellInventory);
+    }
+
+    @Override
+    public boolean defersCellPersistence() {
+        return true;
+    }
+
+    @Override
+    protected void saveAdditional(cn.dancingsnow.neoecoae.platform.nbt.CompoundTag tag,
+        cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+        flushPendingCell();
+        super.saveAdditional(tag, registries);
+    }
+
     @Override
     public void onChunkUnloaded() {
+        flushPendingCell();
         ECOStorageCells.releaseCellInventory(cellStack, this);
         super.onChunkUnloaded();
     }
 
     @Override
     public void setRemoved() {
+        flushPendingCell();
         ECOStorageCells.releaseCellInventory(cellStack, this);
         super.setRemoved();
     }
@@ -283,8 +305,12 @@ public class ECODriveBlockEntity extends
 
     @Override
     public void notifyPersistence() {
+        // One status/description refresh per drive per tick; repeated cell writes in between change nothing it reads.
+        if (persistenceSyncQueued) return;
         if (level instanceof ServerWorldView serverLevel) {
+            persistenceSyncQueued = true;
             ServerTaskUtil.executeIfServerRunning(serverLevel, () -> {
+                persistenceSyncQueued = false;
                 updateCellState();
                 setChanged();
                 markForUpdate();
@@ -393,6 +419,7 @@ public class ECODriveBlockEntity extends
     }
 
     public ItemStack getCellStack() {
+        flushPendingCell();
         return cellStack;
     }
 

@@ -60,6 +60,19 @@ public interface ECOInfiniteStorageEngine {
 
     void getAvailableStacks(KeyCounter out);
 
+    /** One key of {@link #getAvailableStacks}; the saved-data engine answers from its table. */
+    default long getAvailableAmount(AEKey key) {
+        KeyCounter keys = new KeyCounter();
+        getAvailableStacks(keys);
+        return keys.get(key);
+    }
+
+    default void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        KeyCounter keys = new KeyCounter();
+        getAvailableStacks(keys);
+        for (var entry : keys) visitor.accept(entry.getKey(), entry.getLongValue());
+    }
+
     boolean isEmpty();
 
     /**

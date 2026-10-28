@@ -286,6 +286,8 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
         contentRevision++;
         this.isPersisted = false;
         if (ECOCellMutationBatch.defer(this)) return;
+        if (container != null && container.defersCellPersistence() && ECOCellMutationBatch.deferToTickEnd(this))
+            return;
         flushBatchedChanges();
     }
 
@@ -525,6 +527,20 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
     public void getAvailableStacks(KeyCounter out) {
         if (cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack)) return;
         getMigrationStacks(out);
+    }
+
+    @Override
+    public long getAvailableAmount(AEKey key) {
+        if (key == null || cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack))
+            return 0;
+        return getCellItems().getLong(key);
+    }
+
+    @Override
+    public void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        if (cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack)) return;
+        for (var entry : Object2LongMaps.fastIterable(this.getCellItems()))
+            visitor.accept(entry.getKey(), entry.getLongValue());
     }
 
     @Override

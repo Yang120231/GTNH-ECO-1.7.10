@@ -89,6 +89,16 @@ public final class ECOInfiniteStorage implements MEStorage, CombinedExactAmountS
     }
 
     @Override
+    public long getAvailableAmount(AEKey key) {
+        return key != null && allowInsert.getAsBoolean() ? engine.getAvailableAmount(key) : 0;
+    }
+
+    @Override
+    public void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        if (allowInsert.getAsBoolean()) engine.visitAvailableStacks(visitor);
+    }
+
+    @Override
     public boolean neoecoae$hasSaturatingListing() {
         return engine instanceof SavedDataInfiniteStorageEngine;
     }

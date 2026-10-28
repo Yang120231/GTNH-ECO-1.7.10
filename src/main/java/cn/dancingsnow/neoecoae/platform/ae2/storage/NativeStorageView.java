@@ -56,10 +56,18 @@ public final class NativeStorageView<T extends IAEStack>
 
     @Override
     public void getAvailableStacks(KeyCounter out) {
-        KeyCounter visible = storage.getAvailableStacks();
-        for (var entry : visible)
-            if (accepts(entry.getKey())) cn.dancingsnow.neoecoae.impl.storage.SaturatingStackAccumulator
-                .add(out, entry.getKey(), entry.getLongValue());
+        visitAvailableStacks(
+            (key, amount) -> cn.dancingsnow.neoecoae.impl.storage.SaturatingStackAccumulator.add(out, key, amount));
+    }
+
+    @Override
+    public long getAvailableAmount(AEKey key) {
+        return accepts(key) ? storage.getAvailableAmount(key) : 0;
+    }
+
+    @Override
+    public void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        storage.visitAvailableStacks((key, amount) -> { if (accepts(key)) visitor.accept(key, amount); });
     }
 
     @Override
@@ -98,11 +106,30 @@ public final class NativeStorageView<T extends IAEStack>
 
     @Override
     public IItemList<T> getAvailableItems(IItemList<T> out, int iteration) {
-        for (var entry : getAvailableStacks()) if (entry.getLongValue() > 0) NativeStackAmounts.add(
-            out,
-            entry.getKey()
-                .toNative(entry.getLongValue()));
+        visitAvailableStacks((key, amount) -> { if (amount > 0) NativeStackAmounts.add(out, key.toNative(amount)); });
         return out;
+    }
+
+    /** rv3's default lists everything into a scratch list and filters it; this filters while visiting. */
+    @Override
+    public IItemList<T> getAvailableItems(IItemList<T> out, int iteration,
+        java.util.Optional<java.util.function.Predicate<T>> filter) {
+        if (!filter.isPresent()) return getAvailableItems(out, iteration);
+        java.util.function.Predicate<T> predicate = filter.get();
+        visitAvailableStacks((key, amount) -> {
+            if (amount <= 0) return;
+            T stack = (T) key.toNative(amount);
+            if (predicate.test(stack)) NativeStackAmounts.add(out, stack);
+        });
+        return out;
+    }
+
+    /** rv3's default runs a filtered full listing per query; the imported storages answer from their index. */
+    @Override
+    public T getAvailableItem(T request, int iteration) {
+        AEKey key = request == null ? null : AEKey.fromNative(request);
+        long amount = getAvailableAmount(key);
+        return amount > 0 ? (T) key.toNative(amount) : null;
     }
 
     @Override

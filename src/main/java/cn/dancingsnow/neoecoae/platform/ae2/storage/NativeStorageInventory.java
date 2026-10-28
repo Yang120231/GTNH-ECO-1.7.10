@@ -63,14 +63,34 @@ public final class NativeStorageInventory<T extends IAEStack> implements IMEInve
 
     @Override
     public IItemList<T> getAvailableItems(IItemList<T> out, int iteration) {
-        KeyCounter available = cell.getAvailableStacks();
-        for (var entry : available) if (entry.getKey()
-            .getType()
-            .nativeChannel() == channel && entry.getLongValue() > 0) NativeStackAmounts.add(
-                out,
-                (T) entry.getKey()
-                    .toNative(entry.getLongValue()));
+        cell.visitAvailableStacks((key, amount) -> {
+            if (amount > 0 && key.getType()
+                .nativeChannel() == channel) NativeStackAmounts.add(out, (T) key.toNative(amount));
+        });
         return out;
+    }
+
+    @Override
+    public IItemList<T> getAvailableItems(IItemList<T> out, int iteration,
+        java.util.Optional<java.util.function.Predicate<T>> filter) {
+        if (!filter.isPresent()) return getAvailableItems(out, iteration);
+        java.util.function.Predicate<T> predicate = filter.get();
+        cell.visitAvailableStacks((key, amount) -> {
+            if (amount <= 0 || key.getType()
+                .nativeChannel() != channel) return;
+            T stack = (T) key.toNative(amount);
+            if (predicate.test(stack)) NativeStackAmounts.add(out, stack);
+        });
+        return out;
+    }
+
+    @Override
+    public T getAvailableItem(T request, int iteration) {
+        AEKey key = request == null ? null : AEKey.fromNative(request);
+        if (key == null || key.getType()
+            .nativeChannel() != channel) return null;
+        long amount = cell.getAvailableAmount(key);
+        return amount > 0 ? (T) key.toNative(amount) : null;
     }
 
     @Override

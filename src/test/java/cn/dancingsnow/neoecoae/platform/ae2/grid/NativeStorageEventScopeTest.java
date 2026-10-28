@@ -21,7 +21,7 @@ class NativeStorageEventScopeTest {
         var part = spy(networkSwitch());
         part.nativePowerChanged(new MENetworkPowerStatusChange());
         part.nativeChannelsChanged(new MENetworkChannelsChanged());
-        verify(part, never()).refreshNativeStorage();
+        verify(part, never()).requestStorageRescan(anyBoolean());
     }
 
     @Test
@@ -31,7 +31,8 @@ class NativeStorageEventScopeTest {
             .addService(IStorageProvider.class, mounts -> {});
         var spied = spy(provider);
         spied.nativePowerChanged(new MENetworkPowerStatusChange());
-        verify(spied).refreshNativeStorage();
+        // Mounted cells are unchanged by power or channel state, so the rescan is merged per grid until tick end.
+        verify(spied).requestStorageRescan(false);
     }
 
     private static ECOCraftingNetworkSwitchBlockEntity networkSwitch() {

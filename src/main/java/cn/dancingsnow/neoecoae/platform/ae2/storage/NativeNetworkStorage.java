@@ -33,6 +33,11 @@ public final class NativeNetworkStorage implements MEStorage {
     }
 
     @Override
+    public long getAvailableAmount(AEKey key) {
+        return key == null ? 0 : channel(key).getAvailableAmount(key);
+    }
+
+    @Override
     public void getAvailableStacks(KeyCounter out) {
         new NativeInventoryStorage(grid.getItemInventory()).getAvailableStacks(out);
         new NativeInventoryStorage(grid.getFluidInventory()).getAvailableStacks(out);

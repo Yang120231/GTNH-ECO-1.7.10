@@ -147,6 +147,28 @@ class ECOIOPortTransferTest {
     }
 
     @Test
+    void listsTheSourceOncePerRoundAndPicksUpNewKeysAtTheNextRound() {
+        List<AEKey> keys = new java.util.ArrayList<>();
+        for (int i = 0; i < 12; i++) keys.add(new cn.dancingsnow.neoecoae.platform.TestResourceKey("key" + i, false));
+        var host = new MultiStorage(keys, 1L);
+        var network = new MultiStorage(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(), 0L);
+        var grid = inputGrid(network);
+        var transfer = new ECOIOPortTransfer();
+        assertEquals(5L, transfer.transfer(grid, host, false, IActionSource.empty()));
+        assertEquals(1, host.listings);
+        AEKey late = new cn.dancingsnow.neoecoae.platform.TestResourceKey("late", false);
+        host.amounts.put(late, 3L);
+        assertEquals(5L, transfer.transfer(grid, host, false, IActionSource.empty()));
+        assertEquals(2L, transfer.transfer(grid, host, false, IActionSource.empty()));
+        assertEquals(1, host.listings);
+        assertEquals(3L, host.amounts.get(late));
+        // The round of twelve keys is complete: the next tick lists again and finds the late key.
+        assertEquals(3L, transfer.transfer(grid, host, false, IActionSource.empty()));
+        assertEquals(2, host.listings);
+        assertEquals(0L, host.total());
+    }
+
+    @Test
     void skipsUnchangedCreativeInputButAllowsItWhenDisabled() {
         AEKey key = AEItemKey.of(TestItems.STONE);
         var network = new CountingStorage(key, 100L, Long.MAX_VALUE);
@@ -369,6 +391,7 @@ class ECOIOPortTransferTest {
 
         private final Map<AEKey, Long> amounts = new LinkedHashMap<>();
         private int modulatedExtracts;
+        private int listings;
 
         private MultiStorage(List<AEKey> keys, long amount) {
             keys.forEach(key -> amounts.put(key, amount));
@@ -399,6 +422,7 @@ class ECOIOPortTransferTest {
 
         @Override
         public void getAvailableStacks(KeyCounter out) {
+            listings++;
             amounts.forEach((key, amount) -> { if (amount > 0L) out.add(key, amount); });
         }
 

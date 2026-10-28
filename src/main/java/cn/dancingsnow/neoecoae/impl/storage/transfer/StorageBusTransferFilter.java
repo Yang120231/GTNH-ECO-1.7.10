@@ -15,6 +15,11 @@ public final class StorageBusTransferFilter {
     public interface StorageBusInventory {
     }
 
+    /** Cheap guard for every network operation outside an ECO interface transfer. */
+    public static boolean isActive() {
+        return Boolean.TRUE.equals(ACTIVE.get());
+    }
+
     public static boolean excludes(MEStorage storage) {
         return Boolean.TRUE.equals(ACTIVE.get()) && storage instanceof StorageBusInventory;
     }
