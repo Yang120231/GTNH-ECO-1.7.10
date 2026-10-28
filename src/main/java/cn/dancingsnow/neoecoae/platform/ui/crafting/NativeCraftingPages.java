@@ -187,6 +187,18 @@ public final class NativeCraftingPages {
                 NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 240, 128, 16, 16)
                     .draw(1, 1, 16, 16);
         }
+
+        /** Encoded patterns show their primary output, like AE2's own pattern slots with Shift held. */
+        @Override
+        @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
+        protected net.minecraft.item.ItemStack getItemStackForRendering(net.minecraft.item.ItemStack stack,
+            boolean dragging) {
+            if (stack != null && stack.getItem() instanceof appeng.items.misc.ItemEncodedPattern pattern) {
+                var output = pattern.getOutput(stack);
+                if (output != null) return output;
+            }
+            return super.getItemStackForRendering(stack, dragging);
+        }
     }
 
     public static ModularPanel inventory(String id, String title, net.minecraft.inventory.IInventory inventory,
