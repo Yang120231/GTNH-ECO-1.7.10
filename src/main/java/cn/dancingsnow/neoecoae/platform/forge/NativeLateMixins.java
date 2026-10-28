@@ -27,6 +27,7 @@ public final class NativeLateMixins implements ILateMixinLoader {
             Arrays.asList(
                 "NetworkInventoryHandlerMixin",
                 "NetworkItemListMixin",
+                "DriveCellRestrictionMixin",
                 "StorageBusMountMixin",
                 "CraftingCpuPublicationMixin",
                 "PatternTermEncodeMixin",

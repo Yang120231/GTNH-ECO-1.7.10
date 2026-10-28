@@ -9,6 +9,7 @@ import appeng.api.storage.ICellHandler;
 import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.StorageChannel;
+import appeng.tile.storage.TileDrive;
 import cn.dancingsnow.neoecoae.api.storage.IECOCellHandler;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
 import cn.dancingsnow.neoecoae.platform.registry.NativeStorageCellItem;
@@ -29,6 +30,9 @@ public final class NativeCellHandler implements ICellHandler, IECOCellHandler {
     @Override
     public IMEInventoryHandler getCellInventory(ItemStack stack, appeng.api.storage.ISaveProvider host,
         StorageChannel channel) {
+        // Old saves may already contain ECO cells in native drives. Keep them removable but unmounted.
+        // The native IO port requests inventories with a null host, so transfers remain supported.
+        if (host instanceof TileDrive) return null;
         if (!isCell(stack) || !((NativeStorageCellItem) stack.getItem()).getKeyTypes()
             .stream()
             .anyMatch(type -> type.nativeChannel() == channel)) return null;
