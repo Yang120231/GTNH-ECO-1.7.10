@@ -105,6 +105,19 @@ public class ECOInfiniteResourceCell extends ECOStorageCell implements ExactAmou
     }
 
     @Override
+    public long getAvailableAmount(AEKey key) {
+        return key != null && !ECOInfiniteStorageMember.isSealed(cellStack)
+            && ECOInfiniteResourceCellItem.lockedKeys()
+                .contains(key) ? OFFERED_AMOUNT : 0;
+    }
+
+    @Override
+    public void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        if (ECOInfiniteStorageMember.isSealed(cellStack)) return;
+        for (AEKey key : ECOInfiniteResourceCellItem.lockedKeys()) visitor.accept(key, OFFERED_AMOUNT);
+    }
+
+    @Override
     public void neoecoae$visitExactAmounts(java.util.function.BiConsumer<AEKey, ExactAmount> visitor) {
         if (!ECOInfiniteStorageMember.isSealed(cellStack)) {
             for (AEKey key : ECOInfiniteResourceCellItem.lockedKeys()) visitor.accept(key, ExactAmount.unbounded());

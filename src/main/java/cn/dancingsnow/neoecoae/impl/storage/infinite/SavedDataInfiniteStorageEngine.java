@@ -172,6 +172,22 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
         });
     }
 
+    @Override
+    public long getAvailableAmount(AEKey key) {
+        if (!data.canRead() || data.hasPendingRestore() && !data.canRead(key)) return 0;
+        return data.amounts.visible(key);
+    }
+
+    @Override
+    public void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        if (!data.canRead()) return;
+        if (!data.hasPendingRestore()) {
+            data.amounts.visitVisible(visitor);
+            return;
+        }
+        data.amounts.visitVisible((key, amount) -> { if (data.canRead(key)) visitor.accept(key, amount); });
+    }
+
     static void addVisible(KeyCounter out, AEKey key, long amount) {
         long existing = out.get(key);
         long headroom = existing > 0 ? Long.MAX_VALUE - existing : Long.MAX_VALUE;

@@ -40,8 +40,30 @@ public class NativeInventoryStorage implements MEStorage {
     }
 
     @Override
+    public long getAvailableAmount(AEKey key) {
+        if (key == null || key.getType()
+            .nativeChannel() != nativeInventory.getChannel()) return 0;
+        IAEStack request = key.toNative(1);
+        IItemList cached = cachedNetworkList();
+        IAEStack found = cached != null ? cached.findPrecise(request) : nativeInventory.getAvailableItem(request);
+        return found == null ? 0 : Math.max(0L, found.getStackSize());
+    }
+
+    /**
+     * A grid monitor's own cached list, on the server thread only: listing the monitor directly re-walks every
+     * handler of the network, and worker threads must not read the list the server thread maintains.
+     */
+    private IItemList cachedNetworkList() {
+        return nativeInventory instanceof appeng.api.storage.IMEMonitor
+            && cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()
+                ? ((appeng.api.storage.IMEMonitor) nativeInventory).getStorageList()
+                : null;
+    }
+
+    @Override
     public void getAvailableStacks(KeyCounter output) {
-        IItemList listed = nativeInventory.getAvailableItems(
+        IItemList listed = cachedNetworkList();
+        if (listed == null) listed = nativeInventory.getAvailableItems(
             nativeInventory.getChannel()
                 .createList());
         for (Object value : listed) {

@@ -8,7 +8,6 @@ import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
 import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountSource;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 
 /** Filters actual source inventories, so a creative disk cannot hide a finite disk's debit. */
@@ -59,9 +58,7 @@ public final class ECOCreativeExtractionFilter {
             source.neoecoae$visitExactAmounts((what, amount) -> { if (key.equals(what)) exact[0] = amount; });
             if (exact[0] != null) return exact[0];
         }
-        KeyCounter stacks = new KeyCounter();
-        storage.getAvailableStacks(stacks);
-        return ExactAmount.finite(BigInteger.valueOf(Math.max(0L, stacks.get(key))));
+        return ExactAmount.finite(BigInteger.valueOf(Math.max(0L, storage.getAvailableAmount(key))));
     }
 
     private static final class State {

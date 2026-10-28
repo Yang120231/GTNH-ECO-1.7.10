@@ -56,6 +56,16 @@ public final class ECOCreativeCell implements IECOStorageCell {
         for (AEKey key : configured) out.set(key, Long.MAX_VALUE);
     }
 
+    @Override
+    public long getAvailableAmount(AEKey key) {
+        return key != null && configured.contains(key) ? Long.MAX_VALUE : 0;
+    }
+
+    @Override
+    public void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        for (AEKey key : configured) visitor.accept(key, Long.MAX_VALUE);
+    }
+
     /** Internal crafting capability, deliberately separate from terminal quantity reporting. */
     public Set<AEKey> configuredKeys() {
         return configured;

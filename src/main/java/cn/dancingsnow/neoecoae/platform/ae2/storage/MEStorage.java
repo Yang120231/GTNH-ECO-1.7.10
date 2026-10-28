@@ -23,6 +23,19 @@ public interface MEStorage {
         return output;
     }
 
+    /**
+     * One key's listed amount, as {@link #getAvailableStacks(KeyCounter)} would report it. rv3 asks handlers for single
+     * keys (watchers, crafting, the network's point query); indexed storages override this full-listing default.
+     */
+    default long getAvailableAmount(AEKey key) {
+        return key == null ? 0 : getAvailableStacks().get(key);
+    }
+
+    /** The listing without materialising a counter; indexed storages iterate their own table. */
+    default void visitAvailableStacks(java.util.function.ObjLongConsumer<AEKey> visitor) {
+        for (var entry : getAvailableStacks()) visitor.accept(entry.getKey(), entry.getLongValue());
+    }
+
     default boolean isPreferredStorageFor(AEKey key, IActionSource source) {
         return false;
     }

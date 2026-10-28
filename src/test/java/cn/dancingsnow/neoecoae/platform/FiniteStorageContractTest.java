@@ -235,6 +235,28 @@ class FiniteStorageContractTest {
     }
 
     @Test
+    void pointQueryAndVisitMatchTheListingAndHonourSealing() {
+        ItemStack stack = item(AEKeyType.items());
+        ECOStorageCell cell = new ECOStorageCell(stack, null);
+        AEKey iron = new TestResourceKey("iron", false), copper = new TestResourceKey("copper", false);
+        cell.insert(iron, 32, Actionable.MODULATE, IActionSource.empty());
+        cell.insert(copper, 64, Actionable.MODULATE, IActionSource.empty());
+        KeyCounter listed = cell.getAvailableStacks();
+        java.util.Map<AEKey, Long> visited = new java.util.HashMap<>();
+        cell.visitAvailableStacks(visited::put);
+        assertEquals(2, visited.size());
+        for (var entry : listed) {
+            assertEquals(entry.getLongValue(), visited.get(entry.getKey()));
+            assertEquals(entry.getLongValue(), cell.getAvailableAmount(entry.getKey()));
+        }
+        assertEquals(0, cell.getAvailableAmount(new TestResourceKey("tin", false)));
+        cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.markMember(stack, java.util.UUID.randomUUID());
+        assertTrue(cell.getAvailableStacks().isEmpty());
+        assertEquals(0, cell.getAvailableAmount(iron));
+        cell.visitAvailableStacks((key, amount) -> fail("sealed cell visited " + key));
+    }
+
+    @Test
     void invalidInventoryNbtFailsWithoutReplacingTheOriginalTag() {
         ItemStack stack = item(AEKeyType.items());
         NBTTagCompound tag = new NBTTagCompound();

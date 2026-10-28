@@ -13,13 +13,21 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.StorageHelper;
 
-/** AE2 ME IO Port-style full-key transfer with a small round-robin key budget. */
+/**
+ * AE2 ME IO Port-style full-key transfer with a small round-robin key budget.
+ * <p>
+ * The source is listed once per round (every queued key visited once), not every tick: a host domain or network can
+ * hold 100k keys while only five move per tick. Amounts come from that round's listing; a stale amount only bounds
+ * what one attempt moves, because insertion is simulated and extraction reports what actually left the source.
+ */
 public final class ECOIOPortTransfer {
 
     private static final int KEYS_PER_TICK = 5;
     private final ArrayDeque<AEKey> queue = new ArrayDeque<>();
     private final Set<AEKey> queued = new HashSet<>();
     private MEStorage previousSource;
+    private KeyCounter round;
+    private int keysUntilRelist;
 
     public long transfer(GridView grid, MEStorage hostStorage, boolean fillHost, IActionSource source) {
         return transfer(grid, hostStorage, fillHost, false, source);
@@ -53,43 +61,41 @@ public final class ECOIOPortTransfer {
         boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter) {
         MEStorage networkStorage = grid.getStorageService()
             .getInventory();
-        MEStorage from;
-        MEStorage destination;
-        KeyCounter available;
-        if (fillHost) {
-            from = networkStorage;
-            destination = hostStorage;
-            if (excludeStorageBuses) {
-                // The shared cache includes bus inventories and must stay unchanged for ordinary network users.
-                available = new KeyCounter();
-                networkStorage.getAvailableStacks(available);
-            } else {
-                available = grid.getStorageService()
-                    .getCachedInventory();
-            }
-        } else {
-            from = hostStorage;
-            destination = networkStorage;
-            available = new KeyCounter();
-            hostStorage.getAvailableStacks(available);
-        }
-
+        MEStorage from = fillHost ? networkStorage : hostStorage;
+        MEStorage destination = fillHost ? hostStorage : networkStorage;
         if (from != previousSource) {
             previousSource = from;
             queue.clear();
             queued.clear();
+            round = null;
         }
-        for (var entry : available) {
-            if (entry.getLongValue() > 0L && filter.test(entry.getKey()) && queued.add(entry.getKey())) {
-                queue.addLast(entry.getKey());
+        if (round == null || keysUntilRelist <= 0) {
+            if (!fillHost) {
+                round = new KeyCounter();
+                hostStorage.getAvailableStacks(round);
+            } else if (excludeStorageBuses) {
+                // The shared cache includes bus inventories and must stay unchanged for ordinary network users.
+                round = new KeyCounter();
+                networkStorage.getAvailableStacks(round);
+            } else {
+                round = grid.getStorageService()
+                    .getCachedInventory();
             }
+            for (var entry : round) {
+                if (entry.getLongValue() > 0L && filter.test(entry.getKey()) && queued.add(entry.getKey())) {
+                    queue.addLast(entry.getKey());
+                }
+            }
+            keysUntilRelist = Math.max(1, queue.size());
         }
+        KeyCounter available = round;
 
         long moved = 0L;
         int keysRemaining = Math.min(KEYS_PER_TICK, queue.size());
         while (keysRemaining-- > 0) {
             var key = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.removeFirst(queue);
             queued.remove(key);
+            keysUntilRelist--;
             // Also recheck pending keys after a filter or interface change.
             if (!filter.test(key)) continue;
             long amount = available.get(key);
