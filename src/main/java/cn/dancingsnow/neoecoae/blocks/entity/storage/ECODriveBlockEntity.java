@@ -239,15 +239,28 @@ public class ECODriveBlockEntity extends
                         .getStoragePriority(),
                     cellInventory.prioritizesMarkedInserts());
                 storageMounts.mount(cellInventory, priority);
-                mounted = true;
-                updateCellState();
-                setChanged();
+                updateMountState(true);
                 return;
             }
         }
-        mounted = false;
+        updateMountState(false);
+    }
+
+    private void updateMountState(boolean nowMounted) {
+        boolean wasMounted = mounted;
+        CellState previousState = cellState;
+        mounted = nowMounted;
         updateCellState();
         setChanged();
+        if (wasMounted != mounted || previousState != cellState) markLedStateChanged();
+    }
+
+    /**
+     * 1.21 relies on LDLib pushing changed {@code @DescSynced} fields every tick; here the description packet is
+     * only sent on request, so the LED renderer would otherwise keep the client's stale mounted/online state.
+     */
+    private void markLedStateChanged() {
+        if (level != null && !level.isClientSide()) markForUpdate();
     }
 
     @Override
@@ -262,8 +275,10 @@ public class ECODriveBlockEntity extends
             return;
         }
         super.onMainNodeStateChanged(reason);
+        boolean wasOnline = online;
         online = getMainNode().isOnline();
         setChanged();
+        if (wasOnline != online) markLedStateChanged();
     }
 
     @Override
