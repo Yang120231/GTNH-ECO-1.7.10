@@ -212,6 +212,15 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             && mouseX < selectCpu.xPosition + selectCpu.width
             && mouseY < selectCpu.yPosition + selectCpu.height) tooltip = diagnosticTooltip();
         if (tooltip == null && start.visible
+            && ECOCraftConfirmRules
+                .usesBigOrderSubmission(state, ECOCraftConfirmRules.isForceStart(state, isShiftKeyDown()))
+            && !state.bigOrderCpuAvailable
+            && mouseX >= start.xPosition
+            && mouseY >= start.yPosition
+            && mouseX < start.xPosition + start.width
+            && mouseY < start.yPosition + start.height)
+            tooltip = Collections.singletonList(I18n.format("tooltip.neoecoae.big_order.requires_cpu"));
+        if (tooltip == null && start.visible
             && ECOCraftConfirmRules.isForceStart(state, isShiftKeyDown())
             && mouseX >= start.xPosition
             && mouseY >= start.yPosition
@@ -587,8 +596,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private String cpuStatusLine() {
         if (!state.reportReady) return I18n.format("gui.neoecoae.crafting_report.calculating");
         if (report == null) return I18n.format("gui.neoecoae.crafting_report.loading_details");
-        if (state.status == PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE)
-            return I18n.format("gui.neoecoae.crafting_report.amount_unrepresentable");
+        if (state.status == PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE) return I18n.format(
+            state.bigOrderCpuAvailable ? "gui.neoecoae.big_order.single_task" : "gui.neoecoae.big_order.requires_cpu");
         if (state.status == PlanningStatus.CYCLE_UNRESOLVED) return I18n.format(
             report.anySeedShortfallEstimate() ? "gui.neoecoae.crafting_report.seed_requirement_unknown"
                 : !report.materials.isEmpty() ? "gui.neoecoae.crafting_report.search_incomplete"
@@ -605,7 +614,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
 
     private int cpuStatusColor() {
         if (state.status == PlanningStatus.CYCLE_UNRESOLVED) return 0x604100;
-        if (isDiagnosticShell() || state.status == PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE) return 0x752121;
+        if (isDiagnosticShell()) return 0x752121;
         return TEXT_DARK;
     }
 
@@ -678,7 +687,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private void submit(boolean forced) {
         if (state.error == null && !start.enabled) return;
         lastSubmissionForced = forced;
-        ECOCraftConfirmPackets.start(container.windowId, forced);
+        // An extended amount or a forced cycle shortage goes to an ECO CPU as a big order (1.21).
+        if (ECOCraftConfirmRules.usesBigOrderSubmission(state, forced))
+            ECOCraftConfirmPackets.startBigOrder(container.windowId, forced);
+        else ECOCraftConfirmPackets.start(container.windowId, forced);
     }
 
     private void goBack() {

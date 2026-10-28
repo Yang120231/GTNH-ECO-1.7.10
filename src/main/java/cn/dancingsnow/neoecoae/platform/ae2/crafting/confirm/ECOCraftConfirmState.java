@@ -53,11 +53,35 @@ public final class ECOCraftConfirmState {
     @Nullable
     public final ECOCraftConfirmError error;
     public final String errorDetail;
+    /** An idle, online ECO CPU can take this plan as a big order (1.21's neoecoae$bigOrderCpu). */
+    public final boolean bigOrderCpuAvailable;
 
     public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
         boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
         String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
         @Nullable ECOCraftConfirmError error, String errorDetail) {
+        this(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            false);
+    }
+
+    public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
+        boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
+        String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
+        @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable) {
         this.plannerAvailable = plannerAvailable;
         this.reportReady = reportReady;
         this.cyclePlanningEnabled = cyclePlanningEnabled;
@@ -73,6 +97,7 @@ public final class ECOCraftConfirmState {
         this.reportVersion = reportVersion;
         this.error = error;
         this.errorDetail = truncate(errorDetail);
+        this.bigOrderCpuAvailable = bigOrderCpuAvailable;
     }
 
     public ECOCraftConfirmState withCpuTier(int tier) {
@@ -91,7 +116,28 @@ public final class ECOCraftConfirmState {
             usedBytes,
             reportVersion,
             error,
-            errorDetail);
+            errorDetail,
+            bigOrderCpuAvailable);
+    }
+
+    public ECOCraftConfirmState withBigOrderCpu(boolean available) {
+        if (available == bigOrderCpuAvailable) return this;
+        return new ECOCraftConfirmState(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            available);
     }
 
     public ECOCraftConfirmState withError(@Nullable ECOCraftConfirmError error, String detail) {
@@ -109,7 +155,8 @@ public final class ECOCraftConfirmState {
             usedBytes,
             reportVersion,
             error,
-            error == null ? "" : detail);
+            error == null ? "" : detail,
+            bigOrderCpuAvailable);
     }
 
     /** Bytes shown in the header: the exact planner estimate when present, otherwise AE2's long total. */
@@ -132,6 +179,7 @@ public final class ECOCraftConfirmState {
         data.writeVarLong(reportVersion);
         data.writeVarInt(error == null ? 0 : error.ordinal() + 1);
         data.writeUtf(errorDetail);
+        data.writeBoolean(bigOrderCpuAvailable);
     }
 
     public static ECOCraftConfirmState read(RegistryFriendlyByteBuf data) {
@@ -150,6 +198,7 @@ public final class ECOCraftConfirmState {
         long reportVersion = data.readVarLong();
         ECOCraftConfirmError error = byOrdinal(ECOCraftConfirmError.values(), data.readVarInt());
         String errorDetail = data.readUtf();
+        boolean bigOrderCpuAvailable = data.readBoolean();
         return new ECOCraftConfirmState(
             plannerAvailable,
             reportReady,
@@ -164,7 +213,8 @@ public final class ECOCraftConfirmState {
             usedBytes,
             reportVersion,
             error,
-            errorDetail);
+            errorDetail,
+            bigOrderCpuAvailable);
     }
 
     private static <T> @Nullable T byOrdinal(T[] values, int code) {
@@ -193,7 +243,8 @@ public final class ECOCraftConfirmState {
             && status == state.status
             && diagnostic.equals(state.diagnostic)
             && error == state.error
-            && errorDetail.equals(state.errorDetail);
+            && errorDetail.equals(state.errorDetail)
+            && bigOrderCpuAvailable == state.bigOrderCpuAvailable;
     }
 
     @Override
@@ -212,6 +263,7 @@ public final class ECOCraftConfirmState {
             usedBytes,
             reportVersion,
             error,
-            errorDetail);
+            errorDetail,
+            bigOrderCpuAvailable);
     }
 }

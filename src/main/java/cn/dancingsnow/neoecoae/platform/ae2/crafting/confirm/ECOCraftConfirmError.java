@@ -12,7 +12,17 @@ public enum ECOCraftConfirmError {
     /** The confirmation no longer holds a plan to submit. */
     NO_PLAN("gui.neoecoae.crafting_report.error.no_plan"),
     /** Submission threw; the detail carries the exception text. */
-    SUBMIT_FAILED("gui.neoecoae.crafting_report.error.submit_failed");
+    SUBMIT_FAILED("gui.neoecoae.crafting_report.error.submit_failed"),
+    /** The grid or the chosen CPU went offline before the big order was accepted. */
+    CPU_OFFLINE("gui.neoecoae.crafting_report.error.cpu_offline"),
+    /** The ECO CPU already runs a job. */
+    CPU_BUSY("gui.neoecoae.crafting_report.error.cpu_busy"),
+    /** The ECO CPU has too little storage for the order. */
+    CPU_TOO_SMALL("gui.neoecoae.crafting_report.error.cpu_too_small"),
+    /** Stored materials changed since the report was built; the detail names the missing input. */
+    MISSING_INGREDIENT("gui.neoecoae.crafting_report.error.missing_ingredient"),
+    /** A big order needs an idle, online ECO crafting CPU and none is available. */
+    BIG_ORDER_NO_CPU("gui.neoecoae.crafting_report.error.big_order_no_cpu");
 
     private final String translationKey;
 

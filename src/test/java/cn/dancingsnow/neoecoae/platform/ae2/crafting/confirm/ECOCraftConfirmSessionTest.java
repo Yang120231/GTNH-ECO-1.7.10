@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.math.BigInteger;
 import java.util.Collections;
@@ -9,6 +10,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
+import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningImprovements;
+import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
 import cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus;
 import cn.dancingsnow.neoecoae.platform.TestAddonKey;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
@@ -144,6 +147,102 @@ class ECOCraftConfirmSessionTest {
         assertEquals(BigInteger.valueOf(2), row.craft);
         assertTrue(decodedReport.hasMissing());
         assertFalse(buffer.isReadable());
+    }
+
+    @Test
+    void bigOrderCpuAvailabilityResendsOnlyTheHeaderAndSurvivesTheWire() {
+        var session = new ECOCraftConfirmSession();
+        session.begin(false);
+        session.observeResult(
+            new Object(),
+            version -> built(version, PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE, false));
+        assertFalse(session.drain().state.bigOrderCpuAvailable);
+
+        session.setBigOrderCpu(true);
+        var available = session.drain();
+        assertNotNull(available);
+        assertTrue(available.state.bigOrderCpuAvailable);
+        assertNull(available.report, "A CPU change resends only the header");
+        assertNull(session.drain());
+
+        var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+        available.state.withError(ECOCraftConfirmError.BIG_ORDER_NO_CPU, "NO_ELIGIBLE_ECO_CPU")
+            .write(buffer);
+        var decoded = ECOCraftConfirmState.read(buffer);
+        assertTrue(decoded.bigOrderCpuAvailable);
+        assertEquals(ECOCraftConfirmError.BIG_ORDER_NO_CPU, decoded.error);
+        assertEquals("NO_ELIGIBLE_ECO_CPU", decoded.errorDetail);
+        assertFalse(buffer.isReadable());
+    }
+
+    @Test
+    void openPageAdoptsABetterPlanFromTheBackgroundSearch() {
+        var improvements = mock(ECOPlanningImprovements.class);
+        var displayed = mock(ECOPlanningResult.class);
+        var better = mock(ECOPlanningResult.class);
+        when(displayed.improvements()).thenReturn(improvements);
+        when(better.improvements()).thenReturn(improvements);
+        when(improvements.latest(displayed)).thenReturn(null);
+
+        var session = new ECOCraftConfirmSession();
+        assertNull(session.improvement(handle -> true), "A native confirmation never adopts anything");
+        session.begin(false);
+        session.observeResult(new Object(), version -> {
+            session.display(displayed);
+            return built(version, PlanningStatus.SUCCESS, false);
+        });
+        long first = session.drain().report.version;
+        assertNull(session.improvement(handle -> true), "Nothing better yet");
+
+        when(improvements.latest(displayed)).thenReturn(better);
+        assertSame(better, session.improvement(handle -> true));
+
+        // The tracker hands the better plan to AE2; its new result rebuilds the report under a new version.
+        session.observeResult(new Object(), version -> {
+            session.display(better);
+            return built(version, PlanningStatus.SUCCESS, false);
+        });
+        var replanned = session.drain();
+        assertNotNull(replanned.report);
+        assertNotEquals(first, replanned.report.version);
+        assertEquals(replanned.state.reportVersion, replanned.report.version);
+        assertSame(better, session.displayed());
+        verify(improvements, never()).close();
+    }
+
+    @Test
+    void searchesOfAnotherGridAreClosedInsteadOfAdopted() {
+        var improvements = mock(ECOPlanningImprovements.class);
+        var displayed = mock(ECOPlanningResult.class);
+        when(displayed.improvements()).thenReturn(improvements);
+        when(improvements.latest(displayed)).thenReturn(mock(ECOPlanningResult.class));
+
+        var session = new ECOCraftConfirmSession();
+        session.begin(false);
+        session.display(displayed);
+        assertNull(session.improvement(handle -> false));
+        verify(improvements).close();
+    }
+
+    @Test
+    void startOrCloseFreezesTheDisplayedPlanAndCancelsTheSearch() {
+        var improvements = mock(ECOPlanningImprovements.class);
+        var displayed = mock(ECOPlanningResult.class);
+        when(displayed.improvements()).thenReturn(improvements);
+        when(improvements.latest(displayed)).thenReturn(mock(ECOPlanningResult.class));
+
+        var session = new ECOCraftConfirmSession();
+        session.begin(false);
+        session.display(displayed);
+        session.closeImprovements();
+        verify(improvements).close();
+        assertNull(session.improvement(handle -> true), "A frozen page never swaps its plan");
+        session.closeImprovements();
+        verify(improvements, times(2)).close();
+
+        var empty = new ECOCraftConfirmSession();
+        empty.closeImprovements(); // No displayed plan: closing is a no-op.
+        assertNull(empty.improvement(handle -> true));
     }
 
     @Test
