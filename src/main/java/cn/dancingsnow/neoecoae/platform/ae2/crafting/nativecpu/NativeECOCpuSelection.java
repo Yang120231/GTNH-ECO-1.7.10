@@ -115,7 +115,8 @@ public final class NativeECOCpuSelection {
         return link;
     }
 
-    private static boolean allows(CraftingCPUCluster cpu, BaseActionSource source) {
+    /** The CPU's selection mode accepts a job requested by this source. */
+    public static boolean allows(CraftingCPUCluster cpu, BaseActionSource source) {
         return source.isPlayer() ? cpu.getCraftingAllowMode() != CraftingAllow.ONLY_NONPLAYER
             : cpu.getCraftingAllowMode() != CraftingAllow.ONLY_PLAYER;
     }

@@ -66,6 +66,18 @@ public final class NativeECOCraftingJob implements ICraftingJob {
             session);
     }
 
+    /**
+     * The same confirmation request answered by a better plan the background search found for it; the output,
+     * starting inventory and planning session stay those of this job.
+     */
+    public NativeECOCraftingJob improved(ICraftingPlan better) {
+        if (plan == null || better == null
+            || !better.finalOutput()
+                .equals(plan.finalOutput()))
+            throw new IllegalArgumentException("An improved plan must answer the same request");
+        return new NativeECOCraftingJob(better, output, snapshot, error, world, grid, session);
+    }
+
     @Override
     public boolean isSimulation() {
         return plan == null || plan.simulation();

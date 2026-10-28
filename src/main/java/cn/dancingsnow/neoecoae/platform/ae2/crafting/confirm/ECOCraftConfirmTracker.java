@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -25,8 +26,10 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.PlayerSource;
 import appeng.container.implementations.ContainerCraftConfirm;
 import appeng.container.implementations.CraftingCPUStatus;
+import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingNativeRuntime;
+import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
@@ -54,6 +57,9 @@ public final class ECOCraftConfirmTracker {
 
         final ContainerCraftConfirm container;
         final ECOCraftConfirmSession session = new ECOCraftConfirmSession();
+        /** Planner options of the ECO request, kept for a big order's later segment planning. */
+        @Nullable
+        ECOPlannerOptions options;
 
         Tracked(ContainerCraftConfirm container) {
             this.container = container;
@@ -63,12 +69,16 @@ public final class ECOCraftConfirmTracker {
     public static void tick() {
         MinecraftServer server = MinecraftServer.getServer();
         if (server == null || server.getConfigurationManager() == null) return;
+        List<?> players = server.getConfigurationManager().playerEntityList;
         for (Iterator<Map.Entry<EntityPlayerMP, Tracked>> it = TRACKED.entrySet()
             .iterator(); it.hasNext();) {
             var entry = it.next();
-            if (entry.getKey().openContainer != entry.getValue().container) it.remove();
+            if (entry.getKey().openContainer != entry.getValue().container || !players.contains(entry.getKey())) {
+                // A closed confirmation must not keep its background plan search alive.
+                entry.getValue().session.closeImprovements();
+                it.remove();
+            }
         }
-        List<?> players = server.getConfigurationManager().playerEntityList;
         for (Object value : players) {
             if (!(value instanceof EntityPlayerMP player)) continue;
             Container open = player.openContainer;
@@ -88,6 +98,7 @@ public final class ECOCraftConfirmTracker {
     }
 
     public static void clear() {
+        for (Tracked tracked : TRACKED.values()) tracked.session.closeImprovements();
         TRACKED.clear();
     }
 
@@ -99,17 +110,52 @@ public final class ECOCraftConfirmTracker {
         ICraftingJob result = access.neoecoae$getResult();
         if (!session.isEco()) {
             if (!NativeECOPlanning.isEcoPlanning(job) && !(result instanceof NativeECOCraftingJob)) return;
-            session.begin(cyclePlanningEnabled(container));
+            ECOComputationSystemBlockEntity host = planningHost(container);
+            tracked.options = host == null ? null : ECOPlannerOptions.from(host);
+            session.begin(host != null && host.isCyclePlanningEnabled());
         }
         if (result instanceof NativeECOCraftingJob ecoJob) {
-            session.observeResult(result, version -> build(container, ecoJob, session, version));
+            session.observeResult(result, version -> {
+                session.display(ECOCraftConfirmReports.resolve(ecoJob.sourcePlan()));
+                return build(container, ecoJob, session, version);
+            });
+            if (job == null) adoptImprovedPlan(container, ecoJob, session);
         } else {
             session.observeResult(result, null);
             if (result == null && job == null)
                 session.planningFailed(() -> "ECO planning ended without a plan; see the server log");
         }
         session.setCpuTier(selectedCpuTier(container));
+        session.setBigOrderCpu(
+            ECOBigOrderSubmission.resolveCpu(container.getGrid(), selectedCpu(container), actionSource(container))
+                != null);
         push(player, container, session);
+    }
+
+    /**
+     * While the page is open, a better complete plan from the background search replaces the displayed one
+     * (1.21's adoptImprovedPlan). It goes through AE2's own result path, so the container's bytes, CPU table and
+     * summary follow it and the next tick rebuilds the ECO report under a new version; a start keeps submitting
+     * the displayed result until then.
+     */
+    private static void adoptImprovedPlan(ContainerCraftConfirm container, NativeECOCraftingJob displayed,
+        ECOCraftConfirmSession session) {
+        IGrid grid = container.getGrid();
+        ECOPlanningResult better = session.improvement(
+            improvements -> grid != null && displayed.belongsToGrid(grid)
+                && improvements.belongsTo(
+                    GridView.of(grid)
+                        .getCraftingService()));
+        if (better == null || better.plan() == null) return;
+        LOGGER.info(
+            "[craft-confirm] Adopting an improved ECO plan: container={}, output={}, bytes={} -> {}",
+            container.windowId,
+            better.plan()
+                .finalOutput(),
+            displayed.getByteTotal(),
+            better.plan()
+                .bytes());
+        container.setJob(CompletableFuture.completedFuture(displayed.improved(better.plan())));
     }
 
     private static ECOCraftConfirmReports.Built build(ContainerCraftConfirm container, NativeECOCraftingJob job,
@@ -157,11 +203,12 @@ public final class ECOCraftConfirmTracker {
             return;
         }
         NativeECOCraftingJob submitted = forced ? job.forced() : job;
+        // 1.21 freezes the displayed plan on every start attempt.
+        session.closeImprovements();
         ICraftingLink link;
         try {
             ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
-            CraftingCPUStatus selected = container.cpuTable.getSelectedCPU();
-            ICraftingCPU target = selected == null ? null : selected.getServerCluster();
+            ICraftingCPU target = selectedCpu(container);
             link = crafting.submitJob(submitted, null, target, true, actionSource(container), false);
         } catch (RuntimeException failure) {
             LOGGER.warn("[craft-confirm] ECO start failed: container={}, forced={}", windowId, forced, failure);
@@ -182,6 +229,85 @@ public final class ECOCraftConfirmTracker {
         }
         pushCraftedItemToPins(container);
         container.switchToOriginalGUI();
+    }
+
+    /**
+     * Big-order request from the ECO report (1.21's ECOBigOrderStartC2SPacket): the server resolves the displayed
+     * result, the ECO CPU and the admission itself; the client only states its intent.
+     */
+    public static void startBigOrder(EntityPlayerMP player, int windowId, boolean forced) {
+        Tracked tracked = lookup(player, windowId);
+        if (tracked == null) {
+            LOGGER.warn(
+                "[big-order-submit] Rejected packet: reason=MENU_MISMATCH, player={}, container={}",
+                player.getCommandSenderName(),
+                windowId);
+            return;
+        }
+        ContainerCraftConfirm container = tracked.container;
+        ECOCraftConfirmSession session = tracked.session;
+        ICraftingJob result = ((ContainerCraftConfirmAccessor) container).neoecoae$getResult();
+        if (!(result instanceof NativeECOCraftingJob job) || job.sourcePlan() == null) {
+            rejectBigOrder(player, tracked, ECOCraftConfirmError.NO_PLAN, "NO_PLAN", "");
+            return;
+        }
+        ECOCraftConfirmError gate = ECOCraftConfirmRules.rejectBigOrderStart(session.state(), forced);
+        if (gate != null) {
+            rejectBigOrder(player, tracked, gate, "NOT_A_BIG_ORDER", "");
+            return;
+        }
+        ECOPlanningResult exact = ECOCraftConfirmReports.resolve(job.sourcePlan());
+        if (exact == null || exact != session.displayed()) {
+            rejectBigOrder(
+                player,
+                tracked,
+                ECOCraftConfirmError.INCOMPLETE_PLAN,
+                exact == null ? "NO_EXACT_RESULT" : "CONFIRMED_RESULT_CHANGED",
+                "");
+            return;
+        }
+        session.closeImprovements();
+        ECOBigOrderSubmission.Rejection rejection;
+        try {
+            rejection = ECOBigOrderSubmission.submit(
+                exact,
+                tracked.options,
+                forced,
+                container.getGrid(),
+                selectedCpu(container),
+                actionSource(container));
+        } catch (RuntimeException failure) {
+            LOGGER.warn("[big-order-submit] Submission failed: container={}, forced={}", windowId, forced, failure);
+            rejection = new ECOBigOrderSubmission.Rejection(
+                ECOCraftConfirmError.SUBMIT_FAILED,
+                "EXCEPTION",
+                String.valueOf(failure));
+        }
+        container.setAutoStart(false);
+        container.setAutoStartAndFollow(false);
+        if (rejection != null) {
+            rejectBigOrder(player, tracked, rejection.error, rejection.reason, rejection.detail);
+            return;
+        }
+        LOGGER.info(
+            "[big-order-submit] Accepted: container={}, output={}, forced={}",
+            windowId,
+            job.sourcePlan()
+                .finalOutput(),
+            forced);
+        container.switchToOriginalGUI();
+    }
+
+    private static void rejectBigOrder(EntityPlayerMP player, Tracked tracked, ECOCraftConfirmError error,
+        String reason, String detail) {
+        LOGGER.warn(
+            "[big-order-submit] Rejected: reason={}, container={}, status={}, error={}, detail={}",
+            reason,
+            tracked.container.windowId,
+            tracked.session.state().status,
+            error,
+            detail);
+        reject(player, tracked, error, detail);
     }
 
     public static void clearError(EntityPlayerMP player, int windowId) {
@@ -211,12 +337,17 @@ public final class ECOCraftConfirmTracker {
         return container.getActionSource();
     }
 
-    private static boolean cyclePlanningEnabled(ContainerCraftConfirm container) {
+    /** The computation host whose settings planned this request (the one NativeECOPlanning.begin chose). */
+    private static @Nullable ECOComputationSystemBlockEntity planningHost(ContainerCraftConfirm container) {
         IGrid grid = container.getGrid();
-        if (grid == null) return false;
-        ECOComputationSystemBlockEntity host = NativeECOPlanning
-            .settings(grid, IActionSource.of(actionSource(container)));
-        return host != null && host.isCyclePlanningEnabled();
+        if (grid == null) return null;
+        return NativeECOPlanning.settings(grid, IActionSource.of(actionSource(container)));
+    }
+
+    /** The CPU chosen in the confirmation's CPU list, or {@code null} for automatic selection. */
+    private static @Nullable ICraftingCPU selectedCpu(ContainerCraftConfirm container) {
+        CraftingCPUStatus selected = container.cpuTable.getSelectedCPU();
+        return selected == null ? null : selected.getServerCluster();
     }
 
     /** The selected CPU's tier, or with automatic selection the first idle ECO CPU (1.21's report header). */

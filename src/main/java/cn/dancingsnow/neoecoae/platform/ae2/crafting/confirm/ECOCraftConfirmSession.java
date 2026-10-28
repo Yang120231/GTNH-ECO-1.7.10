@@ -1,8 +1,12 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm;
 
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
+
+import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningImprovements;
+import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
 
 /**
  * Server-side ECO state of one open confirmation container, independent of AE2 and Minecraft classes. The tracker
@@ -31,6 +35,11 @@ public final class ECOCraftConfirmSession {
     private ECOCraftConfirmState base = ECOCraftConfirmState.NONE;
     private ECOCraftConfirmReport report = ECOCraftConfirmReport.EMPTY;
     private int cpuTier;
+    private boolean bigOrderCpu;
+    /** Planning result of the plan the report describes; its improvement search runs while the page is open. */
+    @Nullable
+    private ECOPlanningResult displayed;
+    private boolean improvementsClosed;
     @Nullable
     private ECOCraftConfirmError error;
     private String errorDetail = "";
@@ -85,6 +94,47 @@ public final class ECOCraftConfirmSession {
         cpuTier = tier;
     }
 
+    public void setBigOrderCpu(boolean available) {
+        bigOrderCpu = available;
+    }
+
+    /** Records the planning result behind the report, whose background improvements the page may adopt. */
+    public void display(@Nullable ECOPlanningResult result) {
+        displayed = result;
+    }
+
+    public @Nullable ECOPlanningResult displayed() {
+        return displayed;
+    }
+
+    /**
+     * A better complete plan the background search found for the displayed one (1.21's adoptImprovedPlan), or
+     * {@code null}. A search that no longer belongs to the confirmation's grid is closed instead.
+     *
+     * @param belongsToGrid whether the search was planned against the grid this confirmation submits to
+     */
+    public @Nullable ECOPlanningResult improvement(Predicate<ECOPlanningImprovements> belongsToGrid) {
+        if (!eco || improvementsClosed || displayed == null) return null;
+        ECOPlanningImprovements improvements = displayed.improvements();
+        if (improvements == null) return null;
+        if (!belongsToGrid.test(improvements)) {
+            improvements.close();
+            return null;
+        }
+        return improvements.latest(displayed);
+    }
+
+    /**
+     * Freezes the displayed plan: a start was requested or the confirmation closed. Cancels the background search
+     * so it cannot outlive the page; idempotent.
+     */
+    public void closeImprovements() {
+        improvementsClosed = true;
+        ECOPlanningResult current = displayed;
+        if (current != null && current.improvements() != null) current.improvements()
+            .close();
+    }
+
     public void fail(ECOCraftConfirmError error, @Nullable String detail) {
         this.error = error;
         this.errorDetail = detail == null ? "" : detail;
@@ -99,6 +149,7 @@ public final class ECOCraftConfirmSession {
     public ECOCraftConfirmState state() {
         if (!eco) return ECOCraftConfirmState.NONE;
         return base.withCpuTier(cpuTier)
+            .withBigOrderCpu(bigOrderCpu)
             .withError(error, errorDetail);
     }
 
