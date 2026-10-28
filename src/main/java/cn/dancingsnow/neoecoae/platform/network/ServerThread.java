@@ -7,11 +7,18 @@ package cn.dancingsnow.neoecoae.platform.network;
 public final class ServerThread {
 
     private static volatile Thread current;
+    private static long tick;
 
     private ServerThread() {}
 
     public static void capture() {
         current = Thread.currentThread();
+        tick++;
+    }
+
+    /** Server tick counter, advanced at each tick start; for once-per-tick caches on the server thread. */
+    public static long tick() {
+        return tick;
     }
 
     public static void clear() {

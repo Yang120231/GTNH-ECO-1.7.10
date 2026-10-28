@@ -19,6 +19,8 @@ public final class PlanningSettings {
     public static boolean postCraftingEvent;
     public static boolean largeWorkstationTemperatureEnabled = true;
     public static int patternUploadButtonOffsetX = 51, patternUploadButtonOffsetY = 9;
+    public static boolean incrementalNetworkStorageList = true;
+    public static int networkStorageListRepairTicks = 200;
 
     private PlanningSettings() {}
 
@@ -27,6 +29,20 @@ public final class PlanningSettings {
         config.load();
         storageSystemMaxLength = config
             .getInt("storageSystemMaxLength", "multiblock", 15, 4, Integer.MAX_VALUE, "Maximum storage-system length");
+        incrementalNetworkStorageList = config.getBoolean(
+            "incrementalNetworkStorageList",
+            "storage",
+            true,
+            "Apply AE2 network storage changes to the cached network list instead of re-listing every storage of the "
+                + "network after each change. Networks that read other networks through storage buses keep AE2's behaviour.");
+        networkStorageListRepairTicks = config.getInt(
+            "networkStorageListRepairTicks",
+            "storage",
+            200,
+            20,
+            72_000,
+            "After incremental updates, rebuild the cached network list at most this often to absorb inaccurate "
+                + "change reports from other mods");
         craftingSystemMaxLength = config.getInt(
             "craftingSystemMaxLength",
             "multiblock",

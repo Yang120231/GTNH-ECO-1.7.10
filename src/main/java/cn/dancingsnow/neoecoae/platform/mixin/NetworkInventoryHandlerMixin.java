@@ -11,7 +11,34 @@ import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeStackAmounts;
 
 /** Preserve the imported network listing semantics in GTNH's per-network accumulator. */
 @Mixin(value = NetworkInventoryHandler.class, remap = false)
-public abstract class NetworkInventoryHandlerMixin {
+public abstract class NetworkInventoryHandlerMixin
+    implements cn.dancingsnow.neoecoae.platform.ae2.storage.NativeNetworkReads {
+
+    @org.spongepowered.asm.mixin.Shadow
+    @org.spongepowered.asm.mixin.Final
+    private java.util.List<appeng.api.storage.IMEInventoryHandler<?>> priorityInventory;
+
+    @org.spongepowered.asm.mixin.Unique
+    private long neoecoae$readsCheckedTick = Long.MIN_VALUE;
+
+    @org.spongepowered.asm.mixin.Unique
+    private boolean neoecoae$readsOtherNetwork;
+
+    /** Re-evaluated at most once per server tick: a storage bus can retarget without rebuilding this handler. */
+    @Override
+    public boolean neoecoae$readsOtherNetwork() {
+        long tick = cn.dancingsnow.neoecoae.platform.network.ServerThread.tick();
+        if (tick != neoecoae$readsCheckedTick) {
+            neoecoae$readsCheckedTick = tick;
+            boolean reads = false;
+            for (var inventory : priorityInventory) if (inventory.getExternalNetworkInventory() != null) {
+                reads = true;
+                break;
+            }
+            neoecoae$readsOtherNetwork = reads;
+        }
+        return neoecoae$readsOtherNetwork;
+    }
 
     @Redirect(
         method = "extractItems",
