@@ -201,6 +201,16 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return networkCluster != null ? networkCluster : this;
     }
 
+    @Override
+    public boolean pruneSubmissionPool() {
+        if (networkCluster == null) return pruneInactiveCPUs();
+        boolean changed = false;
+        for (NEComputationCluster member : networkCluster.getMembers()) {
+            if (member.pruneInactiveCPUs()) changed = true;
+        }
+        return changed;
+    }
+
     /**
      * Whether AE2 should list this host's placeholder CPU: the group representative while a thread is free,
      * exactly as the 1.21 baseline publishes it. Free bytes are not required; a too-small CPU is still listed.

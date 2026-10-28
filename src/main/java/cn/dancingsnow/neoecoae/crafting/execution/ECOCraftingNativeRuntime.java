@@ -264,13 +264,15 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
 
     @Override
     public Object lifecycleOwner() {
-        return cpu.getCluster();
+        // One release per switch group: every member shares the group's published placeholder.
+        return cpu.getCluster()
+            .submissionPool();
     }
 
     @Override
     public boolean releaseFinishedCpus() {
         return cpu.getCluster()
-            .pruneInactiveCPUs();
+            .pruneSubmissionPool();
     }
 
     @Override

@@ -116,6 +116,26 @@ class NEComputationCpuLifecycleTest {
     }
 
     @Test
+    void groupMemberWhoseFinishedCpuWasNeverListedIsReleasedWithItsGroup() {
+        // Member B finished a job before AE2 rebuilt its CPU list, so only the representative's placeholder
+        // is published. Releasing per group still reaches B; otherwise its stale thread hides the placeholder.
+        NEComputationCluster member = mock(NEComputationCluster.class);
+        when(member.pruneInactiveCPUs()).thenReturn(true);
+        NEComputationNetworkCluster network = mock(NEComputationNetworkCluster.class);
+        when(network.getMembers()).thenReturn(Arrays.asList(cluster, member));
+        cluster.setNetworkCluster(network);
+        try {
+            NativeECOCpu placeholder = (NativeECOCpu) cluster.nativeCPU(cluster.getFakeCPU());
+            Set<Object> scratch = Collections.newSetFromMap(new IdentityHashMap<>());
+            assertTrue(NativeECOCpuSelection.releaseFinished(Collections.singletonList(placeholder), scratch));
+            verify(member).pruneInactiveCPUs();
+            verify(cluster).pruneInactiveCPUs();
+        } finally {
+            cluster.setNetworkCluster(null);
+        }
+    }
+
+    @Test
     void placeholderIsPublishedWithoutFreeBytesWhileAThreadIsFree() {
         doReturn(0L).when(cluster)
             .getTotalStorage();

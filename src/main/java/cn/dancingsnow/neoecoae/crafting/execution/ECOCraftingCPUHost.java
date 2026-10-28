@@ -46,6 +46,14 @@ public interface ECOCraftingCPUHost {
     /** Releases CPUs whose job finished; true when the published CPU set changed. Idempotent. */
     boolean pruneInactiveCPUs();
 
+    /**
+     * Releases finished CPUs in the whole {@link #submissionPool()}. A network member whose CPU finished before
+     * AE2 ever listed it is otherwise never visited, and its stale thread would hide the group's placeholder.
+     */
+    default boolean pruneSubmissionPool() {
+        return pruneInactiveCPUs();
+    }
+
     /** Admission pool that {@link #submitJob} really submits into (a computation network or this host). */
     default Object submissionPool() {
         return this;
