@@ -191,19 +191,33 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
         // Repathing can leave channel counts unchanged. In that case AE2 sends no channel
         // event, but isActive() still changes and logical exchange groups must be rebuilt.
         getMainNode().stateChanged(NodeListener.State.GRID_BOOT);
-        refreshNativeStorage();
+        refreshStorageAfterNodeStateChange();
     }
 
     @MENetworkEventSubscribe
     public void nativePowerChanged(MENetworkPowerStatusChange event) {
         mainNode.stateChanged(NodeListener.State.POWER);
-        refreshNativeStorage();
+        refreshStorageAfterNodeStateChange();
     }
 
     @MENetworkEventSubscribe
     public void nativeChannelsChanged(MENetworkChannelsChanged event) {
         mainNode.stateChanged(NodeListener.State.CHANNEL);
-        refreshNativeStorage();
+        refreshStorageAfterNodeStateChange();
+    }
+
+    /**
+     * Every ECO part receives these grid-wide events, but only storage providers mount inventories. rv3 rescans
+     * all cell providers and force-updates every open terminal per cell-array event, so casings, cores and
+     * switches must not post one.
+     */
+    protected void refreshStorageAfterNodeStateChange() {
+        if (hasStorageProvider()) refreshNativeStorage();
+        else storageMounts.clear();
+    }
+
+    private boolean hasStorageProvider() {
+        return getMainNode().service(cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider.class) != null;
     }
 
     public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
@@ -277,7 +291,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
     @Override
     public java.util.List<appeng.api.storage.IMEInventoryHandler> getCellArray(
         appeng.api.storage.StorageChannel channel) {
-        if (!mainNode.isOnline()) return java.util.Collections.emptyList();
+        if (!mainNode.isOnline() || !hasStorageProvider()) return java.util.Collections.emptyList();
         return storageMounts.computeIfAbsent(channel, key -> {
             var provider = mainNode.service(cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider.class);
             java.util.List<appeng.api.storage.IMEInventoryHandler> views = new java.util.ArrayList<>();

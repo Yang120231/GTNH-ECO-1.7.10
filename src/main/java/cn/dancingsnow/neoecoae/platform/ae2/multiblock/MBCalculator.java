@@ -32,6 +32,9 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
 
     public void calculateMultiblock(ServerWorldView level, BlockPos location) {
         if (isModificationInProgress() || !target.isValid() || !level.hasChunkAt(location)) return;
+        // A cluster that is still tearing down must not be rebuilt from inside its own destruction.
+        C current = target.getCluster();
+        if (current != null && current.isDestroyed()) return;
         try {
             BlockPos min = location, max = location;
             for (Direction side : new Direction[] { Direction.WEST, Direction.DOWN, Direction.NORTH })
@@ -48,23 +51,33 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
                 .equals(min)
                 || !cluster.getBoundsMax()
                     .equals(max))) {
+                // Unlike AE2, release the old cluster first: members park running CPUs only when their
+                // cluster becomes null, and restore them once the replacement cluster is attached.
                 disconnect();
                 cluster = null;
             }
             boolean created = cluster == null;
             if (created) {
                 cluster = createCluster(level, min, max);
+                // Same guard as AE2: member updates must not recursively recalculate this or other structures.
+                setModificationInProgress(cluster);
                 updateBlockEntities(cluster, level, min, max);
                 if (target.getCluster() != cluster) {
+                    setModificationInProgress(null);
                     cluster.destroy();
                     return;
                 }
+            } else {
+                setModificationInProgress(cluster);
             }
             cluster.updateStatus(created);
             faults.recovered("discovery");
         } catch (RuntimeException failure) {
+            setModificationInProgress(null);
             disconnect();
             faults.report("discovery", location + ": " + failure, level.getGameTime(), failure);
+        } finally {
+            setModificationInProgress(null);
         }
     }
 
@@ -108,8 +121,49 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
         return true;
     }
 
+    /**
+     * AE2's neighbor filter. Forge 1.7.10 does not report which neighbor changed, so callers that only know
+     * their own position pass {@code changed == owner} and the six adjacent positions are inspected instead.
+     */
     public void updateMultiblockAfterNeighborUpdate(ServerWorldView level, BlockPos owner, BlockPos changed) {
-        calculateMultiblock(level, owner);
+        C cluster = target.getCluster();
+        boolean recheck;
+        if (cluster == null) {
+            // The neighbor may have been a valid part in a wrong placement, or the other way around.
+            recheck = true;
+        } else if (!changed.equals(owner)) {
+            recheck = affectsCluster(level, cluster, changed);
+        } else {
+            recheck = false;
+            for (Direction side : Direction.values()) {
+                if (affectsCluster(level, cluster, owner.relative(side))) {
+                    recheck = true;
+                    break;
+                }
+            }
+        }
+        if (recheck) calculateMultiblock(level, owner);
+    }
+
+    /**
+     * Inside the bounds every position must still hold a member of this cluster; outside them only a newly
+     * valid part can extend the structure.
+     */
+    private boolean affectsCluster(ServerWorldView level, C cluster, BlockPos pos) {
+        if (!level.hasChunkAt(pos)) return false;
+        TileEntity tile = level.getBlockEntity(pos);
+        if (isWithinBounds(pos, cluster.getBoundsMin(), cluster.getBoundsMax()))
+            return !(tile instanceof appeng.me.cluster.IAEMultiBlock)
+                || ((appeng.me.cluster.IAEMultiBlock) tile).getCluster() != cluster;
+        return isValidBlockEntity(tile);
+    }
+
+    private static boolean isWithinBounds(BlockPos pos, BlockPos min, BlockPos max) {
+        return pos.getX() >= min.getX() && pos.getY() >= min.getY()
+            && pos.getZ() >= min.getZ()
+            && pos.getX() <= max.getX()
+            && pos.getY() <= max.getY()
+            && pos.getZ() <= max.getZ();
     }
 
     public void disconnect() {

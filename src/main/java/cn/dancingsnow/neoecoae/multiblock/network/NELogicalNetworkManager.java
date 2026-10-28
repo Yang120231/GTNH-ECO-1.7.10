@@ -16,6 +16,7 @@ import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationNetworkCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingNetworkCluster;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -32,6 +33,11 @@ import it.unimi.dsi.fastutil.objects.ReferenceSet;
 public final class NELogicalNetworkManager {
 
     private static final Map<ServerWorldView, LevelState> LEVELS = new IdentityHashMap<>();
+    /** Same order the network clusters use to pick their leader. */
+    private static final java.util.Comparator<BlockPos> HOST_POSITION_ORDER = java.util.Comparator
+        .comparingInt(BlockPos::getX)
+        .thenComparingInt(BlockPos::getY)
+        .thenComparingInt(BlockPos::getZ);
     private static final int NETWORK_HOST_LIMIT = NEFrequencyAllocator.HOST_LIMIT;
 
     private NELogicalNetworkManager() {}
@@ -196,6 +202,12 @@ public final class NELogicalNetworkManager {
         Set<NetworkPartitionKey> activeKeys = new HashSet<>();
         for (Map.Entry<NetworkGroupKey, List<NECraftingCluster>> entry : groups.entrySet()) {
             List<NECraftingCluster> clusters = entry.getValue();
+            // Hash-set order changes between rebuilds; sorting keeps partitions (and their leaders) stable.
+            clusters.sort(
+                java.util.Comparator.comparing(
+                    cluster -> cluster.getController()
+                        .getBlockPos(),
+                    HOST_POSITION_ORDER));
             for (int start = 0; start < clusters.size(); start += NETWORK_HOST_LIMIT) {
                 int partition = start / NETWORK_HOST_LIMIT;
                 NetworkPartitionKey key = new NetworkPartitionKey(entry.getKey(), partition);
@@ -242,6 +254,11 @@ public final class NELogicalNetworkManager {
         Set<NetworkPartitionKey> activeKeys = new HashSet<>();
         for (Map.Entry<NetworkGroupKey, List<NEComputationCluster>> entry : groups.entrySet()) {
             List<NEComputationCluster> clusters = entry.getValue();
+            clusters.sort(
+                java.util.Comparator.comparing(
+                    cluster -> cluster.getController()
+                        .getBlockPos(),
+                    HOST_POSITION_ORDER));
             for (int start = 0; start < clusters.size(); start += NETWORK_HOST_LIMIT) {
                 int partition = start / NETWORK_HOST_LIMIT;
                 NetworkPartitionKey key = new NetworkPartitionKey(entry.getKey(), partition);
