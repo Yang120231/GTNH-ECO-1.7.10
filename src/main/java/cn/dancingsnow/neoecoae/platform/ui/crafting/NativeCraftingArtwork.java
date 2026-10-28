@@ -26,6 +26,8 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
     private final NativeCraftingSession session;
     private final ItemStack hostItem;
     private long opened;
+    private CompoundTag parsedFrom;
+    private CraftingControllerPanelState parsed = CraftingControllerPanelState.UNFORMED;
 
     public NativeCraftingArtwork(NativeCraftingSession session, ItemStack hostItem) {
         this.session = session;
@@ -37,9 +39,7 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
             child(
                 new cn.dancingsnow.neoecoae.platform.ui.NativeSlotButton<>().slotInset(0)
                     .setEnabledIf(widget -> {
-                        var state = CraftingControllerPanelState.fromTag(
-                            session.state()
-                                .getCompound("artwork"));
+                        var state = panelState();
                         return state.formed() && state.hasFx(cell);
                     })
                     .playClickSound(false)
@@ -69,8 +69,17 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
     @SideOnly(Side.CLIENT)
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
         CompoundTag values = session.state();
-        CraftingControllerPanelState state = CraftingControllerPanelState.fromTag(values.getCompound("artwork"));
-        label("title", 44, 10, 105, 1, false);
+        CraftingControllerPanelState state = panelState();
+        if (values.getBoolean("modeBlocked")) NativeUiDraw.text(
+            Component.translatable("gui.neoecoae.crafting.mode_switch_blocked"),
+            44,
+            10,
+            160,
+            1,
+            0xff5555,
+            false,
+            true);
+        else label("title", 44, 10, 105, 1, false);
         NativeUiDraw
             .text(Component.literal(performance(values.getLong("averageNanos"))), 210, 10, 39, 1, PRIMARY, true, true);
         heading("control_heading", 9, 68, 43);
@@ -185,6 +194,16 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
             text("switch_normal", values.getInt("normalSwitches")),
             text("switch_high_energy", values.getInt("highSwitches")),
             180);
+    }
+
+    /** The artwork tag only changes with a new snapshot; parse it once per snapshot instead of once per query. */
+    CraftingControllerPanelState panelState() {
+        CompoundTag values = session.state();
+        if (values != parsedFrom) {
+            parsed = CraftingControllerPanelState.fromTag(values.getCompound("artwork"));
+            parsedFrom = values;
+        }
+        return parsed;
     }
 
     @SideOnly(Side.CLIENT)

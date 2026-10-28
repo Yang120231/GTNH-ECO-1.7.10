@@ -253,6 +253,7 @@ gui.neoecoae.computation.ui.switch.cycle_planning=循环
 gui.neoecoae.computation.ui.switch.cycle_planning.desc=允许规划含有循环的配方路线。
 gui.neoecoae.computation.ui.switch.fast_planner=快速
 gui.neoecoae.computation.ui.switch.fast_planner.desc=使用 ECO 快速规划器处理合成请求。
+gui.neoecoae.computation.ui.switch.smart_doubling.desc=关闭时，每次提交量受实际并行数限制，最高 16,384 份。
 gui.neoecoae.computation.ui.switch.off=已禁用
 gui.neoecoae.computation.ui.switch.on=已启用
 gui.neoecoae.computation.ui.switch.substitutions=替换

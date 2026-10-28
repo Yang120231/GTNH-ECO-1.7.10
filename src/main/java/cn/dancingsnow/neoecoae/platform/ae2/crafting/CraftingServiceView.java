@@ -140,7 +140,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     @Override
     public void neoecoae$setIgnoringPatternSubstitutions(boolean value) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.allHosts(nativeGrid))
             host.setIgnoringPatternSubstitutions(value);
     }
 
@@ -161,7 +161,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     @Override
     public void neoecoae$setFastPlannerEnabled(boolean value) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.allHosts(nativeGrid))
             host.setFastPlannerEnabled(value);
     }
 
@@ -174,8 +174,21 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     @Override
     public void neoecoae$setCyclePlanningEnabled(boolean value) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.hosts(nativeGrid))
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.allHosts(nativeGrid))
             host.setCyclePlanningEnabled(value);
+    }
+
+    @Override
+    public boolean neoecoae$isSmartDoublingEnabled() {
+        var host = settings();
+        return host == null || host.isSmartDoublingEnabled();
+    }
+
+    @Override
+    public void neoecoae$setSmartDoublingEnabled(boolean value) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        for (var host : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.allHosts(nativeGrid))
+            host.setSmartDoublingEnabled(value);
     }
 
     @Override

@@ -61,6 +61,20 @@ public final class NativeECOPlanning {
         return hosts;
     }
 
+    /**
+     * Every computation host attached to the grid, including unformed or unpowered ones. Grid-wide planner settings
+     * are written to all of them so a host that comes back online cannot reintroduce a stale value.
+     */
+    public static List<ECOComputationSystemBlockEntity> allHosts(IGrid grid) {
+        List<ECOComputationSystemBlockEntity> hosts = new ArrayList<>();
+        if (grid == null) return hosts;
+        for (Class<? extends IGridHost> type : grid.getMachinesClasses())
+            if (ECOComputationSystemBlockEntity.class.isAssignableFrom(type))
+                for (IGridNode node : grid.getMachines(type))
+                    hosts.add((ECOComputationSystemBlockEntity) node.getMachine());
+        return hosts;
+    }
+
     public static ECOComputationSystemBlockEntity settings(IGrid grid, IActionSource source) {
         List<ECOComputationSystemBlockEntity> hosts = hosts(grid);
         hosts.removeIf(

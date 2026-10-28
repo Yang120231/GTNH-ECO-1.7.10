@@ -815,15 +815,139 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         markForUpdate();
     }
 
+    /** Mode changes affect every running batch in the switch group, so they wait until it is idle. */
+    private boolean rejectModeSwitchWhileRunning() {
+        if (getRunningThreadCount() <= 0) return false;
+        modeSwitchBlockedNoticeUntilMs = System.currentTimeMillis() + MODE_SWITCH_NOTICE_DURATION_MS;
+        return true;
+    }
+
+    /** Whether a recently rejected overclock/cooling switch should still be explained in the controller UI. */
+    public boolean isModeSwitchBlockedNoticeActive() {
+        return modeSwitchBlockedNoticeUntilMs != 0L && System.currentTimeMillis() < modeSwitchBlockedNoticeUntilMs;
+    }
+
+    /** The source's virtual-crafting maintenance tooltip: why Infinite Mode is inactive, or why it is blocked. */
+    public java.util.List<Component> getMaintenanceStatusLines() {
+        java.util.List<Component> result = new java.util.ArrayList<>();
+        CraftingCapabilitySnapshot snapshot = getCapabilitySnapshot();
+        if (formed && snapshot.virtualMode()) {
+            Component blocked = getVirtualCraftingBlockedNotice();
+            if (blocked == null) {
+                result.add(
+                    Component.translatable("gui.neoecoae.crafting.virtual_status.infinite")
+                        .withColor(0x55FF8A));
+                return result;
+            }
+            result.add(
+                Component.translatable("gui.neoecoae.crafting.virtual_blocked.title")
+                    .withColor(0xFF5555));
+            result.add(blocked);
+            result.add(
+                Component.translatable(
+                    "gui.neoecoae.crafting.virtual_blocked.coolant_required",
+                    getVirtualCraftingCoolantNames(),
+                    MAX_OVERCLOCK_TIMES,
+                    VIRTUAL_COOLANT_PER_LANE_TICK));
+            result.add(
+                Component.translatable(
+                    "gui.neoecoae.crafting.virtual_blocked.energy_required",
+                    NECraftingNetworkCluster.VIRTUAL_CRAFTING_POWER_PER_TICK));
+            int coolantTier = getDisplayedCoolingMaxOverclock();
+            // Lower-tier or unsupported buffers must be emptied outside virtual execution.
+            if ((coolantTier >= 0 && coolantTier < MAX_OVERCLOCK_TIMES) || !hasVirtualCraftingCoolant()) {
+                result.add(Component.translatable("gui.neoecoae.crafting.virtual_blocked.coolant_hint"));
+                result.add(Component.translatable("gui.neoecoae.crafting.virtual_blocked.coolant_recovery"));
+            }
+            return result;
+        }
+        result.add(
+            Component.translatable("gui.neoecoae.crafting.virtual_status.title")
+                .withColor(0xD8B4FE));
+        java.util.List<Component> lines = new java.util.ArrayList<>();
+        if (!isOverclocked()) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.overclock"));
+        if (!isActiveCooling()) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.cooling"));
+        if (!hasVirtualCraftingCoolant()) lines.add(
+            Component.translatable(
+                "gui.neoecoae.crafting.virtual_reason.coolant_type",
+                getVirtualCraftingCoolantNames()));
+        NECraftingNetworkCluster network = cluster == null ? null : cluster.getNetworkCluster();
+        int hostCount = getCraftingNetworkMemberCount();
+        if (hostCount != NEFrequencyAllocator.HOST_LIMIT) lines.add(
+            Component.translatable(
+                "gui.neoecoae.crafting.virtual_reason.host_count",
+                hostCount,
+                NEFrequencyAllocator.HOST_LIMIT));
+        boolean highEnergy = false, wrongTier = false, shortHost = false;
+        if (network != null) {
+            for (NECraftingCluster member : network.getMembers()) {
+                ECOCraftingSystemBlockEntity controller = member.getController();
+                if (controller == null) continue;
+                highEnergy |= !controller.hasHighEnergyNetworkSwitch();
+                wrongTier |= !controller.getTier()
+                    .supportsFeature(cn.dancingsnow.neoecoae.api.capability.ECOFeature.VIRTUAL_CRAFTING);
+                shortHost |= member.getWorkers()
+                    .size() != controller.getMaxBuildLength();
+            }
+        } else {
+            highEnergy = !hasHighEnergyNetworkSwitch();
+            wrongTier = !getTier().supportsFeature(cn.dancingsnow.neoecoae.api.capability.ECOFeature.VIRTUAL_CRAFTING);
+            shortHost = cluster == null || cluster.getWorkers()
+                .size() != getMaxBuildLength();
+        }
+        if (wrongTier) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.f9"));
+        if (highEnergy) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.high_energy_switch"));
+        if (shortHost) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.max_length"));
+        if (lines.isEmpty()) lines.add(Component.translatable("gui.neoecoae.crafting.virtual_reason.topology"));
+        for (Component line : lines) result.add(line.withColor(0xFF5555));
+        return result;
+    }
+
+    /** Why a virtual network cannot run right now, or {@code null} when nothing blocks it. */
+    @Nullable
+    private Component getVirtualCraftingBlockedNotice() {
+        if (!isFullVirtualCraftingMode()) return null;
+        int coolantTier = getDisplayedCoolingMaxOverclock();
+        if (isActiveCooling() && coolantTier >= 0 && coolantTier < MAX_OVERCLOCK_TIMES) return Component
+            .translatable("gui.neoecoae.crafting.virtual_blocked.coolant_tier", coolantTier, MAX_OVERCLOCK_TIMES);
+        if (!hasVirtualCraftingCoolant()) return Component
+            .translatable("gui.neoecoae.crafting.virtual_blocked.coolant_type", getVirtualCraftingCoolantNames());
+        switch (getVirtualCraftingBlockedResult()) {
+            case COOLANT_UNAVAILABLE:
+                return Component.translatable("gui.neoecoae.crafting.virtual_blocked.coolant");
+            case ENERGY_UNAVAILABLE:
+                return Component.translatable("gui.neoecoae.crafting.virtual_blocked.energy");
+            default:
+                return null;
+        }
+    }
+
+    private VirtualLaneStartResult getVirtualCraftingBlockedResult() {
+        if (!isFullVirtualCraftingMode() || getRunningThreadCount() <= 0) return VirtualLaneStartResult.STARTED;
+        // Same network-wide worker population as the task list; diagnostics never probe or charge resources.
+        long tick = TickClock.currentTick();
+        java.util.List<ECOCraftingWorkerBlockEntity> workers = cluster == null ? java.util.Collections.emptyList()
+            : cluster.getNetworkCluster() != null ? cluster.getNetworkCluster()
+                .collectCandidateWorkers() : cluster.getWorkers();
+        VirtualLaneStartResult result = VirtualLaneStartResult.STARTED;
+        for (ECOCraftingWorkerBlockEntity worker : workers) {
+            if (worker.isInvalid()) continue;
+            VirtualLaneStartResult blocked = worker.getVirtualCraftingBlockedResult(tick);
+            if (blocked == VirtualLaneStartResult.COOLANT_UNAVAILABLE) return blocked;
+            if (blocked == VirtualLaneStartResult.ENERGY_UNAVAILABLE) result = blocked;
+        }
+        return result;
+    }
+
     public void setOverclocked(boolean value) {
-        if (getRunningThreadCount() > 0) return;
+        if (rejectModeSwitchWhileRunning()) return;
         if (cluster != null && cluster.getNetworkCluster() != null) cluster.getNetworkCluster()
             .setOverclocked(value);
         else applyNetworkOverclocked(value);
     }
 
     public void setActiveCooling(boolean value) {
-        if (getRunningThreadCount() > 0) return;
+        if (rejectModeSwitchWhileRunning()) return;
         if (cluster != null && cluster.getNetworkCluster() != null) cluster.getNetworkCluster()
             .setActiveCooling(value);
         else applyNetworkActiveCooling(value);
