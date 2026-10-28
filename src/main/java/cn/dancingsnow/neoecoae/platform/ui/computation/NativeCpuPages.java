@@ -23,6 +23,7 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeAe2Button;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
+import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -81,6 +82,7 @@ public final class NativeCpuPages {
         page.child(
             new ButtonWidget<>()
                 .background(NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 160, 192, 20, 20))
+                .disableHoverBackground()
                 .overlay(NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 96, 16, 16, 16))
                 .onMousePressed(button -> {
                     if (button != 0) return false;
@@ -121,7 +123,7 @@ public final class NativeCpuPages {
             this.session = session;
             this.items = items;
             this.status = status;
-            background(IDrawable.EMPTY);
+            NativeUiStyle.plainHover(this);
             onMouseScrolled((direction, amount) -> {
                 change(value() + (direction.modifier > 0 ? -1 : 1) * (items ? 3 : 2));
                 return true;
@@ -200,7 +202,7 @@ public final class NativeCpuPages {
             this.session = session;
             this.index = index;
             this.status = status;
-            background(IDrawable.EMPTY);
+            NativeUiStyle.plainHover(this);
             onMousePressed(button -> {
                 int token = row().getInt("token");
                 if (Boolean.getBoolean("neoecoae.uiParityAcceptance")) cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
