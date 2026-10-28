@@ -11,6 +11,9 @@ public final class ECOCellMutationBatch implements AutoCloseable {
     private static final ThreadLocal<ECOCellMutationBatch> ACTIVE = new ThreadLocal<>();
     // Persistence obligations must retain their owner until they succeed or the server-stop drain reports failure.
     private static final Set<ECOStorageCell> RETRY = new LinkedHashSet<>();
+    // Cells whose host flushes them before the stack is read, moved, dropped, unloaded or saved; AE2 network
+    // traffic outside a controller scope then costs one component write per cell per server tick, not per operation.
+    private static final Set<ECOStorageCell> TICK_DEFERRED = new LinkedHashSet<>();
     private final ECOCellMutationBatch parent;
     private final Set<ECOStorageCell> changed = new LinkedHashSet<>();
     private boolean closed;
@@ -29,6 +32,26 @@ public final class ECOCellMutationBatch implements AutoCloseable {
         if (batch == null) return false;
         batch.changed.add(cell);
         return true;
+    }
+
+    /** Server-thread only: worker threads keep immediate persistence instead of touching the shared set. */
+    static boolean deferToTickEnd(ECOStorageCell cell) {
+        if (!cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) return false;
+        TICK_DEFERRED.add(cell);
+        return true;
+    }
+
+    /** Writes one host's pending cell before its stack leaves the host or is serialized. */
+    public static void flushDeferred(Object cell) {
+        if (cell instanceof ECOStorageCell && TICK_DEFERRED.remove(cell)) flush((ECOStorageCell) cell);
+    }
+
+    /** Server tick end, world save and shutdown. */
+    public static void flushTickDeferred() {
+        if (TICK_DEFERRED.isEmpty()) return;
+        ECOStorageCell[] pending = TICK_DEFERRED.toArray(new ECOStorageCell[0]);
+        TICK_DEFERRED.clear();
+        for (ECOStorageCell cell : pending) flush(cell);
     }
 
     @Override

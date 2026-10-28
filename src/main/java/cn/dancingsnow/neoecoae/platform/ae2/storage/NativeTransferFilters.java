@@ -26,11 +26,17 @@ public final class NativeTransferFilters {
     }
 
     public static boolean excluded(IMEInventory inventory) {
-        return BUSES.contains(inventory) && StorageBusTransferFilter.excludes(new BusStorage(inventory));
+        return StorageBusTransferFilter.isActive() && BUSES.contains(inventory)
+            && StorageBusTransferFilter.excludes(new BusStorage(inventory));
     }
 
     public static IAEStack extract(IMEInventory inventory, IAEStack request, Actionable mode, BaseActionSource source) {
         if (excluded(inventory)) return null;
+        // Runs for every handler of every network extraction: outside a filtered ECO transfer, call AE2 directly.
+        if (!ECOCreativeExtractionFilter.isActive(mode)) {
+            IAEStack actual = (IAEStack) inventory.extractItems(request, mode, source);
+            return actual == null || actual.getStackSize() <= 0 ? null : actual;
+        }
         AEKey key = AEKey.fromNative(request);
         if (key == null) return (IAEStack) inventory.extractItems(request, mode, source);
         MEStorage view = inventory instanceof DelegatingStorage ? ((DelegatingStorage) inventory).neoecoae$getDelegate()

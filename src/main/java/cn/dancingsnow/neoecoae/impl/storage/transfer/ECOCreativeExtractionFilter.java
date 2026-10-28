@@ -33,6 +33,11 @@ public final class ECOCreativeExtractionFilter {
         }
     }
 
+    /** True only while a filtered interface input is extracting; every other network extraction skips the filter. */
+    public static boolean isActive(Actionable mode) {
+        return mode == Actionable.MODULATE && ACTIVE.get() != null;
+    }
+
     /** Called at each NetworkStorage mount, only while a filtered interface input is active. */
     public static long extractSource(MEStorage storage, AEKey key, Actionable mode, LongSupplier extraction) {
         State state = ACTIVE.get();

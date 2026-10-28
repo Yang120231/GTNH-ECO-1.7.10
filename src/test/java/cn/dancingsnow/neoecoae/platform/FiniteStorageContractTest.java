@@ -161,6 +161,80 @@ class FiniteStorageContractTest {
     }
 
     @Test
+    void deferringHostsWriteTheCellOncePerTickAndOnDemand() {
+        AtomicInteger saved = new AtomicInteger();
+        ItemStack stack = item(AEKeyType.items());
+        cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider host = new cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider() {
+
+            @Override
+            public void saveChanges() {
+                saved.incrementAndGet();
+            }
+
+            @Override
+            public boolean defersCellPersistence() {
+                return true;
+            }
+        };
+        ECOStorageCell cell = new ECOStorageCell(stack, host);
+        cn.dancingsnow.neoecoae.platform.network.ServerThread.capture();
+        try {
+            cell.insert(new TestResourceKey("iron", false), 32, Actionable.MODULATE, IActionSource.empty());
+            cell.insert(new TestResourceKey("copper", false), 64, Actionable.MODULATE, IActionSource.empty());
+            assertEquals(0, saved.get());
+            assertEquals(0, new ECOStorageCell(stack, null).getStoredItemCount());
+            // A host reading or moving its stack flushes just that cell.
+            ECOCellMutationBatch.flushDeferred(cell);
+            assertEquals(1, saved.get());
+            assertEquals(96, new ECOStorageCell(stack, null).getStoredItemCount());
+            cell.extract(new TestResourceKey("iron", false), 2, Actionable.MODULATE, IActionSource.empty());
+            ECOCellMutationBatch.flushTickDeferred();
+            ECOCellMutationBatch.flushTickDeferred();
+            assertEquals(2, saved.get());
+            assertEquals(94, new ECOStorageCell(stack, null).getStoredItemCount());
+        } finally {
+            cn.dancingsnow.neoecoae.platform.network.ServerThread.clear();
+        }
+    }
+
+    @Test
+    void deferringHostsPersistImmediatelyOffTheServerThread() {
+        AtomicInteger saved = new AtomicInteger();
+        ItemStack stack = item(AEKeyType.items());
+        ECOStorageCell cell = new ECOStorageCell(stack, new cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider() {
+
+            @Override
+            public void saveChanges() {
+                saved.incrementAndGet();
+            }
+
+            @Override
+            public boolean defersCellPersistence() {
+                return true;
+            }
+        });
+        cell.insert(new TestResourceKey("iron", false), 32, Actionable.MODULATE, IActionSource.empty());
+        assertEquals(1, saved.get());
+        assertEquals(32, new ECOStorageCell(stack, null).getStoredItemCount());
+    }
+
+    @Test
+    void contentsRewriteKeepsOtherComponentsAndDropsTheOldList() {
+        ItemStack stack = item(AEKeyType.items());
+        NBTTagCompound root = stack.hasTagCompound() ? stack.getTagCompound() : new NBTTagCompound();
+        root.setString("neoecoae_marker", "kept");
+        stack.setTagCompound(root);
+        ECOStorageCell cell = new ECOStorageCell(stack, null);
+        cell.insert(new TestResourceKey("iron", false), 5, Actionable.MODULATE, IActionSource.empty());
+        cell.extract(new TestResourceKey("iron", false), 5, Actionable.MODULATE, IActionSource.empty());
+        assertEquals("kept", stack.getTagCompound().getString("neoecoae_marker"));
+        assertFalse(stack.getTagCompound().hasKey("neoecoae_inventory"));
+        cell.insert(new TestResourceKey("gold", false), 7, Actionable.MODULATE, IActionSource.empty());
+        assertEquals("kept", stack.getTagCompound().getString("neoecoae_marker"));
+        assertEquals(7, new ECOStorageCell(stack, null).getStoredItemCount());
+    }
+
+    @Test
     void invalidInventoryNbtFailsWithoutReplacingTheOriginalTag() {
         ItemStack stack = item(AEKeyType.items());
         NBTTagCompound tag = new NBTTagCompound();

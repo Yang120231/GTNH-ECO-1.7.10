@@ -14,10 +14,13 @@ public final class NativeStackAmounts {
         IAEStack existing = out.findPrecise(incoming);
         long previous = existing == null ? 0 : Math.max(0L, existing.getStackSize());
         if (existing != null && existing.getStackSize() < 0) existing.setStackSize(0);
-        long amount = Math.min(Math.max(0L, incoming.getStackSize()), Long.MAX_VALUE - previous);
+        long offered = incoming.getStackSize();
+        long amount = Math.min(Math.max(0L, offered), Long.MAX_VALUE - previous);
         // Let AE2 merge crafting/requestable flags using its normal behavior, while bounding stored stock.
+        // rv3 lists copy a stack they keep, so only a clamped amount needs a private copy.
         out.add(
-            incoming.copy()
-                .setStackSize(amount));
+            amount == offered ? incoming
+                : incoming.copy()
+                    .setStackSize(amount));
     }
 }

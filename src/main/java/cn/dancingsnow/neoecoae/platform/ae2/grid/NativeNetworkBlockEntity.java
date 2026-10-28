@@ -212,7 +212,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
      * switches must not post one.
      */
     protected void refreshStorageAfterNodeStateChange() {
-        if (hasStorageProvider()) refreshNativeStorage();
+        if (hasStorageProvider()) requestStorageRescan(false);
         else storageMounts.clear();
     }
 
@@ -303,10 +303,14 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
     }
 
     public void refreshNativeStorage() {
+        requestStorageRescan(true);
+    }
+
+    /** Structural changes post now; node-state changes keep valid mounts and are merged per grid until tick end. */
+    protected void requestStorageRescan(boolean structural) {
         storageMounts.clear();
-        if (mainNode.isReady() && mainNode.getNode() != null) mainNode.getNode()
-            .getGrid()
-            .postEvent(new appeng.api.networking.events.MENetworkCellArrayUpdate());
+        if (structural) NativeCellArrayUpdates.structural(this);
+        else NativeCellArrayUpdates.nodeStateChanged(this);
     }
 
     public void markForClientUpdate() {

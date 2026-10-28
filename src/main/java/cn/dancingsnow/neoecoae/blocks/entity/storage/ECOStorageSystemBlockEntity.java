@@ -332,10 +332,12 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         if (cluster == null) {
             return;
         }
-        for (ECODriveBlockEntity drive : cluster.getDrives()) {
-            IStorageProvider.requestUpdate(drive.getMainNode());
+        try (var ignored = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.coalesce()) {
+            for (ECODriveBlockEntity drive : cluster.getDrives()) {
+                IStorageProvider.requestUpdate(drive.getMainNode());
+            }
+            IStorageProvider.requestUpdate(getMainNode());
         }
-        IStorageProvider.requestUpdate(getMainNode());
     }
 
     public KeyCounter collectLocalStorageStacksForIntegration() {

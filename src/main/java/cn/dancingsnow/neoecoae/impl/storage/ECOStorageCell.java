@@ -286,6 +286,8 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
         contentRevision++;
         this.isPersisted = false;
         if (ECOCellMutationBatch.defer(this)) return;
+        if (container != null && container.defersCellPersistence() && ECOCellMutationBatch.deferToTickEnd(this))
+            return;
         flushBatchedChanges();
     }
 

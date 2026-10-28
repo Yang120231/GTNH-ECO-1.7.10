@@ -1,8 +1,5 @@
 package cn.dancingsnow.neoecoae.api.storage;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import net.minecraft.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
@@ -13,16 +10,30 @@ public class ECOStorageCells {
 
     private ECOStorageCells() {}
 
-    private static final List<IECOCellHandler> handlers = new ArrayList<>();
+    // Copy-on-write: lookups run for every new-type insert and drive mount, registrations only during startup.
+    private static volatile IECOCellHandler[] handlers = new IECOCellHandler[0];
 
-    public static void register(IECOCellHandler handler) {
-        if (handlers.contains(handler)) {
+    public static synchronized void register(IECOCellHandler handler) {
+        for (IECOCellHandler existing : handlers) if (existing.equals(handler))
             throw new IllegalArgumentException("Tried to register the same handler instance twice.");
-        }
-        handlers.add(handler);
+        IECOCellHandler[] next = java.util.Arrays.copyOf(handlers, handlers.length + 1);
+        next[handlers.length] = java.util.Objects.requireNonNull(handler);
+        handlers = next;
     }
 
-    public static synchronized boolean isCellHandled(ItemStack stack) {
+    /** Removes a handler registered by {@link #register}; intended for tests and integration teardown. */
+    public static synchronized void unregister(IECOCellHandler handler) {
+        IECOCellHandler[] current = handlers;
+        for (int i = 0; i < current.length; i++) if (current[i].equals(handler)) {
+            IECOCellHandler[] next = new IECOCellHandler[current.length - 1];
+            System.arraycopy(current, 0, next, 0, i);
+            System.arraycopy(current, i + 1, next, i, next.length - i);
+            handlers = next;
+            return;
+        }
+    }
+
+    public static boolean isCellHandled(ItemStack stack) {
         if (cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack)) {
             return false;
         }
@@ -35,7 +46,7 @@ public class ECOStorageCells {
     }
 
     @Nullable
-    public static synchronized IECOStorageCell getCellInventory(ItemStack stack, @Nullable ISaveProvider host) {
+    public static IECOStorageCell getCellInventory(ItemStack stack, @Nullable ISaveProvider host) {
         if (cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack)) {
             return null;
         }
@@ -48,7 +59,7 @@ public class ECOStorageCells {
         return null;
     }
 
-    public static synchronized void releaseCellInventory(@Nullable ItemStack stack, @Nullable ISaveProvider host) {
+    public static void releaseCellInventory(@Nullable ItemStack stack, @Nullable ISaveProvider host) {
         if (stack == null || cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack) || host == null) {
             return;
         }
@@ -60,7 +71,7 @@ public class ECOStorageCells {
         }
     }
 
-    public static synchronized void clearRuntimeState() {
+    public static void clearRuntimeState() {
         for (IECOCellHandler handler : handlers) {
             handler.clearRuntimeState();
         }
