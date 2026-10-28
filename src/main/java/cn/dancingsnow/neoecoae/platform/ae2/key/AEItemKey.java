@@ -5,8 +5,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
 import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AESharedNBT;
 import appeng.util.item.AEItemStack;
+import appeng.util.item.AESharedNBT;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 

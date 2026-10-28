@@ -27,7 +27,11 @@ class StoragePointQueryTest {
         var engine = new SavedDataInfiniteStorageEngine(ECOInfiniteStorageData.createNew());
         engine.insert(IRON, 40, Actionable.MODULATE);
         engine.insert(WATER, 7, Actionable.MODULATE);
-        engine.insert(new TestResourceKey("huge", false), BigInteger.valueOf(Long.MAX_VALUE).shiftLeft(4), Actionable.MODULATE);
+        engine.insert(
+            new TestResourceKey("huge", false),
+            BigInteger.valueOf(Long.MAX_VALUE)
+                .shiftLeft(4),
+            Actionable.MODULATE);
         assertConsistent(new EngineStorage(engine));
     }
 
@@ -68,7 +72,8 @@ class StoragePointQueryTest {
         }
 
         @Override
-        public long extract(AEKey key, long amount, Actionable mode, cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource source) {
+        public long extract(AEKey key, long amount, Actionable mode,
+            cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource source) {
             return engine.extract(key, amount, mode);
         }
 

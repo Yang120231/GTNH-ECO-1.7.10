@@ -12,8 +12,8 @@ import org.spongepowered.asm.lib.tree.AbstractInsnNode;
 import org.spongepowered.asm.lib.tree.ClassNode;
 import org.spongepowered.asm.lib.tree.FieldInsnNode;
 import org.spongepowered.asm.lib.tree.FieldNode;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.lib.tree.MethodNode;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * NetworkMonitorMixin and NetworkInventoryHandlerMixin are bound to rv3-beta-990's bytecode; this pins the members
@@ -56,10 +56,7 @@ class NetworkMonitorTargetsContractTest {
     @Test
     void theRedirectIsSingleAndRequired() throws NoSuchMethodException {
         Redirect redirect = cn.dancingsnow.neoecoae.platform.mixin.NetworkMonitorMixin.class
-            .getDeclaredMethod(
-                "neoecoae$applyChanges",
-                appeng.me.cache.NetworkMonitor.class,
-                boolean.class)
+            .getDeclaredMethod("neoecoae$applyChanges", appeng.me.cache.NetworkMonitor.class, boolean.class)
             .getAnnotation(Redirect.class);
         assertNotNull(redirect);
         assertEquals(1, redirect.require());

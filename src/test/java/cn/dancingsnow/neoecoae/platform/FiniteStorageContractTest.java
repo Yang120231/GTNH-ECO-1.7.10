@@ -201,18 +201,20 @@ class FiniteStorageContractTest {
     void deferringHostsPersistImmediatelyOffTheServerThread() {
         AtomicInteger saved = new AtomicInteger();
         ItemStack stack = item(AEKeyType.items());
-        ECOStorageCell cell = new ECOStorageCell(stack, new cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider() {
+        ECOStorageCell cell = new ECOStorageCell(
+            stack,
+            new cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider() {
 
-            @Override
-            public void saveChanges() {
-                saved.incrementAndGet();
-            }
+                @Override
+                public void saveChanges() {
+                    saved.incrementAndGet();
+                }
 
-            @Override
-            public boolean defersCellPersistence() {
-                return true;
-            }
-        });
+                @Override
+                public boolean defersCellPersistence() {
+                    return true;
+                }
+            });
         cell.insert(new TestResourceKey("iron", false), 32, Actionable.MODULATE, IActionSource.empty());
         assertEquals(1, saved.get());
         assertEquals(32, new ECOStorageCell(stack, null).getStoredItemCount());
@@ -227,10 +229,18 @@ class FiniteStorageContractTest {
         ECOStorageCell cell = new ECOStorageCell(stack, null);
         cell.insert(new TestResourceKey("iron", false), 5, Actionable.MODULATE, IActionSource.empty());
         cell.extract(new TestResourceKey("iron", false), 5, Actionable.MODULATE, IActionSource.empty());
-        assertEquals("kept", stack.getTagCompound().getString("neoecoae_marker"));
-        assertFalse(stack.getTagCompound().hasKey("neoecoae_inventory"));
+        assertEquals(
+            "kept",
+            stack.getTagCompound()
+                .getString("neoecoae_marker"));
+        assertFalse(
+            stack.getTagCompound()
+                .hasKey("neoecoae_inventory"));
         cell.insert(new TestResourceKey("gold", false), 7, Actionable.MODULATE, IActionSource.empty());
-        assertEquals("kept", stack.getTagCompound().getString("neoecoae_marker"));
+        assertEquals(
+            "kept",
+            stack.getTagCompound()
+                .getString("neoecoae_marker"));
         assertEquals(7, new ECOStorageCell(stack, null).getStoredItemCount());
     }
 
@@ -250,8 +260,11 @@ class FiniteStorageContractTest {
             assertEquals(entry.getLongValue(), cell.getAvailableAmount(entry.getKey()));
         }
         assertEquals(0, cell.getAvailableAmount(new TestResourceKey("tin", false)));
-        cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.markMember(stack, java.util.UUID.randomUUID());
-        assertTrue(cell.getAvailableStacks().isEmpty());
+        cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember
+            .markMember(stack, java.util.UUID.randomUUID());
+        assertTrue(
+            cell.getAvailableStacks()
+                .isEmpty());
         assertEquals(0, cell.getAvailableAmount(iron));
         cell.visitAvailableStacks((key, amount) -> fail("sealed cell visited " + key));
     }

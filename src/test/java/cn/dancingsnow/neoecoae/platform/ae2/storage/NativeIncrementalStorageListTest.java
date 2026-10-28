@@ -69,8 +69,12 @@ class NativeIncrementalStorageListTest {
 
     @Test
     void onlyServerThreadNetworksWithoutSubnetworkReadsAreEligible() {
-        NativeNetworkReads local = mock(NativeNetworkReads.class, withSettings().extraInterfaces(IMEInventoryHandler.class));
-        NativeNetworkReads subnet = mock(NativeNetworkReads.class, withSettings().extraInterfaces(IMEInventoryHandler.class));
+        NativeNetworkReads local = mock(
+            NativeNetworkReads.class,
+            withSettings().extraInterfaces(IMEInventoryHandler.class));
+        NativeNetworkReads subnet = mock(
+            NativeNetworkReads.class,
+            withSettings().extraInterfaces(IMEInventoryHandler.class));
         when(subnet.neoecoae$readsOtherNetwork()).thenReturn(true);
         assertFalse(NativeIncrementalStorageList.eligible((IMEInventoryHandler) local));
         ServerThread.capture();

@@ -54,8 +54,7 @@ public abstract class NetworkMonitorMixin {
 
     // notifyListenersOfChange receives removal batches unsigned; those always take AE2's rebuild.
     @Inject(method = "postChange", at = @At("HEAD"), require = 1)
-    private void neoecoae$captureDirection(boolean add, Iterable<?> changes, BaseActionSource source,
-        CallbackInfo ci) {
+    private void neoecoae$captureDirection(boolean add, Iterable<?> changes, BaseActionSource source, CallbackInfo ci) {
         neoecoae$removal = !add;
     }
 

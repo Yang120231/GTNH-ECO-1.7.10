@@ -12,7 +12,6 @@ import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** Native remaining-insert / actual-extraction convention, backed by the imported business inventory. */
 public final class NativeStorageInventory<T extends IAEStack> implements IMEInventoryHandler<T>, DelegatingStorage {
@@ -63,10 +62,11 @@ public final class NativeStorageInventory<T extends IAEStack> implements IMEInve
 
     @Override
     public IItemList<T> getAvailableItems(IItemList<T> out, int iteration) {
-        cell.visitAvailableStacks((key, amount) -> {
-            if (amount > 0 && key.getType()
-                .nativeChannel() == channel) NativeStackAmounts.add(out, (T) key.toNative(amount));
-        });
+        cell.visitAvailableStacks(
+            (key, amount) -> {
+                if (amount > 0 && key.getType()
+                    .nativeChannel() == channel) NativeStackAmounts.add(out, (T) key.toNative(amount));
+            });
         return out;
     }
 
