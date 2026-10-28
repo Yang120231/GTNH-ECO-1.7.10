@@ -108,11 +108,16 @@ public final class NativeContent {
 
     static void register(String id, Item item) {
         if (ITEMS.containsKey(id)) throw new IllegalArgumentException("Duplicate core item: " + id);
-        item.setUnlocalizedName("neoecoae." + id)
+        item.setUnlocalizedName(translationName(id))
             .setCreativeTab(TAB);
         GameRegistry.registerItem(item, id);
         ITEMS.put(id, item);
         IDS.put(item, id);
+    }
+
+    /** Item adds the {@code item.} prefix; the shipped lang files carry {@code item.neoecoae.<id>.name}. */
+    static String translationName(String id) {
+        return "neoecoae." + id;
     }
 
     public static String id(Item item) {
