@@ -2,10 +2,10 @@ package cn.dancingsnow.neoecoae.platform.ui.computation;
 
 import net.minecraft.item.ItemStack;
 
-import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
-import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.screen.RichTooltip;
+import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
+import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 
@@ -46,9 +46,7 @@ public final class NativeComputationArtwork extends ParentWidget<NativeComputati
         }
         region(178, 151, 66, 16, lines -> lines(lines, connectionTooltip(session.state())));
         region(178, 201, 66, 16, lines -> lines(lines, multiplierTooltip(session.state())));
-        region(9, 39, 16, 34, lines -> {
-            if (hostItem != null) lines.addFromItem(hostItem);
-        });
+        region(9, 39, 16, 34, lines -> { if (hostItem != null) lines.addFromItem(hostItem); });
     }
 
     private void region(int x, int y, int w, int h, java.util.function.Consumer<RichTooltip> tooltip) {
@@ -58,8 +56,7 @@ public final class NativeComputationArtwork extends ParentWidget<NativeComputati
                 .background(IDrawable.EMPTY)
                 .tooltip(value -> value.setAutoUpdate(true))
                 .tooltipDynamic(tooltip::accept)
-                .setEnabledIf(
-                    widget -> panelState().formed() || x == 9));
+                .setEnabledIf(widget -> panelState().formed() || x == 9));
     }
 
     private static void lines(RichTooltip tooltip, java.util.List<Component> lines) {

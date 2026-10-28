@@ -157,8 +157,8 @@ public final class NativeHostSideBar {
         private final Supplier<IDrawable> icon;
         private final IntSupplier frequency;
 
-        IconButton(Supplier<IDrawable> icon, Supplier<List<Component>> tooltip,
-            java.util.function.IntPredicate press, IntSupplier frequency) {
+        IconButton(Supplier<IDrawable> icon, Supplier<List<Component>> tooltip, java.util.function.IntPredicate press,
+            IntSupplier frequency) {
             this.icon = icon;
             this.frequency = frequency;
             background(IDrawable.EMPTY);

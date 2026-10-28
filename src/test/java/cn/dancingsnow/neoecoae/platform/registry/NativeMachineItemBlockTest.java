@@ -24,8 +24,10 @@ class NativeMachineItemBlockTest {
                         .nativeText()
                         .toString()
                         .contains("23"));
-            assertEquals(7, NativeMachineItemBlock.controllerTooltip("computation_system_l4")
-                .size());
+            assertEquals(
+                7,
+                NativeMachineItemBlock.controllerTooltip("computation_system_l4")
+                    .size());
             assertTrue(
                 NativeMachineItemBlock.controllerTooltip("crafting_worker")
                     .isEmpty());

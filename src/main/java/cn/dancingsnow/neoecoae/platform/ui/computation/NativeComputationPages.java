@@ -102,14 +102,15 @@ public final class NativeComputationPages {
                                         .getInt("frequency")
                                     : -1,
                             delta -> session.action(9, delta)),
-                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.multilineButton(
-                            () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(
-                                "neoecoae:textures/gui/computation/eco_batching" + (session.state()
-                                    .getBoolean("smartDoubling") ? "" : "_off") + ".png"),
-                            () -> smartDoublingTooltip(
-                                session.state()
-                                    .getBoolean("smartDoubling")),
-                            () -> session.action(15, 0))
+                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
+                            .multilineButton(
+                                () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(
+                                    "neoecoae:textures/gui/computation/eco_batching" + (session.state()
+                                        .getBoolean("smartDoubling") ? "" : "_off") + ".png"),
+                                () -> smartDoublingTooltip(
+                                    session.state()
+                                        .getBoolean("smartDoubling")),
+                                () -> session.action(15, 0))
                             .name("computation-smart-doubling"),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(

@@ -396,7 +396,9 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 if (cluster != null) cluster.cycleSelectionMode();
                 else {
                     var modes = cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode.values();
-                    host.setCpuSelectionMode(modes[(host.getCpuSelectionMode().ordinal() + 1) % modes.length]);
+                    host.setCpuSelectionMode(
+                        modes[(host.getCpuSelectionMode()
+                            .ordinal() + 1) % modes.length]);
                 }
                 break;
             case 4:

@@ -19,8 +19,9 @@ class PlanningSettingsTest {
             computation = PlanningSettings.computationSystemMaxLength;
         java.lang.reflect.Field home = null;
         Object previousHome = null;
-        for (var field : cpw.mods.fml.relauncher.FMLInjectionData.class.getDeclaredFields()) if (field.getType()
-            == File.class && java.lang.reflect.Modifier.isStatic(field.getModifiers())) home = field;
+        for (var field : cpw.mods.fml.relauncher.FMLInjectionData.class.getDeclaredFields())
+            if (field.getType() == File.class && java.lang.reflect.Modifier.isStatic(field.getModifiers()))
+                home = field;
         assertNotNull(home, "FML minecraft home");
         home.setAccessible(true);
         previousHome = home.get(null);

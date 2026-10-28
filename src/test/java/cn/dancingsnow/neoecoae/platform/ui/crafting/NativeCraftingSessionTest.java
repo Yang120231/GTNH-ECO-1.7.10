@@ -68,8 +68,10 @@ class NativeCraftingSessionTest {
         assertEquals(0, state.getInt("substitutionPatterns"));
         session.apply(5, 0);
         verify(host).applyNetworkIgnoringPatternSubstitutions(false);
-        assertEquals(2, NativeCraftingPages.substitutionTooltip(true, 4)
-            .size());
+        assertEquals(
+            2,
+            NativeCraftingPages.substitutionTooltip(true, 4)
+                .size());
     }
 
     @Test

@@ -58,8 +58,8 @@ public final class NativeMachineItemBlock extends net.minecraft.item.ItemBlock {
             result.add(Component.translatable("tooltip.neoecoae.max_lenth", PlanningSettings.craftingSystemMaxLength));
         } else if (model.startsWith("computation_system_")) {
             result.add(Component.translatable("tooltip.neoecoae.computation_system"));
-            result.add(
-                Component.translatable("tooltip.neoecoae.max_lenth", PlanningSettings.computationSystemMaxLength));
+            result
+                .add(Component.translatable("tooltip.neoecoae.max_lenth", PlanningSettings.computationSystemMaxLength));
             for (int index = 0; index < 5; index++)
                 result.add(Component.translatable("tooltip.neoecoae.computation_system_desc." + index));
         } else return Collections.emptyList();
