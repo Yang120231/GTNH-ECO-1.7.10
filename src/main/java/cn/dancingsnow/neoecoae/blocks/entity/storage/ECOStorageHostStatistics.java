@@ -104,6 +104,10 @@ final class ECOStorageHostStatistics {
     }
 
     String getTotalUsedBytesText() {
+        return HostText.ae2Amount(getTotalUsedBytes());
+    }
+
+    BigInteger getTotalUsedBytes() {
         StorageUiSnapshot snapshot = getStorageUiSnapshot();
         BigInteger used = BigInteger.ZERO;
         if (host.isFormedInfiniteMode()) {
@@ -116,7 +120,19 @@ final class ECOStorageHostStatistics {
                 used = used.add(BigInteger.valueOf(Math.max(0L, entry.usedBytes())));
             }
         }
-        return HostText.ae2Amount(used);
+        return used;
+    }
+
+    /** {@code null} when the host or any installed cell has unbounded capacity. */
+    @org.jetbrains.annotations.Nullable
+    BigInteger getTotalCapacityBytes() {
+        if (host.isFormedInfiniteMode()) return null;
+        BigInteger total = BigInteger.ZERO;
+        for (StorageHostUI.CellEntry entry : getStorageUiSnapshot().cellEntries()) {
+            if (entry.infinite() || entry.totalBytes() == Long.MAX_VALUE) return null;
+            total = total.add(BigInteger.valueOf(Math.max(0L, entry.totalBytes())));
+        }
+        return total;
     }
 
     @SuppressWarnings("UnstableApiUsage")

@@ -50,6 +50,9 @@ public class CommonProxy {
             .interfaceTerminal()
             .register(cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.Interface.class);
         cn.dancingsnow.neoecoae.platform.recipe.StorageRecipes.register();
+        // The callback is named, not referenced, so WAILA's classes load only when it is installed.
+        if (cpw.mods.fml.common.Loader.isModLoaded("Waila")) cpw.mods.fml.common.event.FMLInterModComms
+            .sendMessage("Waila", "register", "cn.dancingsnow.neoecoae.compat.waila.NEWailaPlugin.callbackRegister");
     }
 
     public void postInit(FMLPostInitializationEvent event) {
