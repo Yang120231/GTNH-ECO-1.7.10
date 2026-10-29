@@ -13,7 +13,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
-import cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 
 /** Observed GT structure membership. Retains coordinates, never loads chunks or searches surrounding machines. */
@@ -23,27 +22,33 @@ public final class NativeProcessingMachines {
 
     private NativeProcessingMachines() {}
 
-    public static synchronized void observeController(Object machine, TileEntity tile, boolean formed) {
+    /** Called only from GT's controller mixin, so loading the GT-linked accessor is safe here. */
+    public static void observeGregTechController(Object machine, TileEntity tile, boolean formed) {
+        observeController(
+            tile,
+            formed ? GregTechMachineAccess.inputs(machine) : java.util.Collections.emptyList(),
+            formed);
+    }
+
+    public static synchronized void observeController(TileEntity tile, Iterable<TileEntity> inputTiles,
+        boolean formed) {
         World world = tile.getWorldObj();
         if (world == null || world.isRemote) return;
         BlockPos position = new BlockPos(tile.xCoord, tile.yCoord, tile.zCoord);
         Relations relations = WORLDS.computeIfAbsent(world, ignored -> new Relations());
-        if (!formed || tile.isInvalid()) { relations.remove(position); return; }
-        Set<BlockPos> inputs = new LinkedHashSet<>();
-        for (String name : new String[] { "mInputBusses", "mInputHatches", "mDualInputHatches", "mSmartInputHatches" }) {
-            Object hatches = ECOGregTechMachineStatus.value(machine, name);
-            if (!(hatches instanceof Iterable<?>)) continue;
-            for (Object hatch : (Iterable<?>) hatches) {
-                Object base = ECOGregTechMachineStatus.value(hatch, "getBaseMetaTileEntity");
-                if (base instanceof TileEntity input && input.getWorldObj() == world && !input.isInvalid())
-                    inputs.add(new BlockPos(input.xCoord, input.yCoord, input.zCoord));
-            }
+        if (!formed || tile.isInvalid()) {
+            relations.remove(position);
+            return;
         }
+        Set<BlockPos> inputs = new LinkedHashSet<>();
+        for (TileEntity input : inputTiles) if (input.getWorldObj() == world && !input.isInvalid())
+            inputs.add(new BlockPos(input.xCoord, input.yCoord, input.zCoord));
         Controller previous = relations.controllers.get(position);
         if (previous != null && previous.tile.get() == tile && previous.inputs.equals(inputs)) return;
         relations.remove(position);
         relations.controllers.put(position, new Controller(new WeakReference<>(tile), inputs));
-        for (var input : inputs) relations.inputs.computeIfAbsent(input, ignored -> new LinkedHashSet<>()).add(position);
+        for (var input : inputs) relations.inputs.computeIfAbsent(input, ignored -> new LinkedHashSet<>())
+            .add(position);
     }
 
     public static synchronized List<Target> controllers(World world, BlockPos input) {
@@ -68,11 +73,15 @@ public final class NativeProcessingMachines {
         return controller == null || controller.tile.get() == tile;
     }
 
-    public static synchronized void clear() { WORLDS.clear(); }
+    public static synchronized void clear() {
+        WORLDS.clear();
+    }
 
     private static final class Relations {
+
         final Map<BlockPos, Controller> controllers = new HashMap<>();
         final Map<BlockPos, Set<BlockPos>> inputs = new HashMap<>();
+
         void remove(BlockPos position) {
             var previous = controllers.remove(position);
             if (previous == null) return;
@@ -87,8 +96,13 @@ public final class NativeProcessingMachines {
     }
 
     private static final class Controller {
+
         final WeakReference<TileEntity> tile;
         final Set<BlockPos> inputs;
-        Controller(WeakReference<TileEntity> tile, Set<BlockPos> inputs) { this.tile = tile; this.inputs = inputs; }
+
+        Controller(WeakReference<TileEntity> tile, Set<BlockPos> inputs) {
+            this.tile = tile;
+            this.inputs = inputs;
+        }
     }
 }

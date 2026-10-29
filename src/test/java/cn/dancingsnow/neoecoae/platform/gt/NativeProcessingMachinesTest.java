@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.util.Collections;
-import java.util.List;
 
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
@@ -19,7 +18,9 @@ import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 class NativeProcessingMachinesTest {
 
     @AfterEach
-    void clear() { NativeProcessingMachines.clear(); }
+    void clear() {
+        NativeProcessingMachines.clear();
+    }
 
     @Test
     void onlyNativeConfirmedLoadedMembershipResolvesToTheSameControllerTile() throws Exception {
@@ -39,31 +40,28 @@ class NativeProcessingMachinesTest {
         input.xCoord = 4;
         input.yCoord = 64;
         when(world.getTileEntity(3, 64, 0)).thenReturn(controller);
-        var machine = new Controller(new Hatch(input));
         var position = new BlockPos(4, 64, 0);
-        NativeProcessingMachines.observeController(machine, controller, true);
-        assertEquals(1, NativeProcessingMachines.controllers(world, position).size());
+        NativeProcessingMachines.observeController(controller, Collections.singletonList(input), true);
+        assertEquals(
+            1,
+            NativeProcessingMachines.controllers(world, position)
+                .size());
         assertTrue(NativeProcessingMachines.isCurrentController(world, new BlockPos(3, 64, 0), controller));
         when(chunks.chunkExists(0, 0)).thenReturn(false);
-        assertEquals(1, NativeProcessingMachines.controllers(world, position).size(), "Metadata lookup never reads or loads a world position");
+        assertEquals(
+            1,
+            NativeProcessingMachines.controllers(world, position)
+                .size(),
+            "Metadata lookup never reads or loads a world position");
         when(chunks.chunkExists(0, 0)).thenReturn(true);
         when(world.getTileEntity(3, 64, 0)).thenReturn(new TileEntity());
         assertFalse(NativeProcessingMachines.isCurrentController(world, new BlockPos(3, 64, 0), new TileEntity()));
         when(world.getTileEntity(3, 64, 0)).thenReturn(controller);
-        NativeProcessingMachines.observeController(machine, controller, false);
-        assertTrue(NativeProcessingMachines.controllers(world, position).isEmpty());
+        NativeProcessingMachines.observeController(controller, Collections.emptyList(), false);
+        assertTrue(
+            NativeProcessingMachines.controllers(world, position)
+                .isEmpty());
         verify(world, never()).getChunkFromChunkCoords(anyInt(), anyInt());
         verify(world, never()).getTileEntity(anyInt(), anyInt(), anyInt());
-    }
-
-    public static final class Hatch {
-        private final TileEntity tile;
-        Hatch(TileEntity tile) { this.tile = tile; }
-        public TileEntity getBaseMetaTileEntity() { return tile; }
-    }
-
-    public static final class Controller {
-        public final List<Hatch> mInputBusses;
-        Controller(Hatch hatch) { mInputBusses = Collections.singletonList(hatch); }
     }
 }

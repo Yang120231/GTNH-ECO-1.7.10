@@ -31,7 +31,9 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 class ECOProcessingMonitorTest {
 
     @BeforeAll
-    static void bootstrap() { InventoryTestBootstrap.initialize(); }
+    static void bootstrap() {
+        InventoryTestBootstrap.initialize();
+    }
 
     @Test
     void allThousandMachinesContributeWithinBudgetsAndPagingKeepsTheWholeAggregate() {
@@ -50,12 +52,18 @@ class ECOProcessingMonitorTest {
             assertEquals(1000, fixture.reads.get());
             assertEquals(.992F, progress.progress(), .00001F);
             var last = progress.page(333);
-            assertEquals(1, last.machines().size());
+            assertEquals(
+                1,
+                last.machines()
+                    .size());
             assertEquals(progress.progress(), last.progress());
             var decoded = ECOProcessingProgress.read(last.write());
             assertEquals(1000, decoded.machineCount());
             assertEquals(last.progress(), decoded.progress());
-            assertTrue(progress.page(-1).machines().isEmpty());
+            assertTrue(
+                progress.page(-1)
+                    .machines()
+                    .isEmpty());
             verify(fixture.world, never()).getChunkFromChunkCoords(anyInt(), anyInt());
         }
     }
@@ -74,10 +82,17 @@ class ECOProcessingMonitorTest {
         var restored = new ECOProcessingMonitor();
         restored.load(original.save(TestItemRegistry.CONTEXT), TestItemRegistry.CONTEXT);
         assertEquals(original.save(TestItemRegistry.CONTEXT), restored.save(TestItemRegistry.CONTEXT));
-        assertEquals(1000, restored.save(TestItemRegistry.CONTEXT).getList("entries", 10)
-            .getCompound(0).getList("targets", 10).size());
+        assertEquals(
+            1000,
+            restored.save(TestItemRegistry.CONTEXT)
+                .getList("entries", 10)
+                .getCompound(0)
+                .getList("targets", 10)
+                .size());
         restored.clear(null);
-        assertTrue(restored.save(TestItemRegistry.CONTEXT).isEmpty());
+        assertTrue(
+            restored.save(TestItemRegistry.CONTEXT)
+                .isEmpty());
     }
 
     @Test
@@ -94,62 +109,83 @@ class ECOProcessingMonitorTest {
         try {
             assertSame(monitor, ECOCraftingJobAttachmentRegistry.create(id, first));
             monitor.observe(AEItemKey.of(TestItems.STONE), new Target(0, BlockPos.ZERO));
-            assertFalse(monitor.save(TestItemRegistry.CONTEXT).isEmpty());
+            assertFalse(
+                monitor.save(TestItemRegistry.CONTEXT)
+                    .isEmpty());
             var next = new ECOCraftingJobContext(cpu, UUID.randomUUID(), null, 1, 1);
             assertSame(monitor, ECOCraftingJobAttachmentRegistry.create(id, next));
-            assertTrue(monitor.save(TestItemRegistry.CONTEXT).isEmpty());
-        } finally { if (registeredHere) ECOCraftingJobAttachmentRegistry.unregister(id); }
+            assertTrue(
+                monitor.save(TestItemRegistry.CONTEXT)
+                    .isEmpty());
+        } finally {
+            if (registeredHere) ECOCraftingJobAttachmentRegistry.unregister(id);
+        }
     }
 
     private static ECOProcessingMonitor monitor(int count) {
         var monitor = new ECOProcessingMonitor();
-        for (int i = 0; i < count; i++) monitor.observe(AEItemKey.of(TestItems.STONE), new Target(0, new BlockPos(i, 64, 0)));
+        for (int i = 0; i < count; i++)
+            monitor.observe(AEItemKey.of(TestItems.STONE), new Target(0, new BlockPos(i, 64, 0)));
         return monitor;
     }
 
-    public interface NativeCycle {
-        Object getMetaTileEntity();
-        int getProgress();
-        int getMaxProgress();
-        boolean isActive();
-    }
-
-    public static final class Machine {
-        public final ItemStack[] mOutputItems = { new ItemStack(TestItems.STONE) };
-        public final int lastParallel = 1;
-    }
-
     private static final class Fixture implements AutoCloseable {
+
         final World world = mock(World.class);
         final MinecraftServer server = mock(MinecraftServer.class);
         final AtomicInteger reads = new AtomicInteger(), tick = new AtomicInteger();
         final MockedStatic<MinecraftServer> servers = mockStatic(MinecraftServer.class);
+        final MockedStatic<cn.dancingsnow.neoecoae.platform.gt.NativeGregTech> gregtech = mockStatic(
+            cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.class);
+        final java.util.Map<TileEntity, Integer> progress = new java.util.IdentityHashMap<>();
+
         Fixture() {
             try {
                 var provider = World.class.getDeclaredField("provider");
                 provider.setAccessible(true);
                 provider.set(world, mock(WorldProvider.class));
-            } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+            } catch (ReflectiveOperationException failure) {
+                throw new AssertionError(failure);
+            }
             var chunks = mock(IChunkProvider.class);
             when(world.getChunkProvider()).thenReturn(chunks);
             when(chunks.chunkExists(anyInt(), anyInt())).thenReturn(true);
-            servers.when(MinecraftServer::getServer).thenReturn(server);
+            servers.when(MinecraftServer::getServer)
+                .thenReturn(server);
             when(server.getTickCounter()).thenAnswer(ignored -> tick.get());
+            gregtech.when(() -> cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.sample(any()))
+                .thenAnswer(call -> {
+                    Integer value = progress.get(call.<TileEntity>getArgument(0));
+                    return value == null ? null
+                        : new cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus.Sample(
+                            "GT",
+                            java.util.Collections.singletonList(new ItemStack(TestItems.STONE)),
+                            value,
+                            200,
+                            true,
+                            true,
+                            false,
+                            true,
+                            null,
+                            1);
+                });
             TileEntity first = machine(0), rest = machine(200);
             when(world.getTileEntity(anyInt(), anyInt(), anyInt())).thenAnswer(call -> {
                 reads.incrementAndGet();
                 return call.<Integer>getArgument(0) < 8 ? first : rest;
             });
         }
+
         TileEntity machine(int progress) {
-            var tile = mock(TileEntity.class, withSettings().extraInterfaces(NativeCycle.class));
-            var cycle = (NativeCycle) tile;
-            when(cycle.getMetaTileEntity()).thenReturn(new Machine());
-            when(cycle.getProgress()).thenReturn(progress);
-            when(cycle.getMaxProgress()).thenReturn(200);
-            when(cycle.isActive()).thenReturn(true);
+            var tile = mock(TileEntity.class);
+            this.progress.put(tile, progress);
             return tile;
         }
-        @Override public void close() { servers.close(); }
+
+        @Override
+        public void close() {
+            gregtech.close();
+            servers.close();
+        }
     }
 }

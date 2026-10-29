@@ -23,7 +23,8 @@ public final class NativeGregTech {
             .getVersion();
         NeoECOAE.LOG.info("NEOECOAE_NATIVE_GT_AVAILABLE version={} reviewed_api=5.09.52.398", version);
         GregTechMachineRecipes.register();
-        NativeGTMachineAcceptance.register();
+        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
+            .gregTechInit();
     }
 
     public static net.minecraft.item.ItemStack recipeItem(String id, int count) {
@@ -37,6 +38,10 @@ public final class NativeGregTech {
     /** Reads the actual native machine. Manufacturing remains owned by the GT tile and its recipe map. */
     public static MachineSnapshot inspect(TileEntity tile) {
         return isAvailable() ? GregTechMachineAccess.inspect(tile) : null;
+    }
+
+    public static cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus.Sample sample(TileEntity tile) {
+        return isAvailable() ? GregTechMachineAccess.sample(tile) : null;
     }
 
     @com.github.bsideup.jabel.Desugar
