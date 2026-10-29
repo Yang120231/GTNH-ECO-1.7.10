@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.platform.gt;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -73,17 +74,43 @@ final class GregTechMachineAccess {
         return null;
     }
 
+    /**
+     * Hatch lists resolved reflectively: their visibility differs between GT builds (mSmartInputHatches is private in
+     * GTNH 2.9), and a direct field reference fails with IllegalAccessError inside the controller tick.
+     */
+    private static final List<Field> INPUT_LISTS = inputLists(
+        "mInputBusses",
+        "mInputHatches",
+        "mDualInputHatches",
+        "mSmartInputHatches");
+
+    private static List<Field> inputLists(String... names) {
+        List<Field> fields = new ArrayList<>();
+        for (String name : names) {
+            try {
+                Field field = MTEMultiBlockBase.class.getDeclaredField(name);
+                field.setAccessible(true);
+                fields.add(field);
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
+                // Absent or sealed in this GT build; observation proceeds with the remaining lists.
+            }
+        }
+        return Collections.unmodifiableList(fields);
+    }
+
     /** Input hatch and bus tiles of a formed multiblock controller. */
     static List<TileEntity> inputs(Object machine) {
         if (!(machine instanceof MTEMultiBlockBase)) return Collections.emptyList();
-        MTEMultiBlockBase multi = (MTEMultiBlockBase) machine;
         List<TileEntity> tiles = new ArrayList<>();
-        for (List<?> hatches : Arrays.<List<?>>asList(
-            multi.mInputBusses,
-            multi.mInputHatches,
-            multi.mDualInputHatches,
-            multi.mSmartInputHatches)) {
-            if (hatches == null) continue;
+        for (Field field : INPUT_LISTS) {
+            Object value;
+            try {
+                value = field.get(machine);
+            } catch (IllegalAccessException ignored) {
+                continue;
+            }
+            if (!(value instanceof List)) continue;
+            List<?> hatches = (List<?>) value;
             for (Object hatch : hatches) if (hatch instanceof IMetaTileEntity) {
                 IGregTechTileEntity base = ((IMetaTileEntity) hatch).getBaseMetaTileEntity();
                 if (base instanceof TileEntity) tiles.add((TileEntity) base);
