@@ -30,7 +30,7 @@ public class NativePatternDetails implements IPatternDetails {
     private final List<GenericStack> outputs;
     private final GenericStack[] sparse;
 
-    protected NativePatternDetails(ICraftingPatternDetails pattern, World world, Collection<AEKey> available) {
+    protected NativePatternDetails(ICraftingPatternDetails pattern, World world, Substitutes substitutes) {
         nativePattern = Objects.requireNonNull(pattern);
         definition = AEItemKey.of(pattern.getPattern());
         IAEStack<?>[] nativeSparse = pattern.getAEInputs();
@@ -38,27 +38,15 @@ public class NativePatternDetails implements IPatternDetails {
         sparse = new GenericStack[nativeSparse.length];
         for (int i = 0; i < sparse.length; i++) if (nativeSparse[i] != null) sparse[i] = stack(nativeSparse[i]);
         List<IInput> captured = new ArrayList<>();
+        int inputIndex = 0;
         for (IAEStack<?> raw : pattern.getCondensedAEInputs()) {
             GenericStack primary = stack(raw);
             Set<AEKey> choices = new LinkedHashSet<>();
             choices.add(primary.what());
-            if (pattern.isCraftable() && pattern.canSubstitute()) {
-                for (AEKey candidate : available) {
-                    if (candidate.getType() != primary.what()
-                        .getType()) continue;
-                    boolean valid = true, checked = false;
-                    for (int slot = 0; slot < nativeSparse.length; slot++)
-                        if (sparse[slot] != null && sparse[slot].what()
-                            .equals(primary.what())) {
-                                checked = true;
-                                if (!pattern.isValidItemForSlot(slot, candidate.toNative(1), world)) {
-                                    valid = false;
-                                    break;
-                                }
-                            }
-                    if (valid && checked) choices.add(candidate);
-                }
-            }
+            if (pattern.isCraftable() && pattern.canSubstitute())
+                for (AEKey candidate : substitutes.accepted(pattern, inputIndex, primary.what(), sparse))
+                    choices.add(candidate);
+            inputIndex++;
             Map<AEKey, AEKey> returns = new HashMap<>();
             if (pattern.isCraftable()) for (AEKey choice : choices) if (choice instanceof AEItemKey) {
                 ItemStack selected = ((AEItemKey) choice).toStack(1);
@@ -82,11 +70,45 @@ public class NativePatternDetails implements IPatternDetails {
 
     public static NativePatternDetails capture(ICraftingPatternDetails pattern, World world,
         Collection<AEKey> candidates) {
+        return capture(pattern, world, scan(world, candidates));
+    }
+
+    static NativePatternDetails capture(ICraftingPatternDetails pattern, World world, Substitutes substitutes) {
         if (pattern.isCraftable() && pattern.getClass() == appeng.helpers.PatternHelper.class)
-            return new NativeCraftingPattern(pattern, world, candidates);
+            return new NativeCraftingPattern(pattern, world, substitutes);
         return !pattern.isCraftable() && pattern.getClass() == appeng.helpers.PatternHelper.class
-            ? new AEProcessingPattern(pattern, world, candidates)
-            : new NativePatternDetails(pattern, world, candidates);
+            ? new AEProcessingPattern(pattern, world, substitutes)
+            : new NativePatternDetails(pattern, world, substitutes);
+    }
+
+    /** Uncached substitute scan; every candidate costs one native recipe match per occupied slot. */
+    private static Substitutes scan(World world, Collection<AEKey> available) {
+        return (pattern, input, primary, sparse) -> {
+            if (available.isEmpty()) return Collections.emptyList();
+            List<AEKey> accepted = new ArrayList<>();
+            for (AEKey candidate : available)
+                if (acceptsSubstitute(pattern, world, sparse, primary, candidate)) accepted.add(candidate);
+            return accepted;
+        };
+    }
+
+    /** Whether every sparse slot holding {@code primary} accepts {@code candidate} in the native recipe. */
+    static boolean acceptsSubstitute(ICraftingPatternDetails pattern, World world, GenericStack[] sparse, AEKey primary,
+        AEKey candidate) {
+        if (candidate.getType() != primary.getType()) return false;
+        boolean checked = false;
+        for (int slot = 0; slot < sparse.length; slot++) if (sparse[slot] != null && sparse[slot].what()
+            .equals(primary)) {
+                checked = true;
+                if (!pattern.isValidItemForSlot(slot, candidate.toNative(1), world)) return false;
+            }
+        return checked;
+    }
+
+    /** Resolves the accepted substitutes of one condensed input of a substitution-enabled crafting pattern. */
+    interface Substitutes {
+
+        Iterable<AEKey> accepted(ICraftingPatternDetails pattern, int input, AEKey primary, GenericStack[] sparse);
     }
 
     private static GenericStack stack(IAEStack<?> stack) {

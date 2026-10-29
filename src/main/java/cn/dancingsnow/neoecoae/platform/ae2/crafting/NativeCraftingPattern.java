@@ -1,6 +1,5 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting;
 
-import java.util.Collection;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
@@ -8,7 +7,6 @@ import net.minecraft.world.World;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.crafting.CraftingInput;
@@ -18,8 +16,8 @@ public final class NativeCraftingPattern extends NativePatternDetails implements
 
     private final net.minecraft.item.crafting.IRecipe recipe;
 
-    NativeCraftingPattern(ICraftingPatternDetails pattern, World world, Collection<AEKey> available) {
-        super(pattern, world, available);
+    NativeCraftingPattern(ICraftingPatternDetails pattern, World world, Substitutes substitutes) {
+        super(pattern, world, substitutes);
         recipe = NativePatternAccess.recipe((appeng.helpers.PatternHelper) pattern);
     }
 

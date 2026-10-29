@@ -31,8 +31,8 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     private final Set<AEKey> emitters;
     private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, ICraftingProvider>> providers = new IdentityHashMap<>();
 
-    public CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates,
-        NativePatternTrackingCache tracking) {
+    CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates, NativePatternTrackingCache tracking,
+        NativeSubstitutionIndex substitutes) {
         nativeGrid = grid;
         crafting = grid.getCache(ICraftingGrid.class);
         this.tracking = tracking;
@@ -55,14 +55,18 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
         Set<AEKey> emitted = new LinkedHashSet<>();
         for (var key : keys) {
             var captured = new ArrayList<IPatternDetails>();
-            for (var pattern : crafting.getCraftingFor(key.toNative(1), null, 0, world)) captured.add(
-                patterns.computeIfAbsent(pattern, value -> NativePatternDetails.capture(value, world, candidates)));
+            for (var pattern : crafting.getCraftingFor(key.toNative(1), null, 0, world))
+                captured.add(patterns.computeIfAbsent(pattern, substitutes::details));
             index.put(key, Collections.unmodifiableList(captured));
             if (crafting.canEmitFor(key.toNative(1))) emitted.add(key);
         }
         byOutput = Collections.unmodifiableMap(index);
         craftables = Collections.unmodifiableSet(outputs);
         emitters = Collections.unmodifiableSet(emitted);
+    }
+
+    Set<ICraftingPatternDetails> nativePatterns() {
+        return patterns.keySet();
     }
 
     @Override

@@ -29,6 +29,8 @@ public final class NativePatternTrackingCache implements IGridCache {
     private volatile boolean stable;
     private Set<AEKey> candidates = java.util.Collections.emptySet();
     private final Map<World, CraftingServiceView> views = new IdentityHashMap<>();
+    /** Survives view invalidation: substitute acceptance depends only on the pattern, the key and the world. */
+    private final Map<World, NativeSubstitutionIndex> substitutes = new java.util.WeakHashMap<>();
 
     public NativePatternTrackingCache(IGrid grid) {
         this.grid = grid;
@@ -115,7 +117,10 @@ public final class NativePatternTrackingCache implements IGridCache {
             current = null;
         }
         if (current == null) {
-            current = new CraftingServiceView(grid, world, fresh, this);
+            NativeSubstitutionIndex index = substitutes.computeIfAbsent(world, NativeSubstitutionIndex::new);
+            index.begin(fresh);
+            current = new CraftingServiceView(grid, world, fresh, this, index);
+            index.retain(current.nativePatterns());
             views.put(world, current);
         }
         return current;
