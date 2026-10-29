@@ -27,16 +27,32 @@ public final class GTRecipeProfile {
                 .equals("gtm")) continue;
             String id = file.get("id")
                 .getAsString();
-            var definition = normalize(
-                SourceRecipes.read(
-                    file.get("resource")
-                        .getAsString()));
+            var source = SourceRecipes.read(
+                file.get("resource")
+                    .getAsString());
             if (file.get("kind")
                 .getAsString()
-                .equals("tag")) SourceTags.add(id, definition);
-            else recipes.put(id.substring("neoecoae:".length()), definition);
+                .equals("tag")) SourceTags.add(id, normalizeTag(id, source));
+            else recipes.put(id.substring("neoecoae:".length()), normalize(source));
         }
         return recipes;
+    }
+
+    /** GTNH-specific progression belongs in the adapter, not the byte-locked source tag. */
+    static JsonObject normalizeTag(String id, JsonObject source) {
+        JsonObject result = normalize(source);
+        if (!id.equals("neoecoae:compat/gt/silicon")) return result;
+        var values = new com.google.gson.JsonArray();
+        for (var entry : result.getAsJsonArray("values")) {
+            var value = entry.getAsJsonObject();
+            String item = value.get("id")
+                .getAsString();
+            if (item.equals("gtceu:silicon_dust")) continue;
+            if (item.equals("gtceu:silicon_ingot")) value.addProperty("id", "gtceu:silicon_solar_grade_plate");
+            values.add(value);
+        }
+        result.add("values", values);
+        return result;
     }
 
     /** Keep the copied source bytes intact; adapt Forge 1.20 serializer field names at the platform boundary. */

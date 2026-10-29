@@ -69,10 +69,9 @@ final class GregTechRecipeMaterials {
                 return material(OrePrefixes.dust, Materials.Quartzite, count);
             case "gtceu:sodium_dust":
                 return material(OrePrefixes.dust, Materials.Sodium, count);
-            case "gtceu:silicon_ingot":
-                return material(OrePrefixes.ingot, Materials.Silicon, count);
-            case "gtceu:silicon_dust":
-                return material(OrePrefixes.dust, Materials.Silicon, count);
+            // GTNH presses AE2 silicon from this plate; plain GT silicon would skip that progression.
+            case "gtceu:silicon_solar_grade_plate":
+                return material(OrePrefixes.plate, Materials.SiliconSG, count);
             case "gtceu:niobium_titanium_ingot":
                 return material(OrePrefixes.ingot, Materials.NiobiumTitanium, count);
             case "gtceu:vanadium_gallium_ingot":

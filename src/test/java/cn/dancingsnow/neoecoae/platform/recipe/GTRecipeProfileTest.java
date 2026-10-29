@@ -104,6 +104,43 @@ class GTRecipeProfileTest {
     }
 
     @Test
+    void nativeSiliconTagUsesSolarGradePlateWithoutChangingTheLockedSource() {
+        var source = SourceRecipes.read("neoecoae/gt-1201/gtm/data/neoecoae/tags/items/compat/gt/silicon.json");
+        String original = source.toString();
+        var adapted = GTRecipeProfile.normalizeTag("neoecoae:compat/gt/silicon", source);
+        var values = adapted.getAsJsonArray("values");
+        assertEquals(2, values.size());
+        assertEquals(
+            "ae2:silicon",
+            values.get(0)
+                .getAsJsonObject()
+                .get("id")
+                .getAsString());
+        assertEquals(
+            "gtceu:silicon_solar_grade_plate",
+            values.get(1)
+                .getAsJsonObject()
+                .get("id")
+                .getAsString());
+        for (var entry : values) assertFalse(
+            entry.getAsJsonObject()
+                .get("required")
+                .getAsBoolean());
+        assertFalse(
+            adapted.get("replace")
+                .getAsBoolean());
+        assertEquals(original, source.toString());
+        assertEquals(
+            3,
+            source.getAsJsonArray("values")
+                .size());
+        assertEquals(
+            original,
+            GTRecipeProfile.normalizeTag("neoecoae:compat/gt/other", source)
+                .toString());
+    }
+
+    @Test
     void gtCircuitProgressionUsesTheNativeGtnhTierNames() {
         assertEquals("circuitAdvanced", SourceTags.oreName("gtceu:circuits/hv"));
         assertEquals("circuitData", SourceTags.oreName("gtceu:circuits/ev"));
