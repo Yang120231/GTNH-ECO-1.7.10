@@ -13,11 +13,16 @@ public final class Registry<T> {
 
     private final Map<ResourceLocation, T> values = new LinkedHashMap<>();
     private final List<T> indexed = new ArrayList<>();
+    // Registered values are compared by identity, matching the original linear scans.
+    private final Map<T, ResourceLocation> keys = new java.util.IdentityHashMap<>();
+    private final Map<T, Integer> ids = new java.util.IdentityHashMap<>();
 
     public synchronized T register(ResourceLocation key, T value) {
-        if (values.containsKey(key) || indexed.contains(value))
+        if (values.containsKey(key) || keys.containsKey(value) || indexed.contains(value))
             throw new IllegalArgumentException("Duplicate registry value " + key);
         values.put(key, value);
+        keys.put(value, key);
+        ids.put(value, indexed.size());
         indexed.add(value);
         return value;
     }
@@ -27,13 +32,12 @@ public final class Registry<T> {
     }
 
     public ResourceLocation getKey(T value) {
-        for (var entry : values.entrySet()) if (entry.getValue() == value) return entry.getKey();
-        return null;
+        return keys.get(value);
     }
 
     public int getId(T value) {
-        for (int i = 0; i < indexed.size(); i++) if (indexed.get(i) == value) return i;
-        return -1;
+        Integer id = ids.get(value);
+        return id == null ? -1 : id;
     }
 
     public T byId(int id) {

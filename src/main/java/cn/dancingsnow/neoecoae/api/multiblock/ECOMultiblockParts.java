@@ -118,14 +118,12 @@ public final class ECOMultiblockParts {
     }
 
     public static int order(TileEntity member) {
-        BlockState state = cn.dancingsnow.neoecoae.platform.minecraft.TileViews.state(member);
-        return state == null ? 0
-            : order(
-                new Context(
-                    cn.dancingsnow.neoecoae.platform.minecraft.TileViews.level(member),
-                    cn.dancingsnow.neoecoae.platform.minecraft.TileViews.position(member),
-                    state,
-                    member));
+        var level = cn.dancingsnow.neoecoae.platform.minecraft.WorldView.of(member.getWorldObj());
+        var position = new BlockPos(member.xCoord, member.yCoord, member.zCoord);
+        BlockState state = member instanceof cn.dancingsnow.neoecoae.platform.minecraft.NativeStateHolder
+            ? ((cn.dancingsnow.neoecoae.platform.minecraft.NativeStateHolder) member).nativeBlockState()
+            : level == null || !level.hasChunkAt(position) ? null : level.getBlockState(position);
+        return state == null ? 0 : order(new Context(level, position, state, member));
     }
 
     public static boolean matchesTiered(Context context, Role role, StorageTierDescriptor hostTier, boolean fallback,

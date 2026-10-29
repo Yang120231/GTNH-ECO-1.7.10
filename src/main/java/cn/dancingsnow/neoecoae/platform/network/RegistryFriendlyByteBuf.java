@@ -65,6 +65,8 @@ public final class RegistryFriendlyByteBuf {
         return this;
     }
 
+    // Stricter than Forge's ByteBufUtils: rejects overflowing fifth bytes and reports malformed client data as
+    // IllegalArgumentException, which the graph stream decoder handles.
     public int readVarInt() {
         int result = 0;
         for (int index = 0; index < 5; index++) {

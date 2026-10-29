@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoae.impl.storage;
 
-public enum ECOStorageInterfaceMode implements cn.dancingsnow.neoecoae.platform.minecraft.StringRepresentable {
+public enum ECOStorageInterfaceMode {
 
     STORAGE("storage"),
     INPUT("input"),
@@ -12,7 +12,6 @@ public enum ECOStorageInterfaceMode implements cn.dancingsnow.neoecoae.platform.
         this.serializedName = serializedName;
     }
 
-    @Override
     public String getSerializedName() {
         return serializedName;
     }

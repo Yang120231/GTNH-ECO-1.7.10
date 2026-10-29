@@ -21,8 +21,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.IUpgradeInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.UpgradeInventories;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
-import cn.dancingsnow.neoecoae.platform.registry.Fluids;
-import cn.dancingsnow.neoecoae.platform.registry.Items;
 import cn.dancingsnow.neoecoae.platform.registry.NativeStorageCellItem;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 
@@ -39,8 +37,10 @@ import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 public class ECOInfiniteResourceCellItem extends NativeStorageCellItem {
 
     /** The only keys this cell accepts or supplies. */
-    private static final List<AEKey> LOCKED_KEYS = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
-        .listOf(AEFluidKey.of(Fluids.WATER), AEItemKey.of(Items.COBBLESTONE), AEFluidKey.of(Fluids.LAVA));
+    private static final List<AEKey> LOCKED_KEYS = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(
+        AEFluidKey.of(net.minecraftforge.fluids.FluidRegistry.WATER),
+        AEItemKey.of(net.minecraft.item.Item.getItemFromBlock(net.minecraft.init.Blocks.cobblestone)),
+        AEFluidKey.of(net.minecraftforge.fluids.FluidRegistry.LAVA));
 
     /** One slot per locked key, so the cell reads as partition-configured out of the box. */
     private static final int CONFIG_SLOTS = LOCKED_KEYS.size();

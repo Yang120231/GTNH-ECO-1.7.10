@@ -12,7 +12,6 @@ import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
-import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 public final class ECOFastPathKey {
@@ -20,13 +19,13 @@ public final class ECOFastPathKey {
     private final ECOFastPathPatternKey patternKey;
 
     @Nullable
-    private final ResourceLocation dimension;
+    private final Integer dimension;
 
     private final long reloadGeneration;
     private final List<SlotSignature> slots;
     private final int hash;
 
-    private ECOFastPathKey(Object patternIdentity, @Nullable ResourceLocation dimension, long reloadGeneration,
+    private ECOFastPathKey(Object patternIdentity, @Nullable Integer dimension, long reloadGeneration,
         List<SlotSignature> slots) {
         this.patternKey = new ECOFastPathPatternKey(patternIdentity, reloadGeneration);
         this.dimension = dimension;
@@ -41,8 +40,7 @@ public final class ECOFastPathKey {
             return Optional.empty();
         }
         try {
-            ResourceLocation dimension = level == null ? null
-                : cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldIds.dimension(level);
+            Integer dimension = level == null ? null : level.provider.dimensionId;
             List<SlotSignature> slots = new ArrayList<>(craftingContainer.length);
             for (KeyCounter counter : craftingContainer) {
                 List<EntrySignature> entries = new ArrayList<>();

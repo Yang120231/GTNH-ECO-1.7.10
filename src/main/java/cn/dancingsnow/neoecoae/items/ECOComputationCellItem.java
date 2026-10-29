@@ -6,7 +6,6 @@ import net.minecraft.item.ItemStack;
 
 import cn.dancingsnow.neoecoae.api.computation.IECOComputationCellItem;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
-import cn.dancingsnow.neoecoae.platform.minecraft.NumberText;
 import cn.dancingsnow.neoecoae.platform.registry.NativeMaterialItem;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 
@@ -34,7 +33,8 @@ public class ECOComputationCellItem extends NativeMaterialItem implements IECOCo
             tooltipComponents.add(
                 Component.translatable(
                     "tooltip.neoecoae.computation_cell",
-                    NumberText.ofUnformattedNumber(cellItem.getComputationBytes(stack))));
+                    java.text.NumberFormat.getIntegerInstance(java.util.Locale.ROOT)
+                        .format(cellItem.getComputationBytes(stack))));
             tooltipComponents.add(Component.translatable("tooltip.neoecoae.computation_cell.install"));
         }
     }

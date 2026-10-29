@@ -34,7 +34,6 @@ import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
 import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
 import cn.dancingsnow.neoecoae.platform.sync.Persisted;
-import cn.dancingsnow.neoecoae.platform.sync.RequireRerender;
 import cn.dancingsnow.neoecoae.util.CellHostItemHandler;
 import cn.dancingsnow.neoecoae.util.ICellHost;
 
@@ -50,7 +49,6 @@ public class ECODriveBlockEntity extends
 
     @DescSynced
     @Persisted
-    @RequireRerender
     @Nullable
     private ItemStack cellStack = null;
 
