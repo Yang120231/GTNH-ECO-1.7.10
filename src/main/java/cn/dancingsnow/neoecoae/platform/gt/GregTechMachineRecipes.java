@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoae.platform.gt;
 
 import static gregtech.api.util.GTRecipeConstants.CLEANROOM;
 import static gregtech.api.util.GTRecipeConstants.COIL_HEAT;
+import static gregtech.api.util.GTRecipeConstants.UniversalArcFurnace;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +20,7 @@ import cn.dancingsnow.neoecoae.platform.recipe.SourceItems;
 import cn.dancingsnow.neoecoae.platform.recipe.SourceRecipes;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.ItemList;
+import gregtech.api.enums.TierEU;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.util.GTOreDictUnificator;
@@ -53,6 +55,7 @@ final class GregTechMachineRecipes {
         }
         if (definitions != 19)
             throw new IllegalStateException("Incomplete authorized 1.20.1 GT machine source catalog");
+        variants += registerEnergizedCrystalSeed();
         registered = true;
         NeoECOAE.LOG.info(
             "NEOECOAE_NATIVE_GT_RECIPES_REGISTERED definitions={} variants={} source=024b73da",
@@ -117,7 +120,7 @@ final class GregTechMachineRecipes {
                     .getAsJsonObject()
                     .get("content")
                     .getAsInt())
-            .setNEIDesc("NeoECOAE 1.20.1 GTM: " + id);
+            .setNEIDesc("NeoECOAE");
         if (source.has("data") && source.getAsJsonObject("data")
             .has("ebf_temp"))
             builder.metadata(
@@ -134,6 +137,27 @@ final class GregTechMachineRecipes {
             builder.metadata(CLEANROOM, true);
         }
         return installVariants(id, map, builder, inputs, new ItemStack[inputs.size()], 0);
+    }
+
+    /**
+     * 1.7.10-only seed: the source's first energized crystal comes from lightning striking budding certus, which GTNH
+     * lacks. The arc furnace stands in for that lightning at MV; the source autoclave loop multiplies it afterwards.
+     */
+    private static int registerEnergizedCrystalSeed() {
+        ItemStack input = SourceItems.stack("ae2:charged_certus_quartz_crystal", 4);
+        ItemStack output = SourceItems.stack("neoecoae:energized_crystal", 1);
+        if (input == null || output == null)
+            throw new IllegalStateException("Missing energized crystal arc furnace seed material");
+        int count = GTValues.RA.stdBuilder()
+            .itemInputs(input)
+            .itemOutputs(output)
+            .duration(200)
+            .eut(TierEU.RECIPE_MV)
+            .setNEIDesc("NeoECOAE")
+            .addTo(UniversalArcFurnace)
+            .size();
+        if (count == 0) throw new IllegalStateException("Native GT map rejected energized crystal seed");
+        return count;
     }
 
     private static int installVariants(String id, RecipeMap<?> map, GTRecipeBuilder builder,
