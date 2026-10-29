@@ -104,6 +104,12 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
             serverSession.execute(() -> { if (validSession()) offset = Math.max(0, requested); });
             return;
         }
+        if (id == 2) {
+            int slot = buffer.readInt();
+            if (buffer.isReadable()) throw new java.io.IOException("Trailing storage quick-move bytes");
+            serverSession.execute(() -> { if (validSession()) quickMoveFromInventory(slot); });
+            return;
+        }
         if (id != 1) throw new java.io.IOException("Unknown storage action: " + id);
         int token = buffer.readInt();
         boolean insert = buffer.readBoolean();
@@ -129,6 +135,28 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
                 }
             }
         });
+    }
+
+    @SideOnly(Side.CLIENT)
+    public void quickMove(int slot) {
+        syncToServer(2, output -> output.writeInt(slot));
+    }
+
+    private void quickMoveFromInventory(int slot) {
+        var player = getSyncManager().getPlayer();
+        if (slot < 0 || slot >= player.inventory.mainInventory.length
+            || !ItemStacks.isEmpty(player.inventory.getItemStack())) return;
+        ItemStack stack = player.inventory.getStackInSlot(slot);
+        if (ItemStacks.isEmpty(stack)) return;
+        if (cn.dancingsnow.neoecoae.platform.registry.StorageTags.isInfiniteComponent(stack)) {
+            ItemStack remaining = config.infiniteComponentInventory().insertItem(0, stack.copy(), false);
+            if (ItemStacks.count(remaining) == ItemStacks.count(stack)) return;
+            player.inventory.setInventorySlotContents(slot, ItemStacks.isEmpty(remaining) ? null : remaining);
+            player.inventory.markDirty();
+            cn.dancingsnow.neoecoae.platform.minecraft.NativePlayerInventory.syncMenu(player);
+        } else {
+            cn.dancingsnow.neoecoae.blocks.entity.storage.StorageCellUiInsertion.quickMove(host, player, slot);
+        }
     }
 
     @SideOnly(Side.CLIENT)

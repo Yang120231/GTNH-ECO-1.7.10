@@ -25,7 +25,7 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
 
         @Override
         public boolean isItemValid(int slot, net.minecraft.item.ItemStack stack) {
-            return slot == 0 && cn.dancingsnow.neoecoae.api.computation.ECOComputationCells.describe(stack) != null;
+            return slot == 0 && isSupportedCell(stack);
         }
 
         @Override
@@ -57,6 +57,15 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
 
     public AppEngInternalInventory getInternalInventory() {
         return inventory;
+    }
+
+    public static boolean isSupportedCell(net.minecraft.item.ItemStack stack) {
+        var memory = cn.dancingsnow.neoecoae.api.computation.ECOComputationCells.describe(stack);
+        if (memory == null) return false;
+        var tier = memory.tier();
+        return tier == cn.dancingsnow.neoecoae.platform.registry.StorageTier.L4
+            || tier == cn.dancingsnow.neoecoae.platform.registry.StorageTier.L6
+            || tier == cn.dancingsnow.neoecoae.platform.registry.StorageTier.L9;
     }
 
     public boolean isLowerDrive() {

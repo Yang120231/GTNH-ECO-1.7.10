@@ -140,11 +140,16 @@ public final class NativePageLayout {
 
     /** Native widgets keep their real slot/action synchronization; the source tree owns geometry. */
     public void children(ParentWidget<?> parent, Function<JsonObject, Widget<?>> binding) {
-        children(parent, root, width(), height(), binding);
+        children(parent, binding, NativePageLayout::playerInventory);
+    }
+
+    public void children(ParentWidget<?> parent, Function<JsonObject, Widget<?>> binding,
+        java.util.function.Supplier<SlotGroupWidget> playerInventory) {
+        children(parent, root, width(), height(), binding, playerInventory);
     }
 
     private static void children(ParentWidget<?> parent, JsonObject definition, int width, int height,
-        Function<JsonObject, Widget<?>> binding) {
+        Function<JsonObject, Widget<?>> binding, java.util.function.Supplier<SlotGroupWidget> playerInventory) {
         if (!definition.has("children")) return;
         for (var value : definition.getAsJsonArray("children")) {
             JsonObject node = value.getAsJsonObject();
@@ -171,7 +176,7 @@ public final class NativePageLayout {
                                 .getAsInt()));
                     break;
                 case "player_inventory":
-                    widget = playerInventory();
+                    widget = playerInventory.get();
                     break;
                 default:
                     widget = binding.apply(node);
@@ -187,7 +192,8 @@ public final class NativePageLayout {
                     node,
                     dimension(box, "width", width, width),
                     dimension(box, "height", height, height),
-                    binding);
+                    binding,
+                    playerInventory);
             }
         }
     }

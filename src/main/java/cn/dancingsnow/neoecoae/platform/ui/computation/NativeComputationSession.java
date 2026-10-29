@@ -463,6 +463,9 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             case 12:
                 driveOffset = Math.max(0, Math.min(65527, argument));
                 break;
+            case 19:
+                quickMoveCell(argument);
+                break;
             case 13:
                 visibleRows = argument == 9 ? 9 : 6;
                 break;
@@ -556,6 +559,27 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             if (shift) player.inventory.setInventorySlotContents(destination, extracted);
             else player.inventory.setItemStack(extracted);
         }
+        player.inventory.markDirty();
+        cn.dancingsnow.neoecoae.platform.minecraft.NativePlayerInventory.syncMenu(player);
+    }
+
+    private void quickMoveCell(int slot) {
+        var player = getSyncManager().getPlayer();
+        var cluster = host.getCluster();
+        if (!host.isFormed() || cluster == null || cluster.isDestroyed()
+            || slot < 0 || slot >= player.inventory.mainInventory.length) return;
+        ItemStack stack = player.inventory.getStackInSlot(slot);
+        if (!ItemStacks.isEmpty(player.inventory.getItemStack())
+            || !ECOComputationDriveBlockEntity.isSupportedCell(stack)) return;
+        int before = ItemStacks.count(stack);
+        for (var drive : cluster.getDrives()) {
+            if (ItemStacks.isEmpty(stack)) break;
+            if (drive.isInvalid() || drive.getWorldObj() != host.getWorldObj()
+                || !ItemStacks.isEmpty(drive.getCellStack())) continue;
+            stack = drive.getInternalInventory().insertItem(0, stack, false);
+        }
+        if (ItemStacks.count(stack) == before) return;
+        player.inventory.setInventorySlotContents(slot, ItemStacks.isEmpty(stack) ? null : stack);
         player.inventory.markDirty();
         cn.dancingsnow.neoecoae.platform.minecraft.NativePlayerInventory.syncMenu(player);
     }

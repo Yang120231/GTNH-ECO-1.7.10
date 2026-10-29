@@ -163,7 +163,10 @@ public final class NativeComputationPages {
                 default:
                     throw new IllegalArgumentException("Unknown source computation node: " + custom);
             }
-        });
+        }, () -> com.cleanroommc.modularui.widgets.SlotGroupWidget.playerInventory(
+            (index, slot) -> new cn.dancingsnow.neoecoae.platform.ui.NativeQuickMoveSlot(
+                cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity::isSupportedCell,
+                () -> session.action(19, index)).background(IDrawable.EMPTY)));
         return panel;
     }
 

@@ -103,7 +103,11 @@ public final class NativeStoragePages {
                     .getAsString();
                 switch (custom) {
                     case "player_inventory":
-                        widget = NativePageLayout.playerInventory();
+                        widget = com.cleanroommc.modularui.widgets.SlotGroupWidget.playerInventory(
+                            (index, slot) -> new cn.dancingsnow.neoecoae.platform.ui.NativeQuickMoveSlot(
+                                stack -> cn.dancingsnow.neoecoae.platform.registry.StorageTags.isInfiniteComponent(stack)
+                                    || cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.isCellHandled(stack),
+                                () -> session.quickMove(index)).background(IDrawable.EMPTY));
                         break;
                     case "infinite_component_slot":
                         widget = componentSlot();
@@ -166,6 +170,8 @@ public final class NativeStoragePages {
                 return allowed && super.canTakeStack(player);
             }
         };
+        slot.filter(cn.dancingsnow.neoecoae.platform.registry.StorageTags::isInfiniteComponent)
+            .singletonSlotGroup(0);
         return new cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot().slot(slot)
             .background((IDrawable) null);
     }
