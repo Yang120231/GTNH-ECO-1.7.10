@@ -94,6 +94,56 @@ class MBCalculatorNeighborUpdateTest {
     }
 
     @Test
+    void patternRebuildsArePausedWhileMembersAttach() throws ReflectiveOperationException {
+        cluster = null;
+        int before = pausedRebuilds();
+        calculator.calculateMultiblock(level, MIN);
+        assertEquals(before + 1, calculator.pausedDuringUpdate, "Each joining provider must not rebuild all patterns");
+        assertEquals(before, pausedRebuilds(), "The pause must be released afterwards");
+    }
+
+    @Test
+    void failedCalculationReleasesThePause() throws ReflectiveOperationException {
+        cluster = null;
+        calculator.failVerification = true;
+        int before = pausedRebuilds();
+        calculator.calculateMultiblock(level, MIN);
+        assertEquals(before, pausedRebuilds());
+    }
+
+    @Test
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void clusterTeardownPausesPatternRebuilds() throws ReflectiveOperationException {
+        int before = pausedRebuilds();
+        int[] during = { -1 };
+        var member = mock(cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity.class);
+        doAnswer(invocation -> {
+            during[0] = pausedRebuildsUnchecked();
+            return null;
+        }).when(member)
+            .updateCluster(any());
+        var real = new cn.dancingsnow.neoecoae.multiblock.cluster.NECluster(MIN, MAX) {};
+        real.addBlockEntity((TileEntity) member);
+        real.destroy();
+        assertEquals(before + 1, during[0], "Members leave the grid one by one while the cluster tears down");
+        assertEquals(before, pausedRebuilds(), "Teardown must release the pause");
+    }
+
+    private static int pausedRebuilds() throws ReflectiveOperationException {
+        var field = appeng.me.cache.CraftingGridCache.class.getDeclaredField("pauseRebuilds");
+        field.setAccessible(true);
+        return field.getInt(null);
+    }
+
+    private static int pausedRebuildsUnchecked() {
+        try {
+            return pausedRebuilds();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
     void destroyedClusterIsNotRebuiltDuringTeardown() {
         cluster.destroyed = true;
         calculator.calculateMultiblock(level, MIN);
@@ -147,8 +197,8 @@ class MBCalculatorNeighborUpdateTest {
 
     private final class CountingCalculator extends MBCalculator<Target, TestCluster> {
 
-        int calculations, verifications;
-        boolean guardHeldDuringUpdate;
+        int calculations, verifications, pausedDuringUpdate = -1;
+        boolean guardHeldDuringUpdate, failVerification;
 
         CountingCalculator(Target target) {
             super(target);
@@ -173,12 +223,14 @@ class MBCalculatorNeighborUpdateTest {
         @Override
         public boolean verifyInternalStructure(ServerWorldView level, BlockPos min, BlockPos max) {
             verifications++;
+            if (failVerification) throw new IllegalStateException("test failure");
             return true;
         }
 
         @Override
         public void updateBlockEntities(TestCluster created, ServerWorldView level, BlockPos min, BlockPos max) {
             guardHeldDuringUpdate = isModificationInProgress();
+            pausedDuringUpdate = pausedRebuildsUnchecked();
             cluster = created;
             super.calculateMultiblock(level, min);
         }

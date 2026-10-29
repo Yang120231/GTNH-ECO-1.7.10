@@ -127,6 +127,7 @@ public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
         if (ownsModification) {
             MBCalculator.setModificationInProgress(this);
         }
+        MBCalculator.pauseGridRebuilds();
         try {
             for (TileEntity blockEntity : blockEntities) {
                 if (blockEntity instanceof NEBlockEntity<?, ?>neBlockEntity) {
@@ -134,6 +135,7 @@ public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
                 }
             }
         } finally {
+            MBCalculator.resumeGridRebuilds();
             if (ownsModification) {
                 MBCalculator.setModificationInProgress(null);
             }

@@ -40,6 +40,30 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
         // A cluster that is still tearing down must not be rebuilt from inside its own destruction.
         C current = target.getCluster();
         if (current != null && current.isDestroyed()) return;
+        // Members join or leave the grid one node at a time; see pauseGridRebuilds.
+        pauseGridRebuilds();
+        try {
+            calculate(level, location);
+        } finally {
+            resumeGridRebuilds();
+        }
+    }
+
+    /**
+     * rv3's {@code CraftingGridCache.addNode/removeNode} rebuild every pattern of the grid synchronously for each
+     * crafting provider that joins or leaves it. A multiblock attaches its members one by one, so a structure with
+     * many pattern buses next to a large network rebuilt the full pattern list once per bus. While paused, AE2 only
+     * records which grids need a rebuild and runs each one once on resume. Calls nest; server thread only.
+     */
+    public static void pauseGridRebuilds() {
+        appeng.me.cache.CraftingGridCache.pauseRebuilds();
+    }
+
+    public static void resumeGridRebuilds() {
+        appeng.me.cache.CraftingGridCache.unpauseRebuilds();
+    }
+
+    private void calculate(ServerWorldView level, BlockPos location) {
         try {
             BlockPos min = location, max = location;
             for (Direction side : new Direction[] { Direction.WEST, Direction.DOWN, Direction.NORTH })
