@@ -11,6 +11,16 @@
 /config/
 /crash-reports/
 /.tmp*/
+# Local diagnostic scripts, dumps, and texture previews
+/tmp-*
+/tmp_*
+/inspect_bus.py
+/inspect_buses.py
+/inspect_cpu.py
+/inspect_f9.py
+/inspect_nbt.py
+/inspect_workers.py
+/monitor_f9.py
 *.class
 *.iml
 *.ipr
