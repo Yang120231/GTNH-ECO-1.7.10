@@ -490,7 +490,6 @@ class StoragePanelStateTest {
             assertEquals(i + 1, StoragePanelTextures.swatchIndex(ResourceLocation.parse("neoecoae:" + normal[i])));
             assertEquals(i + 1, StoragePanelTextures.swatchIndex(ResourceLocation.parse(infinite[i])));
         }
-        assertEquals(2, StoragePanelTextures.swatchIndex(ResourceLocation.parse("neoecoae:bulk_item")));
         for (String excluded : new String[] { "neoecoae:mega_mana", "mekanism:spent_nuclear_waste",
             "data_energistics:digitalization", "other:mana" }) {
             assertEquals(

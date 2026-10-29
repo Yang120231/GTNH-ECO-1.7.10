@@ -23,13 +23,11 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
     private final StorageTierDescriptor tier;
     private final AEKeyType type;
     private final ECOCellType cellType;
-    private final boolean bulk;
 
-    public NativeStorageCellItem(StorageTierDescriptor tier, AEKeyType type, ECOCellType cellType, boolean bulk) {
+    public NativeStorageCellItem(StorageTierDescriptor tier, AEKeyType type, ECOCellType cellType) {
         this.tier = tier;
         this.type = type;
         this.cellType = cellType;
-        this.bulk = bulk;
         setMaxStackSize(1);
     }
 
@@ -64,13 +62,9 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
         return tier.getStorageIdleDrain();
     }
 
-    public boolean isLegacyBulk() {
-        return bulk;
-    }
-
     @Override
     public long getBytesPerType() {
-        return bulk ? getBytes() : 1L << (12 + tier.getTier());
+        return 1L << (12 + tier.getTier());
     }
 
     @Override

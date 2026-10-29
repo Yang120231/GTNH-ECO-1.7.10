@@ -274,13 +274,10 @@ public class ECODriveBlockEntity extends
                         .canUseHostDomainStorage())
                 && !ECOInfiniteStorageMember.isMigrating(cellStack)
                 && !ECOInfiniteStorageMember.isMember(cellStack)) {
-                // Apply the cell offset first, then keep the reserved upper slot for marked bulk cells.
                 int priority = cn.dancingsnow.neoecoae.gui.storage.StoragePriority.mountPriority(
-                    cn.dancingsnow.neoecoae.gui.storage.StoragePriority.adjust(
-                        storageCluster.getController()
-                            .getStoragePriority(),
-                        getConfiguredCellPriority()),
-                    cellInventory.prioritizesMarkedInserts());
+                    storageCluster.getController()
+                        .getStoragePriority(),
+                    getConfiguredCellPriority());
                 storageMounts.mount(cellInventory, priority);
                 updateMountState(true);
                 return;

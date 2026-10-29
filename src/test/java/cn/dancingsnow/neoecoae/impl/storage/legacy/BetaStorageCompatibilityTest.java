@@ -78,8 +78,7 @@ class BetaStorageCompatibilityTest {
             new NativeStorageCellItem(
                 StorageTier.L9,
                 type,
-                new ECOCellType(Component.literal("beta-test"), type == AEKeyType.items() ? 315 : 25),
-                false));
+                new ECOCellType(Component.literal("beta-test"), type == AEKeyType.items() ? 315 : 25)));
         CompoundTag root = new CompoundTag();
         root.put("ECOStorage", storage);
         root.putString("ECOTier", "256M");

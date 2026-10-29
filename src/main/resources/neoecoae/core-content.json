@@ -729,17 +729,6 @@
       "enabled": true
     },
     {
-      "field": "ECO_BULK_ITEM_CELL_HOUSING",
-      "line": 899,
-      "factory": "MaterialItem",
-      "id": "eco_bulk_item_cell_housing",
-      "kind": "material",
-      "rarity": "COMMON",
-      "stack_limit": 64,
-      "creative": true,
-      "enabled": true
-    },
-    {
       "field": "ECO_FLUID_CELL_HOUSING",
       "line": 918,
       "factory": "MaterialItem",
@@ -781,42 +770,6 @@
       "rarity": "EPIC",
       "stack_limit": 1,
       "creative": true,
-      "enabled": true
-    },
-    {
-      "field": "ECO_BULK_ITEM_CELL_16M",
-      "line": 997,
-      "factory": "ECOStorageCellItem",
-      "id": "eco_bulk_item_cell_16m",
-      "component": "eco_cell_component_16m",
-      "kind": "ECOStorageCellItem",
-      "rarity": "UNCOMMON",
-      "stack_limit": 1,
-      "creative": false,
-      "enabled": true
-    },
-    {
-      "field": "ECO_BULK_ITEM_CELL_64M",
-      "line": 999,
-      "factory": "ECOStorageCellItem",
-      "id": "eco_bulk_item_cell_64m",
-      "component": "eco_cell_component_64m",
-      "kind": "ECOStorageCellItem",
-      "rarity": "RARE",
-      "stack_limit": 1,
-      "creative": false,
-      "enabled": true
-    },
-    {
-      "field": "ECO_BULK_ITEM_CELL_256M",
-      "line": 1001,
-      "factory": "ECOStorageCellItem",
-      "id": "eco_bulk_item_cell_256m",
-      "component": "eco_cell_component_256m",
-      "kind": "ECOStorageCellItem",
-      "rarity": "EPIC",
-      "stack_limit": 1,
-      "creative": false,
       "enabled": true
     },
     {

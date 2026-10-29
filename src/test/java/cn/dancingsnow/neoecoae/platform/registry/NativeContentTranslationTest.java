@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -84,11 +85,61 @@ class NativeContentTranslationTest {
         @SuppressWarnings("unchecked")
         Map<String, String> original = new HashMap<>((Map<String, String>) languageList.get(instance.get(null)));
         Map<String, Item> items = new LinkedHashMap<>();
-        items.put("eco_item_storage_cell_256m", new NativeStorageCellItem(StorageTier.L9, null, null, false));
-        items.put("energized_crystal", new NativeMaterialItem("energized_crystal"));
+        for (var entry : blocks().entrySet()) items.put(entry.getKey(), new NativeMachineItemBlock(entry.getValue()));
+        Method toolFactory = CoreItemCatalog.class.getDeclaredMethod("tool", JsonObject.class, Map.class);
+        toolFactory.setAccessible(true);
+        Map<String, Item.ToolMaterial> tiers = new LinkedHashMap<>();
+        for (var tier : catalog("core-content.json").getAsJsonObject("tool_tiers")
+            .entrySet()) tiers.put(tier.getKey(), Item.ToolMaterial.IRON);
+        int tools = 0;
+        int standalone = 0;
+        for (var value : catalog("core-content.json").getAsJsonArray("items")) {
+            JsonObject definition = value.getAsJsonObject();
+            if (!definition.get("enabled")
+                .getAsBoolean()) continue;
+            String id = definition.get("id")
+                .getAsString();
+            String kind = definition.get("kind")
+                .getAsString();
+            Item item;
+            switch (kind) {
+                case "tool":
+                    item = (Item) toolFactory.invoke(null, definition, tiers);
+                    tools++;
+                    break;
+                case "material":
+                case "smithing_template":
+                case "infinite_component":
+                case "workstation_module":
+                    item = new NativeMaterialItem(id);
+                    break;
+                case "ECOStorageCellItem":
+                    item = new NativeStorageCellItem(tier(id), null, null);
+                    break;
+                case "ECOComputationCellItem":
+                    item = new cn.dancingsnow.neoecoae.items.ECOComputationCellItem(tier(id));
+                    break;
+                case "ECOInfiniteResourceCellItem":
+                    // Its constructor needs live fluid/block registries; verify its inherited name path separately.
+                    assertEquals(
+                        NativeStorageCellItem.class,
+                        cn.dancingsnow.neoecoae.items.ECOInfiniteResourceCellItem.class
+                            .getMethod("getItemStackDisplayName", ItemStack.class)
+                            .getDeclaringClass());
+                    continue;
+                default:
+                    throw new AssertionError("Untested item factory: " + kind);
+            }
+            items.put(id, item);
+            standalone++;
+        }
+        assertEquals(20, tools, "All four materials and five native tool classes must be exercised");
+        assertEquals(catalogIds("core-content.json", "items").size() - 1, standalone);
+        assertEquals(catalogIds("core-registration.json", "blocks").size() + standalone, items.size());
         try {
             for (String locale : Arrays.asList("en_US", "zh_CN", "zh_HK", "zh_TW", "lzh", "en_UD")) {
-                Map<String, String> translations = lang(locale);
+                Map<String, String> translations = new HashMap<>(lang("en_US"));
+                translations.putAll(lang(locale));
                 StringTranslate.replaceWith(translations);
                 for (var entry : items.entrySet()) {
                     Item item = entry.getValue()
@@ -97,8 +148,10 @@ class NativeContentTranslationTest {
                     String expected = translations.get(item.getUnlocalizedName(stack) + ".name");
                     assertNotNull(expected, locale + ": " + entry.getKey());
                     assertEquals(expected, stack.getDisplayName(), locale + ": " + entry.getKey());
-                    stack.setStackDisplayName("My cell");
-                    assertEquals("My cell", stack.getDisplayName(), "Custom names must remain intact");
+                    stack.setItemDamage(17);
+                    assertEquals(expected, stack.getDisplayName(), "Damage must not change the translated name");
+                    stack.setStackDisplayName("Custom name");
+                    assertEquals("Custom name", stack.getDisplayName(), "Custom names must remain intact");
                 }
             }
         } finally {
@@ -214,5 +267,12 @@ class NativeContentTranslationTest {
         try (InputStream stream = Files.newInputStream(LANG.resolve(locale + ".lang"))) {
             return StringTranslate.parseLangFile(stream);
         }
+    }
+
+    private static StorageTier tier(String id) {
+        if (id.endsWith("_16m") || id.endsWith("_l4")) return StorageTier.L4;
+        if (id.endsWith("_64m") || id.endsWith("_l6")) return StorageTier.L6;
+        assertTrue(id.endsWith("_256m") || id.endsWith("_l9"), id);
+        return StorageTier.L9;
     }
 }

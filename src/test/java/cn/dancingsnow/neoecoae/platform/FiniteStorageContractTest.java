@@ -36,8 +36,7 @@ class FiniteStorageContractTest {
                 NativeStorageCellItem item = new NativeStorageCellItem(
                     tier,
                     type,
-                    new ECOCellType(Component.literal("test"), fluid ? 25 : 315),
-                    false);
+                    new ECOCellType(Component.literal("test"), fluid ? 25 : 315));
                 ItemStack stack = new ItemStack(item);
                 ECOStorageCell cell = new ECOStorageCell(stack, null);
                 AEKey key = new TestResourceKey("expanded-resource", fluid);
@@ -66,20 +65,6 @@ class FiniteStorageContractTest {
                     loaded.extract(key, Long.MAX_VALUE, Actionable.MODULATE, IActionSource.empty()));
                 assertEquals(0, new ECOStorageCell(stack, null).getStoredItemCount());
             }
-        }
-    }
-
-    @Test
-    void bulkTypeByteCostsRemainPositiveAboveTheIntegerRange() {
-        for (StorageTier tier : StorageTier.values()) {
-            NativeStorageCellItem item = new NativeStorageCellItem(
-                tier,
-                AEKeyType.items(),
-                new ECOCellType(Component.literal("bulk"), 1),
-                true);
-            assertEquals(tier.getStorageTotalBytes(), item.getBytesPerType());
-            ECOStorageCell cell = new ECOStorageCell(new ItemStack(item), null);
-            assertEquals(1, cell.getRemainingItemTypes());
         }
     }
 
@@ -113,11 +98,7 @@ class FiniteStorageContractTest {
             }
         };
         ItemStack stack = new ItemStack(
-            new NativeStorageCellItem(
-                addon,
-                AEKeyType.items(),
-                new ECOCellType(Component.literal("addon"), 315),
-                false));
+            new NativeStorageCellItem(addon, AEKeyType.items(), new ECOCellType(Component.literal("addon"), 315)));
         ECOStorageCell cell = new ECOStorageCell(stack, null);
         assertSame(addon, cell.getTier());
         assertTrue(cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageTransfer.isEligible(cell));
@@ -135,8 +116,7 @@ class FiniteStorageContractTest {
             new NativeStorageCellItem(
                 StorageTier.L4,
                 type,
-                new ECOCellType(Component.literal("test"), type == AEKeyType.items() ? 315 : 25),
-                false));
+                new ECOCellType(Component.literal("test"), type == AEKeyType.items() ? 315 : 25)));
     }
 
     @Test

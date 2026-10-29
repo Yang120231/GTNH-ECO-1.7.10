@@ -61,8 +61,7 @@ class DriveDeferredPersistenceTest {
             new NativeStorageCellItem(
                 StorageTier.L4,
                 AEKeyType.items(),
-                new ECOCellType(Component.literal("test"), 315),
-                false));
+                new ECOCellType(Component.literal("test"), 315)));
         drive.setCellStack(stack);
         ServerThread.capture();
     }

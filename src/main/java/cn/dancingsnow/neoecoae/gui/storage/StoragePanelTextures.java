@@ -66,7 +66,7 @@ public final class StoragePanelTextures {
         if (id == null) return FALLBACK_SWATCH;
         return switch (id.toString()) {
             case "neoecoae:fluids", "ae2:f" -> 1;
-            case "neoecoae:items", "neoecoae:bulk_item", "ae2:i" -> 2;
+            case "neoecoae:items", "ae2:i" -> 2;
             default -> FALLBACK_SWATCH;
         };
     }

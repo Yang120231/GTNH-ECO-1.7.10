@@ -125,13 +125,9 @@ final class ECOStorageInterfaceTransfer {
         public long insert(AEKey key, long amount, appeng.api.config.Actionable mode, IActionSource source) {
             if (!allowAccess.getAsBoolean()) return 0L;
             long inserted = 0L;
-            for (int pass = 0; pass < 2 && inserted < amount; pass++) {
-                for (MEStorage inventory : inventories) {
-                    if (inserted >= amount) break;
-                    boolean bulk = inventory instanceof IECOStorageCell cell && cell.prioritizesMarkedInserts();
-                    if (bulk != (pass == 0)) continue;
-                    inserted += inventory.insert(key, amount - inserted, mode, source);
-                }
+            for (MEStorage inventory : inventories) {
+                if (inserted >= amount) break;
+                inserted += inventory.insert(key, amount - inserted, mode, source);
             }
             return inserted;
         }

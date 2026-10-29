@@ -110,7 +110,7 @@ public final class PortingContentFixture {
             GameRegistry.findItem("neoecoae", "integrated_working_station_module_empty") == null,
             "Large workstation cards excluded");
         NeoECOAE.LOG.info(
-            "NEOECOAE_NATIVE_CONTENT_OK core_items=65 material_blocks=13 source_shape_boxes=13 crafting={} smithing_nbt=true processor_inscriber=true",
+            "NEOECOAE_NATIVE_CONTENT_OK core_items=61 material_blocks=13 source_shape_boxes=13 crafting={} smithing_nbt=true processor_inscriber=true",
             SourceRecipes.crafting()
                 .size());
     }

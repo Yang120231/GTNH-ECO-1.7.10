@@ -53,8 +53,7 @@ class ECOInfiniteStorageTransferBudgetTest {
                 new NativeStorageCellItem(
                     StorageTier.L4,
                     AEKeyType.items(),
-                    new ECOCellType(Component.literal("test"), 315),
-                    false));
+                    new ECOCellType(Component.literal("test"), 315)));
             cell = new ECOStorageCell(stack, null);
             for (int i = 0; i < keys; i++) {
                 AEKey key = new TestResourceKey(prefix + i, false);

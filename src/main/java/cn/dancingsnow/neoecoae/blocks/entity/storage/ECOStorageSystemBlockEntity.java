@@ -288,7 +288,7 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         if (engine == null || !canUseHostDomainStorage() || isStorageInterfaceTransferMode()) {
             return;
         }
-        storageMounts.mount(createInfiniteStorageView(engine), StoragePriority.mountPriority(storagePriority, false));
+        storageMounts.mount(createInfiniteStorageView(engine), storagePriority);
     }
 
     private void changeStoragePriority(EntityPlayer player, int delta) {

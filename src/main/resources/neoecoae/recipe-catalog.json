@@ -278,18 +278,6 @@
       "sha256": "8e797dc99dc916313f4eb9d3a3243cdae16f3fbca4ed2bf75964e151846e898c"
     },
     {
-      "path": "data/neoecoae/recipe/disassembly/eco_bulk_item_cell_16m.json",
-      "sha256": "926500fb90528136f08d675fdbd81977b090942b1c1c86d2088431ee4c6c23d4"
-    },
-    {
-      "path": "data/neoecoae/recipe/disassembly/eco_bulk_item_cell_256m.json",
-      "sha256": "cc7bad89ce7875ae84ef2728f172c00fe6ef1bf411a1c4f3e569a08a896d5b89"
-    },
-    {
-      "path": "data/neoecoae/recipe/disassembly/eco_bulk_item_cell_64m.json",
-      "sha256": "e6c21633ef439aed869cbc0feb8191f64021431d55b5040b7717524c38919f85"
-    },
-    {
       "path": "data/neoecoae/recipe/disassembly/eco_fluid_storage_cell_16m.json",
       "sha256": "9fa806e9b98c49924336d6e50027aa470ac6559ac01096543cca73e83d9c31f7"
     },
@@ -312,18 +300,6 @@
     {
       "path": "data/neoecoae/recipe/disassembly/eco_item_storage_cell_64m.json",
       "sha256": "f0709803da43f3273d4e81bea2a7792402fc77a80daba63d4233d397e9b1028a"
-    },
-    {
-      "path": "data/neoecoae/recipe/eco_bulk_item_cell_16m.json",
-      "sha256": "acbfe4d17790c0d668faba18d1480c3836b956134f2e6752cb9070ba6bbe51c3"
-    },
-    {
-      "path": "data/neoecoae/recipe/eco_bulk_item_cell_256m.json",
-      "sha256": "63796014623605ed69e1578aa7bae3b8e509ba2e5970b66568cbed7489055189"
-    },
-    {
-      "path": "data/neoecoae/recipe/eco_bulk_item_cell_64m.json",
-      "sha256": "f3c2df7e135a3ca09f3420082321b4a619ae226e6bbda296a257cb35b882872c"
     },
     {
       "path": "data/neoecoae/recipe/eco_cell_component_16m.json",

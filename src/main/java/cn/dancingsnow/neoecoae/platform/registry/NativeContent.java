@@ -50,16 +50,9 @@ public final class NativeContent {
         CoreItemCatalog.registerSimpleItems();
         ECOCellType item = new ECOCellType(Component.translatable("gui.appliedenergistics2.Items"), 315);
         ECOCellType fluid = new ECOCellType(Component.translatable("gui.appliedenergistics2.Fluids"), 25);
-        ECOCellType bulk = new ECOCellType(
-            Component.translatable("cell_type.neoecoae.bulk_item")
-                .withColor(0xe7a34b),
-            1);
         StorageRegistries.CELL_TYPE.register(
             cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.fromNamespaceAndPath("neoecoae", "items"),
             item);
-        StorageRegistries.CELL_TYPE.register(
-            cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.fromNamespaceAndPath("neoecoae", "bulk_item"),
-            bulk);
         StorageRegistries.CELL_TYPE.register(
             cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.fromNamespaceAndPath("neoecoae", "fluids"),
             fluid);
@@ -68,13 +61,10 @@ public final class NativeContent {
         for (StorageTier tier : StorageTier.values()) {
             registerCell(
                 "eco_item_storage_cell_" + sizes[index],
-                new NativeStorageCellItem(tier, AEKeyType.items(), item, false));
+                new NativeStorageCellItem(tier, AEKeyType.items(), item));
             registerCell(
                 "eco_fluid_storage_cell_" + sizes[index],
-                new NativeStorageCellItem(tier, AEKeyType.fluids(), fluid, false));
-            registerCell(
-                "eco_bulk_item_cell_" + sizes[index],
-                new NativeStorageCellItem(tier, AEKeyType.items(), bulk, true));
+                new NativeStorageCellItem(tier, AEKeyType.fluids(), fluid));
             register(
                 "eco_computation_cell_" + tier.name()
                     .toLowerCase(java.util.Locale.ROOT),

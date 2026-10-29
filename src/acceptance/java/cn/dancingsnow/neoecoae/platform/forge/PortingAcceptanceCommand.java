@@ -124,7 +124,7 @@ public final class PortingAcceptanceCommand extends CommandBase {
                 "Native assembly recipe for " + NativeContent.id(cell));
         }
         cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
-            "NEOECOAE_PORT_RECIPES_OK assembly={} disassembly={} standard=6 hidden_legacy_bulk=3",
+            "NEOECOAE_PORT_RECIPES_OK assembly={} disassembly={} standard=6",
             NativeContent.cells()
                 .size(),
             NativeContent.cells()
@@ -172,22 +172,6 @@ public final class PortingAcceptanceCommand extends CommandBase {
                     key.getType()
                         .nativeChannel());
             require(inventory != null, "Native AE2 cell handler for " + NativeContent.id(item));
-            if (item.isLegacyBulk()) {
-                IAEStack rejected = inventory
-                    .injectItems(key.toNative(4096), Actionable.MODULATE, new BaseActionSource());
-                require(
-                    rejected != null && rejected.getStackSize() == 4096,
-                    "Hidden source bulk ID preserves its all-type-overhead rejection");
-                require(
-                    inventory.business()
-                        .getAvailableStacks()
-                        .isEmpty(),
-                    "Rejected hidden source bulk insertion does not consume resources");
-                cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
-                    "NEOECOAE_PORT_LEGACY_BULK_BOUNDARY id={} first_type_rejected=true source_gap=hidden_legacy_bulk_capacity",
-                    NativeContent.id(item));
-                continue;
-            }
             IAEStack inserted = inventory.injectItems(key.toNative(4096), Actionable.MODULATE, new BaseActionSource());
             require(inserted == null, "Complete native insertion");
             IAEStack simulated = inventory.extractItems(key.toNative(128), Actionable.SIMULATE, new BaseActionSource());

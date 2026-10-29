@@ -52,7 +52,7 @@ public class ECOInfiniteResourceCellItem extends NativeStorageCellItem {
     private static final int UPGRADE_SLOTS = 4;
 
     public ECOInfiniteResourceCellItem(StorageTierDescriptor tier, Supplier<ECOCellType> cellType) {
-        super(tier, AEKeyType.items(), cellType.get(), false);
+        super(tier, AEKeyType.items(), cellType.get());
     }
 
     @Override

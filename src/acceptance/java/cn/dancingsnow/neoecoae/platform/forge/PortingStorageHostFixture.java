@@ -217,7 +217,7 @@ public final class PortingStorageHostFixture {
                     require(
                         drive.getCellArray(StorageChannel.ITEMS)
                             .get(0)
-                            .getPriority() == StoragePriority.mountPriority(73, false),
+                            .getPriority() == StoragePriority.mountPriority(73, 0),
                         "native priority refresh");
                     NBTTagCompound saved = new NBTTagCompound();
                     drive.writeToNBT(saved);

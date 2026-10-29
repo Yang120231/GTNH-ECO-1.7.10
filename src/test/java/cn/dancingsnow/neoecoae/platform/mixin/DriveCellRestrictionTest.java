@@ -33,7 +33,7 @@ class DriveCellRestrictionTest {
 
     private static ItemStack cell(AEKeyType type) {
         return new ItemStack(
-            new NativeStorageCellItem(StorageTier.L6, type, new ECOCellType(Component.literal("test"), 65), false));
+            new NativeStorageCellItem(StorageTier.L6, type, new ECOCellType(Component.literal("test"), 65)));
     }
 
     @Test

@@ -116,6 +116,11 @@ public final class CoreItemCatalog {
                 item = new ItemAxe(material) {
 
                     @Override
+                    public String getItemStackDisplayName(ItemStack stack) {
+                        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+                    }
+
+                    @Override
                     public com.google.common.collect.Multimap getItemAttributeModifiers() {
                         return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
                     }
@@ -123,6 +128,11 @@ public final class CoreItemCatalog {
                 break;
             case "hoe":
                 item = new ItemHoe(material) {
+
+                    @Override
+                    public String getItemStackDisplayName(ItemStack stack) {
+                        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+                    }
 
                     @Override
                     public com.google.common.collect.Multimap getItemAttributeModifiers() {
@@ -134,6 +144,11 @@ public final class CoreItemCatalog {
                 item = new ItemPickaxe(material) {
 
                     @Override
+                    public String getItemStackDisplayName(ItemStack stack) {
+                        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+                    }
+
+                    @Override
                     public com.google.common.collect.Multimap getItemAttributeModifiers() {
                         return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
                     }
@@ -143,6 +158,11 @@ public final class CoreItemCatalog {
                 item = new ItemSpade(material) {
 
                     @Override
+                    public String getItemStackDisplayName(ItemStack stack) {
+                        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+                    }
+
+                    @Override
                     public com.google.common.collect.Multimap getItemAttributeModifiers() {
                         return NativeToolAttributes.damage(super.getItemAttributeModifiers(), attack);
                     }
@@ -150,6 +170,11 @@ public final class CoreItemCatalog {
                 break;
             case "sword":
                 item = new ItemSword(material) {
+
+                    @Override
+                    public String getItemStackDisplayName(ItemStack stack) {
+                        return net.minecraft.util.StatCollector.translateToLocal(getUnlocalizedName(stack) + ".name");
+                    }
 
                     @Override
                     public com.google.common.collect.Multimap getItemAttributeModifiers() {

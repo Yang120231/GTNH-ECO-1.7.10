@@ -89,6 +89,12 @@ public final class NativeContentAcceptance {
                         throw new IllegalStateException("Duplicate creative item: " + stack);
                     if (!net.minecraft.util.StatCollector.canTranslate(stack.getUnlocalizedName() + ".name"))
                         throw new IllegalStateException("Missing content translation: " + stack.getUnlocalizedName());
+                    String expected = net.minecraft.util.StatCollector
+                        .translateToLocal(stack.getUnlocalizedName() + ".name");
+                    if (!expected.equals(stack.getDisplayName())) throw new IllegalStateException(
+                        "Content display name differs from translation: " + stack.getUnlocalizedName()
+                            + " -> "
+                            + stack.getDisplayName());
                 }
                 for (var block : CoreBlocks.blocks()
                     .values()) {
@@ -101,11 +107,11 @@ public final class NativeContentAcceptance {
                         throw new IllegalStateException(
                             "Block display name differs from source translation: " + stack.getUnlocalizedName());
                 }
-                if (visible.size() != 132)
-                    throw new IllegalStateException("Expected 132 visible core items: " + visible.size());
+                if (visible.size() != 131)
+                    throw new IllegalStateException("Expected 131 visible core items: " + visible.size());
                 checkOrder(stacks);
                 NeoECOAE.LOG.info(
-                    "NEOECOAE_CONTENT_CREATIVE_OK visible={} blocks={} standalone=65 hidden_legacy=3 excluded_cards=7",
+                    "NEOECOAE_CONTENT_CREATIVE_OK visible={} blocks={} standalone=61 excluded_cards=7",
                     visible.size(),
                     CoreBlocks.blocks()
                         .size());
@@ -124,7 +130,7 @@ public final class NativeContentAcceptance {
                 page++;
                 if (page == 4) {
                     NeoECOAE.LOG.info(
-                        "NEOECOAE_CONTENT_ACCEPTANCE_OK total_blocks=70 new_blocks=47 visible_items=132 creative_pages=4 save={}",
+                        "NEOECOAE_CONTENT_ACCEPTANCE_OK total_blocks=70 new_blocks=47 visible_items=131 creative_pages=4 save={}",
                         worldName);
                     client.theWorld.sendQuittingDisconnectingPacket();
                     client.loadWorld(null);
@@ -160,9 +166,9 @@ public final class NativeContentAcceptance {
         for (var stack : stacks) ids.add(cn.dancingsnow.neoecoae.platform.registry.CreativeContentOrder.id(stack));
         String[] progression = { "storage_system_l4", "storage_system_l6", "storage_system_l9",
             "eco_item_storage_cell_16m", "eco_item_storage_cell_64m", "eco_item_storage_cell_256m",
-            "eco_bulk_item_cell_housing", "crafting_system_l4", "crafting_system_l6", "crafting_system_l9",
-            "crafting_high_energy_network_switch", "computation_system_l4", "computation_system_l6",
-            "computation_system_l9", "computation_high_energy_network_switch", "integrated_working_station",
+            "crafting_system_l4", "crafting_system_l6", "crafting_system_l9", "crafting_high_energy_network_switch",
+            "computation_system_l4", "computation_system_l6", "computation_system_l9",
+            "computation_high_energy_network_switch", "integrated_working_station",
             "large_integrated_working_station_output_hatch", "iron_dust", "superconducting_processor", "aluminum_sword",
             "black_tungsten_alloy_hoe" };
         int previous = -1;

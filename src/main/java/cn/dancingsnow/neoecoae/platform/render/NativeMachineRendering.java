@@ -60,9 +60,8 @@ public final class NativeMachineRendering implements ISimpleBlockRenderingHandle
                     .getPanelTierName()
                     .getString()
                     .toLowerCase(Locale.ROOT);
-                String kind = cell.isLegacyBulk() ? (tier.equals("l9") ? "bulk_item" : "bulk")
-                    : cell.getKeyType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? "item"
-                        : "fluid";
+                String kind = cell.getKeyType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? "item"
+                    : "fluid";
                 CELLS.put(cell, "cell/storage_cell_" + tier + "_" + kind);
             }
         }

@@ -31,8 +31,7 @@ public final class CreativeContentOrder {
             "eco_cell_component",
             "eco_infinite_cell_component",
             "eco_item_cell_housing",
-            "eco_fluid_cell_housing",
-            "eco_bulk_item_cell_housing");
+            "eco_fluid_cell_housing");
         families(
             "crafting_system",
             "crafting_casing",
