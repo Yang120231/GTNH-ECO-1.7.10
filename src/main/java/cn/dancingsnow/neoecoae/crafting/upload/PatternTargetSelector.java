@@ -101,7 +101,7 @@ public final class PatternTargetSelector {
                 if (existing == null) {
                     empty++;
                     if (free < 0 && slots.accepts(slot, one)) free = slot;
-                } else if (PatternStacks.sameItem(existing, one)) duplicate = true;
+                } else if (PatternStacks.samePattern(existing, one)) duplicate = true;
             }
             SlotState state = duplicate ? SlotState.DUPLICATE : free >= 0 ? SlotState.FREE : SlotState.FULL;
             return new Evaluation(target, match, state, empty, slots.size(), duplicate ? -1 : free);
