@@ -385,9 +385,9 @@ public final class ECOExecutionRuntime {
             && completedPhases.cardinality() < plan.phases()
                 .size()) {
             reconciledEmptyCandidates = true;
-            String before = PlanningSettings.ecoDispatchWatchdogDebug ? describeProgressCache() : null;
+            String before = PlanningSettings.Crafting.ecoDispatchWatchdogDebug ? describeProgressCache() : null;
             rebuildProgressState();
-            if (PlanningSettings.ecoDispatchWatchdogDebug) {
+            if (PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
                 String after = describeProgressCache();
                 if (!Objects.equals(before, after)) {
                     LOGGER.warn(
@@ -1420,7 +1420,7 @@ public final class ECOExecutionRuntime {
     }
 
     private void logSharedProgressAliases() {
-        if (!PlanningSettings.ecoDispatchWatchdogDebug || progressByTaskId == null) return;
+        if (!PlanningSettings.Crafting.ecoDispatchWatchdogDebug || progressByTaskId == null) return;
         String aliases = describeProgressAliases();
         if (!"[]".equals(aliases)) LOGGER.warn("[ECO Execution] shared TaskProgress aliases={}", aliases);
     }
@@ -1574,7 +1574,7 @@ public final class ECOExecutionRuntime {
                 }
             }
         }
-        if (changed && PlanningSettings.ecoDispatchWatchdogDebug) {
+        if (changed && PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
             LOGGER.warn("[ECO Execution] reconciled cycle witness counters to accepted AE2 task progress");
         }
     }

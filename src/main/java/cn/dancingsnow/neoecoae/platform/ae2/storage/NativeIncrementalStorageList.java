@@ -19,7 +19,7 @@ public final class NativeIncrementalStorageList {
     private NativeIncrementalStorageList() {}
 
     public static boolean eligible(IMEInventoryHandler<?> handler) {
-        return PlanningSettings.incrementalNetworkStorageList && ServerThread.isCurrent()
+        return PlanningSettings.Storage.incrementalNetworkStorageList && ServerThread.isCurrent()
             && handler instanceof NativeNetworkReads
             && !((NativeNetworkReads) handler).neoecoae$readsOtherNetwork();
     }

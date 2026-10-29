@@ -21,7 +21,7 @@ public final class ECOSingleCraftingExecutor {
             return provider.pushPattern(pattern, inputs);
         }
 
-        if (!PlanningSettings.postCraftingEvent && level != null) {
+        if (!PlanningSettings.Crafting.postCraftingEvent && level != null) {
             var execution = prepare(pattern, inputs, outputs, containers, level);
             if (execution != null && execution.canUseFastPath() && bus.pushPattern(execution, craftingJobId)) {
                 return true;

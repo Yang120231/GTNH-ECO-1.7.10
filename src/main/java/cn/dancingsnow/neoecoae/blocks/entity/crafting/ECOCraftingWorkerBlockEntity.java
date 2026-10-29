@@ -213,7 +213,7 @@ public class ECOCraftingWorkerBlockEntity extends
 
     public boolean pushBatch(ECOVerifiedFastPathExecution verified) {
         ECOCraftingFastPathCache cache = getFastPathCache();
-        if (PlanningSettings.postCraftingEvent) {
+        if (PlanningSettings.Crafting.postCraftingEvent) {
             return false;
         }
         if (cluster == null || cluster.getController() == null) {
@@ -235,8 +235,9 @@ public class ECOCraftingWorkerBlockEntity extends
     public boolean pushExactVirtualBatch(
         cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedFastPathRecipe recipe,
         java.math.BigInteger count, java.util.UUID job) {
-        if (PlanningSettings.postCraftingEvent || cluster == null || cluster.getController() == null || isWorking())
-            return false;
+        if (PlanningSettings.Crafting.postCraftingEvent || cluster == null
+            || cluster.getController() == null
+            || isWorking()) return false;
         var controller = cluster.getController();
         if (!controller.isFullVirtualCraftingMode() || !recipe.isIssuedBy(getFastPathCache())) return false;
         return dispatchToThread(
@@ -246,7 +247,7 @@ public class ECOCraftingWorkerBlockEntity extends
 
     public boolean pushVirtualBatch(ECOVerifiedVirtualExecution verified) {
         ECOCraftingFastPathCache cache = getFastPathCache();
-        if (PlanningSettings.postCraftingEvent) {
+        if (PlanningSettings.Crafting.postCraftingEvent) {
             return false;
         }
         if (cluster == null || cluster.getController() == null || isWorking()) {

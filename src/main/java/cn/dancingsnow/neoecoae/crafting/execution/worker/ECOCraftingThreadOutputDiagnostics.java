@@ -37,7 +37,7 @@ final class ECOCraftingThreadOutputDiagnostics {
 
     void blocked(ECOCraftingWorkerRuntimeHost worker, @Nullable UUID jobId, String reason, @Nullable KeyCounter pending,
         int progress, int maxProgress, int batchCrafts, long craftCount, boolean virtualBatch, long tick) {
-        if (!PlanningSettings.ecoCraftingOutputDeliveryDebug) {
+        if (!PlanningSettings.Crafting.ecoCraftingOutputDeliveryDebug) {
             disable();
             resetUnowned();
             return;
@@ -82,7 +82,7 @@ final class ECOCraftingThreadOutputDiagnostics {
             diagnostic.lanes.remove(position(worker) + "#" + laneId);
             if (diagnostic.lanes.isEmpty()) {
                 JOBS.remove(jobId);
-                if (PlanningSettings.ecoCraftingOutputDeliveryDebug && diagnostic.hasLogged) {
+                if (PlanningSettings.Crafting.ecoCraftingOutputDeliveryDebug && diagnostic.hasLogged) {
                     blockedTicks = Math.max(0L, tick - diagnostic.firstBlockedTick);
                 }
             }
@@ -187,7 +187,7 @@ final class ECOCraftingThreadOutputDiagnostics {
     private static String position(ECOCraftingWorkerRuntimeHost worker) {
         return worker.getNativeLevel() == null ? worker.getBlockPos()
             .toShortString()
-            : cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldIds.dimension(worker.getNativeLevel()) + "@"
+            : worker.getNativeLevel().provider.dimensionId + "@"
                 + worker.getBlockPos()
                     .toShortString();
     }
@@ -205,7 +205,7 @@ final class ECOCraftingThreadOutputDiagnostics {
     private static void disable() {
         if (!enabled) return;
         synchronized (LOCK) {
-            if (!PlanningSettings.ecoCraftingOutputDeliveryDebug) {
+            if (!PlanningSettings.Crafting.ecoCraftingOutputDeliveryDebug) {
                 JOBS.clear();
                 enabled = false;
             }

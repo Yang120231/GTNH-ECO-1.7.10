@@ -44,7 +44,7 @@ public final class ECOCraftingFastPathCache {
     private volatile long credentialEpoch;
 
     public ECOCraftingFastPathCache() {
-        this(PlanningSettings.ecoFastPathCacheSize);
+        this(PlanningSettings.Crafting.ecoFastPathCacheSize);
     }
 
     public ECOCraftingFastPathCache(int limit) {

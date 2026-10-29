@@ -25,7 +25,7 @@ class NativeIncrementalStorageListTest {
     @AfterEach
     void reset() {
         ServerThread.clear();
-        PlanningSettings.incrementalNetworkStorageList = true;
+        PlanningSettings.Storage.incrementalNetworkStorageList = true;
     }
 
     @Test
@@ -81,7 +81,7 @@ class NativeIncrementalStorageListTest {
         assertTrue(NativeIncrementalStorageList.eligible((IMEInventoryHandler) local));
         assertFalse(NativeIncrementalStorageList.eligible((IMEInventoryHandler) subnet));
         assertFalse(NativeIncrementalStorageList.eligible(mock(IMEInventoryHandler.class)));
-        PlanningSettings.incrementalNetworkStorageList = false;
+        PlanningSettings.Storage.incrementalNetworkStorageList = false;
         assertFalse(NativeIncrementalStorageList.eligible((IMEInventoryHandler) local));
     }
 

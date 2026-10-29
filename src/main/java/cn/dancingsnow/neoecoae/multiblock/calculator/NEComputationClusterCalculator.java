@@ -32,7 +32,7 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
 
     @Override
     protected int maxLength() {
-        return PlanningSettings.computationSystemMaxLength;
+        return PlanningSettings.Multiblock.computationSystemMaxLength;
     }
 
     @Override

@@ -32,7 +32,7 @@ public class NECraftingClusterCalculator extends NEClusterCalculator<NECraftingC
 
     @Override
     protected int maxLength() {
-        return PlanningSettings.craftingSystemMaxLength;
+        return PlanningSettings.Multiblock.craftingSystemMaxLength;
     }
 
     @Override

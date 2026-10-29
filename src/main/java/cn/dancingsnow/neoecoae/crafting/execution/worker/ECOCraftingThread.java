@@ -602,7 +602,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         ICraftingService craftingService = (ICraftingService) grid.getCraftingService();
         MEStorage storage = grid.getStorageService()
             .getInventory();
-        ItemStack eventOutput = PlanningSettings.postCraftingEvent
+        ItemStack eventOutput = PlanningSettings.Crafting.postCraftingEvent
             ? (cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(craftingEventOutput)
                 ? cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copy(firstOutputItem())
                 : cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copy(craftingEventOutput))
@@ -642,7 +642,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             return false;
         }
 
-        if (PlanningSettings.postCraftingEvent) {
+        if (PlanningSettings.Crafting.postCraftingEvent) {
             postCraftingEventSafely(eventOutput);
         }
         worker.onBatchStopped();

@@ -158,7 +158,7 @@ final class ECOCraftingDispatchAccounting {
 
     private static void audit(ECOCraftingDispatchRequest request, Object acceptedCrafts, Object outputs,
         Object remainders, String path, Runnable accounting) {
-        if (!PlanningSettings.ecoDispatchWatchdogDebug) {
+        if (!PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
             accounting.run();
             return;
         }

@@ -70,7 +70,7 @@ final class ECODispatchStallDiagnostics {
     private String lastFinalDelivery = "none";
 
     void bind(UUID id, long tick) {
-        if (!PlanningSettings.ecoDispatchWatchdogDebug) {
+        if (!PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
             if (jobId != null) reset();
             return;
         }
@@ -285,7 +285,7 @@ final class ECODispatchStallDiagnostics {
     }
 
     void check(long tick, ExecutingCraftingJob job) {
-        if (!PlanningSettings.ecoDispatchWatchdogDebug) {
+        if (!PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
             if (jobId != null) reset();
             return;
         }

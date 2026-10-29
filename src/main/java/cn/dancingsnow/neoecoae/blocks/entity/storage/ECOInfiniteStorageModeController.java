@@ -291,8 +291,8 @@ final class ECOInfiniteStorageModeController {
         // Drives migrate in order, sharing one budget: a finished drive hands the rest of the tick to the next one.
         ECOInfiniteStorageTransfer.Budget budget = ECOInfiniteStorageTransfer.Budget.perTick(
             migrationClock,
-            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.infiniteMigrationMicrosPerTick,
-            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.infiniteMigrationKeysPerTick);
+            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Storage.infiniteMigrationMicrosPerTick,
+            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Storage.infiniteMigrationKeysPerTick);
         List<ECODriveBlockEntity> drives = new ArrayList<>(
             host.getCluster()
                 .getDrives());

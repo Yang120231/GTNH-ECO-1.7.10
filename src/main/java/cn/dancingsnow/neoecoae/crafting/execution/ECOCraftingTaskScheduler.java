@@ -211,7 +211,11 @@ final class ECOCraftingTaskScheduler {
 
                 var pattern = candidate.pattern();
                 if (current.isProcessingStepStopped(pattern)) {
-                    logReason(current, candidate, "user-stopped-step", "waiting for the player to resume this processing step");
+                    logReason(
+                        current,
+                        candidate,
+                        "user-stopped-step",
+                        "waiting for the player to resume this processing step");
                     if (candidate.blocksOrderedPhase()) blockedOrderedPhases.set(candidate.phaseIndex());
                     continue;
                 }
@@ -409,7 +413,7 @@ final class ECOCraftingTaskScheduler {
         String reason, String details) {
         // Repeated stuck states are summarized once per second per job/reason, while changes log immediately.
         // Accepted-ledger before/after records remain one pair per actual dispatch.
-        if (!PlanningSettings.ecoDispatchWatchdogDebug) return;
+        if (!PlanningSettings.Crafting.ecoDispatchWatchdogDebug) return;
         long tick = TickClock.currentTick();
         String signature = job.link.getCraftingID() + "/"
             + reason

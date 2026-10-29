@@ -37,9 +37,9 @@ class ECOPlanningBudgetTest {
     @Test
     void sessionReportsUnknownAndCraftLessCannotResetItsAllowance() throws Exception {
         cn.dancingsnow.neoecoae.platform.InventoryTestBootstrap.initialize();
-        int previous = cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.ecoPlanningMaxWork;
+        int previous = cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.ecoPlanningMaxWork;
         try {
-            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.ecoPlanningMaxWork = 1;
+            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.ecoPlanningMaxWork = 1;
             var session = new ECOCraftingPlannerService().createSession(
                 mock(cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService.class),
                 mock(cn.dancingsnow.neoecoae.platform.ae2.key.AEKey.class),
@@ -56,13 +56,13 @@ class ECOPlanningBudgetTest {
                     .anyMatch(
                         d -> d.code()
                             == cn.dancingsnow.neoecoae.crafting.planner.trace.PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED));
-            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.ecoPlanningMaxWork = 5_000_000;
+            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.ecoPlanningMaxWork = 5_000_000;
             assertEquals(
                 cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus.CYCLE_UNRESOLVED,
                 session.plan(1L, false, ECOCancellation.NONE)
                     .status());
         } finally {
-            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.ecoPlanningMaxWork = previous;
+            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.ecoPlanningMaxWork = previous;
         }
     }
 }

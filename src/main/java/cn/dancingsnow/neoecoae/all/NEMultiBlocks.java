@@ -88,7 +88,7 @@ public class NEMultiBlocks {
             .setBlockWithRepeatShifted(pos(0, 2, 0), Direction.WEST, 1, casing)
             .setBlockWithRepeatShifted(pos(0, 2, 1), Direction.WEST, 1, casing)
             .expandMin(1)
-            .expandMax(PlanningSettings.storageSystemMaxLength - 4)
+            .expandMax(PlanningSettings.Multiblock.storageSystemMaxLength - 4)
             .onFormed((pos, level) -> {
                 BlockState state = level.getBlockState(pos);
                 BlockState newState = state;

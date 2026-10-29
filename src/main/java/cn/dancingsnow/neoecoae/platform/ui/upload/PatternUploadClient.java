@@ -77,8 +77,8 @@ public final class PatternUploadClient {
                 && ((GuiImgButton) button).getCurrentValue() == ActionItems.ENCODE)
                 encodeButton = (GuiImgButton) button;
         if (encodeButton == null) return;
-        int x = encodeButton.xPosition + PlanningSettings.patternUploadButtonOffsetX;
-        int y = encodeButton.yPosition + PlanningSettings.patternUploadButtonOffsetY;
+        int x = encodeButton.xPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetX;
+        int y = encodeButton.yPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetY;
         event.buttonList.add(new PatternUploadButton(x, y, false));
         event.buttonList.add(new PatternUploadButton(x, y + 20, true));
     }

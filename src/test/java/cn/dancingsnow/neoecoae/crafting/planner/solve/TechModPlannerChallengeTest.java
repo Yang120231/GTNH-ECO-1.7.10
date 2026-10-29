@@ -44,10 +44,11 @@ class TechModPlannerChallengeTest {
         else scenario.verifyImpossibleControl();
         String profile = System.getProperty("planner.challenge.profile", "default");
         assertTrue(profile.equals("default") || profile.equals("screening"));
-        int previousMillis = PlanningSettings.ecoPlanningMaxMillis, previousWork = PlanningSettings.ecoPlanningMaxWork;
+        int previousMillis = PlanningSettings.Crafting.ecoPlanningMaxMillis,
+            previousWork = PlanningSettings.Crafting.ecoPlanningMaxWork;
         if (profile.equals("screening")) {
-            PlanningSettings.ecoPlanningMaxMillis = 5000;
-            PlanningSettings.ecoPlanningMaxWork = 1_000_000;
+            PlanningSettings.Crafting.ecoPlanningMaxMillis = 5000;
+            PlanningSettings.Crafting.ecoPlanningMaxWork = 1_000_000;
         }
         var directory = java.nio.file.Paths.get("build", "reports", "planner-challenges", profile);
         Files.createDirectories(directory);
@@ -71,9 +72,9 @@ class TechModPlannerChallengeTest {
             scenario.labels()
                 .size());
         report.put("profile", profile);
-        report.put("maxMillis", PlanningSettings.ecoPlanningMaxMillis);
-        report.put("maxWork", PlanningSettings.ecoPlanningMaxWork);
-        report.put("maxMemoryMiB", PlanningSettings.ecoPlanningMaxMemoryMiB);
+        report.put("maxMillis", PlanningSettings.Crafting.ecoPlanningMaxMillis);
+        report.put("maxWork", PlanningSettings.Crafting.ecoPlanningMaxWork);
+        report.put("maxMemoryMiB", PlanningSettings.Crafting.ecoPlanningMaxMemoryMiB);
         report.put(
             "recipes",
             scenario.recipes()
@@ -197,8 +198,8 @@ class TechModPlannerChallengeTest {
             write(directory, scenario.id(), report);
             throw failure;
         } finally {
-            PlanningSettings.ecoPlanningMaxMillis = previousMillis;
-            PlanningSettings.ecoPlanningMaxWork = previousWork;
+            PlanningSettings.Crafting.ecoPlanningMaxMillis = previousMillis;
+            PlanningSettings.Crafting.ecoPlanningMaxWork = previousWork;
         }
     }
 

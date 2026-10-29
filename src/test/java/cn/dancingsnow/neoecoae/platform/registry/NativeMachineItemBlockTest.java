@@ -11,9 +11,9 @@ class NativeMachineItemBlockTest {
 
     @Test
     void controllersDescribeThemselvesAndOtherMachinesStaySilent() {
-        int crafting = PlanningSettings.craftingSystemMaxLength;
+        int crafting = PlanningSettings.Multiblock.craftingSystemMaxLength;
         try {
-            PlanningSettings.craftingSystemMaxLength = 23;
+            PlanningSettings.Multiblock.craftingSystemMaxLength = 23;
             var lines = NativeMachineItemBlock.controllerTooltip("crafting_system_l9");
             assertEquals(2, lines.size());
             assertTrue(
@@ -35,7 +35,7 @@ class NativeMachineItemBlockTest {
                 NativeMachineItemBlock.controllerTooltip("storage_system_l4")
                     .isEmpty());
         } finally {
-            PlanningSettings.craftingSystemMaxLength = crafting;
+            PlanningSettings.Multiblock.craftingSystemMaxLength = crafting;
         }
     }
 }

@@ -12,7 +12,7 @@ final class CycleMemoryBudget {
     private long retained;
 
     CycleMemoryBudget() {
-        this(Math.max(1L, PlanningSettings.ecoPlanningMaxMemoryMiB) * 1024L * 1024L);
+        this(Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxMemoryMiB) * 1024L * 1024L);
     }
 
     CycleMemoryBudget(long maximum) {

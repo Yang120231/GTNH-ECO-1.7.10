@@ -452,9 +452,9 @@ class CycleResourceRegressionTest {
         assertThrows(
             InterruptedException.class,
             () -> new BoundedCycleSolver().solve(request, () -> { throw new InterruptedException(); }));
-        int previousMemory = PlanningSettings.ecoPlanningMaxMemoryMiB;
+        int previousMemory = PlanningSettings.Crafting.ecoPlanningMaxMemoryMiB;
         try {
-            PlanningSettings.ecoPlanningMaxMemoryMiB = 1;
+            PlanningSettings.Crafting.ecoPlanningMaxMemoryMiB = 1;
             var wide = ring(200);
             var result = solve(
                 wide,
@@ -469,7 +469,7 @@ class CycleResourceRegressionTest {
                     .anyMatch(d -> d.code() == CycleSolveDiagnostic.Code.MEMORY_BUDGET_EXHAUSTED));
             assertFalse(result.hasExactExecutionCounts());
         } finally {
-            PlanningSettings.ecoPlanningMaxMemoryMiB = previousMemory;
+            PlanningSettings.Crafting.ecoPlanningMaxMemoryMiB = previousMemory;
         }
     }
 

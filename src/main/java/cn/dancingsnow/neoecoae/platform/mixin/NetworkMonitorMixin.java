@@ -95,7 +95,7 @@ public abstract class NetworkMonitorMixin {
     @Inject(method = "onTick", at = @At("HEAD"), require = 1)
     private void neoecoae$scheduleRepair(CallbackInfo ci) {
         if (neoecoae$appliedSinceRebuild
-            && ++neoecoae$ticksSinceRebuild >= PlanningSettings.networkStorageListRepairTicks) {
+            && ++neoecoae$ticksSinceRebuild >= PlanningSettings.Storage.networkStorageListRepairTicks) {
             neoecoae$appliedSinceRebuild = false;
             neoecoae$ticksSinceRebuild = 0;
             hasChanged = true;

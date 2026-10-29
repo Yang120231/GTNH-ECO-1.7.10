@@ -114,7 +114,7 @@ public final class ECOCraftingPlannerService {
             long startedNanos = System.nanoTime();
             String budgetStage = "structural_initialization";
             try (var ignored = ECOPlanningStageLogger
-                .open(PlanningSettings.ecoPlanningStageDebug, planningRequestId, goal, amount, simulation)) {
+                .open(PlanningSettings.Crafting.ecoPlanningStageDebug, planningRequestId, goal, amount, simulation)) {
                 try {
                     ensureCompiled(cancellation);
                     ComponentPlanner.Outcome solved;

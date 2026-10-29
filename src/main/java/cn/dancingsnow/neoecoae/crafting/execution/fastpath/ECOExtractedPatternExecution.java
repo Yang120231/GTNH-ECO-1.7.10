@@ -233,7 +233,7 @@ public final class ECOExtractedPatternExecution {
         List<GenericStack> outputs, List<GenericStack> containers, List<GenericStack> inputs,
         ECOFastPathStacks.ItemStackValidation resultValidation, ECOPatternEligibility patternEligibility) {
         if (!key.isPresent()) return "KEY_BUILD_FAILED";
-        if (PlanningSettings.postCraftingEvent) return "POST_CRAFTING_EVENT_ENABLED";
+        if (PlanningSettings.Crafting.postCraftingEvent) return "POST_CRAFTING_EVENT_ENABLED";
         if (!PatternRuntime.isAvailable()) return "AE2_INTROSPECTION_UNAVAILABLE";
         if (!ECOExecutionOptimizationRegistry.resolve(details)
             .verifiedAssemblerFastPath()) {
@@ -314,7 +314,7 @@ public final class ECOExtractedPatternExecution {
     }
 
     public String fastPathReason() {
-        if (PlanningSettings.postCraftingEvent) return "POST_CRAFTING_EVENT_ENABLED";
+        if (PlanningSettings.Crafting.postCraftingEvent) return "POST_CRAFTING_EVENT_ENABLED";
         if (key != null && !key.isForReloadGeneration(PatternRuntime.reloadGeneration())) {
             return "EXECUTION_CONTRACT_CHANGED";
         }
@@ -342,7 +342,7 @@ public final class ECOExtractedPatternExecution {
     public boolean canUseFastPath() {
         return key != null && fastPathRejectionReason == null
             && key.isForReloadGeneration(PatternRuntime.reloadGeneration())
-            && !PlanningSettings.postCraftingEvent;
+            && !PlanningSettings.Crafting.postCraftingEvent;
     }
 
     @Nullable

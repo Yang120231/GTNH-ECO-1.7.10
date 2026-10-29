@@ -17,8 +17,8 @@ public final class ECOPlanningBudget implements ECOCancellation {
     public ECOPlanningBudget(ECOCancellation cancellation) {
         this(
             cancellation,
-            Math.max(1L, PlanningSettings.ecoPlanningMaxWork),
-            Math.max(1L, PlanningSettings.ecoPlanningMaxMillis) * 1_000_000L,
+            Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxWork),
+            Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxMillis) * 1_000_000L,
             System::nanoTime);
     }
 

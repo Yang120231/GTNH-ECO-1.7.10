@@ -176,7 +176,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             return;
         }
 
-        int operationLimit = dispatchStrategy.beginTick(cpu.getCoProcessors(), PlanningSettings.ecoCpuPushTickLimit);
+        int operationLimit = dispatchStrategy
+            .beginTick(cpu.getCoProcessors(), PlanningSettings.Crafting.ecoCpuPushTickLimit);
         int acceptedNormalPushes = 0;
         // Thunderbolt 会包装此处的 executeCrafting 调用；快速路径的批量操作不消耗此慢速路径额度。
         taskScheduler.beginSharedProbeBudget(operationLimit);
@@ -495,15 +496,24 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return jobAttachments;
     }
 
-    public ECOProcessingMonitor getProcessingMonitor() { return processingMonitor; }
+    public ECOProcessingMonitor getProcessingMonitor() {
+        return processingMonitor;
+    }
 
     @Nullable
-    public UUID getProcessingJobId() { return job == null ? null : job.link.getCraftingID(); }
+    public UUID getProcessingJobId() {
+        return job == null ? null : job.link.getCraftingID();
+    }
 
     public java.util.List<IPatternDetails> getProcessingPatterns(AEKey output) {
         if (job == null) return java.util.Collections.emptyList();
-        return job.tasks.keySet().stream().filter(pattern -> output.equals(pattern.getPrimaryOutput()
-            .what())).collect(java.util.stream.Collectors.toList());
+        return job.tasks.keySet()
+            .stream()
+            .filter(
+                pattern -> output.equals(
+                    pattern.getPrimaryOutput()
+                        .what()))
+            .collect(java.util.stream.Collectors.toList());
     }
 
     public boolean isProcessingStepStopped(AEKey output) {
@@ -526,7 +536,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             taskScheduler.resetDispatchState();
             taskScheduler.progress(TickClock.currentTick());
             markCpuDirty();
-            for (var pattern : getProcessingPatterns(output)) for (var result : pattern.getOutputs()) postChange(result.what());
+            for (var pattern : getProcessingPatterns(output))
+                for (var result : pattern.getOutputs()) postChange(result.what());
         }
         return changed;
     }
@@ -536,7 +547,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         if (job != null && world != null) processingMonitor.advance(world, world.getTotalWorldTime());
     }
 
-    public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress getProcessingProgress(AEKey output) {
+    public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress getProcessingProgress(
+        AEKey output) {
         var world = cpu.getLevel();
         return job == null || getWaitingFor(output) <= 0 || world == null
             ? cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY

@@ -35,7 +35,7 @@ public class NEStorageClusterCalculator extends NEClusterCalculator<NEStorageClu
 
     @Override
     protected int maxLength() {
-        return PlanningSettings.storageSystemMaxLength;
+        return PlanningSettings.Multiblock.storageSystemMaxLength;
     }
 
     @Override
