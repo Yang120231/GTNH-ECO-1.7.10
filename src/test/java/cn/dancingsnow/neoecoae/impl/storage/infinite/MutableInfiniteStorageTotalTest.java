@@ -1,13 +1,17 @@
 package cn.dancingsnow.neoecoae.impl.storage.infinite;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.math.BigInteger;
 import java.util.Random;
+
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 /** The running total crosses long, U126 and BigInteger and must equal the exact sum at every snapshot. */
 class MutableInfiniteStorageTotalTest {
-    @Test void totalMatchesExactSumAcrossTiers() {
+
+    @Test
+    void totalMatchesExactSumAcrossTiers() {
         Random random = new Random(7);
         for (int run = 0; run < 200; run++) {
             var total = new MutableInfiniteStorageTotal();
@@ -19,11 +23,13 @@ class MutableInfiniteStorageTotalTest {
                     total.add(amount);
                     expected = expected.add(amount);
                 } else if (kind == 1 && expected.signum() > 0) {
-                    BigInteger amount = new BigInteger(Math.max(1, expected.bitLength()), random).mod(expected).add(BigInteger.ONE);
+                    BigInteger amount = new BigInteger(Math.max(1, expected.bitLength()), random).mod(expected)
+                        .add(BigInteger.ONE);
                     total.subtract(HugeAmount.of(amount));
                     expected = expected.subtract(amount);
                 } else if (kind <= 3) {
-                    long amount = random.nextBoolean() ? Long.MAX_VALUE - random.nextInt(1000) : random.nextInt(1_000_000);
+                    long amount = random.nextBoolean() ? Long.MAX_VALUE - random.nextInt(1000)
+                        : random.nextInt(1_000_000);
                     total.add(amount);
                     expected = expected.add(BigInteger.valueOf(amount));
                 } else {
@@ -35,13 +41,21 @@ class MutableInfiniteStorageTotalTest {
                         expected = expected.subtract(BigInteger.valueOf(amount));
                     }
                 }
-                if (step % 7 == 0) assertEquals(expected, total.snapshot().toBigInteger(), "run " + run + " step " + step);
+                if (step % 7 == 0) assertEquals(
+                    expected,
+                    total.snapshot()
+                        .toBigInteger(),
+                    "run " + run + " step " + step);
             }
-            assertEquals(expected, total.snapshot().toBigInteger());
+            assertEquals(
+                expected,
+                total.snapshot()
+                    .toBigInteger());
         }
     }
 
-    @Test void subtractingBelowZeroIsRejected() {
+    @Test
+    void subtractingBelowZeroIsRejected() {
         var total = new MutableInfiniteStorageTotal();
         total.add(Long.MAX_VALUE);
         total.add(10);

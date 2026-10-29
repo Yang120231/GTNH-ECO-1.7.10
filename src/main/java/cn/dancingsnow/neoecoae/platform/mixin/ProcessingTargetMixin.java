@@ -36,13 +36,15 @@ public abstract class ProcessingTargetMixin implements ECOProcessingTargetProvid
     @Inject(method = "onPushPatternSuccess", at = @At("HEAD"), require = 0)
     private void neoecoae$acceptedTarget(TileEntity tile, ForgeDirection side, ICraftingPatternDetails pattern,
         CallbackInfo callback) {
-        if (tile.getWorldObj() != null) neoecoae$targets.add(new Target(tile.getWorldObj().provider.dimensionId,
-            new BlockPos(tile.xCoord, tile.yCoord, tile.zCoord)));
+        if (tile.getWorldObj() != null) neoecoae$targets.add(
+            new Target(tile.getWorldObj().provider.dimensionId, new BlockPos(tile.xCoord, tile.yCoord, tile.zCoord)));
     }
 
     @Override
     public Target neoecoae$getProcessingTarget() {
-        return neoecoae$targets.isEmpty() ? null : neoecoae$targets.iterator().next();
+        return neoecoae$targets.isEmpty() ? null
+            : neoecoae$targets.iterator()
+                .next();
     }
 
     @Override

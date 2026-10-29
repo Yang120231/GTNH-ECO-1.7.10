@@ -36,9 +36,8 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 /**
  * Source pattern-capacity, compatibility, atomic parallel dispatch and result/pulse locks over native AE2 inventories.
  */
-public final class LargeWorkstationPatternProvider
-    implements ICraftingProvider, ECOParallelCraftingProvider, IAEAppEngInventory, IConfigManagerHost,
-    cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
+public final class LargeWorkstationPatternProvider implements ICraftingProvider, ECOParallelCraftingProvider,
+    IAEAppEngInventory, IConfigManagerHost, cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
 
     public static final int PATTERN_COLUMNS = 9, BASE_PATTERN_ROWS = 4, MAX_CAPACITY_CARDS = 4, UPGRADE_SLOTS = 5,
         MAX_PATTERN_SLOTS = 72;
@@ -256,7 +255,8 @@ public final class LargeWorkstationPatternProvider
         var controller = controller();
         if (controller != null && host.getWorldObj() != null)
             processingTarget = new cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target(
-                host.getWorldObj().provider.dimensionId, controller.getBlockPos());
+                host.getWorldObj().provider.dimensionId,
+                controller.getBlockPos());
         var mode = config.getSetting(Settings.LOCK_CRAFTING_MODE);
         waitingForPulse = mode == LockCraftingMode.LOCK_UNTIL_PULSE;
         unlockStack = mode == LockCraftingMode.LOCK_UNTIL_RESULT ? pattern.getPrimaryOutput() : null;

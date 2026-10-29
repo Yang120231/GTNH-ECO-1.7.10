@@ -7,8 +7,8 @@ import net.minecraft.network.PacketBuffer;
 
 import cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.storage.StorageCellPriority;
-import cn.dancingsnow.neoecoae.gui.storage.StoragePriority;
 import cn.dancingsnow.neoecoae.gui.storage.StorageHostUI;
+import cn.dancingsnow.neoecoae.gui.storage.StoragePriority;
 import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
@@ -45,11 +45,13 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
         return priority;
     }
 
-    public boolean editable() { return editable; }
+    public boolean editable() {
+        return editable;
+    }
 
     public Component title() {
-        return Component.translatable(position == null ? "gui.appliedenergistics2.Priority"
-            : "gui.neoecoae.storage.cell_priority.title");
+        return Component.translatable(
+            position == null ? "gui.appliedenergistics2.Priority" : "gui.neoecoae.storage.cell_priority.title");
     }
 
     @Override
@@ -57,7 +59,8 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
         if (!validSession()) return;
         var drive = position == null ? null : StorageCellPriority.resolve(host, position, installation);
         boolean allowed = position == null || drive != null;
-        int current = position == null ? host.getStoragePriority() : drive == null ? 0 : drive.getConfiguredCellPriority();
+        int current = position == null ? host.getStoragePriority()
+            : drive == null ? 0 : drive.getConfiguredCellPriority();
         String target = position == null ? "host" : position.asLong() + ":" + installation;
         if (init || priority != current || allowed != previousEditable || !target.equals(previousTarget)) {
             priority = current;
@@ -103,11 +106,12 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
             installation = targetInstallation;
             targetRevision = revision;
             if (id != 2) {
-                if (position == null) host.setStoragePriority(id == 0 ? value : StoragePriority.adjust(host.getStoragePriority(), value));
+                if (position == null)
+                    host.setStoragePriority(id == 0 ? value : StoragePriority.adjust(host.getStoragePriority(), value));
                 else {
                     var drive = StorageCellPriority.resolve(host, position, installation);
-                    if (drive != null) drive.setConfiguredCellPriority(id == 0 ? value
-                        : StoragePriority.adjust(drive.getConfiguredCellPriority(), value));
+                    if (drive != null) drive.setConfiguredCellPriority(
+                        id == 0 ? value : StoragePriority.adjust(drive.getConfiguredCellPriority(), value));
                 }
             }
             detectAndSendChanges(true);
@@ -139,7 +143,8 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
 
     @SideOnly(Side.CLIENT)
     public boolean selectCell(StorageHostUI.CellEntry cell) {
-        if (cell.position() == null || cell.interactionId() == null || !ECOStorageCellSettings.canConfigure(cell.stack())) return false;
+        if (cell.position() == null || cell.interactionId() == null
+            || !ECOStorageCellSettings.canConfigure(cell.stack())) return false;
         position = cell.position();
         installation = cell.interactionId();
         priority = ECOStorageCellSettings.priority(cell.stack());
@@ -151,7 +156,10 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
 
     @SideOnly(Side.CLIENT)
     public void change(int delta) {
-        if (editable) syncToServer(1, output -> { writeRequest(output); output.writeInt(delta); });
+        if (editable) syncToServer(1, output -> {
+            writeRequest(output);
+            output.writeInt(delta);
+        });
     }
 
     @SideOnly(Side.CLIENT)
@@ -159,7 +167,10 @@ public final class NativeStoragePrioritySession extends NativeTileSession {
         if (!editable || text == null || text.isEmpty() || text.equals("-") || text.equals("+")) return;
         try {
             int value = Integer.parseInt(text);
-            syncToServer(0, output -> { writeRequest(output); output.writeInt(value); });
+            syncToServer(0, output -> {
+                writeRequest(output);
+                output.writeInt(value);
+            });
         } catch (NumberFormatException ignored) {}
     }
 }

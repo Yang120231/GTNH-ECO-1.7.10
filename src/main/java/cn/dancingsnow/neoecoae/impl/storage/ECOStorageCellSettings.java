@@ -17,16 +17,21 @@ public final class ECOStorageCellSettings {
 
     public static boolean canConfigure(ItemStack stack) {
         return !ItemStacks.isEmpty(stack) && !(stack.getItem() instanceof ECOInfiniteResourceCellItem)
-            && !ECOInfiniteStorageMember.isMember(stack) && !ECOInfiniteStorageMember.isMigrating(stack);
+            && !ECOInfiniteStorageMember.isMember(stack)
+            && !ECOInfiniteStorageMember.isMigrating(stack);
     }
 
     public static int priority(ItemStack stack) {
-        return ItemStacks.isEmpty(stack) ? 0 : CellComponents.readCustomData(stack).copyTag().getInt(PRIORITY);
+        return ItemStacks.isEmpty(stack) ? 0
+            : CellComponents.readCustomData(stack)
+                .copyTag()
+                .getInt(PRIORITY);
     }
 
     public static void setPriority(ItemStack stack, int priority) {
         if (!canConfigure(stack)) return;
-        var data = CellComponents.readCustomData(stack).copyTag();
+        var data = CellComponents.readCustomData(stack)
+            .copyTag();
         data.putInt(PRIORITY, priority);
         CellComponents.writeCustomData(stack, CustomData.of(data));
     }

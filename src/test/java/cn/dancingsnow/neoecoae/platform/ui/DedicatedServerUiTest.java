@@ -37,10 +37,13 @@ class DedicatedServerUiTest {
         try (var loader = new ServerLoader()) {
             Class<?> session = loader.loadClass(UI + "storage.NativeStoragePrioritySession");
             assertThrows(NoSuchMethodException.class, () -> session.getDeclaredMethod("set", String.class));
-            Object state = session.getConstructor(ECOStorageSystemBlockEntity.class).newInstance((Object) null);
+            Object state = session.getConstructor(ECOStorageSystemBlockEntity.class)
+                .newInstance((Object) null);
             Object handler = mock(loader.loadClass(MUI + "api.IPanelHandler"));
-            assertNotNull(loader.loadClass(UI + "storage.NativeStoragePriorityPages")
-                .getMethod("create", session, handlerType(loader)).invoke(null, state, handler));
+            assertNotNull(
+                loader.loadClass(UI + "storage.NativeStoragePriorityPages")
+                    .getMethod("create", session, handlerType(loader))
+                    .invoke(null, state, handler));
             assertMissingCallback(loader, "priority", session, state);
         }
     }
@@ -51,10 +54,12 @@ class DedicatedServerUiTest {
             Class<?> session = loader.loadClass(UI + "storage.NativeStorageInterfaceSession");
             assertThrows(NoSuchMethodException.class, () -> session.getDeclaredMethod("toggleCreative"));
             var host = mock(ECOMachineInterfaceBlockEntity.class);
-            Object state = session.getConstructor(ECOMachineInterfaceBlockEntity.class).newInstance(host);
-            assertNotNull(loader.loadClass(UI + "storage.NativeStorageInterfacePages")
-                .getMethod("create", ECOMachineInterfaceBlockEntity.class, EntityPlayer.class, managerType(loader))
-                .invoke(null, host, player(), mock(managerType(loader), RETURNS_DEEP_STUBS)));
+            Object state = session.getConstructor(ECOMachineInterfaceBlockEntity.class)
+                .newInstance(host);
+            assertNotNull(
+                loader.loadClass(UI + "storage.NativeStorageInterfacePages")
+                    .getMethod("create", ECOMachineInterfaceBlockEntity.class, EntityPlayer.class, managerType(loader))
+                    .invoke(null, host, player(), mock(managerType(loader), RETURNS_DEEP_STUBS)));
             assertMissingCallback(loader, "storageInterface", session, state);
         }
     }
@@ -73,10 +78,16 @@ class DedicatedServerUiTest {
             var upgrades = mock(UpgradeInventory.class);
             when(upgrades.getSizeInventory()).thenReturn(4);
             when(host.getUpgrades()).thenReturn(upgrades);
-            Object state = session.getConstructor(ECOIntegratedWorkingStationBlockEntity.class).newInstance(host);
-            assertNotNull(loader.loadClass(UI + "workstation.NativeWorkstationPages")
-                .getMethod("create", ECOIntegratedWorkingStationBlockEntity.class, EntityPlayer.class, managerType(loader))
-                .invoke(null, host, player(), mock(managerType(loader), RETURNS_DEEP_STUBS)));
+            Object state = session.getConstructor(ECOIntegratedWorkingStationBlockEntity.class)
+                .newInstance(host);
+            assertNotNull(
+                loader.loadClass(UI + "workstation.NativeWorkstationPages")
+                    .getMethod(
+                        "create",
+                        ECOIntegratedWorkingStationBlockEntity.class,
+                        EntityPlayer.class,
+                        managerType(loader))
+                    .invoke(null, host, player(), mock(managerType(loader), RETURNS_DEEP_STUBS)));
             assertMissingCallback(loader, "workstation", session, state);
         }
     }
@@ -95,19 +106,33 @@ class DedicatedServerUiTest {
         return loader.loadClass(MUI + "value.sync.PanelSyncManager");
     }
 
-    private static void assertMissingCallback(ServerLoader loader, String method, Class<?> session, Object state) throws Exception {
+    private static void assertMissingCallback(ServerLoader loader, String method, Class<?> session, Object state)
+        throws Exception {
         Class<?> fixture = loader.loadClass(UnsafeCallbacks.class.getName());
-        var failure = assertThrows(InvocationTargetException.class, () -> fixture.getMethod(method, session).invoke(null, state));
+        var failure = assertThrows(
+            InvocationTargetException.class,
+            () -> fixture.getMethod(method, session)
+                .invoke(null, state));
         assertInstanceOf(NoSuchMethodError.class, failure.getCause());
     }
 
     public static class UnsafeCallbacks {
-        public static Consumer<String> priority(NativeStoragePrioritySession session) { return session::set; }
-        public static Runnable storageInterface(NativeStorageInterfaceSession session) { return session::toggleCreative; }
-        public static Runnable workstation(NativeWorkstationSession session) { return session::clearInput; }
+
+        public static Consumer<String> priority(NativeStoragePrioritySession session) {
+            return session::set;
+        }
+
+        public static Runnable storageInterface(NativeStorageInterfaceSession session) {
+            return session::toggleCreative;
+        }
+
+        public static Runnable workstation(NativeWorkstationSession session) {
+            return session::clearInput;
+        }
     }
 
     private static final class ServerLoader extends ClassLoader implements AutoCloseable {
+
         private final Field launchSide, transformerSide;
         private final Object previousLaunchSide, previousTransformerSide;
         private final SideTransformer transformer;
@@ -141,7 +166,9 @@ class DedicatedServerUiTest {
                         byte[] raw = com.google.common.io.ByteStreams.toByteArray(input);
                         byte[] bytes = transformer.transform(name, name, raw);
                         type = defineClass(name, bytes, 0, bytes.length);
-                    } catch (java.io.IOException failure) { throw new ClassNotFoundException(name, failure); }
+                    } catch (java.io.IOException failure) {
+                        throw new ClassNotFoundException(name, failure);
+                    }
                 }
                 if (resolve) resolveClass(type);
                 return type;

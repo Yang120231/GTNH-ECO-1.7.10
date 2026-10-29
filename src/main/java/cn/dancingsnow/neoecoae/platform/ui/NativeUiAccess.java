@@ -19,7 +19,9 @@ public final class NativeUiAccess {
             && !tile.getWorldObj().isRemote
             && player.worldObj == tile.getWorldObj()
             && player.getDistanceSq(tile.xCoord + .5, tile.yCoord + .5, tile.zCoord + .5) <= 64
-            && tile.getWorldObj().getChunkProvider().chunkExists(tile.xCoord >> 4, tile.zCoord >> 4)
+            && tile.getWorldObj()
+                .getChunkProvider()
+                .chunkExists(tile.xCoord >> 4, tile.zCoord >> 4)
             && tile.getWorldObj()
                 .getTileEntity(tile.xCoord, tile.yCoord, tile.zCoord) == tile;
     }

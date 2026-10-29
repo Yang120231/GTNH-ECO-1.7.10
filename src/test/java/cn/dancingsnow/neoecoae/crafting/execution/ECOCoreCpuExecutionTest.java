@@ -189,15 +189,25 @@ class ECOCoreCpuExecutionTest {
     void stoppingAStepKeepsAcceptedInputsAndResumingDeliversOnlyTheOriginalOrder() throws Exception {
         var fixture = new Fixture();
         assertTrue(fixture.submit());
-        fixture.cpu.getLogic().tickCraftingLogic(fixture.energy, fixture.service);
+        fixture.cpu.getLogic()
+            .tickCraftingLogic(fixture.energy, fixture.service);
         assertEquals(5, fixture.pushes);
-        assertTrue(fixture.cpu.getLogic().setProcessingStepStopped(fixture.goal, true));
+        assertTrue(
+            fixture.cpu.getLogic()
+                .setProcessingStepStopped(fixture.goal, true));
         fixture.tickAndReturnOutputs();
         assertEquals(5, fixture.pushes, "No further step is admitted after stopping it");
-        assertEquals(5, fixture.cpu.getLogic().getStored(fixture.intermediate));
+        assertEquals(
+            5,
+            fixture.cpu.getLogic()
+                .getStored(fixture.intermediate));
         assertTrue(fixture.cpu.isBusy());
-        assertTrue(fixture.cpu.getLogic().isProcessingStepStopped(fixture.goal));
-        assertTrue(fixture.cpu.getLogic().setProcessingStepStopped(fixture.goal, false));
+        assertTrue(
+            fixture.cpu.getLogic()
+                .isProcessingStepStopped(fixture.goal));
+        assertTrue(
+            fixture.cpu.getLogic()
+                .setProcessingStepStopped(fixture.goal, false));
         for (int tick = 0; tick < 10 && fixture.cpu.isBusy(); tick++) fixture.tickAndReturnOutputs();
         assertFalse(fixture.cpu.isBusy());
         assertEquals(10, fixture.pushes);
@@ -225,22 +235,33 @@ class ECOCoreCpuExecutionTest {
     void aStoppedStepSurvivesFullCpuSaveReloadAndDoesNotDispatchUntilResumed() throws Exception {
         var fixture = new Fixture();
         assertTrue(fixture.submit());
-        assertTrue(fixture.cpu.getLogic().setProcessingStepStopped(fixture.intermediate, true));
+        assertTrue(
+            fixture.cpu.getLogic()
+                .setProcessingStepStopped(fixture.intermediate, true));
         var data = new CompoundTag();
         fixture.cpu.writeToNBT(data, TestItemRegistry.CONTEXT);
         var restored = new ECOCraftingCPU(fixture.host, null, fixture.owner);
         restored.bindNativeCPU(fixture.nativeCpu);
         try (var patterns = mockStatic(PatternDetailsHelper.class)) {
-            patterns.when(() -> PatternDetailsHelper.decodePattern(any(), any())).thenAnswer(call ->
-                fixture.first.getDefinition().equals(call.getArgument(0)) ? fixture.first : fixture.second);
+            patterns.when(() -> PatternDetailsHelper.decodePattern(any(), any()))
+                .thenAnswer(
+                    call -> fixture.first.getDefinition()
+                        .equals(call.getArgument(0)) ? fixture.first : fixture.second);
             restored.readFromNBT(data, TestItemRegistry.CONTEXT);
         }
         fixture.cpu = restored;
-        assertTrue(restored.getLogic().isProcessingStepStopped(fixture.intermediate));
+        assertTrue(
+            restored.getLogic()
+                .isProcessingStepStopped(fixture.intermediate));
         fixture.tickAndReturnOutputs();
         assertEquals(0, fixture.pushes);
-        assertEquals(5, restored.getLogic().getStored(fixture.raw));
-        assertTrue(restored.getLogic().setProcessingStepStopped(fixture.intermediate, false));
+        assertEquals(
+            5,
+            restored.getLogic()
+                .getStored(fixture.raw));
+        assertTrue(
+            restored.getLogic()
+                .setProcessingStepStopped(fixture.intermediate, false));
         for (int tick = 0; tick < 10 && fixture.cpu.isBusy(); tick++) fixture.tickAndReturnOutputs();
         assertFalse(fixture.cpu.isBusy());
         assertEquals(5L, fixture.stock.get(fixture.goal));

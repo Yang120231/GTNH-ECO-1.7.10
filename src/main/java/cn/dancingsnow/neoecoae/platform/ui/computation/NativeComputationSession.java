@@ -256,7 +256,8 @@ public final class NativeComputationSession extends NativeSnapshotSession {
     private ListTag statusItems(ECOCraftingCPU cpu) {
         var logic = cpu.getLogic();
         var jobId = logic.getProcessingJobId();
-        resourceTargets.values().removeIf(target -> target.cpu != cpu || !java.util.Objects.equals(target.job, jobId));
+        resourceTargets.values()
+            .removeIf(target -> target.cpu != cpu || !java.util.Objects.equals(target.job, jobId));
         logic.refreshProcessingProgress();
         var resources = statusResources(cpu);
         var names = new HashMap<AEKey, String>();
@@ -275,7 +276,11 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             java.math.BigInteger[] amounts = resources.get(key);
             for (int kind = 0; kind < 3; kind++)
                 if (amounts[kind] != null) row.putString(kinds[kind], amounts[kind].toString());
-            ResourceTarget target = resourceTargets.values().stream().filter(value -> value.key.equals(key)).findFirst().orElse(null);
+            ResourceTarget target = resourceTargets.values()
+                .stream()
+                .filter(value -> value.key.equals(key))
+                .findFirst()
+                .orElse(null);
             if (target == null && jobId != null) {
                 target = new ResourceTarget(++resourceSerial, cpu, jobId, key);
                 resourceTargets.put(target.token, target);
@@ -286,7 +291,10 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 row.putBoolean("stepStopped", logic.isProcessingStepStopped(key));
                 var progress = logic.getProcessingProgress(key);
                 target.detailPage = Math.min(target.detailPage, progress.pages() - 1);
-                row.put("processing", progress.page(target.detailPage).write());
+                row.put(
+                    "processing",
+                    progress.page(target.detailPage)
+                        .write());
             }
             page.add(row);
         }
@@ -468,12 +476,18 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             case 17:
             case 18:
                 ResourceTarget resource = resourceTargets.get(argument);
-                if (resource != null && resource.cpu == targets.get(selected) && displayedCpus().contains(resource.cpu)
-                    && resource.job.equals(resource.cpu.getLogic().getProcessingJobId())) {
+                if (resource != null && resource.cpu == targets.get(selected)
+                    && displayedCpus().contains(resource.cpu)
+                    && resource.job.equals(
+                        resource.cpu.getLogic()
+                            .getProcessingJobId())) {
                     if (action == 18) {
-                        int pages = resource.cpu.getLogic().getProcessingProgress(resource.key).pages();
+                        int pages = resource.cpu.getLogic()
+                            .getProcessingProgress(resource.key)
+                            .pages();
                         resource.detailPage = (resource.detailPage + 1) % pages;
-                    } else resource.cpu.getLogic().setProcessingStepStopped(resource.key, action == 16);
+                    } else resource.cpu.getLogic()
+                        .setProcessingStepStopped(resource.key, action == 16);
                 }
                 break;
             default:
@@ -488,13 +502,18 @@ public final class NativeComputationSession extends NativeSnapshotSession {
     }
 
     private static final class ResourceTarget {
+
         final int token;
         final ECOCraftingCPU cpu;
         final java.util.UUID job;
         final AEKey key;
         int detailPage;
+
         ResourceTarget(int token, ECOCraftingCPU cpu, java.util.UUID job, AEKey key) {
-            this.token = token; this.cpu = cpu; this.job = job; this.key = key;
+            this.token = token;
+            this.cpu = cpu;
+            this.job = job;
+            this.key = key;
         }
     }
 

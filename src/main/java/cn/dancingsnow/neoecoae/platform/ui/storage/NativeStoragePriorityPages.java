@@ -84,7 +84,10 @@ public final class NativeStoragePriorityPages {
                         .setPattern(Pattern.compile("[+-]?[0-9]*"))
                         .setTextColor(0xfff2f2f2)
                         // Common UI construction must not resolve a method stripped on dedicated servers.
-                        .value(new StringValue.Dynamic(() -> String.valueOf(session.priority()), text -> session.set(text)));
+                        .value(
+                            new StringValue.Dynamic(
+                                () -> String.valueOf(session.priority()),
+                                text -> session.set(text)));
                     break;
                 case "help":
                     String key = node.get("key")

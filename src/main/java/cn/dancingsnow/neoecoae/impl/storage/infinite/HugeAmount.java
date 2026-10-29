@@ -1,8 +1,9 @@
 package cn.dancingsnow.neoecoae.impl.storage.infinite;
 
-import cn.dancingsnow.neoecoae.crafting.amount.U126;
 import java.math.BigInteger;
 import java.util.Objects;
+
+import cn.dancingsnow.neoecoae.crafting.amount.U126;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 /**
@@ -10,6 +11,7 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
  * 2^126, and {@link BigInteger} only beyond that. The serialized form is unchanged.
  */
 public final class HugeAmount implements Comparable<HugeAmount> {
+
     public static final HugeAmount ZERO = new HugeAmount(0L, null, null);
 
     private final long longValue;

@@ -19,8 +19,8 @@ import cn.dancingsnow.neoecoae.platform.TestItems;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.nbt.CellComponents;
-import cn.dancingsnow.neoecoae.platform.nbt.CustomData;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.CustomData;
 
 class StorageCellPriorityTest {
 
@@ -33,7 +33,11 @@ class StorageCellPriorityTest {
         assertEquals(0, ECOStorageCellSettings.priority(stack));
         ECOStorageCellSettings.setPriority(stack, -123);
         assertEquals(-123, ECOStorageCellSettings.priority(stack.copy()));
-        assertEquals("partition and upgrades", CellComponents.readCustomData(stack).copyTag().getString("keep"));
+        assertEquals(
+            "partition and upgrades",
+            CellComponents.readCustomData(stack)
+                .copyTag()
+                .getString("keep"));
         assertEquals(77, StoragePriority.mountPriority(200, ECOStorageCellSettings.priority(stack)));
         assertEquals(Integer.MAX_VALUE, StoragePriority.mountPriority(Integer.MAX_VALUE, 100));
         assertEquals(Integer.MIN_VALUE, StoragePriority.mountPriority(Integer.MIN_VALUE, -100));

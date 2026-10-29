@@ -19,23 +19,41 @@ class HugeAmountTierTest {
             BigInteger right = new BigInteger(random.nextInt(160), random);
             var a = HugeAmount.of(left);
             var b = HugeAmount.of(right);
-            assertEquals(left.add(right), a.add(b).toBigInteger());
-            if (left.compareTo(right) >= 0) assertEquals(left.subtract(right), a.subtract(b).toBigInteger());
+            assertEquals(
+                left.add(right),
+                a.add(b)
+                    .toBigInteger());
+            if (left.compareTo(right) >= 0) assertEquals(
+                left.subtract(right),
+                a.subtract(b)
+                    .toBigInteger());
             else assertThrows(IllegalArgumentException.class, () -> a.subtract(b));
             assertEquals(Integer.signum(left.compareTo(right)), Integer.signum(a.compareTo(b)));
-            assertEquals(left.min(BigInteger.valueOf(Long.MAX_VALUE)).longValueExact(), a.toLongSaturated());
+            assertEquals(
+                left.min(BigInteger.valueOf(Long.MAX_VALUE))
+                    .longValueExact(),
+                a.toLongSaturated());
             long small = random.nextLong() & Long.MAX_VALUE;
-            assertEquals(left.add(BigInteger.valueOf(small)), a.add(small).toBigInteger());
-            if (left.compareTo(BigInteger.valueOf(small)) >= 0)
-                assertEquals(left.subtract(BigInteger.valueOf(small)), a.subtract(small).toBigInteger());
-            assertEquals(left, HugeAmount.read(a.write()).toBigInteger());
+            assertEquals(
+                left.add(BigInteger.valueOf(small)),
+                a.add(small)
+                    .toBigInteger());
+            if (left.compareTo(BigInteger.valueOf(small)) >= 0) assertEquals(
+                left.subtract(BigInteger.valueOf(small)),
+                a.subtract(small)
+                    .toBigInteger());
+            assertEquals(
+                left,
+                HugeAmount.read(a.write())
+                    .toBigInteger());
         }
     }
 
     @Test
     void oldLongAndDecimalTagsKeepTheirFormatAtTheNewTierBoundaries() {
         for (BigInteger value : new BigInteger[] { BigInteger.ZERO, BigInteger.valueOf(Long.MAX_VALUE),
-            BigInteger.ONE.shiftLeft(63), BigInteger.ONE.shiftLeft(126).subtract(BigInteger.ONE),
+            BigInteger.ONE.shiftLeft(63), BigInteger.ONE.shiftLeft(126)
+                .subtract(BigInteger.ONE),
             BigInteger.ONE.shiftLeft(126), BigInteger.ONE.shiftLeft(200) }) {
             var old = new CompoundTag();
             if (value.bitLength() < 64) old.putLong("long", value.longValueExact());
@@ -46,6 +64,9 @@ class HugeAmountTierTest {
             assertEquals(value.hashCode(), amount.hashCode());
             assertEquals(HugeAmount.ZERO, amount.subtract(amount));
         }
-        assertEquals(HugeAmount.of(Long.MAX_VALUE), HugeAmount.of(BigInteger.ONE.shiftLeft(63)).subtract(1));
+        assertEquals(
+            HugeAmount.of(Long.MAX_VALUE),
+            HugeAmount.of(BigInteger.ONE.shiftLeft(63))
+                .subtract(1));
     }
 }

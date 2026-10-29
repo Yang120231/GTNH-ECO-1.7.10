@@ -19,6 +19,9 @@ public interface ECOProcessingTargetProvider {
 
     @com.github.bsideup.jabel.Desugar
     record Target(int dimension, BlockPos position) {
-        public Target { position = position.immutable(); }
+
+        public Target {
+            position = position.immutable();
+        }
     }
 }

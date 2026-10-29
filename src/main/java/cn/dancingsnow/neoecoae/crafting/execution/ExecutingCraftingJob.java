@@ -94,6 +94,7 @@ public class ExecutingCraftingJob {
     boolean isProcessingOutputStopped(AEKey output) {
         return stoppedProcessingOutputs.contains(output);
     }
+
     Set<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation> fuzzyPlanningItemIds = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
         .setOf();
     @Nullable

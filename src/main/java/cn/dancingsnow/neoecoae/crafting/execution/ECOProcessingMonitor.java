@@ -1,13 +1,5 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
-import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.api.me.attachment.ECOCraftingJobAttachment;
-import cn.dancingsnow.neoecoae.api.me.attachment.ECOCraftingJobAttachmentRegistry;
-import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
-import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingDispatchEvent;
-import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingJobResult;
-import cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus;
-import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
 import java.util.ArrayDeque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -15,16 +7,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.WeakHashMap;
-import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
-import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
-import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
-import cn.dancingsnow.neoecoae.platform.nbt.Tag;
-import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
+
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.World;
 
+import cn.dancingsnow.neoecoae.api.me.attachment.ECOCraftingJobAttachment;
+import cn.dancingsnow.neoecoae.api.me.attachment.ECOCraftingJobAttachmentRegistry;
+import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
+import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingDispatchEvent;
+import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingJobResult;
+import cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
+
 /** Destination records survive reload; all live progress is read-only and refreshed only by an open view. */
 public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
+
     private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("neoecoae", "processing_monitor");
     static final int READS_PER_CPU_TICK = 32, READS_PER_SERVER_TICK = 256, REFRESH_INTERVAL = 10;
     private static final Map<MinecraftServer, Budget> SERVER_BUDGETS = new WeakHashMap<>();
@@ -39,7 +42,8 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
     public static void initialize() {
         ECOCraftingJobAttachmentRegistry.register(ID, context -> {
             if (!(context.cpu() instanceof ECOCraftingCPU cpu)) return null;
-            var monitor = cpu.getLogic().getProcessingMonitor();
+            var monitor = cpu.getLogic()
+                .getProcessingMonitor();
             monitor.bind(context.craftingJobId());
             return monitor;
         });
@@ -53,9 +57,12 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
 
     void dispatched(ECOCraftingDispatchEvent event) {
         try {
-            bind(event.job().craftingJobId());
+            bind(
+                event.job()
+                    .craftingJobId());
             var destinations = ECOGregTechMachineStatus.targets(event.provider());
-            for (var output : event.pattern().getOutputs()) {
+            for (var output : event.pattern()
+                .getOutputs()) {
                 if (output.amount() <= 0) continue;
                 for (Target target : destinations) observe(output.what(), target);
             }
@@ -65,7 +72,8 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
     }
 
     void observe(AEKey output, Target target) {
-        if (!targets.computeIfAbsent(output, ignored -> new LinkedHashSet<>()).add(target)) return;
+        if (!targets.computeIfAbsent(output, ignored -> new LinkedHashSet<>())
+            .add(target)) return;
         var survey = surveys.get(output);
         if (survey != null) {
             survey.nextTick = Long.MIN_VALUE;
@@ -112,7 +120,11 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 survey.queued = false;
                 continue;
             }
-            if (!claim(MinecraftServer.getServer(), MinecraftServer.getServer().getTickCounter())) return;
+            if (!claim(
+                MinecraftServer.getServer(),
+                MinecraftServer.getServer()
+                    .getTickCounter()))
+                return;
             readsRemaining--;
             pending.removeFirst();
             survey.queued = false;
@@ -137,15 +149,22 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
 
     private static synchronized boolean claim(MinecraftServer server, long tick) {
         Budget budget = SERVER_BUDGETS.computeIfAbsent(server, ignored -> new Budget());
-        if (budget.tick != tick) { budget.tick = tick; budget.remaining = READS_PER_SERVER_TICK; }
+        if (budget.tick != tick) {
+            budget.tick = tick;
+            budget.remaining = READS_PER_SERVER_TICK;
+        }
         if (budget.remaining <= 0) return false;
         budget.remaining--;
         return true;
     }
 
-    @Override public ResourceLocation id() { return ID; }
+    @Override
+    public ResourceLocation id() {
+        return ID;
+    }
 
-    @Override public CompoundTag save(cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+    @Override
+    public CompoundTag save(cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
         var tag = new CompoundTag();
         var entries = new ListTag();
         targets.forEach((key, destinations) -> {
@@ -155,7 +174,10 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
             for (var target : destinations) {
                 var destination = new CompoundTag();
                 destination.putInt("dimension", target.dimension());
-                destination.putLong("position", target.position().asLong());
+                destination.putLong(
+                    "position",
+                    target.position()
+                        .asLong());
                 list.add(destination);
             }
             entry.put("targets", list);
@@ -165,7 +187,8 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
         return tag;
     }
 
-    @Override public void load(CompoundTag tag, cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+    @Override
+    public void load(CompoundTag tag, cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
         targets.clear();
         surveys.clear();
         pending.clear();
@@ -177,12 +200,17 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
             var list = entry.getList("targets", Tag.TAG_COMPOUND);
             for (int j = 0; j < list.size(); j++) {
                 var destination = list.getCompound(j);
-                if (destination.contains("dimension", Tag.TAG_INT)) observe(key, new Target(destination.getInt("dimension"), BlockPos.of(destination.getLong("position"))));
+                if (destination.contains("dimension", Tag.TAG_INT)) observe(
+                    key,
+                    new Target(destination.getInt("dimension"), BlockPos.of(destination.getLong("position"))));
             }
         }
     }
 
-    @Override public void clear(ECOCraftingJobResult result) { reset(); }
+    @Override
+    public void clear(ECOCraftingJobResult result) {
+        reset();
+    }
 
     private void reset() {
         targets.clear();
@@ -196,18 +224,27 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
     private void report(Throwable failure) {
         if (failureReported) return;
         failureReported = true;
-        org.apache.logging.log4j.LogManager.getLogger("neoecoae").warn("Optional processing status could not be read; crafting continues normally", failure);
+        org.apache.logging.log4j.LogManager.getLogger("neoecoae")
+            .warn("Optional processing status could not be read; crafting continues normally", failure);
     }
 
     private static final class Survey {
+
         final AEKey output;
         ECOGregTechMachineStatus.Scan scan;
         ECOProcessingProgress published = ECOProcessingProgress.EMPTY;
         List<Target> machineTargets = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf();
         long nextTick, requestedTick;
         boolean queued;
-        Survey(AEKey output) { this.output = output; }
+
+        Survey(AEKey output) {
+            this.output = output;
+        }
     }
 
-    private static final class Budget { long tick = Long.MIN_VALUE; int remaining; }
+    private static final class Budget {
+
+        long tick = Long.MIN_VALUE;
+        int remaining;
+    }
 }

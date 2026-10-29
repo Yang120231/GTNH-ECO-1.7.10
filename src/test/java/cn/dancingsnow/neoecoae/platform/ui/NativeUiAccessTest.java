@@ -62,10 +62,14 @@ class NativeUiAccessTest {
 
     @Test
     void unloadedChunksAndInvalidTilesRejectEditsWithoutLoadingTheWorld() {
-        when(world.getChunkProvider().chunkExists(0, 0)).thenReturn(false);
+        when(
+            world.getChunkProvider()
+                .chunkExists(0, 0)).thenReturn(false);
         assertFalse(NativeUiAccess.canEdit(tile, player, container));
         verify(world, never()).getTileEntity(anyInt(), anyInt(), anyInt());
-        when(world.getChunkProvider().chunkExists(0, 0)).thenReturn(true);
+        when(
+            world.getChunkProvider()
+                .chunkExists(0, 0)).thenReturn(true);
         tile.invalidate();
         assertFalse(NativeUiAccess.canEdit(tile, player, container));
     }

@@ -340,7 +340,8 @@ public final class NativeCpuPages {
             });
             onMouseScrolled((direction, amount) -> {
                 var value = entry();
-                if (com.cleanroommc.modularui.api.widget.Interactable.hasShiftDown() && value.getInt("controlToken") != 0) {
+                if (com.cleanroommc.modularui.api.widget.Interactable.hasShiftDown()
+                    && value.getInt("controlToken") != 0) {
                     session.action(18, value.getInt("controlToken"));
                     return true;
                 }
@@ -353,22 +354,55 @@ public final class NativeCpuPages {
                 lines.add(value.getString("name"));
                 for (String kind : new String[] { "stored", "active", "pending" }) if (!value.getString(kind)
                     .isEmpty()) lines.add(kind + ": " + value.getString(kind));
-                var progress = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.read(value.getCompound("processing"));
+                var progress = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress
+                    .read(value.getCompound("processing"));
                 if (progress.machineCount() > 0 || progress.refreshing()) {
-                    lines.add(Component.translatable("gui.neoecoae.processing.summary", progress.machineCount(),
-                        Math.round(progress.progress() * 100)).getString());
-                    lines.add(Component.translatable("gui.neoecoae.processing.state." + progress.state().name().toLowerCase(java.util.Locale.ROOT)).getString());
+                    lines.add(
+                        Component
+                            .translatable(
+                                "gui.neoecoae.processing.summary",
+                                progress.machineCount(),
+                                Math.round(progress.progress() * 100))
+                            .getString());
+                    lines.add(
+                        Component.translatable(
+                            "gui.neoecoae.processing.state." + progress.state()
+                                .name()
+                                .toLowerCase(java.util.Locale.ROOT))
+                            .getString());
                     for (var machine : progress.machines()) {
-                        lines.add(machine.name().getString() + " " + machine.location());
-                        lines.add(Component.translatable("gui.neoecoae.processing.cycle", machine.progressTicks(),
-                            machine.durationTicks(), machine.parallel()).getString());
-                        if (!machine.recipe().isEmpty()) lines.add(machine.recipe());
-                        if (!machine.reason().getString().isEmpty()) lines.add(machine.reason().getString());
+                        lines.add(
+                            machine.name()
+                                .getString() + " "
+                                + machine.location());
+                        lines.add(
+                            Component
+                                .translatable(
+                                    "gui.neoecoae.processing.cycle",
+                                    machine.progressTicks(),
+                                    machine.durationTicks(),
+                                    machine.parallel())
+                                .getString());
+                        if (!machine.recipe()
+                            .isEmpty()) lines.add(machine.recipe());
+                        if (!machine.reason()
+                            .getString()
+                            .isEmpty())
+                            lines.add(
+                                machine.reason()
+                                    .getString());
                     }
-                    lines.add(Component.translatable("gui.neoecoae.processing.page", progress.detailPage() + 1, progress.pages()).getString());
+                    lines.add(
+                        Component
+                            .translatable("gui.neoecoae.processing.page", progress.detailPage() + 1, progress.pages())
+                            .getString());
                 }
-                if (value.getBoolean("canControl")) lines.add(Component.translatable(value.getBoolean("stepStopped")
-                    ? "gui.neoecoae.processing.resume_hint" : "gui.neoecoae.processing.stop_hint").getString());
+                if (value.getBoolean("canControl")) lines.add(
+                    Component
+                        .translatable(
+                            value.getBoolean("stepStopped") ? "gui.neoecoae.processing.resume_hint"
+                                : "gui.neoecoae.processing.stop_hint")
+                        .getString());
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
@@ -387,8 +421,10 @@ public final class NativeCpuPages {
             boolean active = number(entry.getString("active")).signum() > 0;
             boolean pending = number(entry.getString("pending")).signum() > 0;
             if (active || pending) GuiDraw.drawRect(0, 0, 67, 22, active ? 0x5a005500 : 0x5a555500);
-            var processing = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.read(entry.getCompound("processing"));
-            if (processing.hasProgress()) GuiDraw.drawRect(0, 21, Math.round(67 * processing.progress()), 1, 0xfface9ff);
+            var processing = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress
+                .read(entry.getCompound("processing"));
+            if (processing.hasProgress())
+                GuiDraw.drawRect(0, 21, Math.round(67 * processing.progress()), 1, 0xfface9ff);
             if (entry.getBoolean("stepStopped")) GuiDraw.drawRect(1, 1, 3, 3, 0xffffaa00);
             drawKey(key, 48, 3, 1, context.getCurrentDrawingZ());
             String[] fields = { "stored", "active", "pending" };

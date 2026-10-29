@@ -7,6 +7,7 @@ import java.math.BigInteger;
  * Past Long.MAX_VALUE the exact base is a {@link HugeAmount}: U126 below 2^126, BigInteger only beyond.
  */
 final class MutableInfiniteStorageTotal {
+
     /** The whole total while {@link #base} is null; otherwise a pending signed delta on top of it. */
     private long value;
     private HugeAmount base;
@@ -15,7 +16,8 @@ final class MutableInfiniteStorageTotal {
         if (base == null) {
             if (amount <= Long.MAX_VALUE - value) value += amount;
             else {
-                base = HugeAmount.of(value).add(amount);
+                base = HugeAmount.of(value)
+                    .add(amount);
                 value = 0;
             }
         } else accumulate(amount);
@@ -38,7 +40,9 @@ final class MutableInfiniteStorageTotal {
         else subtract(HugeAmount.of(amount));
     }
 
-    void add(HugeAmount amount) { set(exact().add(amount)); }
+    void add(HugeAmount amount) {
+        set(exact().add(amount));
+    }
 
     void subtract(HugeAmount amount) {
         HugeAmount total = exact();
@@ -61,7 +65,8 @@ final class MutableInfiniteStorageTotal {
     private HugeAmount exact() {
         if (base == null) return HugeAmount.of(value);
         if (value >= 0L) return base.add(value);
-        HugeAmount magnitude = value == Long.MIN_VALUE ? HugeAmount.of(Long.MAX_VALUE).add(1L) : HugeAmount.of(-value);
+        HugeAmount magnitude = value == Long.MIN_VALUE ? HugeAmount.of(Long.MAX_VALUE)
+            .add(1L) : HugeAmount.of(-value);
         if (base.compareTo(magnitude) < 0) throw new IllegalArgumentException("Negative storage total");
         return base.subtract(magnitude);
     }

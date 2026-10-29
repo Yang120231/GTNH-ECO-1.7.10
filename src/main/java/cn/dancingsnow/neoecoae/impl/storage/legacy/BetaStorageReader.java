@@ -50,8 +50,7 @@ public final class BetaStorageReader {
             if (finite) {
                 if (count.bitLength() > 63) throw new IllegalStateException("Beta finite amount exceeds long");
                 entry.putLong("amount", count.longValue());
-            }
-            else entry.put("amount", amount.copy());
+            } else entry.put("amount", amount.copy());
             result.add(entry);
         }
         return result;
@@ -193,8 +192,7 @@ public final class BetaStorageReader {
     public static CompoundTag customData(CompoundTag root) {
         CompoundTag result = new CompoundTag();
         String mode = root.getString("ECOStorageMode");
-        if (root.contains("ECODiskId"))
-            result.putUUID("neoecoae_member_identity", uuid(root.getString("ECODiskId")));
+        if (root.contains("ECODiskId")) result.putUUID("neoecoae_member_identity", uuid(root.getString("ECODiskId")));
         if (!"domain_member".equals(mode) && !"migrating".equals(mode)) return result;
         UUID domain = uuid(root.getString("ECOHostDomainId"));
         UUID disk = uuid(root.getString("ECODiskId"));
