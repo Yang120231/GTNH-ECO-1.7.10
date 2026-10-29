@@ -82,9 +82,7 @@ public interface ECOCraftingNetworkSettings {
     }
 
     static @Nullable ECOCraftingNetworkSettings of(@Nullable GridView grid) {
-        if (grid != null && grid.getCraftingService() instanceof ECOCraftingNetworkSettings settings) {
-            return settings;
-        }
-        return null;
+        // Settings come straight from the grid; reading them must not build the recipe view.
+        return grid == null ? null : grid.getCraftingNetworkSettings();
     }
 }

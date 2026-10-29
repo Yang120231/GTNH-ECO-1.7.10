@@ -33,6 +33,11 @@ public final class GridView {
         return craftingService(defaultWorld(), false);
     }
 
+    /** Planner switches only; never builds the recipe view. */
+    public cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingNetworkSettings getCraftingNetworkSettings() {
+        return tracking().settings();
+    }
+
     public cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView captureCraftingService(
         net.minecraft.world.World world) {
         return craftingService(world, true);
@@ -44,10 +49,14 @@ public final class GridView {
 
     private cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView craftingService(
         net.minecraft.world.World world, boolean capture) {
+        return tracking().view(world, capture);
+    }
+
+    private cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache tracking() {
         cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache tracking = grid
             .getCache(cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache.class);
         if (tracking == null) throw new IllegalStateException("Native source-planning cache not registered");
-        return tracking.view(world, capture);
+        return tracking;
     }
 
     private net.minecraft.world.World defaultWorld() {

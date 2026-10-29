@@ -23,26 +23,16 @@ import cpw.mods.fml.common.registry.GameRegistry;
 public final class StorageMachines {
 
     private static final Map<String, Block> BLOCKS = new LinkedHashMap<>();
-    private static final BlockEntityType<ECODriveBlockEntity> DRIVE_TYPE = new BlockEntityType<>(
-        "eco_drive",
-        Drive::new);
-    private static final BlockEntityType<Casing> CASING_TYPE = new BlockEntityType<>("storage_casing", Casing::new);
-    private static final BlockEntityType<Interface> INTERFACE_TYPE = new BlockEntityType<>(
-        "storage_interface",
-        Interface::new);
-    private static final BlockEntityType<Vent> VENT_TYPE = new BlockEntityType<>("storage_vent", Vent::new);
-    private static final BlockEntityType<HostL4> HOST_L4_TYPE = new BlockEntityType<>("storage_system_l4", HostL4::new);
-    private static final BlockEntityType<HostL6> HOST_L6_TYPE = new BlockEntityType<>("storage_system_l6", HostL6::new);
-    private static final BlockEntityType<HostL9> HOST_L9_TYPE = new BlockEntityType<>("storage_system_l9", HostL9::new);
-    private static final BlockEntityType<EnergyL4> ENERGY_L4_TYPE = new BlockEntityType<>(
-        "energy_cell_l4",
-        EnergyL4::new);
-    private static final BlockEntityType<EnergyL6> ENERGY_L6_TYPE = new BlockEntityType<>(
-        "energy_cell_l6",
-        EnergyL6::new);
-    private static final BlockEntityType<EnergyL9> ENERGY_L9_TYPE = new BlockEntityType<>(
-        "energy_cell_l9",
-        EnergyL9::new);
+    static final BlockEntityType<ECODriveBlockEntity> DRIVE_TYPE = new BlockEntityType<>("eco_drive", Drive::new);
+    static final BlockEntityType<Casing> CASING_TYPE = new BlockEntityType<>("storage_casing", Casing::new);
+    static final BlockEntityType<Interface> INTERFACE_TYPE = new BlockEntityType<>("storage_interface", Interface::new);
+    static final BlockEntityType<Vent> VENT_TYPE = new BlockEntityType<>("storage_vent", Vent::new);
+    static final BlockEntityType<HostL4> HOST_L4_TYPE = new BlockEntityType<>("storage_system_l4", HostL4::new);
+    static final BlockEntityType<HostL6> HOST_L6_TYPE = new BlockEntityType<>("storage_system_l6", HostL6::new);
+    static final BlockEntityType<HostL9> HOST_L9_TYPE = new BlockEntityType<>("storage_system_l9", HostL9::new);
+    static final BlockEntityType<EnergyL4> ENERGY_L4_TYPE = new BlockEntityType<>("energy_cell_l4", EnergyL4::new);
+    static final BlockEntityType<EnergyL6> ENERGY_L6_TYPE = new BlockEntityType<>("energy_cell_l6", EnergyL6::new);
+    static final BlockEntityType<EnergyL9> ENERGY_L9_TYPE = new BlockEntityType<>("energy_cell_l9", EnergyL9::new);
     public static final Holder<Block> STORAGE_CASING = define(
         CASING_TYPE,
         new NativeCasingBlock<>(CASING_TYPE, "storage_casing"));
@@ -185,39 +175,6 @@ public final class StorageMachines {
         public com.cleanroommc.modularui.screen.ModularScreen createScreen(
             com.cleanroommc.modularui.factory.PosGuiData data, com.cleanroommc.modularui.screen.ModularPanel panel) {
             return new com.cleanroommc.modularui.screen.ModularScreen("neoecoae", panel);
-        }
-    }
-
-    public static final class HostL4 extends Host {
-
-        public HostL4() {
-            super(
-                HOST_L4_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) STORAGE_SYSTEM_L4.value()).defaultBlockState(),
-                StorageTier.L4);
-        }
-    }
-
-    public static final class HostL6 extends Host {
-
-        public HostL6() {
-            super(
-                HOST_L6_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) STORAGE_SYSTEM_L6.value()).defaultBlockState(),
-                StorageTier.L6);
-        }
-    }
-
-    public static final class HostL9 extends Host {
-
-        public HostL9() {
-            super(
-                HOST_L9_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) STORAGE_SYSTEM_L9.value()).defaultBlockState(),
-                StorageTier.L9);
         }
     }
 

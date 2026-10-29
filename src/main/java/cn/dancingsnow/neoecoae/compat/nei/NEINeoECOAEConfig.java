@@ -37,6 +37,10 @@ public final class NEINeoECOAEConfig implements IConfigureNEI {
                     handler);
             }
         }
+        if (cpw.mods.fml.common.Loader.isModLoaded("neenergistics")) NEEWorkstationBridge.install(
+            java.util.Arrays
+                .asList(WorkstationRecipeHandler.Kind.INTEGRATED.id(), WorkstationRecipeHandler.Kind.LARGE.id()));
+        API.hideItem(new ItemStack(cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.INSTANCE));
         MinecraftForge.EVENT_BUS.register(this);
         // NEI's first handler-info event precedes plugin loading; also install the initial entries.
         registerHandlerInfo(new NEIRegisterHandlerInfosEvent());
@@ -49,7 +53,8 @@ public final class NEINeoECOAEConfig implements IConfigureNEI {
                 .setDisplayStack(new ItemStack(WorkstationMachines.WORKSTATION))
                 .setWidth(166)
                 .setHeight(kind.height())
-                .setShowOverlayButton(false)
+                // Pattern transfer applies to machine recipes; coolant entries are not patternable.
+                .setShowOverlayButton(kind != WorkstationRecipeHandler.Kind.COOLING)
                 .build());
     }
 

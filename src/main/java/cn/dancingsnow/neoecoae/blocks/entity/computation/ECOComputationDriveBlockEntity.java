@@ -8,8 +8,10 @@ import cn.dancingsnow.neoecoae.platform.inventory.InternalInventoryHost;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
 import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
@@ -18,6 +20,10 @@ import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationCluster, ECOComputationDriveBlockEntity>
     implements ManagedHolder, InternalInventoryHost {
 
+    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
+        .getLogger(cn.dancingsnow.neoecoae.NeoECOAE.MODID);
+    private static final String BETA_CELL = "Cell";
+    private static final String UNRESOLVED_BETA_CELL = "neoecoae_beta_cell";
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     @Persisted
     @DescSynced
@@ -37,6 +43,8 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
     private boolean lowerDrive;
     @DescSynced
     private int renderTier;
+    /** A 7.3.0-beta cell whose item no longer resolves; kept verbatim instead of loading as an empty drive. */
+    private net.minecraft.nbt.NBTTagCompound unresolvedBetaCell;
 
     public ECOComputationDriveBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state, NEComputationClusterCalculator::new);
@@ -105,6 +113,50 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
     @Override
     public void addAdditionalDrops(WorldView world, BlockPos pos, java.util.List<net.minecraft.item.ItemStack> drops) {
         if (getCellStack() != null) drops.add(getCellStack().copy());
+    }
+
+    @Override
+    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        super.loadTag(data, registries);
+        unresolvedBetaCell = data.contains(UNRESOLVED_BETA_CELL, 10) ? copy(data.getCompound(UNRESOLVED_BETA_CELL))
+            : null;
+        // Beta's TileComputationDrive wrote no managed fields and kept its cell under "Cell". The cell is restored
+        // without the tier check: an unsupported cell still drops when the drive is broken instead of vanishing.
+        if (!data.contains("neoecoae_fields") && data.contains(BETA_CELL, 10)) {
+            var raw = copy(data.getCompound(BETA_CELL));
+            net.minecraft.item.ItemStack stack = loadBetaStack(raw);
+            if (stack != null) inventory.loadStack(0, stack);
+            else {
+                unresolvedBetaCell = raw;
+                LOGGER.warn(
+                    "Beta computation drive at {},{},{} kept a cell whose item no longer resolves",
+                    xCoord,
+                    yCoord,
+                    zCoord);
+            }
+        }
+    }
+
+    /** Resolves the beta cell. Package-private so tests can resolve items without the FML registry. */
+    net.minecraft.item.ItemStack loadBetaStack(net.minecraft.nbt.NBTTagCompound tag) {
+        net.minecraft.item.ItemStack stack = net.minecraft.item.ItemStack.loadItemStackFromNBT(tag);
+        return ItemStacks.isEmpty(stack) ? null : stack;
+    }
+
+    boolean hasUnresolvedBetaCell() {
+        return unresolvedBetaCell != null;
+    }
+
+    private static net.minecraft.nbt.NBTTagCompound copy(CompoundTag tag) {
+        return (net.minecraft.nbt.NBTTagCompound) tag.nativeTag()
+            .copy();
+    }
+
+    @Override
+    protected void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
+        super.saveAdditional(data, registries);
+        if (unresolvedBetaCell != null) data
+            .put(UNRESOLVED_BETA_CELL, new CompoundTag((net.minecraft.nbt.NBTTagCompound) unresolvedBetaCell.copy()));
     }
 
     @Override

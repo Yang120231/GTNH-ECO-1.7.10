@@ -16,7 +16,7 @@
 
 无法解析的普通磁盘或无限存储组件不会当作空槽加载。无法读取的旧域会标记不可用并保留原文件。存储方块实体转换失败时保留完整原始 NBT，并阻止玩家拆除或实体、爆炸破坏该过渡方块；修复依赖后重载区块可重试。
 
-该补丁只迁移存储系统。旧版共用控制器、接口 ID 中的合成、计算子系统方块保留原始 NBT 但保持停用，并在日志中提示一次；它们不受拆除保护，拆除重放即可得到新方块（旧数据随之丢弃）。旧版 `computation_drive`、`crafting_worker`、`crafting_hatch`、`network_switch` 方块实体 ID 没有别名，加载时会被 FML 跳过。该兼容层不能恢复已经被不兼容版本覆盖或删除且没有备份的数据。
+旧版共用控制器、接口 ID 中的合成、计算子系统方块只保存设置和统计：没有在途工作时，加载后直接换成所在方块的新实体，只保留朝向与镜像，主机可以照常成型。控制器的 `CraftingVirtualPool.Entries` 或接口的 `ComputationCpuPool.Cpus` 非空时，说明仍有在途合成物品，此时保留原始 NBT 并保持停用，日志提示一次；它们不受拆除保护，拆除重放即可得到新方块（旧数据随之丢弃）。旧版 `computation_drive` 已注册为当前计算驱动器的别名，`Cell` 不经等级校验原样恢复，拆除时照常掉落；无法解析的盘原样保存在 `neoecoae_beta_cell`。旧版 `crafting_worker`、`crafting_hatch`、`network_switch` 方块实体 ID 没有别名，加载时会被 FML 跳过。该兼容层不能恢复已经被不兼容版本覆盖或删除且没有备份的数据。
 
 ## FD 智能样板总线
 
@@ -24,6 +24,6 @@
 
 ## 验证
 
-`BetaStorageCompatibilityTest` 覆盖物品变体、流体变体与单位、只读操作、取空及重载、无限域大整数与磁盘去重回执、异常快照和中断入库。`ECOCraftingPatternBusBetaImportTest` 覆盖满载旧总线的槽序与溢出、无法解析物品保留、溢出跨保存保留、空槽补位和当前格式忽略旧键。`BetaStorageTileTest` 覆盖旧 ID 实际加载、区块未就绪时原始 NBT 保留、按方块选择控制器等级和转换失败保留。
+`BetaStorageCompatibilityTest` 覆盖物品变体、流体变体与单位、只读操作、取空及重载、无限域大整数与磁盘去重回执、异常快照和中断入库。`ECOCraftingPatternBusBetaImportTest` 覆盖满载旧总线的槽序与溢出、无法解析物品保留、溢出跨保存保留、空槽补位和当前格式忽略旧键。`ECOComputationDriveBetaImportTest` 覆盖旧计算盘恢复、掉落、无法解析保留和当前格式忽略旧键。`BetaStorageTileTest` 覆盖空闲合成控制器转换、在途工作保留、旧 ID 实际加载、区块未就绪时原始 NBT 保留、按方块选择控制器等级和转换失败保留。
 
 单元测试、编译和 JAR 构建不等于真实旧存档升级验收。发布前应使用 `v7.3.0-beta1` 存档副本核对普通盘及无限域的完整资源清单，并在保存、退出和重新载入后再次比对。

@@ -64,7 +64,7 @@ class BetaStorageTileTest {
         }
         var replacement = org.mockito.ArgumentCaptor.forClass(TileEntity.class);
         verify(world).setTileEntity(eq(12), eq(64), eq(-9), replacement.capture());
-        assertInstanceOf(StorageMachines.HostL6.class, replacement.getValue());
+        assertInstanceOf(cn.dancingsnow.neoecoae.platform.registry.HostL6.class, replacement.getValue());
         ECOStorageSystemBlockEntity host = (ECOStorageSystemBlockEntity) replacement.getValue();
         CompoundTag saved = new CompoundTag();
         host.saveAdditional(saved, RegistryAccess.EMPTY);
@@ -80,9 +80,36 @@ class BetaStorageTileTest {
     }
 
     @Test
-    void nonStorageBetaControllerKeepsItsSnapshotButStaysRemovable() {
+    void idleCraftingControllerBecomesItsBlockTile() {
         NBTTagCompound original = old("neoecoae:eco_controller");
         original.setString("Subsystem", "crafting");
+        BetaStorageTile tile = (BetaStorageTile) TileEntity.createAndLoadEntity(original);
+        World world = mock(World.class);
+        when(world.getBlock(12, 64, -9)).thenReturn(CraftingMachines.CRAFTING_SYSTEM_L6.value());
+        when(world.getChunkProvider()).thenReturn(mock(net.minecraft.world.chunk.IChunkProvider.class));
+        tile.setWorldObj(world);
+        try (var loader = mockStatic(cpw.mods.fml.common.Loader.class); var log = mockStatic(appeng.core.AELog.class)) {
+            tile.updateEntity();
+        }
+        var replacement = org.mockito.ArgumentCaptor.forClass(TileEntity.class);
+        verify(world).setTileEntity(eq(12), eq(64), eq(-9), replacement.capture());
+        assertInstanceOf(cn.dancingsnow.neoecoae.platform.registry.CraftingSystemL6.class, replacement.getValue());
+        assertEquals(
+            cn.dancingsnow.neoecoae.platform.minecraft.Direction.EAST,
+            ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) replacement.getValue())
+                .nativeBlockState()
+                .getValue(NativeMachineBlock.FACING));
+    }
+
+    @Test
+    void craftingControllerWithInFlightWorkKeepsItsSnapshotButStaysRemovable() {
+        NBTTagCompound original = old("neoecoae:eco_controller");
+        original.setString("Subsystem", "crafting");
+        NBTTagCompound pool = new NBTTagCompound();
+        net.minecraft.nbt.NBTTagList entries = new net.minecraft.nbt.NBTTagList();
+        entries.appendTag(new NBTTagCompound());
+        pool.setTag("Entries", entries);
+        original.setTag("CraftingVirtualPool", pool);
         BetaStorageTile tile = (BetaStorageTile) TileEntity.createAndLoadEntity(original);
         World world = mock(World.class);
         when(world.getBlock(12, 64, -9)).thenReturn(CraftingMachines.CRAFTING_SYSTEM_L6.value());
@@ -97,6 +124,18 @@ class BetaStorageTileTest {
 
         when(world.getBlock(12, 64, -9)).thenReturn(StorageMachines.STORAGE_SYSTEM_L6.value());
         assertTrue(BetaStorageTile.protects(world, 12, 64, -9));
+    }
+
+    @Test
+    void persistedComputationCpusCountAsInFlightWork() {
+        NBTTagCompound tag = new NBTTagCompound();
+        assertFalse(BetaStorageTile.holdsBetaWork(tag));
+        NBTTagCompound pool = new NBTTagCompound();
+        net.minecraft.nbt.NBTTagList cpus = new net.minecraft.nbt.NBTTagList();
+        cpus.appendTag(new NBTTagCompound());
+        pool.setTag("Cpus", cpus);
+        tag.setTag("ComputationCpuPool", pool);
+        assertTrue(BetaStorageTile.holdsBetaWork(tag));
     }
 
     @Test

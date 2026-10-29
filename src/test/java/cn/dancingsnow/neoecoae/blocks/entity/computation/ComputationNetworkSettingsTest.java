@@ -14,7 +14,7 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.IMachineSet;
 import appeng.api.util.IReadOnlyCollection;
 import cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 
@@ -167,10 +167,7 @@ class ComputationNetworkSettingsTest {
         when(grid.getMachines(ECOComputationSystemBlockEntity.class)).thenReturn(machines);
         assertEquals(Arrays.asList(active, offline), NativeECOPlanning.allHosts(grid));
 
-        CraftingServiceView view = mock(CraftingServiceView.class, CALLS_REAL_METHODS);
-        var field = CraftingServiceView.class.getDeclaredField("nativeGrid");
-        field.setAccessible(true);
-        field.set(view, grid);
+        var view = new NativePatternTrackingCache(grid).settings();
         ServerTasks.started();
         try {
             view.neoecoae$setSmartDoublingEnabled(false);

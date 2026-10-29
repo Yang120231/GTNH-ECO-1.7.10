@@ -1,139 +1,122 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.storage.data.IAEStack;
+import cn.dancingsnow.neoecoae.platform.InventoryTestBootstrap;
+import cn.dancingsnow.neoecoae.platform.TestItems;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
-import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
-import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
-import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
-/** Recipe view rebuilds only match newly seen keys against substitution patterns. */
+/** Substitutes are looked up like AE2 rv3 does and each candidate is matched against the recipe once. */
 class NativeSubstitutionIndexTest {
 
-    private static final AEKeyType TYPE = AEKeyType
-        .register(ResourceLocation.parse("neoecoae_test:substitution"), null, 8, 1);
-    private static final Map<IAEStack<?>, AEKey> NATIVE = new IdentityHashMap<>();
-    private final World world = mock(World.class);
-    private final AEKey stone = new Key("stone"), cobblestone = new Key("cobblestone"), dirt = new Key("dirt"),
-        gravel = new Key("gravel");
-    private final GenericStack[] sparse = { new GenericStack(stone, 1), null, new GenericStack(stone, 1) };
+    private static final int STONE_ORE = 7;
+    private final ICraftingPatternDetails pattern = mock(ICraftingPatternDetails.class);
+    private final List<AEKey> checked = new ArrayList<>();
+    private AEItemKey stone, cobblestone, gravel, dirt, sand;
+
+    @BeforeEach
+    void bootstrap() {
+        InventoryTestBootstrap.initialize();
+        stone = AEItemKey.of(TestItems.STONE);
+        cobblestone = AEItemKey.of(TestItems.COBBLESTONE);
+        gravel = AEItemKey.of(TestItems.GRAVEL);
+        dirt = AEItemKey.of(TestItems.DIRT);
+        sand = AEItemKey.of(TestItems.SAND);
+    }
+
+    /** Stone, cobblestone and gravel share an ore entry; the recipe rejects gravel. */
+    private NativeSubstitutionIndex index() {
+        return new NativeSubstitutionIndex(mock(World.class), (pattern, sparse, primary, candidate) -> {
+            checked.add(candidate);
+            return !candidate.equals(gravel);
+        }, stack -> {
+            Item item = stack.getItem();
+            return item == TestItems.STONE || item == TestItems.COBBLESTONE || item == TestItems.GRAVEL
+                ? new int[] { STONE_ORE }
+                : new int[0];
+        });
+    }
 
     @Test
-    void stockChangesOnlyValidateUnseenKeys() {
-        var pattern = pattern();
-        var index = new NativeSubstitutionIndex(world);
+    void onlyOreEquivalentsAreMatchedAgainstTheRecipe() {
+        var index = index();
 
-        index.begin(keys(stone, cobblestone, dirt));
-        assertEquals(keys(stone, cobblestone), accepted(index, pattern));
-        int initial = checks(pattern);
+        index.begin(keys(stone, cobblestone, gravel, dirt, sand));
 
-        index.begin(keys(stone, cobblestone, dirt, gravel));
-        assertEquals(keys(stone, cobblestone, gravel), accepted(index, pattern));
-        assertEquals(initial + 2, checks(pattern), "Only the new key is matched, once per encoded slot");
+        assertEquals(keys(cobblestone), accepted(index, stone));
+        assertEquals(keys(cobblestone, gravel), new HashSet<>(checked), "Unrelated stock never reaches the recipe");
+    }
 
+    @Test
+    void stockChangesOnlyValidateNewCandidates() {
+        var index = index();
         index.begin(keys(stone, dirt));
-        assertEquals(keys(stone), accepted(index, pattern), "Departed substitutes leave the choices");
-        index.begin(keys(stone, cobblestone, dirt, gravel));
-        assertEquals(keys(stone, cobblestone, gravel), accepted(index, pattern), "Returning keys reuse the memo");
-        assertEquals(initial + 2, checks(pattern));
+        assertEquals(keys(), accepted(index, stone));
+
+        index.begin(keys(stone, dirt, cobblestone, sand));
+        assertEquals(keys(cobblestone), accepted(index, stone));
+        index.begin(keys(stone, dirt));
+        assertEquals(keys(), accepted(index, stone), "Departed substitutes leave the choices");
+        index.begin(keys(stone, dirt, cobblestone, gravel));
+        assertEquals(keys(cobblestone), accepted(index, stone), "Returning keys reuse the memo");
+
+        assertEquals(Arrays.asList(cobblestone, gravel), checked);
+    }
+
+    @Test
+    void inputsWithoutOresMatchTheSameItemAndDamage() {
+        var index = index();
+        var plain = AEItemKey.of(new ItemStack(TestItems.SAND, 1, 0));
+        var otherDamage = AEItemKey.of(new ItemStack(TestItems.SAND, 1, 3));
+        var pickaxe = AEItemKey.of(new ItemStack(TestItems.IRON_PICKAXE, 1, 0));
+        var worn = AEItemKey.of(new ItemStack(TestItems.IRON_PICKAXE, 1, 40));
+        index.begin(keys(plain, otherDamage, pickaxe, worn, dirt));
+
+        assertEquals(keys(), accepted(index, plain), "Another damage value of a subtype item is a different item");
+        assertEquals(keys(worn), accepted(index, pickaxe), "Damageable items accept any damage");
+        assertEquals(Arrays.asList(worn), checked);
     }
 
     @Test
     void retiredPatternsAreValidatedAgainWhenTheyReturn() {
-        var pattern = pattern();
-        var index = new NativeSubstitutionIndex(world);
+        var index = index();
         index.begin(keys(stone, cobblestone));
-        accepted(index, pattern);
-        int initial = checks(pattern);
+        accepted(index, stone);
 
         index.retain(new HashSet<>());
         index.begin(keys(stone, cobblestone));
 
-        assertEquals(keys(stone, cobblestone), accepted(index, pattern));
-        assertEquals(initial * 2, checks(pattern));
+        assertEquals(keys(cobblestone), accepted(index, stone));
+        assertEquals(Arrays.asList(cobblestone, cobblestone), checked);
     }
 
-    private ICraftingPatternDetails pattern() {
-        var pattern = mock(ICraftingPatternDetails.class);
-        when(pattern.isValidItemForSlot(anyInt(), any(IAEStack.class), any()))
-            .thenAnswer(call -> !dirt.equals(NATIVE.get(call.<IAEStack<?>>getArgument(1))));
-        return pattern;
-    }
-
-    private static int checks(ICraftingPatternDetails pattern) {
-        return (int) mockingDetails(pattern).getInvocations()
-            .stream()
-            .filter(
-                call -> call.getMethod()
-                    .getName()
-                    .equals("isValidItemForSlot"))
-            .count();
-    }
-
-    private Set<AEKey> accepted(NativeSubstitutionIndex index, ICraftingPatternDetails pattern) {
-        List<AEKey> result = new ArrayList<>();
-        index.accepted(pattern, 0, stone, sparse)
+    private Set<AEKey> accepted(NativeSubstitutionIndex index, AEItemKey primary) {
+        var sparse = new GenericStack[] { new GenericStack(primary, 1) };
+        Set<AEKey> result = new LinkedHashSet<>();
+        index.accepted(pattern, 0, primary, sparse)
             .forEach(result::add);
-        return new LinkedHashSet<>(result);
+        return result;
     }
 
     private static Set<AEKey> keys(AEKey... keys) {
         return new LinkedHashSet<>(Arrays.asList(keys));
-    }
-
-    private static final class Key extends AEKey {
-
-        private final String name;
-
-        Key(String name) {
-            this.name = name;
-        }
-
-        @Override
-        public AEKeyType getType() {
-            return TYPE;
-        }
-
-        @Override
-        public Object getPrimaryKey() {
-            return name;
-        }
-
-        @Override
-        public String getDisplayName() {
-            return name;
-        }
-
-        @Override
-        public IAEStack<?> toNative(long amount) {
-            IAEStack<?> stack = mock(IAEStack.class);
-            NATIVE.put(stack, this);
-            return stack;
-        }
-
-        @Override
-        public CompoundTag toTagGeneric(HolderLookup.Provider registries) {
-            throw new UnsupportedOperationException();
-        }
     }
 }

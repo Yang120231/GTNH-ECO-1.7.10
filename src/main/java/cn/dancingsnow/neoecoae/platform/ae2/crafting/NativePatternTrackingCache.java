@@ -14,6 +14,7 @@ import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridStorage;
 import appeng.api.networking.crafting.ICraftingGrid;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.events.MENetworkCraftingPatternChange;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.me.cache.CraftingGridCache;
@@ -31,9 +32,33 @@ public final class NativePatternTrackingCache implements IGridCache {
     private final Map<World, CraftingServiceView> views = new IdentityHashMap<>();
     /** Survives view invalidation: substitute acceptance depends only on the pattern, the key and the world. */
     private final Map<World, NativeSubstitutionIndex> substitutes = new java.util.WeakHashMap<>();
+    private final NativeCraftingNetworkSettings settings;
+    private long countedRevision = -1;
+    private int substitutionPatterns;
 
     public NativePatternTrackingCache(IGrid grid) {
         this.grid = grid;
+        settings = new NativeCraftingNetworkSettings(grid, this);
+    }
+
+    public NativeCraftingNetworkSettings settings() {
+        return settings;
+    }
+
+    /** Counted from AE2's own pattern table, so a settings UI never builds the recipe view to show it. */
+    synchronized int substitutionPatternCount() {
+        if (countedRevision != revision) {
+            Set<ICraftingPatternDetails> seen = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+            int count = 0;
+            ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
+            for (var patterns : crafting.getCraftingMultiPatterns()
+                .values())
+                for (ICraftingPatternDetails pattern : patterns)
+                    if (seen.add(pattern) && pattern.canSubstitute()) count++;
+            substitutionPatterns = count;
+            countedRevision = revision;
+        }
+        return substitutionPatterns;
     }
 
     private static Field refreshField() {

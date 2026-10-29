@@ -13,13 +13,11 @@ import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationCoolingCo
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationNetworkSwitchBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationParallelCoreBlockEntity;
-import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationTransmitterBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingNetworkSwitchBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingParallelCoreBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
-import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingVentBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingWorkerBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity;
@@ -37,167 +35,165 @@ import cpw.mods.fml.common.registry.GameRegistry;
 public final class CraftingMachines {
 
     private static final Map<String, Block> BLOCKS = new LinkedHashMap<>();
-    private static final BlockEntityType<CraftingSystemL4> CRAFTING_SYSTEM_L4_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingSystemL4> CRAFTING_SYSTEM_L4_TYPE = new BlockEntityType<>(
         "crafting_system_l4",
         CraftingSystemL4::new);
     public static final Holder<Block> CRAFTING_SYSTEM_L4 = define(CRAFTING_SYSTEM_L4_TYPE, null);
-    private static final BlockEntityType<CraftingParallelCoreL4> CRAFTING_PARALLEL_CORE_L4_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingParallelCoreL4> CRAFTING_PARALLEL_CORE_L4_TYPE = new BlockEntityType<>(
         "crafting_parallel_core_l4",
         CraftingParallelCoreL4::new);
     public static final Holder<Block> CRAFTING_PARALLEL_CORE_L4 = define(
         CRAFTING_PARALLEL_CORE_L4_TYPE,
         Role.CRAFTING_PARALLEL_CORE);
-    private static final BlockEntityType<CraftingSystemL6> CRAFTING_SYSTEM_L6_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingSystemL6> CRAFTING_SYSTEM_L6_TYPE = new BlockEntityType<>(
         "crafting_system_l6",
         CraftingSystemL6::new);
     public static final Holder<Block> CRAFTING_SYSTEM_L6 = define(CRAFTING_SYSTEM_L6_TYPE, null);
-    private static final BlockEntityType<CraftingParallelCoreL6> CRAFTING_PARALLEL_CORE_L6_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingParallelCoreL6> CRAFTING_PARALLEL_CORE_L6_TYPE = new BlockEntityType<>(
         "crafting_parallel_core_l6",
         CraftingParallelCoreL6::new);
     public static final Holder<Block> CRAFTING_PARALLEL_CORE_L6 = define(
         CRAFTING_PARALLEL_CORE_L6_TYPE,
         Role.CRAFTING_PARALLEL_CORE);
-    private static final BlockEntityType<CraftingSystemL9> CRAFTING_SYSTEM_L9_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingSystemL9> CRAFTING_SYSTEM_L9_TYPE = new BlockEntityType<>(
         "crafting_system_l9",
         CraftingSystemL9::new);
     public static final Holder<Block> CRAFTING_SYSTEM_L9 = define(CRAFTING_SYSTEM_L9_TYPE, null);
-    private static final BlockEntityType<CraftingParallelCoreL9> CRAFTING_PARALLEL_CORE_L9_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingParallelCoreL9> CRAFTING_PARALLEL_CORE_L9_TYPE = new BlockEntityType<>(
         "crafting_parallel_core_l9",
         CraftingParallelCoreL9::new);
     public static final Holder<Block> CRAFTING_PARALLEL_CORE_L9 = define(
         CRAFTING_PARALLEL_CORE_L9_TYPE,
         Role.CRAFTING_PARALLEL_CORE);
-    private static final BlockEntityType<CraftingCasing> CRAFTING_CASING_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingCasing> CRAFTING_CASING_TYPE = new BlockEntityType<>(
         "crafting_casing",
         CraftingCasing::new);
     public static final Holder<Block> CRAFTING_CASING = define(CRAFTING_CASING_TYPE, Role.CASING);
-    private static final BlockEntityType<CraftingInterface> CRAFTING_INTERFACE_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingInterface> CRAFTING_INTERFACE_TYPE = new BlockEntityType<>(
         "crafting_interface",
         CraftingInterface::new);
     public static final Holder<Block> CRAFTING_INTERFACE = define(CRAFTING_INTERFACE_TYPE, Role.INTERFACE);
-    private static final BlockEntityType<CraftingNetworkSwitch> CRAFTING_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingNetworkSwitch> CRAFTING_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
         "crafting_network_switch",
         CraftingNetworkSwitch::new);
     public static final Holder<Block> CRAFTING_NETWORK_SWITCH = define(CRAFTING_NETWORK_SWITCH_TYPE, Role.CASING);
-    private static final BlockEntityType<CraftingHighEnergyNetworkSwitch> CRAFTING_HIGH_ENERGY_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingHighEnergyNetworkSwitch> CRAFTING_HIGH_ENERGY_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
         "crafting_high_energy_network_switch",
         CraftingHighEnergyNetworkSwitch::new);
     public static final Holder<Block> CRAFTING_HIGH_ENERGY_NETWORK_SWITCH = define(
         CRAFTING_HIGH_ENERGY_NETWORK_SWITCH_TYPE,
         Role.CASING);
-    private static final BlockEntityType<ComputationSystemL4> COMPUTATION_SYSTEM_L4_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationSystemL4> COMPUTATION_SYSTEM_L4_TYPE = new BlockEntityType<>(
         "computation_system_l4",
         ComputationSystemL4::new);
     public static final Holder<Block> COMPUTATION_SYSTEM_L4 = define(COMPUTATION_SYSTEM_L4_TYPE, null);
-    private static final BlockEntityType<ComputationParallelCoreL4> COMPUTATION_PARALLEL_CORE_L4_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationParallelCoreL4> COMPUTATION_PARALLEL_CORE_L4_TYPE = new BlockEntityType<>(
         "computation_parallel_core_l4",
         ComputationParallelCoreL4::new);
     public static final Holder<Block> COMPUTATION_PARALLEL_CORE_L4 = define(
         COMPUTATION_PARALLEL_CORE_L4_TYPE,
         Role.COMPUTATION_PARALLEL_CORE);
-    private static final BlockEntityType<ComputationThreadingCoreL4> COMPUTATION_THREADING_CORE_L4_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationThreadingCoreL4> COMPUTATION_THREADING_CORE_L4_TYPE = new BlockEntityType<>(
         "computation_threading_core_l4",
         ComputationThreadingCoreL4::new);
     public static final Holder<Block> COMPUTATION_THREADING_CORE_L4 = define(
         COMPUTATION_THREADING_CORE_L4_TYPE,
         Role.COMPUTATION_THREADING_CORE);
-    private static final BlockEntityType<ComputationCoolingControllerL4> COMPUTATION_COOLING_CONTROLLER_L4_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationCoolingControllerL4> COMPUTATION_COOLING_CONTROLLER_L4_TYPE = new BlockEntityType<>(
         "computation_cooling_controller_l4",
         ComputationCoolingControllerL4::new);
     public static final Holder<Block> COMPUTATION_COOLING_CONTROLLER_L4 = define(
         COMPUTATION_COOLING_CONTROLLER_L4_TYPE,
         Role.COOLING_CONTROLLER);
-    private static final BlockEntityType<ComputationSystemL6> COMPUTATION_SYSTEM_L6_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationSystemL6> COMPUTATION_SYSTEM_L6_TYPE = new BlockEntityType<>(
         "computation_system_l6",
         ComputationSystemL6::new);
     public static final Holder<Block> COMPUTATION_SYSTEM_L6 = define(COMPUTATION_SYSTEM_L6_TYPE, null);
-    private static final BlockEntityType<ComputationParallelCoreL6> COMPUTATION_PARALLEL_CORE_L6_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationParallelCoreL6> COMPUTATION_PARALLEL_CORE_L6_TYPE = new BlockEntityType<>(
         "computation_parallel_core_l6",
         ComputationParallelCoreL6::new);
     public static final Holder<Block> COMPUTATION_PARALLEL_CORE_L6 = define(
         COMPUTATION_PARALLEL_CORE_L6_TYPE,
         Role.COMPUTATION_PARALLEL_CORE);
-    private static final BlockEntityType<ComputationThreadingCoreL6> COMPUTATION_THREADING_CORE_L6_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationThreadingCoreL6> COMPUTATION_THREADING_CORE_L6_TYPE = new BlockEntityType<>(
         "computation_threading_core_l6",
         ComputationThreadingCoreL6::new);
     public static final Holder<Block> COMPUTATION_THREADING_CORE_L6 = define(
         COMPUTATION_THREADING_CORE_L6_TYPE,
         Role.COMPUTATION_THREADING_CORE);
-    private static final BlockEntityType<ComputationCoolingControllerL6> COMPUTATION_COOLING_CONTROLLER_L6_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationCoolingControllerL6> COMPUTATION_COOLING_CONTROLLER_L6_TYPE = new BlockEntityType<>(
         "computation_cooling_controller_l6",
         ComputationCoolingControllerL6::new);
     public static final Holder<Block> COMPUTATION_COOLING_CONTROLLER_L6 = define(
         COMPUTATION_COOLING_CONTROLLER_L6_TYPE,
         Role.COOLING_CONTROLLER);
-    private static final BlockEntityType<ComputationSystemL9> COMPUTATION_SYSTEM_L9_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationSystemL9> COMPUTATION_SYSTEM_L9_TYPE = new BlockEntityType<>(
         "computation_system_l9",
         ComputationSystemL9::new);
     public static final Holder<Block> COMPUTATION_SYSTEM_L9 = define(COMPUTATION_SYSTEM_L9_TYPE, null);
-    private static final BlockEntityType<ComputationParallelCoreL9> COMPUTATION_PARALLEL_CORE_L9_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationParallelCoreL9> COMPUTATION_PARALLEL_CORE_L9_TYPE = new BlockEntityType<>(
         "computation_parallel_core_l9",
         ComputationParallelCoreL9::new);
     public static final Holder<Block> COMPUTATION_PARALLEL_CORE_L9 = define(
         COMPUTATION_PARALLEL_CORE_L9_TYPE,
         Role.COMPUTATION_PARALLEL_CORE);
-    private static final BlockEntityType<ComputationThreadingCoreL9> COMPUTATION_THREADING_CORE_L9_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationThreadingCoreL9> COMPUTATION_THREADING_CORE_L9_TYPE = new BlockEntityType<>(
         "computation_threading_core_l9",
         ComputationThreadingCoreL9::new);
     public static final Holder<Block> COMPUTATION_THREADING_CORE_L9 = define(
         COMPUTATION_THREADING_CORE_L9_TYPE,
         Role.COMPUTATION_THREADING_CORE);
-    private static final BlockEntityType<ComputationCoolingControllerL9> COMPUTATION_COOLING_CONTROLLER_L9_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationCoolingControllerL9> COMPUTATION_COOLING_CONTROLLER_L9_TYPE = new BlockEntityType<>(
         "computation_cooling_controller_l9",
         ComputationCoolingControllerL9::new);
     public static final Holder<Block> COMPUTATION_COOLING_CONTROLLER_L9 = define(
         COMPUTATION_COOLING_CONTROLLER_L9_TYPE,
         Role.COOLING_CONTROLLER);
-    private static final BlockEntityType<ComputationCasing> COMPUTATION_CASING_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationCasing> COMPUTATION_CASING_TYPE = new BlockEntityType<>(
         "computation_casing",
         ComputationCasing::new);
     public static final Holder<Block> COMPUTATION_CASING = define(COMPUTATION_CASING_TYPE, Role.CASING);
-    private static final BlockEntityType<ComputationInterface> COMPUTATION_INTERFACE_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationInterface> COMPUTATION_INTERFACE_TYPE = new BlockEntityType<>(
         "computation_interface",
         ComputationInterface::new);
     public static final Holder<Block> COMPUTATION_INTERFACE = define(COMPUTATION_INTERFACE_TYPE, Role.INTERFACE);
-    private static final BlockEntityType<ComputationNetworkSwitch> COMPUTATION_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationNetworkSwitch> COMPUTATION_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
         "computation_network_switch",
         ComputationNetworkSwitch::new);
     public static final Holder<Block> COMPUTATION_NETWORK_SWITCH = define(COMPUTATION_NETWORK_SWITCH_TYPE, Role.CASING);
-    private static final BlockEntityType<ComputationHighEnergyNetworkSwitch> COMPUTATION_HIGH_ENERGY_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationHighEnergyNetworkSwitch> COMPUTATION_HIGH_ENERGY_NETWORK_SWITCH_TYPE = new BlockEntityType<>(
         "computation_high_energy_network_switch",
         ComputationHighEnergyNetworkSwitch::new);
     public static final Holder<Block> COMPUTATION_HIGH_ENERGY_NETWORK_SWITCH = define(
         COMPUTATION_HIGH_ENERGY_NETWORK_SWITCH_TYPE,
         Role.CASING);
-    private static final BlockEntityType<CraftingWorker> CRAFTING_WORKER_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingWorker> CRAFTING_WORKER_TYPE = new BlockEntityType<>(
         "crafting_worker",
         CraftingWorker::new);
     public static final Holder<Block> CRAFTING_WORKER = define(CRAFTING_WORKER_TYPE, Role.CRAFTING_WORKER);
-    private static final BlockEntityType<FxMonitorCore> FX_MONITOR_CORE_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<FxMonitorCore> FX_MONITOR_CORE_TYPE = new BlockEntityType<>(
         "fx_monitor_core",
         FxMonitorCore::new);
     public static final Holder<Block> FX_MONITOR_CORE = define(FX_MONITOR_CORE_TYPE, Role.CRAFTING_WORKER);
-    private static final BlockEntityType<CraftingPatternBus> CRAFTING_PATTERN_BUS_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingPatternBus> CRAFTING_PATTERN_BUS_TYPE = new BlockEntityType<>(
         "crafting_pattern_bus",
         CraftingPatternBus::new);
     public static final Holder<Block> CRAFTING_PATTERN_BUS = define(CRAFTING_PATTERN_BUS_TYPE, Role.PATTERN_STORAGE);
-    private static final BlockEntityType<CraftingVent> CRAFTING_VENT_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<CraftingVent> CRAFTING_VENT_TYPE = new BlockEntityType<>(
         "crafting_vent",
         CraftingVent::new);
     public static final Holder<Block> CRAFTING_VENT = define(CRAFTING_VENT_TYPE, Role.VENT);
-    private static final BlockEntityType<InputHatch> INPUT_HATCH_TYPE = new BlockEntityType<>(
-        "input_hatch",
-        InputHatch::new);
+    static final BlockEntityType<InputHatch> INPUT_HATCH_TYPE = new BlockEntityType<>("input_hatch", InputHatch::new);
     public static final Holder<Block> INPUT_HATCH = define(INPUT_HATCH_TYPE, Role.INTERFACE);
-    private static final BlockEntityType<OutputHatch> OUTPUT_HATCH_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<OutputHatch> OUTPUT_HATCH_TYPE = new BlockEntityType<>(
         "output_hatch",
         OutputHatch::new);
     public static final Holder<Block> OUTPUT_HATCH = define(OUTPUT_HATCH_TYPE, Role.INTERFACE);
-    private static final BlockEntityType<ComputationDrive> COMPUTATION_DRIVE_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationDrive> COMPUTATION_DRIVE_TYPE = new BlockEntityType<>(
         "computation_drive",
         ComputationDrive::new);
     public static final Holder<Block> COMPUTATION_DRIVE = define(COMPUTATION_DRIVE_TYPE, Role.COMPUTATION_DRIVE);
-    private static final BlockEntityType<ComputationTransmitter> COMPUTATION_TRANSMITTER_TYPE = new BlockEntityType<>(
+    static final BlockEntityType<ComputationTransmitter> COMPUTATION_TRANSMITTER_TYPE = new BlockEntityType<>(
         "computation_transmitter",
         ComputationTransmitter::new);
     public static final Holder<Block> COMPUTATION_TRANSMITTER = define(COMPUTATION_TRANSMITTER_TYPE, Role.TRANSMITTER);
@@ -259,20 +255,12 @@ public final class CraftingMachines {
         GameRegistry.registerTileEntity(CraftingVent.class, "neoecoae.crafting_vent");
         GameRegistry.registerTileEntity(InputHatch.class, "neoecoae.input_hatch");
         GameRegistry.registerTileEntity(OutputHatch.class, "neoecoae.output_hatch");
-        GameRegistry.registerTileEntity(ComputationDrive.class, "neoecoae.computation_drive");
+        // 7.3.0-beta saved computation drives as "neoecoae:computation_drive"; the alias keeps their cells.
+        GameRegistry.registerTileEntityWithAlternatives(
+            ComputationDrive.class,
+            "neoecoae.computation_drive",
+            "neoecoae:computation_drive");
         GameRegistry.registerTileEntity(ComputationTransmitter.class, "neoecoae.computation_transmitter");
-    }
-
-    public static final class CraftingSystemL4 extends ECOCraftingSystemBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
-
-        public CraftingSystemL4() {
-            super(
-                CRAFTING_SYSTEM_L4_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) CRAFTING_SYSTEM_L4.value()).defaultBlockState(),
-                StorageTiers.L4);
-        }
     }
 
     public static final class CraftingParallelCoreL4 extends ECOCraftingParallelCoreBlockEntity {
@@ -286,18 +274,6 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class CraftingSystemL6 extends ECOCraftingSystemBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
-
-        public CraftingSystemL6() {
-            super(
-                CRAFTING_SYSTEM_L6_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) CRAFTING_SYSTEM_L6.value()).defaultBlockState(),
-                StorageTiers.L6);
-        }
-    }
-
     public static final class CraftingParallelCoreL6 extends ECOCraftingParallelCoreBlockEntity {
 
         public CraftingParallelCoreL6() {
@@ -306,18 +282,6 @@ public final class CraftingMachines {
                 BlockPos.ZERO,
                 ((NativeMachineBlock) CRAFTING_PARALLEL_CORE_L6.value()).defaultBlockState(),
                 StorageTiers.L6);
-        }
-    }
-
-    public static final class CraftingSystemL9 extends ECOCraftingSystemBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
-
-        public CraftingSystemL9() {
-            super(
-                CRAFTING_SYSTEM_L9_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) CRAFTING_SYSTEM_L9.value()).defaultBlockState(),
-                StorageTiers.L9);
         }
     }
 
@@ -375,18 +339,6 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationSystemL4 extends ECOComputationSystemBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
-
-        public ComputationSystemL4() {
-            super(
-                COMPUTATION_SYSTEM_L4_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) COMPUTATION_SYSTEM_L4.value()).defaultBlockState(),
-                StorageTiers.L4);
-        }
-    }
-
     public static final class ComputationParallelCoreL4 extends ECOComputationParallelCoreBlockEntity {
 
         public ComputationParallelCoreL4() {
@@ -420,18 +372,6 @@ public final class CraftingMachines {
         }
     }
 
-    public static final class ComputationSystemL6 extends ECOComputationSystemBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
-
-        public ComputationSystemL6() {
-            super(
-                COMPUTATION_SYSTEM_L6_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) COMPUTATION_SYSTEM_L6.value()).defaultBlockState(),
-                StorageTiers.L6);
-        }
-    }
-
     public static final class ComputationParallelCoreL6 extends ECOComputationParallelCoreBlockEntity {
 
         public ComputationParallelCoreL6() {
@@ -462,18 +402,6 @@ public final class CraftingMachines {
                 BlockPos.ZERO,
                 ((NativeMachineBlock) COMPUTATION_COOLING_CONTROLLER_L6.value()).defaultBlockState(),
                 StorageTiers.L6);
-        }
-    }
-
-    public static final class ComputationSystemL9 extends ECOComputationSystemBlockEntity
-        implements cn.dancingsnow.neoecoae.platform.ui.NativeExecutionGui {
-
-        public ComputationSystemL9() {
-            super(
-                COMPUTATION_SYSTEM_L9_TYPE,
-                BlockPos.ZERO,
-                ((NativeMachineBlock) COMPUTATION_SYSTEM_L9.value()).defaultBlockState(),
-                StorageTiers.L9);
         }
     }
 

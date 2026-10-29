@@ -75,6 +75,9 @@ public final class NativeContent {
             "eco_infinite_item_cell",
             new cn.dancingsnow.neoecoae.items.ECOInfiniteResourceCellItem(StorageTier.L9, () -> item));
         CoreItemCatalog.checkParity();
+        // Recipe-viewer fluid stand-in; outside the source item catalog and every creative tab.
+        GameRegistry
+            .registerItem(cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.INSTANCE, "fluid_display");
     }
 
     public static void connectAe2() {

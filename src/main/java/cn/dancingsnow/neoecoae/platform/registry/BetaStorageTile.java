@@ -60,15 +60,20 @@ public final class BetaStorageTile extends TileEntity {
     public void updateEntity() {
         if (worldObj == null || worldObj.isRemote || failed) return;
         Block block = worldObj.getBlock(xCoord, yCoord, zCoord);
-        // Only migrate storage here; other beta subsystem snapshots remain intact for recovery.
         if (!(block instanceof NativeMachineBlock)) return;
         if (!StorageMachines.blocks()
             .containsValue(block)) {
+            // Beta crafting/computation hosts carry only settings, so an idle one becomes a fresh tile of its block.
+            if (CraftingMachines.blocks()
+                .containsValue(block) && !holdsBetaWork(original)) {
+                migrate(block, null);
+                return;
+            }
             if (!reportedUnsupported) {
                 reportedUnsupported = true;
                 NeoECOAE.LOG.warn(
-                    "Beta {} tile at {},{},{} is not migrated and stays inactive with its original NBT; "
-                        + "break and replace the block to reset it",
+                    "Beta {} tile at {},{},{} still holds in-flight crafting work and stays inactive with its "
+                        + "original NBT; break and replace the block to reset it",
                     original.getString("Subsystem"),
                     xCoord,
                     yCoord,
@@ -76,39 +81,60 @@ public final class BetaStorageTile extends TileEntity {
             }
             return;
         }
+        NBTTagCompound input = (NBTTagCompound) original.copy();
+        try {
+            resumeControllerRestore(input);
+            recoverCompletedRestore(input);
+        } catch (java.io.IOException | RuntimeException failure) {
+            fail(failure);
+            return;
+        }
+        migrate(block, input);
+    }
+
+    /** Beta virtual crafting entries and persisted computation CPUs hold items that a fresh tile would drop. */
+    static boolean holdsBetaWork(NBTTagCompound tag) {
+        return tag.getCompoundTag("CraftingVirtualPool")
+            .getTagList("Entries", 10)
+            .tagCount() > 0
+            || tag.getCompoundTag("ComputationCpuPool")
+                .getTagList("Cpus", 10)
+                .tagCount() > 0;
+    }
+
+    /** Installs the block's native tile, loading {@code input} first when it carries convertible storage state. */
+    private void migrate(Block block, NBTTagCompound input) {
         try {
             TileEntity replacement = block
                 .createTileEntity(worldObj, worldObj.getBlockMetadata(xCoord, yCoord, zCoord));
             if (!(replacement instanceof NativeNetworkBlockEntity)) return;
-            NBTTagCompound input = (NBTTagCompound) original.copy();
-            resumeControllerRestore(input);
-            recoverCompletedRestore(input);
-            replacement.readFromNBT(input);
+            if (input != null) replacement.readFromNBT(input);
+            NBTTagCompound layout = input != null ? input : original;
             // AE2's orientation setter notifies neighbours and requires an attached world.
             replacement.setWorldObj(worldObj);
             NativeNetworkBlockEntity nativeTile = (NativeNetworkBlockEntity) replacement;
-            int meta = input.hasKey("FacingMeta") ? input.getInteger("FacingMeta")
+            int meta = layout.hasKey("FacingMeta") ? layout.getInteger("FacingMeta")
                 : worldObj.getBlockMetadata(xCoord, yCoord, zCoord);
             Direction facing = new Direction[] { Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST }[meta
                 & 3];
             nativeTile.nativeBlockState(
                 ((NativeMachineBlock) block).defaultBlockState()
                     .setValue(NativeMachineBlock.FACING, facing)
-                    .setValue(NativeMachineBlock.MIRRORED, input.getBoolean("Mirrored")));
+                    .setValue(NativeMachineBlock.MIRRORED, layout.getBoolean("Mirrored")));
             nativeTile.setOrientation(facing.nativeSide(), net.minecraftforge.common.util.ForgeDirection.UP);
             worldObj.setBlockMetadataWithNotify(xCoord, yCoord, zCoord, facing.ordinal(), 2);
             worldObj.setTileEntity(xCoord, yCoord, zCoord, replacement);
             replacement.markDirty();
             worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
-        } catch (java.io.IOException | RuntimeException failure) {
-            failed = true;
-            NeoECOAE.LOG.error(
-                "Cannot migrate beta storage tile at {},{},{}; original NBT retained",
-                xCoord,
-                yCoord,
-                zCoord,
-                failure);
+        } catch (RuntimeException failure) {
+            fail(failure);
         }
+    }
+
+    private void fail(Exception failure) {
+        failed = true;
+        NeoECOAE.LOG
+            .error("Cannot migrate beta tile at {},{},{}; original NBT retained", xCoord, yCoord, zCoord, failure);
     }
 
     private void resumeControllerRestore(NBTTagCompound input) throws java.io.IOException {

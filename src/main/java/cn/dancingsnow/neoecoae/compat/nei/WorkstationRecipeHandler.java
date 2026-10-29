@@ -258,7 +258,32 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
 
     private ItemStack fluidDisplay(FluidStack fluid) {
         if (Loader.isModLoaded("gregtech")) return GregTechFluidDisplay.create(fluid, kind != Kind.COOLING);
-        return FluidContainerRegistry.fillFluidContainer(fluid, new ItemStack(Items.bucket));
+        // fillFluidContainer needs a full container's worth (100 mB coolant never fills a bucket) and a registered
+        // container (cryotheum solution has none), so match registered containers by fluid alone, then fall back.
+        ItemStack container = null;
+        for (var data : FluidContainerRegistry.getRegisteredFluidContainerData()) {
+            if (data.fluid == null || data.filledContainer == null || !data.fluid.isFluidEqual(fluid)) continue;
+            if (data.emptyContainer != null && data.emptyContainer.getItem() == Items.bucket)
+                return data.filledContainer.copy();
+            if (container == null) container = data.filledContainer.copy();
+        }
+        return container != null ? container : cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.of(fluid);
+    }
+
+    /** Item stacks a pattern terminal should encode: fluid stand-ins are left to the fluid-aware tooling. */
+    List<PositionedStack> patternStacks(int recipe, boolean outputs) {
+        var display = (DisplayRecipe) arecipes.get(recipe);
+        List<PositionedStack> stacks = new ArrayList<>();
+        if (outputs) {
+            if (display.result != null) stacks.add(display.result);
+            stacks.addAll(display.others);
+        } else stacks.addAll(display.inputs);
+        stacks.removeIf(display.fluidSlots::contains);
+        return stacks;
+    }
+
+    String overlayIdentifier() {
+        return kind.id();
     }
 
     private final class DisplayRecipe extends CachedRecipe {
@@ -267,6 +292,8 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
         private final List<PositionedStack> inputs = new ArrayList<>();
         private final List<PositionedStack> others = new ArrayList<>();
         private final List<WorkstationTankStack> tanks = new ArrayList<>();
+        private final java.util.Set<PositionedStack> fluidSlots = java.util.Collections
+            .newSetFromMap(new java.util.IdentityHashMap<>());
         private final PositionedStack result;
 
         DisplayRecipe(WorkstationNEIRecipe recipe) {
@@ -285,8 +312,11 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
                 if (display != null) fluids.add(display);
             }
             if (!fluids.isEmpty()) {
-                if (kind == Kind.COOLING) inputs.add(new PositionedStack(fluids, 68, 22));
-                else {
+                if (kind == Kind.COOLING) {
+                    var stack = new PositionedStack(fluids, 68, 22);
+                    inputs.add(stack);
+                    fluidSlots.add(stack);
+                } else {
                     var tank = new WorkstationTankStack(
                         fluids,
                         recipe.fluid.ingredient()
@@ -295,6 +325,7 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
                         9);
                     inputs.add(tank);
                     tanks.add(tank);
+                    fluidSlots.add(tank);
                 }
             }
             PositionedStack fluidResult = null;
@@ -313,6 +344,7 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
                     }
                 }
             }
+            if (fluidResult != null) fluidSlots.add(fluidResult);
             result = recipe.output == null ? fluidResult
                 : new PositionedStack(
                     recipe.output.copy(),

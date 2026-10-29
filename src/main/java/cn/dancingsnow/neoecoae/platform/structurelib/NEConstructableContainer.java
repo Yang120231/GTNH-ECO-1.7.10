@@ -27,9 +27,12 @@ import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
  */
 final class NEConstructableContainer implements IMultiblockInfoContainer<TileEntity> {
 
+    private final net.minecraft.block.Block controller;
     private final Function<TileEntity, MultiBlockDefinition> definitions;
 
-    NEConstructableContainer(Function<TileEntity, MultiBlockDefinition> definitions) {
+    NEConstructableContainer(net.minecraft.block.Block controller,
+        Function<TileEntity, MultiBlockDefinition> definitions) {
+        this.controller = controller;
         this.definitions = definitions;
     }
 
@@ -40,6 +43,13 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
         if (hintsOnly) {
             shape.hints(host, trigger);
             return;
+        }
+        World world = host.getWorldObj();
+        if (world.isAirBlock(host.xCoord, host.yCoord, host.zCoord)) {
+            // BlockRenderer6343 builds around a bare tile and reads the origin block as the preview's item; the
+            // controller sits outside the shape, so place it here. A real controller always occupies its own spot.
+            world.setBlock(host.xCoord, host.yCoord, host.zCoord, controller, 0, 2);
+            world.setTileEntity(host.xCoord, host.yCoord, host.zCoord, host);
         }
         shape.build(host, trigger);
         rebuild(host);
@@ -87,7 +97,8 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
     }
 
     private static void rebuild(TileEntity host) {
-        if (host.getWorldObj().isRemote) return;
+        // Preview worlds (BlockRenderer6343) are neither remote nor a WorldServer; never form a multiblock there.
+        if (!(host.getWorldObj() instanceof net.minecraft.world.WorldServer)) return;
         if (host instanceof NEBlockEntity) ((NEBlockEntity<?, ?>) host).rebuildMultiblock();
         else if (host instanceof ECOLargeIntegratedWorkingStationBlockEntity)
             ((ECOLargeIntegratedWorkingStationBlockEntity) host).rebuildMultiblock();
