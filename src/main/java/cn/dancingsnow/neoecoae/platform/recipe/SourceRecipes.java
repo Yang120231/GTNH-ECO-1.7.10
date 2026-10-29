@@ -89,7 +89,8 @@ public final class SourceRecipes {
         var counts = new LinkedHashMap<String, Integer>();
         for (String status : STATUS.values()) counts.merge(status.split(":", 2)[0], 1, Integer::sum);
         NeoECOAE.LOG.info("NEOECOAE_SOURCE_RECIPES_REGISTERED totals={} native_crafting={}", counts, CRAFTING.size());
-        if (Boolean.getBoolean("neoecoae.recipeAcceptance")) NativeRecipeAcceptance.checkRegistered();
+        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
+            .recipesRegistered();
         for (var entry : STATUS.entrySet()) if (entry.getValue()
             .startsWith("pending:"))
             NeoECOAE.LOG.debug("Source recipe deferred {} {}", entry.getKey(), entry.getValue());

@@ -24,22 +24,7 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
-        if (Boolean.getBoolean("neoecoae.launchAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
-            .bus()
-            .register(new cn.dancingsnow.neoecoae.platform.ui.NativeLaunchAcceptance());
-        if (Boolean.getBoolean("neoecoae.contentAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
-            .bus()
-            .register(new NativeContentAcceptance());
-        if (Boolean.getBoolean("neoecoae.clientAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
-            .bus()
-            .register(new NativeClientAcceptance());
-        if (Boolean.getBoolean("neoecoae.storageUiAcceptance")
-            || Boolean.getBoolean("neoecoae.storageUiNetworkAcceptance")) {
-            var acceptance = new cn.dancingsnow.neoecoae.platform.ui.storage.NativeStorageUiAcceptance();
-            cpw.mods.fml.common.FMLCommonHandler.instance()
-                .bus()
-                .register(acceptance);
-            net.minecraftforge.client.ClientCommandHandler.instance.registerCommand(acceptance);
-        }
+        DevAcceptance.hooks()
+            .clientInit();
     }
 }

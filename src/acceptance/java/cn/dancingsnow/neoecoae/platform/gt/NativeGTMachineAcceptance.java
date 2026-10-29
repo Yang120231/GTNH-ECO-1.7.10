@@ -25,7 +25,7 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEBasicMachine;
 
 /** Real GT/AE2 integration acceptance, never manufactures a result or advances a machine timer. */
-final class NativeGTMachineAcceptance {
+public final class NativeGTMachineAcceptance {
 
     private static final int X = 32, Y = 240, Z = 32;
     private int stage;
@@ -33,7 +33,7 @@ final class NativeGTMachineAcceptance {
     private boolean observedProgress;
     private IGregTechTileEntity furnace;
 
-    static void register() {
+    public static void register() {
         if (Boolean.getBoolean("neoecoae.gtMachineAcceptance")) cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
             .register(new NativeGTMachineAcceptance());

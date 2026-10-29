@@ -121,7 +121,8 @@ public final class WorldTransformRecipes {
             fluidTime.put(item, elapsed);
         }
         if (event.world instanceof net.minecraft.world.WorldServer)
-            NativeRecipeAcceptance.worldTick((net.minecraft.world.WorldServer) event.world);
+            cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
+                .worldTick((net.minecraft.world.WorldServer) event.world);
     }
 
     @SubscribeEvent
@@ -142,7 +143,8 @@ public final class WorldTransformRecipes {
     public void unload(WorldEvent.Unload event) {
         fluidTime.keySet()
             .removeIf(entity -> entity.worldObj == event.world);
-        NativeRecipeAcceptance.unload(event.world);
+        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
+            .worldUnload(event.world);
     }
 
     public static boolean tryTransform(EntityItem anchor, Predicate<NativeTransformRecipe> circumstance) {

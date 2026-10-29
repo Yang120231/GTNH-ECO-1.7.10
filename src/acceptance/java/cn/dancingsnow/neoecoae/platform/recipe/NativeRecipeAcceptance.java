@@ -279,7 +279,7 @@ public final class NativeRecipeAcceptance {
         begin(pending);
     }
 
-    static void worldTick(WorldServer world) {
+    public static void worldTick(WorldServer world) {
         if (!Boolean.getBoolean("neoecoae.recipeAcceptance") || world.provider.dimensionId != 0) return;
         if (pending == null) {
             startWorld(world);
@@ -389,7 +389,7 @@ public final class NativeRecipeAcceptance {
         }
     }
 
-    static void unload(net.minecraft.world.World world) {
+    public static void unload(net.minecraft.world.World world) {
         FINISHED.remove(world);
         if (pending != null && pending.world == world) pending = null;
     }

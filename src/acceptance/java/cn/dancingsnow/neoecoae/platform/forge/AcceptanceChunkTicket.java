@@ -14,7 +14,7 @@ final class AcceptanceChunkTicket implements AutoCloseable {
 
     private final ForgeChunkManager.Ticket ticket;
 
-    static void configure() {
+    public static void configure() {
         if (enabled()) ForgeChunkManager.setForcedChunkLoadingCallback(
             NeoECOAE.instance,
             (ForgeChunkManager.LoadingCallback) (tickets, world) -> tickets.forEach(ForgeChunkManager::releaseTicket));

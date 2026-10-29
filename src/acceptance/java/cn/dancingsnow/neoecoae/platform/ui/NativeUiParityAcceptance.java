@@ -18,7 +18,6 @@ import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 import cn.dancingsnow.neoecoae.platform.registry.CraftingMachines;
 import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
 import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeControllerBuilds;
 
 /** Opt-in framebuffer gallery in the disposable storage-acceptance world. Never opens a user's save. */
 public final class NativeUiParityAcceptance {
@@ -141,9 +140,7 @@ public final class NativeUiParityAcceptance {
                     throw new IllegalStateException("Cannot place parity machine " + block.model());
                 if (kind != null) {
                     var host = (NEBlockEntity<?, ?>) world.getTileEntity(x, 240, 2);
-                    NativeControllerBuilds.config(host, player, kind)
-                        .build()
-                        .run();
+                    cn.dancingsnow.neoecoae.platform.structurelib.NEStructureLib.creativeBuild(host, Integer.MAX_VALUE);
                 }
             } catch (Throwable error) {
                 failure = error;

@@ -14,8 +14,9 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
     modid = NeoECOAE.MODID,
     version = Tags.VERSION,
     name = "Neo ECO AE Extension",
-    dependencies = "required-after:modularui2@[2.3.49-1.7.10,);required-after:appliedenergistics2;after:gregtech;after:guidenh;",
-    acceptedMinecraftVersions = "[1.7.10]")
+    dependencies = "required-after:modularui2@[2.3.49-1.7.10,);required-after:appliedenergistics2;required-after:structurelib;after:gregtech;after:guidenh;",
+    acceptedMinecraftVersions = "[1.7.10]",
+    guiFactory = "cn.dancingsnow.neoecoae.platform.forge.PlanningSettingsGuiFactory")
 public class NeoECOAE {
 
     public static final String MODID = "neoecoae";
@@ -52,8 +53,8 @@ public class NeoECOAE {
 
     @Mod.EventHandler
     public void starting(cpw.mods.fml.common.event.FMLServerStartingEvent event) {
-        if (Boolean.getBoolean("neoecoae.portingAcceptance"))
-            event.registerServerCommand(new cn.dancingsnow.neoecoae.platform.forge.PortingAcceptanceCommand());
+        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
+            .serverStarting(event);
     }
 
     @Mod.EventHandler
