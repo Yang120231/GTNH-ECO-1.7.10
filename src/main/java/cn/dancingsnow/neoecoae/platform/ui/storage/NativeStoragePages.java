@@ -42,7 +42,6 @@ public final class NativeStoragePages {
     private final StorageCellGrid cells;
     private final NativeStoragePrioritySession priority;
     private final com.cleanroommc.modularui.api.IPanelHandler priorityPanel;
-    private final com.cleanroommc.modularui.api.IPanelHandler builderPanel;
     private final com.cleanroommc.modularui.api.IPanelHandler guidePanel;
     private int typeOffset;
     private ModularPanel mainPanel;
@@ -63,14 +62,6 @@ public final class NativeStoragePages {
             (panelSync, handler) -> NativeStoragePriorityPages.create(priority, handler)
                 .relative(mainPanel)
                 .pos(6, 6));
-        var builder = new cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSession(
-            host.storageBuildUiConfig(player));
-        sync.syncValue("storage.builder", builder);
-        builderPanel = sync.syncedPanel(
-            "storage.builder.window",
-            true,
-            (panelSync, handler) -> cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderPages
-                .create(builder, handler));
         guidePanel = sync.syncedPanel(
             "storage.guide",
             true,
@@ -149,16 +140,11 @@ public final class NativeStoragePages {
                     () -> Component.translatable("gui.neoecoae.guide"),
                     () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
                         .open("storage_system", player, guidePanel::openPanel)),
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                    () -> UITexture.fullImage("neoecoae:textures/gui/widget/multiblock.png"),
-                    () -> Component.translatable("gui.neoecoae.multiblock.builder"),
-                    builderPanel::openPanel),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
-                    .button(
-                        144,
-                        64,
-                        () -> Component.translatable("gui.neoecoae.storage_priority.open"),
-                        () -> { priority.selectHost(); priorityPanel.openPanel(); })
+                    .button(144, 64, () -> Component.translatable("gui.neoecoae.storage_priority.open"), () -> {
+                        priority.selectHost();
+                        priorityPanel.openPanel();
+                    })
                     .name("storage-priority")));
         return panel;
     }
@@ -202,7 +188,8 @@ public final class NativeStoragePages {
             highlightWhen(() -> cell().position() != null);
             onMousePressed(button -> {
                 if (button == 1 && !Interactable.hasShiftDown()
-                    && ItemStacks.isEmpty(player.inventory.getItemStack()) && priority.selectCell(cell())) {
+                    && ItemStacks.isEmpty(player.inventory.getItemStack())
+                    && priority.selectCell(cell())) {
                     priorityPanel.openPanel();
                     return true;
                 }

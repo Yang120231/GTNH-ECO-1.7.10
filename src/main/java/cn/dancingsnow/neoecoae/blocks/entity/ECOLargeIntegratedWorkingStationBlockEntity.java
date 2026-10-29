@@ -72,7 +72,8 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     }
 
     /** A read-only view of the current cycle, using the same pause rules as the local workstation page. */
-    public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine getProcessingStatus(AEKey output) {
+    public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine getProcessingStatus(
+        AEKey output) {
         var state = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.QUEUED;
         Component reason = Component.empty();
         PendingBatch batch = pendingBatches.peekFirst();
@@ -83,27 +84,44 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         } else if (matches) {
             if (!getMainNode().isOnline()) {
                 state = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.WAITING;
-                reason = Component.translatable("gui.neoecoae.large_integrated_working_station.pause.output_blocked.detail.network_unavailable");
+                reason = Component.translatable(
+                    "gui.neoecoae.large_integrated_working_station.pause.output_blocked.detail.network_unavailable");
             } else {
                 int pause = pauseReasonId;
-                if (!isTemperatureEnabled() && (pause == PauseReason.OVERHEATED.ordinal()
-                    || pause == PauseReason.TEMPERATURE_LOW.ordinal())) pause = PauseReason.NONE.ordinal();
+                if (!isTemperatureEnabled()
+                    && (pause == PauseReason.OVERHEATED.ordinal() || pause == PauseReason.TEMPERATURE_LOW.ordinal()))
+                    pause = PauseReason.NONE.ordinal();
                 boolean blocked = pause != PauseReason.NONE.ordinal() || isTemperatureEnabled() && overheated;
-                state = blocked ? cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.WAITING
+                state = blocked
+                    ? cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.WAITING
                     : cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.RUNNING;
                 if (blocked) reason = getPauseReasonText();
             }
         }
-        long parallel = matches ? batch.segmented ? Math.min(LargeWorkstationOverclock.BASE_PARALLELISM, batch.craftCount) : batch.craftCount : 0;
+        long parallel = matches
+            ? batch.segmented ? Math.min(LargeWorkstationOverclock.BASE_PARALLELISM, batch.craftCount)
+                : batch.craftCount
+            : 0;
         int duration = matches ? batch.processingTicks : 0;
-        int progress = matches ? batch.segmented
-            ? (int) Math.min(duration, ((long) batch.progress * batch.craftCount + batch.progressRemainder) / Math.max(1, parallel))
+        int progress = matches ? batch.segmented ? (int) Math
+            .min(duration, ((long) batch.progress * batch.craftCount + batch.progressRemainder) / Math.max(1, parallel))
             : batch.progress : 0;
-        String location = (worldObj == null ? "?" : Integer.toString(worldObj.provider.dimensionId))
-            + " [" + xCoord + ", " + yCoord + ", " + zCoord + "]";
+        String location = (worldObj == null ? "?" : Integer.toString(worldObj.provider.dimensionId)) + " ["
+            + xCoord
+            + ", "
+            + yCoord
+            + ", "
+            + zCoord
+            + "]";
         return new cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine(
-            Component.translatable("block.neoecoae.large_integrated_working_station"), location,
-            matches && batch.recipeId != null ? batch.recipeId.toString() : "", progress, duration, parallel, state, reason);
+            Component.translatable("block.neoecoae.large_integrated_working_station"),
+            location,
+            matches && batch.recipeId != null ? batch.recipeId.toString() : "",
+            progress,
+            duration,
+            parallel,
+            state,
+            reason);
     }
 
     @Override
@@ -124,17 +142,12 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     @appeng.tile.TileEvent(appeng.tile.events.TileEventType.TICK)
     public void tickLargeWorkstation() {
         if (worldObj != null && !worldObj.isRemote) {
-            buildState.tick(getLevel());
             tickThermal(getLevel(), getBlockPos(), getBlockState());
         }
     }
 
-    private final cn.dancingsnow.neoecoae.platform.ui.workstation.NativeLargeWorkstationBuilds.State buildState = new cn.dancingsnow.neoecoae.platform.ui.workstation.NativeLargeWorkstationBuilds.State(
-        this);
-
-    public cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderConfig getBuilderConfig(
-        net.minecraft.entity.player.EntityPlayer player) {
-        return buildState.config(player);
+    public cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition getBuildDefinition() {
+        return cn.dancingsnow.neoecoae.multiblock.definition.NativeControllerDefinitions.largeWorkstation();
     }
 
     @Override
@@ -510,7 +523,7 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     }
 
     public boolean isTemperatureEnabled() {
-        return PlanningSettings.largeWorkstationTemperatureEnabled;
+        return PlanningSettings.Workstation.largeWorkstationTemperatureEnabled;
     }
 
     public int getMaxBatchParallelism() {

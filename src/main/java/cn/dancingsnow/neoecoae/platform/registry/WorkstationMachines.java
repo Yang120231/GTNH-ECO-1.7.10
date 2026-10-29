@@ -117,8 +117,6 @@ public final class WorkstationMachines {
                     sync)
                 : cn.dancingsnow.neoecoae.platform.ui.workstation.NativeWorkstationPages
                     .create(this, data.getPlayer(), sync);
-            cn.dancingsnow.neoecoae.platform.ui.workstation.NativeLargeWorkstationBuilds
-                .attach(panel, this, data.getPlayer(), sync);
             return panel;
         }
 

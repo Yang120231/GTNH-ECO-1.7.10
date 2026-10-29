@@ -107,12 +107,6 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
     private long performanceAverageNanos = 0L;
     private final ECOCraftingPerformanceMeter performanceMeter = new ECOCraftingPerformanceMeter(
         this::updatePerformanceAverage);
-    @Persisted
-    @DescSynced
-    private int selectedBuildLength = PlanningSettings.craftingSystemMaxLength - 4;
-    @Persisted
-    @DescSynced
-    private boolean mirrorBuild;
     // New hosts start unassigned so the allocator can place them; saved hosts keep their persisted value.
     @Persisted
     @DescSynced
@@ -1003,26 +997,17 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         return performanceAverageNanos;
     }
 
+    public cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition getBuildDefinition() {
+        return cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockDefinitions.resolve(
+            this,
+            cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind.CRAFTING,
+            tier,
+            () -> cn.dancingsnow.neoecoae.multiblock.definition.NativeControllerDefinitions
+                .get(cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind.CRAFTING, tier.getTier()));
+    }
+
     public int getMaxBuildLength() {
-        return PlanningSettings.craftingSystemMaxLength - 4;
-    }
-
-    public int getSelectedBuildLength() {
-        return selectedBuildLength;
-    }
-
-    public void setSelectedBuildLength(int value) {
-        selectedBuildLength = Math.max(1, Math.min(getMaxBuildLength(), value));
-        saveChanges();
-    }
-
-    public boolean isMirrorBuild() {
-        return mirrorBuild;
-    }
-
-    public void setMirrorBuild(boolean value) {
-        mirrorBuild = value;
-        saveChanges();
+        return PlanningSettings.Multiblock.craftingSystemMaxLength - 4;
     }
 
     public boolean canPlayerInteract(EntityPlayer player) {

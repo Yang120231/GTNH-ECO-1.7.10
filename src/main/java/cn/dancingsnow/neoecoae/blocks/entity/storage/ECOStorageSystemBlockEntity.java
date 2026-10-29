@@ -56,8 +56,7 @@ import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
 import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity>
-    implements ManagedHolder, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost,
-    cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController.Host {
+    implements ManagedHolder, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost {
 
     private static final Logger LOGGER = LogManager.getLogger(ECOStorageSystemBlockEntity.class);
 
@@ -78,18 +77,6 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
 
     private final StorageTierDescriptor tier;
-
-    @Persisted
-    @DescSynced
-    private int selectedBuildLength = cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.storageSystemMaxLength
-        - 4;
-    @Persisted
-    @DescSynced
-    private boolean mirrorBuild;
-    @DescSynced
-    private boolean buildInProgress;
-    private final cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController buildController = new cn.dancingsnow.neoecoae.multiblock.placement.MultiBlockBuildController(
-        this);
 
     @Persisted
     @DescSynced
@@ -216,8 +203,6 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
                         interfaceTransfer.transferStorageInterfaceContents(storageInterface));
                 })) return;
             }
-
-            stageRunner.run("construction", () -> buildController.tick(level));
         } finally {
             long elapsed = System.nanoTime() - startNanos;
             recordPerformanceSample(elapsed);
@@ -814,24 +799,6 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         mirrored = value;
     }
 
-    public cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderConfig storageBuildUiConfig(
-        EntityPlayer player) {
-        return new cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderConfig(
-            this,
-            player,
-            this::getSelectedBuildLength,
-            getMinBuildLength(),
-            getMaxBuildLength(),
-            length -> buildController.setBuildLength(player, length),
-            delta -> buildController.changeBuildLength(player, delta),
-            this::isMirrorBuild,
-            mirror -> buildController.setMirrorBuild(player, mirror),
-            () -> buildController.autoBuild(player),
-            this::isFormed,
-            this::isBuildInProgress,
-            buildController::createLocalPreviewPlan);
-    }
-
     public FieldManagedStorage getSyncStorage() {
         return syncStorage;
     }
@@ -856,78 +823,9 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         return performanceMaxNanos;
     }
 
-    @Override
     public @Nullable MultiBlockDefinition getBuildDefinition() {
         return ECOMultiblockDefinitions
             .resolve(this, ECOMachineKind.STORAGE, tier, () -> NEMultiBlocks.getStorageSystemDefinition(tier));
-    }
-
-    @Override
-    public int getMinBuildLength() {
-        MultiBlockDefinition definition = getBuildDefinition();
-        return definition == null ? 1 : definition.getExpandMin();
-    }
-
-    @Override
-    public int getMaxBuildLength() {
-        MultiBlockDefinition definition = getBuildDefinition();
-        return definition == null ? 1 : definition.getExpandMax();
-    }
-
-    @Override
-    public WorldView getBuildLevel() {
-        return level;
-    }
-
-    @Override
-    public BlockPos getBuildPosition() {
-        return worldPosition;
-    }
-
-    @Override
-    public BlockState getBuildState() {
-        return getBlockState();
-    }
-
-    @Override
-    public int getSelectedBuildLength() {
-        return selectedBuildLength;
-    }
-
-    @Override
-    public void setSelectedBuildLength(int length) {
-        selectedBuildLength = length;
-    }
-
-    @Override
-    public boolean isMirrorBuild() {
-        return mirrorBuild;
-    }
-
-    @Override
-    public void setMirrorBuild(boolean mirrorBuild) {
-        this.mirrorBuild = mirrorBuild;
-    }
-
-    @Override
-    public boolean isBuildInProgress() {
-        return buildInProgress;
-    }
-
-    @Override
-    public void setBuildInProgress(boolean buildInProgress) {
-        this.buildInProgress = buildInProgress;
-    }
-
-    @Override
-    public void rebuildAfterBuild() {
-        rebuildMultiblock();
-    }
-
-    @Override
-    public void buildStateChanged() {
-        setChanged();
-        markForUpdate();
     }
 
 }

@@ -36,10 +36,6 @@ public class ECOComputationSystemBlockEntity
     private boolean fastPlannerEnabled = true;
     @Persisted
     private boolean smartDoublingEnabled = true;
-    @Persisted
-    private int selectedBuildLength = 11;
-    @Persisted
-    private boolean mirrorBuild;
 
     public ECOComputationSystemBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state,
         StorageTierDescriptor tier) {
@@ -98,26 +94,17 @@ public class ECOComputationSystemBlockEntity
         if (cluster != null) NELogicalNetworkManager.refresh(cluster);
     }
 
-    public int getSelectedBuildLength() {
-        return selectedBuildLength;
-    }
-
-    public boolean isMirrorBuild() {
-        return mirrorBuild;
-    }
-
-    public void setMirrorBuild(boolean value) {
-        mirrorBuild = value;
-        saveChanges();
-    }
-
-    public void setSelectedBuildLength(int value) {
-        selectedBuildLength = Math.max(1, Math.min(getMaxBuildLength(), value));
-        setChanged();
+    public cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition getBuildDefinition() {
+        return cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockDefinitions.resolve(
+            this,
+            cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind.COMPUTATION,
+            tier,
+            () -> cn.dancingsnow.neoecoae.multiblock.definition.NativeControllerDefinitions
+                .get(cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind.COMPUTATION, tier.getTier()));
     }
 
     public int getMaxBuildLength() {
-        return cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.computationSystemMaxLength - 4;
+        return cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Multiblock.computationSystemMaxLength - 4;
     }
 
     public boolean checkMultiblockScale(BlockPos min, BlockPos max) {

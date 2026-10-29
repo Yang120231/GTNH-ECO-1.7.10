@@ -11,7 +11,11 @@ import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 
-/** Defines building/preview geometry; pair custom formation rules with NEBlockEntity.registerCalculatorFactory. */
+/**
+ * Defines the geometry StructureLib's hologram projector builds and BlockRenderer6343 previews in NEI; pair custom
+ * formation rules with NEBlockEntity.registerCalculatorFactory. Providers are resolved on both sides, including for
+ * hosts in NEI preview worlds, so they must not assume a server world.
+ */
 public final class ECOMultiblockDefinitions {
 
     private static final ECOExtensionRegistry<Provider> REGISTRY = new ECOExtensionRegistry<>();

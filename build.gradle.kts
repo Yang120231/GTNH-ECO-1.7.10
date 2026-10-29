@@ -19,6 +19,7 @@ val ae2Version: String by project
 val gtnhLibVersion: String by project
 val modularUi2Version: String by project
 val guideNhVersion = "1.3.53"
+val structureLibVersion = "1.4.39"
 // Match the reviewed GT API artifact; newer GT releases require unrelated AE2/MUI2 upgrades.
 val gregTechVersion = "5.09.52.398"
 val gtRuntime = providers.gradleProperty("gtRuntime").map(String::toBoolean).getOrElse(true)
@@ -52,6 +53,10 @@ dependencies {
     compileOnly(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     // The native GT bridge is loaded only after FML confirms gregtech is installed.
     compileOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
+    // StructureLib is a hard dependency: its hologram projector builds ECO multiblocks and feeds NEI previews.
+    compileOnly(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
+    // GTNHLib is always present through AE2 and MUI2; compile against the version they resolve to.
+    compileOnly(gtnhDevJar("GTNHLib", gtnhLibVersion)) { isTransitive = false }
     // The WAILA provider is reached only through WAILA's own IMC callback.
     compileOnly(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
     // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
@@ -61,6 +66,7 @@ dependencies {
     testImplementation(gtnhDevJar("ModularUI2", modularUi2Version))
     testImplementation(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     testRuntimeOnly(gtnhDevJar("GTNHLib", gtnhLibVersion))
+    testImplementation(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
     // Bytecode contracts for optional GT monitoring; tests do not initialize GregTech.
     testRuntimeOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
 
@@ -70,9 +76,9 @@ dependencies {
     }
     runtimeOnlyNonPublishable(gtnhDevJar("GTNHLib", gtnhLibVersion))
     runtimeOnlyNonPublishable(gtnhDevJar("ModularUI2", modularUi2Version))
+    runtimeOnlyNonPublishable(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
     if (gtRuntime) {
         runtimeOnlyNonPublishable(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
-        runtimeOnlyNonPublishable(gtnhDevJar("StructureLib", "1.4.39")) { isTransitive = false }
         // Explicitly select IC2 2.2.827, the native artifact used by GTNH's dependency substitution.
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:ic2-242638:2353971"))
         runtimeOnlyNonPublishable(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
@@ -88,6 +94,28 @@ dependencies {
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:cofh-core-69162:2388751"))
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:thermal-foundation-222880:2388753"))
     }
+}
+
+// In-game acceptance harnesses run only from development launches; they compile against main and never ship in the jar.
+val acceptance: SourceSet = sourceSets.create("acceptance") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += output + compileClasspath
+}
+afterEvaluate {
+    val main = tasks.compileJava.get()
+    tasks.named<JavaCompile>(acceptance.compileJavaTaskName) {
+        javaCompiler.set(main.javaCompiler)
+        sourceCompatibility = main.sourceCompatibility
+        targetCompatibility = main.targetCompatibility
+        options.release.set(main.options.release)
+        options.encoding = main.options.encoding
+        options.annotationProcessorPath = main.options.annotationProcessorPath
+        options.compilerArgs.addAll(main.options.compilerArgs)
+    }
+}
+tasks.withType<JavaExec>().matching { it.name.startsWith("run") }.configureEach {
+    dependsOn(acceptance.classesTaskName)
+    classpath(acceptance.output)
 }
 
 // GuideNH discovers language-prefixed Markdown pages in its native resource folder.

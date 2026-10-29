@@ -8,7 +8,6 @@ import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 
-import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
@@ -16,9 +15,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachineWidgets;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderPages;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSession;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeControllerBuilds;
 
 /** Source computation panel, synchronized task selector and exact CPU status pages. */
 public final class NativeComputationPages {
@@ -31,13 +27,6 @@ public final class NativeComputationPages {
         PanelSyncManager sync) {
         NativeComputationSession session = new NativeComputationSession(host);
         sync.syncValue("computation.controller", session);
-        var construction = new NativeBuilderSession(
-            NativeControllerBuilds.config(host, player, ECOMachineKind.COMPUTATION));
-        sync.syncValue("computation.builder", construction);
-        var builder = sync.syncedPanel(
-            "computation.builder.window",
-            true,
-            (panelSync, handler) -> NativeBuilderPages.create(construction, handler));
         var guide = sync.syncedPanel(
             "computation.guide",
             true,
@@ -82,11 +71,6 @@ public final class NativeComputationPages {
                             () -> Component.translatable("gui.neoecoae.guide"),
                             () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
                                 .open("computation_system", player, guide::openPanel)),
-                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                            () -> com.cleanroommc.modularui.drawable.UITexture
-                                .fullImage("neoecoae:textures/gui/widget/multiblock.png"),
-                            () -> Component.translatable("gui.neoecoae.multiblock.builder"),
-                            builder::openPanel),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             160,
                             16,

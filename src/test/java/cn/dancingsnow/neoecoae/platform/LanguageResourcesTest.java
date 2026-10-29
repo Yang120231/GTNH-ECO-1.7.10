@@ -207,14 +207,6 @@ class LanguageResourcesTest {
                     .toLowerCase(java.util.Locale.ROOT)));
         for (ECOStorageInterfaceMode mode : ECOStorageInterfaceMode.values())
             assertTrue(keys.contains("gui.neoecoae.storage_interface.mode." + mode.getSerializedName()));
-        for (String state : Arrays.asList(
-            "controller_formed",
-            "build_in_progress",
-            "no_definition",
-            "conflicts_detected",
-            "structure_ready",
-            "ready_to_build",
-            "not_enough_items")) assertTrue(keys.contains("gui.neoecoae.multiblock.status." + state), state);
         for (String mode : Arrays.asList("overclock", "active_cooling")) for (String state : Arrays.asList("on", "off"))
             assertTrue(keys.contains("gui.neoecoae.crafting." + mode + "." + state));
         for (String state : Arrays.asList("started", "finished", "cancelled"))

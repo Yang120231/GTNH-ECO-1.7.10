@@ -32,8 +32,8 @@ The [ECO Crafting System](crafting_system.md) is an advanced pattern provider wi
 - Active cooling for enhanced performance
 - Three tiers: F4, F6, F9
 
-### Multiblock Auto Builder
-The [Multiblock Auto Builder](multiblock_builder.md) explains the controller-side building panel, including structure preview, length adjustment, material checks, and automatic placement.
+### Building with StructureLib
+[Building with StructureLib](multiblock_builder.md) explains how the hologram projector previews and places ECO structures, including length and mirror settings.
 
 ## Energized Budding Crystal
 
@@ -51,7 +51,7 @@ The [Large Integrated Working Station](large_integrated_working_station.md) prov
 
 1. Gather materials and craft the required components for your chosen system
 2. Build the multiblock structure according to the system's requirements
-3. You can also use the [Multiblock Auto Builder](multiblock_builder.md) to preview and place missing blocks automatically
+3. You can also use the StructureLib hologram projector to preview and place missing blocks; see [Building with StructureLib](multiblock_builder.md)
 4. Right-click the controller to verify the structure is formed correctly
 5. Connect the system to your ME Network through the interface block
 

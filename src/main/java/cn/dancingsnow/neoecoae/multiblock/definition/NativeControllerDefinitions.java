@@ -1,4 +1,4 @@
-package cn.dancingsnow.neoecoae.platform.ui.multiblock;
+package cn.dancingsnow.neoecoae.multiblock.definition;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -6,7 +6,6 @@ import java.util.Map;
 import net.minecraft.block.Block;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
-import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
@@ -14,8 +13,9 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.Holder;
 import cn.dancingsnow.neoecoae.platform.registry.CraftingMachines;
 import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
+import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
 
-/** Locked source NEMultiBlocks crafting/computation geometry over the actual native hardware. */
+/** Locked source NEMultiBlocks crafting/computation/workstation geometry over the actual native hardware. */
 public final class NativeControllerDefinitions {
 
     private static final Map<String, MultiBlockDefinition> DEFINITIONS = new HashMap<>();
@@ -25,6 +25,33 @@ public final class NativeControllerDefinitions {
     public static MultiBlockDefinition get(ECOMachineKind kind, int tier) {
         if (tier < 1 || tier > 3 || kind == ECOMachineKind.STORAGE) return null;
         return DEFINITIONS.computeIfAbsent(kind.name() + tier, key -> create(kind, tier));
+    }
+
+    public static MultiBlockDefinition largeWorkstation() {
+        return LargeWorkstation.VALUE;
+    }
+
+    private static final class LargeWorkstation {
+
+        private static final MultiBlockDefinition VALUE = create();
+
+        private static MultiBlockDefinition create() {
+            MultiBlockDefinition.Builder builder = MultiBlockDefinition
+                .builder(Holder.direct(WorkstationMachines.WORKSTATION));
+            for (int x = 0; x < 3; x++) for (int y = 0; y < 2; y++) for (int z = 0; z < 2; z++) {
+                BlockState state = x == 1 && y == 1 && z == 0 ? WorkstationMachines.WORKSTATION.defaultBlockState()
+                    : z == 1 && y == 0
+                        ? state(
+                            x == 0 ? WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_OUTPUT_HATCH
+                                : x == 1 ? WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_INTERFACE
+                                    : WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_INPUT_HATCH)
+                        : state(WorkstationMachines.LARGE_INTEGRATED_WORKING_STATION_CASING);
+                builder.setBlock(new BlockPos(x, y, z), state);
+            }
+            return builder.expandMin(1)
+                .expandMax(1)
+                .create();
+        }
     }
 
     private static MultiBlockDefinition create(ECOMachineKind kind, int tier) {
@@ -82,7 +109,8 @@ public final class NativeControllerDefinitions {
             !crafting && y == 1 && z == 0 ? state(cooler).setValue(NativeMachineBlock.FACING, Direction.WEST) : casing);
         return builder.expandMin(1)
             .expandMax(
-                (crafting ? PlanningSettings.craftingSystemMaxLength : PlanningSettings.computationSystemMaxLength) - 4)
+                (crafting ? PlanningSettings.Multiblock.craftingSystemMaxLength
+                    : PlanningSettings.Multiblock.computationSystemMaxLength) - 4)
             .create();
     }
 

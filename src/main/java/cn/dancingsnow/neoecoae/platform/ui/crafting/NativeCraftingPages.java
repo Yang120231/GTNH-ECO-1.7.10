@@ -8,7 +8,6 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
-import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
@@ -16,9 +15,6 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachineWidgets;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderPages;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSession;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeControllerBuilds;
 
 /** Source controller artwork with live worker previews, cooling controls and physical pattern slots. */
 public final class NativeCraftingPages {
@@ -30,13 +26,6 @@ public final class NativeCraftingPages {
     public static ModularPanel create(ECOCraftingSystemBlockEntity host, EntityPlayer player, PanelSyncManager sync) {
         NativeCraftingSession session = new NativeCraftingSession(host);
         sync.syncValue("crafting.controller", session);
-        var construction = new NativeBuilderSession(
-            NativeControllerBuilds.config(host, player, ECOMachineKind.CRAFTING));
-        sync.syncValue("crafting.builder", construction);
-        var builder = sync.syncedPanel(
-            "crafting.builder.window",
-            true,
-            (panelSync, handler) -> NativeBuilderPages.create(construction, handler));
         var guide = sync.syncedPanel(
             "crafting.guide",
             true,
@@ -85,11 +74,6 @@ public final class NativeCraftingPages {
                     () -> Component.translatable("gui.neoecoae.guide"),
                     () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
                         .open("crafting_system", player, guide::openPanel)),
-                cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                    () -> com.cleanroommc.modularui.drawable.UITexture
-                        .fullImage("neoecoae:textures/gui/widget/multiblock.png"),
-                    () -> Component.translatable("gui.neoecoae.multiblock.builder"),
-                    builder::openPanel),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.multilineButton(
                     () -> NativePageLayout.texture(
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.ATLAS,

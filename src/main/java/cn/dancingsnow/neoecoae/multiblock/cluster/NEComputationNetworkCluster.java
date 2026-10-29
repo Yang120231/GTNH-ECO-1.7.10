@@ -119,7 +119,8 @@ public class NEComputationNetworkCluster {
                 new EndgameHost(
                     controller.getTier()
                         .supportsFeature(ECOFeature.VIRTUAL_CRAFTING),
-                    controller.getSelectedBuildLength() == controller.getMaxBuildLength(),
+                    member.getThreadingCores()
+                        .size() == controller.getMaxBuildLength(),
                     controller.hasHighEnergyNetworkSwitch(),
                     hasAllDriveSlotsFilled(member)));
         }
@@ -182,7 +183,8 @@ public class NEComputationNetworkCluster {
             if (controller != null) {
                 wrongTier |= !controller.getTier()
                     .supportsFeature(ECOFeature.VIRTUAL_CRAFTING);
-                wrongLength |= controller.getSelectedBuildLength() != controller.getMaxBuildLength();
+                wrongLength |= member.getThreadingCores()
+                    .size() != controller.getMaxBuildLength();
                 noHighEnergySwitch |= !controller.hasHighEnergyNetworkSwitch();
             }
             drivesMissing |= !hasAllDriveSlotsFilled(member);

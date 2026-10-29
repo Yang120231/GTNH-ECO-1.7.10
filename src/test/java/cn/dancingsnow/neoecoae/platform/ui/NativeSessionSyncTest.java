@@ -8,50 +8,17 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import net.minecraft.network.PacketBuffer;
-import net.minecraft.tileentity.TileEntity;
 
 import org.junit.jupiter.api.Test;
 
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.value.sync.SyncHandler;
 
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderConfig;
-import cn.dancingsnow.neoecoae.platform.ui.multiblock.NativeBuilderSession;
 import cn.dancingsnow.neoecoae.platform.ui.storage.NativeStorageSession;
 import io.netty.buffer.Unpooled;
 
 /** Runs against both the pinned API and newer MUI2 runtimes that reject C2S by default. */
 class NativeSessionSyncTest {
-
-    @Test
-    void builderActionsReachTheNetworkWithTheirOriginalPayloads() {
-        var config = new NativeBuilderConfig(
-            mock(TileEntity.class),
-            null,
-            () -> 5,
-            1,
-            64,
-            value -> {},
-            delta -> {},
-            () -> false,
-            value -> {},
-            () -> {},
-            () -> false,
-            () -> false,
-            () -> null);
-        var session = new NativeBuilderSession(config);
-        var packets = capture(session, () -> {
-            session.build();
-            session.changeLength(10);
-            session.setLength("12");
-            session.mirror(true);
-        });
-        assertEquals(4, packets.size());
-        assertPacket(packets.get(0), 3, packet -> {});
-        assertPacket(packets.get(1), 5, packet -> assertEquals(10, packet.readInt()));
-        assertPacket(packets.get(2), 4, packet -> assertEquals(12, packet.readInt()));
-        assertPacket(packets.get(3), 2, packet -> assertTrue(packet.readBoolean()));
-    }
 
     @Test
     void storagePagingAlsoReachesTheNetwork() {

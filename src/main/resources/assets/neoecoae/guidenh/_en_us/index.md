@@ -13,4 +13,4 @@ navigation:
 - [Crafting system](neoecoae_intro/crafting_system.md)
 - [Integrated working station](neoecoae_intro/integrated_working_station.md)
 - [Large integrated working station](neoecoae_intro/large_integrated_working_station.md)
-- [Multiblock builder](neoecoae_intro/multiblock_builder.md)
+- [Building with StructureLib](neoecoae_intro/multiblock_builder.md)

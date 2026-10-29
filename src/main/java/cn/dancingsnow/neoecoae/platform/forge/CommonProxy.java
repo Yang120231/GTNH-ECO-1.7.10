@@ -10,7 +10,11 @@ public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
         NeoECOAE.LOG.info("Neo ECO AE Extension {} (GTNH business port)", Tags.VERSION);
-        PlanningSettings.load(event.getSuggestedConfigurationFile());
+        try {
+            PlanningSettings.register();
+        } catch (com.gtnewhorizon.gtnhlib.config.ConfigException failure) {
+            throw new IllegalStateException("Cannot load the Neo ECO AE configuration", failure);
+        }
         cn.dancingsnow.neoecoae.platform.registry.NativeContent.register();
         cn.dancingsnow.neoecoae.platform.registry.BasicBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.StorageMachines.register();
@@ -18,9 +22,9 @@ public class CommonProxy {
         cn.dancingsnow.neoecoae.platform.registry.CraftingMachines.register();
         cn.dancingsnow.neoecoae.platform.registry.CoreBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.RecipeMaterials.register();
-        PortingFoundationFixture.register();
-        cn.dancingsnow.neoecoae.platform.gt.NativeWorkstationAcceptance.register();
-        AcceptanceChunkTicket.configure();
+        DevAcceptance.load();
+        DevAcceptance.hooks()
+            .preInit();
         StorageLifecycle lifecycle = new StorageLifecycle();
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(lifecycle);
         cpw.mods.fml.common.FMLCommonHandler.instance()
@@ -52,6 +56,7 @@ public class CommonProxy {
             .interfaceTerminal()
             .register(cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.Interface.class);
         cn.dancingsnow.neoecoae.platform.recipe.StorageRecipes.register();
+        cn.dancingsnow.neoecoae.platform.structurelib.NEStructureLib.init();
         // The callback is named, not referenced, so WAILA's classes load only when it is installed.
         if (cpw.mods.fml.common.Loader.isModLoaded("Waila")) cpw.mods.fml.common.event.FMLInterModComms
             .sendMessage("Waila", "register", "cn.dancingsnow.neoecoae.compat.waila.NEWailaPlugin.callbackRegister");

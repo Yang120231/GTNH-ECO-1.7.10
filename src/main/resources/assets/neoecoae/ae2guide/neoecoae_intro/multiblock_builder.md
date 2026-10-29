@@ -1,79 +1,41 @@
 ---
 navigation:
-  title: Multiblock Auto Builder
+  title: Building with StructureLib
   icon: neoecoae:crafting_system_l9
   parent: neoecoae_intro/index.md
 ---
 
-# Multiblock Auto Builder
+# Building with StructureLib
 
-Neo ECO AE provides an automatic building feature for its main multiblock systems, making large structures much easier to assemble.
+ECO multiblocks are built with StructureLib's Structure Hologram Projector, the same tool used for GregTech multiblocks.
 
 ## Supported Systems
-
-The auto builder currently supports the following multiblock systems:
 
 - [ECO Storage System](storage_system.md)
 - [ECO Computation System](computation_system.md)
 - [ECO Crafting System](crafting_system.md)
+- [Large Integrated Working Station](large_integrated_working_station.md)
 
-## Opening the Builder Panel
+## Using the Projector
 
-When you open a multiblock controller GUI, a structure builder button appears on the side of the interface. Clicking it opens a separate floating panel.
+1. Place the controller and confirm its facing.
+2. Right-click the controller with the projector to show the hologram.
+3. Sneak + right-click the controller to place blocks.
 
-The panel can be dragged, allowing you to inspect system information and builder controls at the same time.
+In creative mode the whole structure is placed at once. In survival mode each click places a batch of blocks and consumes them from your inventory; click again until the structure is complete.
 
-## Panel Features
+## Length and Mirror
 
-The auto builder panel provides the following features:
+- The projector's stack size selects the structure length. It is clamped to the range the system supports.
+- The `length` channel overrides the stack size, for lengths above 64.
+- Set the `mirror` channel to `1` to build the mirrored layout.
 
-- Length adjustment: selects the current multiblock length to build
-- Preview: checks missing blocks, conflicting blocks, reusable blocks, and required item counts
-- Build: starts automatic placement after confirming the required materials
-- Status display: shows preview results, build progress, and interruption states
+Channels are configured in the projector's own settings screen.
 
-## Preview Behavior
+## Blocked Positions and Missing Materials
 
-When you click Preview, the system generates a structure plan based on the controller orientation and selected length, then reports:
+Existing correct blocks are kept. Positions holding other non-replaceable blocks are skipped and reported in chat; clear them and click again. When a material runs out, building stops and the missing item is reported.
 
-- Missing blocks
-- Conflicting blocks
-- Reusable blocks
-- Required item count
+## NEI Preview
 
-If the world already contains blocks that should not be replaced, they are marked as conflicts and the auto builder will not overwrite them automatically.
-
-## Auto Build Behavior
-
-### Creative Mode
-
-In creative mode, if the structure has no conflicts, all missing blocks are placed instantly.
-
-### Survival Mode
-
-In Survival, blocks are placed gradually as materials are consumed.
-
-## Material Consumption Rules
-
-Materials come from the player inventory and supported container items, including shulker boxes and backpacks. Materials are consumed when their blocks are placed.
-
-## Conflicts and Interruptions
-
-The auto builder may fail to start or may stop midway in cases such as:
-
-- Conflicting blocks in the planned structure
-- Missing materials
-- The player leaving or becoming unavailable for the build session
-- Target positions becoming blocked during the build process
-
-The panel will show the corresponding state so you can preview again and adjust the structure.
-
-## Tips
-
-- Place the controller first and confirm its facing before using the auto builder
-- For large structures, preview first to confirm the selected length and available space
-- Watch the preview counts before changing structure scale
-- In survival mode, keep enough materials available in your inventory or supported container items
-
-
-JEI / EMI structure previews offer layers, length and formed appearance. Left-click cycle controls for the next choice, or right-click for the previous choice.
+With BlockRenderer6343 installed, NEI shows each ECO structure in its multiblock preview tab, including the required blocks.

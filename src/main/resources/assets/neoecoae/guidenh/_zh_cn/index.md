@@ -13,4 +13,4 @@ navigation:
 - [合成系统](neoecoae_intro/crafting_system.md)
 - [集成工作站](neoecoae_intro/integrated_working_station.md)
 - [大型集成工作站](neoecoae_intro/large_integrated_working_station.md)
-- [多方块建造工具](neoecoae_intro/multiblock_builder.md)
+- [使用 StructureLib 搭建](neoecoae_intro/multiblock_builder.md)

@@ -1,46 +1,20 @@
 package cn.dancingsnow.neoecoae.platform.multiblock;
 
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.event.world.BlockEvent;
 
 import cn.dancingsnow.neoecoae.multiblock.placement.WorldPlannedBlock;
-import cn.dancingsnow.neoecoae.platform.inventory.IItemHandler;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
-import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 
-/** Native permission/events/sounds and stack capability boundary for the unchanged placement state machine. */
+/** Native permission, Forge placement events and sounds for StructureLib survival placement. */
 public final class NativePlacementPlatform {
 
     private NativePlacementPlatform() {}
-
-    public static EntityPlayerMP findPlayer(java.util.UUID id) {
-        var server = net.minecraft.server.MinecraftServer.getServer();
-        if (server == null) return null;
-        for (Object value : server.getConfigurationManager().playerEntityList) {
-            EntityPlayerMP player = (EntityPlayerMP) value;
-            if (player.getUniqueID()
-                .equals(id)) return player;
-        }
-        return null;
-    }
-
-    /** A target item can expose its real contained inventory, since Forge 1.7.10 has no item-handler capability. */
-    public interface ItemInventoryProvider {
-
-        IItemHandler itemInventory(ItemStack stack);
-    }
-
-    public static IItemHandler itemInventory(ItemStack stack) {
-        return !ItemStacks.isEmpty(stack) && stack.getItem() instanceof ItemInventoryProvider
-            ? ((ItemInventoryProvider) stack.getItem()).itemInventory(stack)
-            : null;
-    }
 
     public static boolean replaceable(WorldView level, BlockPos pos, BlockState state) {
         var world = level.nativeWorld();
