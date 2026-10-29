@@ -32,6 +32,12 @@ public final class ManagedNode {
     }
 
     public <S> ManagedNode addService(Class<S> type, S service) {
+        // AE2 only mounts cells from ICellContainer hosts; without it the provider would silently mount nothing.
+        if (type == cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider.class
+            && !(owner instanceof appeng.api.storage.ICellContainer))
+            throw new IllegalStateException(
+                owner.getClass()
+                    .getName() + " registers an IStorageProvider but does not implement ICellContainer");
         services.put(type, type.cast(service));
         return this;
     }

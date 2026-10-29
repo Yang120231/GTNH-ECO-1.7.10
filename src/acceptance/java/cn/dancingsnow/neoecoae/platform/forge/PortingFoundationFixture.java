@@ -195,7 +195,8 @@ public final class PortingFoundationFixture {
         }
     }
 
-    public static final class FixtureTile extends NEBlockEntity<FixtureCluster, FixtureTile> implements ManagedHolder {
+    public static final class FixtureTile extends NEBlockEntity<FixtureCluster, FixtureTile>
+        implements ManagedHolder, appeng.api.storage.ICellContainer {
 
         @Persisted
         private ItemStack cell = new ItemStack(NativeContent.item("eco_item_storage_cell_16m"));

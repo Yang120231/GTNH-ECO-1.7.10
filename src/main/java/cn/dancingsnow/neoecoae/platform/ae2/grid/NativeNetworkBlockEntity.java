@@ -34,9 +34,15 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedFields;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
 
-/** Forge lifecycle and description packets for the imported entity hierarchy. */
-public abstract class NativeNetworkBlockEntity extends AENetworkTile
-    implements NativeStateHolder, appeng.api.storage.ICellContainer {
+/**
+ * Forge lifecycle and description packets for the imported entity hierarchy.
+ * <p>
+ * Deliberately not an {@link appeng.api.storage.ICellContainer}: rv3's {@code GridStorageCache.addNode/removeNode}
+ * post a synchronous full-network {@code MENetworkCellArrayUpdate} for every cell container that joins or leaves a
+ * grid, so forming a large multiblock next to a big network ran one full rescan per casing. Only hosts that register
+ * an {@code IStorageProvider} implement it; the cell methods below satisfy the interface for them.
+ */
+public abstract class NativeNetworkBlockEntity extends AENetworkTile implements NativeStateHolder {
 
     protected WorldView level;
     protected BlockPos worldPosition;
@@ -278,17 +284,14 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile
 
     public void addAdditionalDrops(WorldView world, BlockPos pos, java.util.List<ItemStack> drops) {}
 
-    @Override
     public void saveChanges(appeng.api.storage.IMEInventory inventory) {
         saveChanges();
     }
 
-    @Override
     public int getPriority() {
         return 0;
     }
 
-    @Override
     public java.util.List<appeng.api.storage.IMEInventoryHandler> getCellArray(
         appeng.api.storage.StorageChannel channel) {
         if (!mainNode.isOnline() || !hasStorageProvider()) return java.util.Collections.emptyList();

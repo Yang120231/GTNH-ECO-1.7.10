@@ -39,7 +39,7 @@ import cn.dancingsnow.neoecoae.util.ICellHost;
 
 public class ECODriveBlockEntity extends
     cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity<cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster, ECODriveBlockEntity>
-    implements ManagedHolder, IStorageProvider, ICellHost, ISaveProvider {
+    implements ManagedHolder, IStorageProvider, ICellHost, ISaveProvider, appeng.api.storage.ICellContainer {
 
     private static final String RESTORE_RECEIPTS_TAG = "neoecoae_restore_receipts";
 

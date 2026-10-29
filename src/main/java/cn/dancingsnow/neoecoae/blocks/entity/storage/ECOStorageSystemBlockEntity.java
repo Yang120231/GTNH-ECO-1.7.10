@@ -55,8 +55,8 @@ import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
 import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
-public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity>
-    implements ManagedHolder, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost {
+public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity> implements
+    ManagedHolder, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost, appeng.api.storage.ICellContainer {
 
     private static final Logger LOGGER = LogManager.getLogger(ECOStorageSystemBlockEntity.class);
 
