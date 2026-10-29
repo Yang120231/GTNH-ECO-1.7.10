@@ -21,6 +21,9 @@ public final class AcceptanceHooks implements DevAcceptance.Hooks {
 
     @Override
     public void clientInit() {
+        if (Boolean.getBoolean("neoecoae.transmitterRenderAcceptance")) FMLCommonHandler.instance()
+            .bus()
+            .register(new NativeTransmitterRenderAcceptance());
         if (Boolean.getBoolean("neoecoae.launchAcceptance")) FMLCommonHandler.instance()
             .bus()
             .register(new cn.dancingsnow.neoecoae.platform.ui.NativeLaunchAcceptance());

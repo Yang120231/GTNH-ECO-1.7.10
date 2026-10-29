@@ -135,6 +135,16 @@ tasks.processResources {
 // The pinned GT++ bundle reads Thermal fluids in preInit, but omits this load-order edge.
 // Use Forge's development config instead of patching either external mod or registering fake fluids.
 tasks.withType<JavaExec>().matching { it.name.matches(Regex("run(Client|Server)(17|21|25)?")) }.configureEach {
+    if (name.startsWith("runClient") && providers.gradleProperty("transmitterRenderAcceptance").map(String::toBoolean).getOrElse(false)) {
+        systemProperty("neoecoae.transmitterRenderAcceptance", "true")
+        systemProperty("neoecoae.renderLabel", providers.gradleProperty("transmitterRenderLabel").getOrElse("after"))
+        workingDir = file("run/transmitter-render-acceptance")
+        doFirst {
+            workingDir.mkdirs()
+            val options = workingDir.resolve("options.txt")
+            if (!options.exists()) options.writeText("lang:en_US\noverrideWidth:1280\noverrideHeight:900\npauseOnLostFocus:false\nrenderDistance:4\nmipmapLevels:0\n")
+        }
+    }
     if (name.startsWith("runClient") && providers.gradleProperty("launchAcceptance").map(String::toBoolean).getOrElse(false)) {
         systemProperty("neoecoae.launchAcceptance", "true")
         workingDir = file("run/launch-acceptance")

@@ -12,7 +12,7 @@ import net.minecraft.client.renderer.RenderBlocks;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.util.IIcon;
 import net.minecraft.world.IBlockAccess;
-import net.minecraftforge.client.MinecraftForgeClient;
+import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.lwjgl.BufferUtils;
@@ -34,7 +34,9 @@ public final class EcoModelRenderer {
     public static void renderWorld(BakedEcoModel model, ModelFacing facing, Map<String, IIcon> icons,
         IBlockAccess world, int x, int y, int z, Block block, RenderBlocks renderer) {
         Tessellator tessellator = Tessellator.instance;
-        ModelRenderLayer renderLayer = ModelRenderLayer.fromRenderPass(MinecraftForgeClient.getRenderPass());
+        // Chunk meshes use a separate pass from entity/TESR rendering. The entity
+        // pass (MinecraftForgeClient.getRenderPass()) is normally -1 during baking.
+        ModelRenderLayer renderLayer = ModelRenderLayer.fromRenderPass(ForgeHooksClient.getWorldRenderPass());
         List<BakedQuad> quads = model.getQuads(facing, renderLayer);
         if (quads.isEmpty()) return;
         int checkedSides = 0;
