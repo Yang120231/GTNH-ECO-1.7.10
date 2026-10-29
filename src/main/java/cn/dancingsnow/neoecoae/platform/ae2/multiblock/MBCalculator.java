@@ -10,6 +10,11 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 /**
  * Adapts AE2's rectangular discovery protocol. Dimensions, accepted parts and formation rules are supplied by
  * the imported calculators. Every probe checks chunk presence before touching the native world.
+ * <p>
+ * A deliberate fork of {@code appeng.me.cluster.MBCalculator} rather than a subclass; it differs in three ways:
+ * probes never load chunks, a resized structure releases its old cluster before attaching the new one (members
+ * park and restore running CPUs on that transition), and a cluster that is being destroyed is never rebuilt
+ * from inside its own teardown.
  */
 public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAECluster> {
 

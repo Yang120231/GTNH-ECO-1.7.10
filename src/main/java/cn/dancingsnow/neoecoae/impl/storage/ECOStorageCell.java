@@ -22,10 +22,9 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
-import cn.dancingsnow.neoecoae.platform.ae2.storage.AEItems;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.CellState;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.ConfigInventory;
-import cn.dancingsnow.neoecoae.platform.ae2.storage.IPartitionList;
+import cn.dancingsnow.neoecoae.platform.ae2.storage.ECOPartitionList;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.ISaveProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.IUpgradeInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.StorageCells;
@@ -51,9 +50,9 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
     }
 
     // 过滤器
-    private final IPartitionList partitionList;
+    private final ECOPartitionList partitionList;
 
-    public IPartitionList getPartitionList() {
+    public ECOPartitionList getPartitionList() {
         return partitionList;
     }
 
@@ -110,13 +109,13 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
             this.tier = c.getTier();
 
             // 根据已安装的升级和配置的过滤器更新分区列表和模式。
-            var builder = IPartitionList.builder();
+            var builder = ECOPartitionList.builder();
 
             var upgrades = getUpgradesInventory();
             var config = getConfigInventory();
 
-            boolean hasInverter = upgrades.isInstalled(AEItems.INVERTER_CARD);
-            boolean isFuzzy = upgrades.isInstalled(AEItems.FUZZY_CARD);
+            boolean hasInverter = upgrades.isInstalled(appeng.api.config.Upgrades.INVERTER);
+            boolean isFuzzy = upgrades.isInstalled(appeng.api.config.Upgrades.FUZZY);
             if (isFuzzy) {
                 builder.fuzzyMode(c.getFuzzyMode(cellStack));
             }
@@ -126,7 +125,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
             partitionListMode = (hasInverter ? IncludeExclude.BLACKLIST : IncludeExclude.WHITELIST);
             partitionList = builder.build();
 
-            this.hasVoidUpgrade = upgrades.isInstalled(AEItems.VOID_CARD);
+            this.hasVoidUpgrade = upgrades.isInstalled(appeng.api.config.Upgrades.VOID_OVERFLOW);
         } else {
             throw new IllegalArgumentException("itemStack must be an NativeStorageCellItem");
         }

@@ -6,7 +6,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 public interface AEKeyFilter {
 
     static AEKeyFilter none() {
-        return NoOpKeyFilter.INSTANCE;
+        return what -> true;
     }
 
     boolean matches(AEKey what);
