@@ -321,7 +321,7 @@
   "tag.item.neoecoae.crystal_ingot_base": "水晶錠基底",
   "tag.item.neoecoae.superconductive_ingot_base": "超導錠基底",
   "tooltip.neoecoae.active_cooling": "啟用主動冷卻時：",
-  "tooltip.neoecoae.budding_energized_crystal_block": "以雷擊賽特斯石英母岩獲得",
+  "tooltip.neoecoae.budding_energized_crystal_block": "將盈能水晶塊與盈能水晶一同丟入水中獲得",
   "tooltip.neoecoae.clear_negative_effect": "清除超頻帶來的負面效果",
   "tooltip.neoecoae.computation_cell": "為計算子系統提供 %s 位元組",
   "tooltip.neoecoae.computation_cell.install": "右鍵計算子系統主機可以直接安裝",

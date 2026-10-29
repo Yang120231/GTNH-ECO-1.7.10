@@ -858,7 +858,7 @@
   "tag.item.neoecoae.superconductive_ingot_base": "Superconductive Ingot Base",
   "tooltip.neoecoae.active_cooling": "When enabling active cooling:",
   "tooltip.neoecoae.big_order.requires_cpu": "This order uses an extended quantity; an idle, online ECO crafting CPU is required",
-  "tooltip.neoecoae.budding_energized_crystal_block": "Obtained by striking Budding Certus Quartz with lightning",
+  "tooltip.neoecoae.budding_energized_crystal_block": "Obtained by dropping an Energized Crystal Block and an Energized Crystal into water",
   "tooltip.neoecoae.clear_negative_effect": "Clear the negative effects of overclocking",
   "tooltip.neoecoae.computation_cell": "Provides %s bytes to the computation subsystem",
   "tooltip.neoecoae.computation_cell.install": "Right-click a computation subsystem host to install directly",
