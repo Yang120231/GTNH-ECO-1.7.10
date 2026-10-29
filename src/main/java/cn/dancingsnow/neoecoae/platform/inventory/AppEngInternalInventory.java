@@ -54,6 +54,12 @@ public class AppEngInternalInventory implements IInventory, ManagedValue {
         host.onChangeInventory(this, slot);
     }
 
+    /** Restores persisted contents while the host is still loading, so no change callback fires. */
+    public void loadStack(int slot, ItemStack stack) {
+        check(slot);
+        contents[slot] = ItemStacks.isEmpty(stack) ? null : stack;
+    }
+
     public int getSlotLimit(int slot) {
         check(slot);
         return limit;

@@ -250,7 +250,12 @@ public final class CraftingMachines {
             "neoecoae.computation_high_energy_network_switch");
         GameRegistry.registerTileEntity(CraftingWorker.class, "neoecoae.crafting_worker");
         GameRegistry.registerTileEntity(FxMonitorCore.class, "neoecoae.fx_monitor_core");
-        GameRegistry.registerTileEntity(CraftingPatternBus.class, "neoecoae.crafting_pattern_bus");
+        // 7.3.0-beta saved its pattern bus as "neoecoae:crafting_pattern_bus"; without the alias FML drops the
+        // patterns.
+        GameRegistry.registerTileEntityWithAlternatives(
+            CraftingPatternBus.class,
+            "neoecoae.crafting_pattern_bus",
+            "neoecoae:crafting_pattern_bus");
         GameRegistry.registerTileEntity(CraftingVent.class, "neoecoae.crafting_vent");
         GameRegistry.registerTileEntity(InputHatch.class, "neoecoae.input_hatch");
         GameRegistry.registerTileEntity(OutputHatch.class, "neoecoae.output_hatch");

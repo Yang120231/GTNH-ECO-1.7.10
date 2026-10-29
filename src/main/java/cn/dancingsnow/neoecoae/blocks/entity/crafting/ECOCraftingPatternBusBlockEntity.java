@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.blocks.entity.crafting;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -22,7 +23,11 @@ import cn.dancingsnow.neoecoae.platform.inventory.InternalInventoryHost;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.sync.FieldManagedStorage;
 import cn.dancingsnow.neoecoae.platform.sync.ManagedHolder;
 import cn.dancingsnow.neoecoae.platform.sync.Persisted;
@@ -31,6 +36,10 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
     implements ManagedHolder, InternalInventoryHost, ECOJobAwareCraftingProvider, ECOFastPathDispatchProvider,
     appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium {
 
+    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
+        .getLogger(cn.dancingsnow.neoecoae.NeoECOAE.MODID);
+    private static final String BETA_PATTERNS = "Patterns";
+    private static final String BETA_OVERFLOW = "neoecoae_beta_patterns";
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
     @Persisted
     private final AppEngInternalInventory inventory = new AppEngInternalInventory(this, 63, 1) {
@@ -54,6 +63,11 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
         inventory,
         this::decodePattern);
     private boolean updateQueued;
+    /**
+     * 7.3.0-beta stacks that had no free slot (beta buses held 126 patterns) or no resolvable item. They are kept
+     * verbatim, move into slots as players free them and drop with the block, so a migrated bus never loses one.
+     */
+    private final List<net.minecraft.nbt.NBTTagCompound> betaOverflow = new ArrayList<>();
 
     public ECOCraftingPatternBusBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state, NECraftingClusterCalculator::new);
@@ -191,7 +205,73 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
     @Override
     public void onChangeInventory(AppEngInternalInventory inv, int slot) {
         catalog.invalidate(slot);
+        if (inv.getStackInSlot(slot) == null && worldObj != null && !worldObj.isRemote) refillFromBetaOverflow(slot);
         saveChangedInventory(inv);
+    }
+
+    private void refillFromBetaOverflow(int slot) {
+        for (int i = 0; i < betaOverflow.size(); i++) {
+            net.minecraft.item.ItemStack stack = loadBetaStack(betaOverflow.get(i));
+            if (stack == null) continue;
+            betaOverflow.remove(i);
+            inventory.setStackInSlot(slot, stack);
+            return;
+        }
+    }
+
+    /** Resolves one beta pattern stack. Package-private so tests can resolve items without the FML registry. */
+    net.minecraft.item.ItemStack loadBetaStack(net.minecraft.nbt.NBTTagCompound tag) {
+        net.minecraft.item.ItemStack stack = net.minecraft.item.ItemStack.loadItemStackFromNBT(tag);
+        return cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack) ? null : stack;
+    }
+
+    int betaOverflowCount() {
+        return betaOverflow.size();
+    }
+
+    @Override
+    public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        super.loadTag(data, registries);
+        betaOverflow.clear();
+        for (Tag value : data.getList(BETA_OVERFLOW, Tag.TAG_COMPOUND)) betaOverflow.add(
+            (net.minecraft.nbt.NBTTagCompound) ((CompoundTag) value).nativeTag()
+                .copy());
+        // Beta wrote no managed fields; its TileCraftingPatternBus kept {Slot, Stack} entries under "Patterns".
+        if (!data.contains("neoecoae_fields") && data.contains(BETA_PATTERNS, Tag.TAG_LIST))
+            importBetaPatterns(data.getList(BETA_PATTERNS, Tag.TAG_COMPOUND));
+    }
+
+    private void importBetaPatterns(ListTag entries) {
+        List<CompoundTag> ordered = new ArrayList<>();
+        for (Tag value : entries) ordered.add((CompoundTag) value);
+        ordered.sort(java.util.Comparator.comparingInt(entry -> entry.getInt("Slot")));
+        int next = 0;
+        for (CompoundTag entry : ordered) {
+            if (!entry.contains("Stack", Tag.TAG_COMPOUND)) continue;
+            var raw = (net.minecraft.nbt.NBTTagCompound) entry.getCompound("Stack")
+                .nativeTag()
+                .copy();
+            net.minecraft.item.ItemStack stack = loadBetaStack(raw);
+            while (next < inventory.size() && inventory.getStackInSlot(next) != null) next++;
+            if (stack == null || next >= inventory.size()) betaOverflow.add(raw);
+            else inventory.loadStack(next++, stack);
+        }
+        if (!betaOverflow.isEmpty()) LOGGER.warn(
+            "Beta pattern bus at {},{},{} kept {} pattern(s) without a free slot or a resolvable item; "
+                + "they refill freed slots and drop when the bus is broken",
+            xCoord,
+            yCoord,
+            zCoord,
+            betaOverflow.size());
+    }
+
+    @Override
+    protected void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
+        super.saveAdditional(data, registries);
+        if (betaOverflow.isEmpty()) return;
+        ListTag overflow = new ListTag();
+        for (var raw : betaOverflow) overflow.add(new CompoundTag((net.minecraft.nbt.NBTTagCompound) raw.copy()));
+        data.put(BETA_OVERFLOW, overflow);
     }
 
     public void saveChangedInventory(AppEngInternalInventory inv) {
@@ -247,6 +327,16 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
         for (int i = 0; i < inventory.size(); i++) if (inventory.getStackInSlot(i) != null) drops.add(
             inventory.getStackInSlot(i)
                 .copy());
+        int unresolved = 0;
+        for (var raw : betaOverflow) {
+            net.minecraft.item.ItemStack stack = loadBetaStack(raw);
+            if (stack == null) unresolved++;
+            else drops.add(stack);
+        }
+        if (unresolved > 0) LOGGER.warn(
+            "Broken beta pattern bus at {} drops without {} pattern(s) whose items no longer resolve",
+            pos,
+            unresolved);
     }
 
     static int calculateBatchOfferSize(int requested, int worker, int host, long arithmetic) {
