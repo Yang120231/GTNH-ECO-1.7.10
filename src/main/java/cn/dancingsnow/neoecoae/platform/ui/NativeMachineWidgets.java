@@ -19,8 +19,10 @@ public final class NativeMachineWidgets {
 
     private NativeMachineWidgets() {}
 
+    /** The item only: ItemDisplayWidget's item-slot theme would paint MUI's slot over the page's own slot art. */
     public static Widget<?> item(Supplier<ItemStack> stack) {
-        return new ItemDisplayWidget().item(new ObjectValue.Dynamic<>(ItemStack.class, stack, ignored -> {}))
+        return NativeUiStyle.plainHover(new ItemDisplayWidget())
+            .item(new ObjectValue.Dynamic<>(ItemStack.class, stack, ignored -> {}))
             .displayAmount(false)
             .tooltipDynamic(tooltip -> {
                 ItemStack current = stack.get();
