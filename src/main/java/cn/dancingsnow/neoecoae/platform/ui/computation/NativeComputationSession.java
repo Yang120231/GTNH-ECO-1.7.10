@@ -566,8 +566,10 @@ public final class NativeComputationSession extends NativeSnapshotSession {
     private void quickMoveCell(int slot) {
         var player = getSyncManager().getPlayer();
         var cluster = host.getCluster();
-        if (!host.isFormed() || cluster == null || cluster.isDestroyed()
-            || slot < 0 || slot >= player.inventory.mainInventory.length) return;
+        if (!host.isFormed() || cluster == null
+            || cluster.isDestroyed()
+            || slot < 0
+            || slot >= player.inventory.mainInventory.length) return;
         ItemStack stack = player.inventory.getStackInSlot(slot);
         if (!ItemStacks.isEmpty(player.inventory.getItemStack())
             || !ECOComputationDriveBlockEntity.isSupportedCell(stack)) return;
@@ -576,7 +578,8 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             if (ItemStacks.isEmpty(stack)) break;
             if (drive.isInvalid() || drive.getWorldObj() != host.getWorldObj()
                 || !ItemStacks.isEmpty(drive.getCellStack())) continue;
-            stack = drive.getInternalInventory().insertItem(0, stack, false);
+            stack = drive.getInternalInventory()
+                .insertItem(0, stack, false);
         }
         if (ItemStacks.count(stack) == before) return;
         player.inventory.setInventorySlotContents(slot, ItemStacks.isEmpty(stack) ? null : stack);

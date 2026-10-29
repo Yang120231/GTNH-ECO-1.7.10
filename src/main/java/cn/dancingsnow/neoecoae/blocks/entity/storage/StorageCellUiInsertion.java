@@ -13,17 +13,21 @@ public final class StorageCellUiInsertion {
     private StorageCellUiInsertion() {}
 
     public static boolean quickMove(ECOStorageSystemBlockEntity host, EntityPlayer player, int slot) {
-        if (player.worldObj.isRemote || !host.isFormed() || host.getCluster() == null
-            || slot < 0 || slot >= player.inventory.mainInventory.length) return false;
+        if (player.worldObj.isRemote || !host.isFormed()
+            || host.getCluster() == null
+            || slot < 0
+            || slot >= player.inventory.mainInventory.length) return false;
         ItemStack stack = player.inventory.getStackInSlot(slot);
         if (cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack)
             || !cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.isCellHandled(stack)) return false;
         int before = stack.stackSize;
-        for (var drive : host.getCluster().getDrives()) {
+        for (var drive : host.getCluster()
+            .getDrives()) {
             if (cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack)) break;
             if (drive.isRemoved() || drive.getWorldObj() != host.getWorldObj()
                 || !cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(drive.getCellStack())
-                || !drive.canExtractCell() || !drive.isItemValid(stack)) continue;
+                || !drive.canExtractCell()
+                || !drive.isItemValid(stack)) continue;
             ItemStack installed = cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copyWithCount(stack, 1);
             drive.setCellStack(installed);
             if (drive.getCellStack() == installed)

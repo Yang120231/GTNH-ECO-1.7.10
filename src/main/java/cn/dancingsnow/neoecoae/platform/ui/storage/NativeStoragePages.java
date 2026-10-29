@@ -105,8 +105,8 @@ public final class NativeStoragePages {
                     case "player_inventory":
                         widget = com.cleanroommc.modularui.widgets.SlotGroupWidget.playerInventory(
                             (index, slot) -> new cn.dancingsnow.neoecoae.platform.ui.NativeQuickMoveSlot(
-                                stack -> cn.dancingsnow.neoecoae.platform.registry.StorageTags.isInfiniteComponent(stack)
-                                    || cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.isCellHandled(stack),
+                                stack -> cn.dancingsnow.neoecoae.platform.registry.StorageTags.isInfiniteComponent(
+                                    stack) || cn.dancingsnow.neoecoae.api.storage.ECOStorageCells.isCellHandled(stack),
                                 () -> session.quickMove(index)).background(IDrawable.EMPTY));
                         break;
                     case "infinite_component_slot":

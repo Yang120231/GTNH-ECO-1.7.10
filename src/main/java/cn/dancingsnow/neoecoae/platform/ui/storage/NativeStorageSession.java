@@ -149,7 +149,8 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
         ItemStack stack = player.inventory.getStackInSlot(slot);
         if (ItemStacks.isEmpty(stack)) return;
         if (cn.dancingsnow.neoecoae.platform.registry.StorageTags.isInfiniteComponent(stack)) {
-            ItemStack remaining = config.infiniteComponentInventory().insertItem(0, stack.copy(), false);
+            ItemStack remaining = config.infiniteComponentInventory()
+                .insertItem(0, stack.copy(), false);
             if (ItemStacks.count(remaining) == ItemStacks.count(stack)) return;
             player.inventory.setInventorySlotContents(slot, ItemStacks.isEmpty(remaining) ? null : remaining);
             player.inventory.markDirty();
