@@ -55,7 +55,7 @@ public final class NativeUiStyle {
      */
     public static <W extends Widget<W>> W plainHover(W widget) {
         if (widget.getBackground() == null) widget.background(IDrawable.EMPTY);
-        return widget.hoverBackground(IDrawable.NONE);
+        return widget.disableHoverBackground();
     }
 
     public static ButtonWidget<?> button() {

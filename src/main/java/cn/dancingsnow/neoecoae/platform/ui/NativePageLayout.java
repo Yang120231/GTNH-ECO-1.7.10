@@ -3,7 +3,6 @@ package cn.dancingsnow.neoecoae.platform.ui;
 import java.io.DataInputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -18,7 +17,9 @@ import com.google.gson.JsonParser;
 /** Source JSON owns node geometry. Unknown custom nodes must be handled explicitly by each native page. */
 public final class NativePageLayout {
 
-    private static final Map<String, int[]> IMAGE_SIZES = new HashMap<>();
+    // Panels are built on both the server and client threads.
+    private static final Map<String, int[]> IMAGE_SIZES = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, UITexture> TEXTURES = new java.util.concurrent.ConcurrentHashMap<>();
     private final JsonObject root;
 
     public NativePageLayout(String path) {
@@ -200,13 +201,37 @@ public final class NativePageLayout {
     }
 
     public static UITexture texture(String id, int x, int y, int width, int height, int borderX, int borderY) {
-        int[] image = IMAGE_SIZES.computeIfAbsent(id, NativePageLayout::imageSize);
-        return UITexture.builder()
-            .location(id)
-            .imageSize(image[0], image[1])
-            .subAreaXYWH(x, y, width, height)
-            .adaptable(borderX, borderY)
-            .build();
+        return texture(id, x, y, width, height, borderX, borderY, borderX, borderY);
+    }
+
+    /** UITextures are immutable, so every crop is built once instead of on each draw. */
+    public static UITexture texture(String id, int x, int y, int width, int height, int left, int top, int right,
+        int bottom) {
+        String key = id + '#'
+            + x
+            + ','
+            + y
+            + ','
+            + width
+            + ','
+            + height
+            + ','
+            + left
+            + ','
+            + top
+            + ','
+            + right
+            + ','
+            + bottom;
+        return TEXTURES.computeIfAbsent(key, ignored -> {
+            int[] image = IMAGE_SIZES.computeIfAbsent(id, NativePageLayout::imageSize);
+            return UITexture.builder()
+                .location(id)
+                .imageSize(image[0], image[1])
+                .subAreaXYWH(x, y, width, height)
+                .adaptable(left, top, right, bottom)
+                .build();
+        });
     }
 
     private static int[] imageSize(String id) {
