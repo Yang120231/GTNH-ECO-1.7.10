@@ -95,10 +95,10 @@ public final class NativeWorkstationPages {
                 .pos(152, 23)
                 .size(16, 54));
         panel.child(
-            clear(session::clearInput).pos(10, 81)
+            clear(() -> session.clearInput()).pos(10, 81)
                 .size(12, 11));
         panel.child(
-            clear(session::clearOutput).pos(154, 81)
+            clear(() -> session.clearOutput()).pos(154, 81)
                 .size(12, 11));
         panel.child(
             new Progress(session).pos(123, 68)
@@ -137,7 +137,7 @@ public final class NativeWorkstationPages {
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                     () -> NativePageLayout.texture(ATLAS, session.autoExport() ? 128 : 112, 96, 16, 16),
                     () -> Component.translatable("gui.neoecoae.workstation.auto_export"),
-                    session::toggleExport),
+                    () -> session.toggleExport()),
                 cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar
                     .button(
                         () -> UITexture.fullImage("neoecoae:textures/gui/widget/outputs.png"),

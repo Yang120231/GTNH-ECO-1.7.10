@@ -36,6 +36,7 @@ public class CommonProxy {
     }
 
     public void init(FMLInitializationEvent event) {
+        cn.dancingsnow.neoecoae.crafting.execution.ECOProcessingMonitor.initialize();
         appeng.api.AEApi.instance()
             .registries()
             .gridCache()

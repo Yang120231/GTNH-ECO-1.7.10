@@ -90,7 +90,7 @@ public final class ECOCraftConfirmTracker {
             }
             try {
                 update(player, tracked);
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 // The report is presentation only; never let it break the confirmation container.
                 LOGGER.warn("[craft-confirm] ECO report update failed for {}", player.getCommandSenderName(), failure);
             }
@@ -210,7 +210,9 @@ public final class ECOCraftConfirmTracker {
             ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
             ICraftingCPU target = selectedCpu(container);
             link = crafting.submitJob(submitted, null, target, true, actionSource(container), false);
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | LinkageError failure) {
+            container.setAutoStart(false);
+            container.setAutoStartAndFollow(false);
             LOGGER.warn("[craft-confirm] ECO start failed: container={}, forced={}", windowId, forced, failure);
             reject(player, tracked, ECOCraftConfirmError.SUBMIT_FAILED, String.valueOf(failure));
             return;
@@ -276,7 +278,7 @@ public final class ECOCraftConfirmTracker {
                 container.getGrid(),
                 selectedCpu(container),
                 actionSource(container));
-        } catch (RuntimeException failure) {
+        } catch (RuntimeException | LinkageError failure) {
             LOGGER.warn("[big-order-submit] Submission failed: container={}, forced={}", windowId, forced, failure);
             rejection = new ECOBigOrderSubmission.Rejection(
                 ECOCraftConfirmError.SUBMIT_FAILED,
@@ -308,6 +310,20 @@ public final class ECOCraftConfirmTracker {
             error,
             detail);
         reject(player, tracked, error, detail);
+    }
+
+    /**
+     * AE2's own auto-start calls {@code ContainerCraftConfirm.startJob} without passing through {@link #start}.
+     * Report its submission failure on the open confirmation instead of letting it escape the container tick.
+     */
+    public static void autoStartFailed(ContainerCraftConfirm container, Throwable failure) {
+        container.setAutoStart(false);
+        container.setAutoStartAndFollow(false);
+        LOGGER.warn("[craft-confirm] AE2 auto-start failed: container={}", container.windowId, failure);
+        if (!(container.getPlayerInv().player instanceof EntityPlayerMP player)) return;
+        Tracked tracked = TRACKED.get(player);
+        if (tracked == null || tracked.container != container) return;
+        reject(player, tracked, ECOCraftConfirmError.SUBMIT_FAILED, String.valueOf(failure));
     }
 
     public static void clearError(EntityPlayerMP player, int windowId) {

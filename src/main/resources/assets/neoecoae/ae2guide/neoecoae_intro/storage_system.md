@@ -36,9 +36,9 @@ There are three tiers of storage systems available:
 
 | Tier | Controller | Base Cell Capacity | Energy per Energy Cell |
 |------|------------|------------------|---------------|
-| L4 | <ItemLink id="neoecoae:storage_system_l4" /> | 16 MiB per cell | 10,000,000 AE |
-| L6 | <ItemLink id="neoecoae:storage_system_l6" /> | 64 MiB per cell | 100,000,000 AE |
-| L9 | <ItemLink id="neoecoae:storage_system_l9" /> | 256 MiB per cell | 1,000,000,000 AE |
+| L4 | <ItemLink id="neoecoae:storage_system_l4" /> | 4 GiB per cell | 10,000,000 AE |
+| L6 | <ItemLink id="neoecoae:storage_system_l6" /> | 16 GiB per cell | 100,000,000 AE |
+| L9 | <ItemLink id="neoecoae:storage_system_l9" /> | 64 GiB per cell | 1,000,000,000 AE |
 
 ## Structure Components
 
@@ -116,9 +116,9 @@ The following ECO storage cells can be used in the drives:
   <ItemIcon id="neoecoae:eco_item_storage_cell_256m" />
 </ItemGrid>
 
-- <ItemLink id="neoecoae:eco_item_storage_cell_16m" /> - 16 MiB capacity
-- <ItemLink id="neoecoae:eco_item_storage_cell_64m" /> - 64 MiB capacity
-- <ItemLink id="neoecoae:eco_item_storage_cell_256m" /> - 256 MiB capacity
+- <ItemLink id="neoecoae:eco_item_storage_cell_16m" /> - 4 GiB capacity
+- <ItemLink id="neoecoae:eco_item_storage_cell_64m" /> - 16 GiB capacity
+- <ItemLink id="neoecoae:eco_item_storage_cell_256m" /> - 64 GiB capacity
 
 ### Fluid Storage
 
@@ -128,9 +128,9 @@ The following ECO storage cells can be used in the drives:
   <ItemIcon id="neoecoae:eco_fluid_storage_cell_256m" />
 </ItemGrid>
 
-- <ItemLink id="neoecoae:eco_fluid_storage_cell_16m" /> - 16 MiB capacity
-- <ItemLink id="neoecoae:eco_fluid_storage_cell_64m" /> - 64 MiB capacity
-- <ItemLink id="neoecoae:eco_fluid_storage_cell_256m" /> - 256 MiB capacity
+- <ItemLink id="neoecoae:eco_fluid_storage_cell_16m" /> - 4 GiB capacity
+- <ItemLink id="neoecoae:eco_fluid_storage_cell_64m" /> - 16 GiB capacity
+- <ItemLink id="neoecoae:eco_fluid_storage_cell_256m" /> - 64 GiB capacity
 
 Storage matrices for AE2 Omni Cells and AE2 Lightning Tech are documented in [Compatibility Storage Matrices](compat_storage_matrices.md).
 

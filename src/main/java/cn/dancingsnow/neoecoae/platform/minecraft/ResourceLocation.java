@@ -7,16 +7,17 @@ public final class ResourceLocation extends net.minecraft.util.ResourceLocation 
     }
 
     public static ResourceLocation fromNamespaceAndPath(String namespace, String path) {
-        // 1.7.10 registries predate the modern lowercase-only resource-location
-        // contract. Several legacy mods (including the pinned GTNH AE2 build)
-        // expose item names such as "ItemBlankPattern". Keep those names
-        // round-trippable so persisted AE keys can be written and read back.
-        if (!namespace.matches("[A-Za-z0-9_.-]+") || !path.matches("[A-Za-z0-9/._-]+"))
-            throw new IllegalArgumentException("Invalid resource identifier");
+        // 1.7.10 registry names are not modern resource paths: spaces, punctuation,
+        // non-ASCII characters and further colons can all occur after the namespace.
+        // Preserve the exact name (including case) for item lookup, persistence and
+        // migration transaction IDs. The native two-argument constructor does this too.
+        if (namespace == null || namespace.isEmpty() || namespace.indexOf(':') >= 0 || path == null || path.isEmpty())
+            throw new IllegalArgumentException("Invalid resource identifier: " + namespace + ":" + path);
         return new ResourceLocation(namespace, path);
     }
 
     public static ResourceLocation parse(String value) {
+        if (value == null) throw new IllegalArgumentException("Invalid resource identifier: null");
         int colon = value.indexOf(':');
         return fromNamespaceAndPath(
             colon < 0 ? "minecraft" : value.substring(0, colon),

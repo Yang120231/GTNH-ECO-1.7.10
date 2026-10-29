@@ -44,10 +44,18 @@ public final class CellComponents {
         List<GenericStack> result = new ArrayList<>();
         CompoundTag root = root(stack);
         Tag rawList = root.get(CONTENTS);
+        if (rawList == null && root.contains("ECOStorage")) {
+            if ("domain_member".equals(root.getString("ECOStorageMode"))) return Collections.emptyList();
+            if (!root.contains("ECOStorage", Tag.TAG_COMPOUND))
+                throw new IllegalStateException("Invalid beta cell storage; preserving original item NBT");
+            rawList = cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader
+                .entries(root.getCompound("ECOStorage"), true);
+        }
         if (rawList != null && (!(rawList instanceof ListTag)
             || !((ListTag) rawList).isEmpty() && ((ListTag) rawList).getElementType() != Tag.TAG_COMPOUND))
             throw new IllegalStateException("Invalid finite-cell inventory tag; preserving original item NBT");
         ListTag list = rawList == null ? new ListTag() : (ListTag) rawList;
+        java.util.Map<AEKey, Long> totals = new java.util.HashMap<>();
         for (Tag raw : list) {
             CompoundTag entry = (CompoundTag) raw;
             if (!entry.contains("key", Tag.TAG_COMPOUND) || !entry.contains("amount", Tag.TAG_LONG))
@@ -57,6 +65,10 @@ public final class CellComponents {
                 throw new IllegalStateException("Unresolved finite-cell key; preserving the original item NBT");
             long amount = entry.getLong("amount");
             if (amount < 0) throw new IllegalStateException("Negative finite-cell amount");
+            long previous = totals.getOrDefault(key, 0L);
+            if (amount > Long.MAX_VALUE - previous)
+                throw new IllegalStateException("Finite-cell amount overflows; preserving the original item NBT");
+            totals.put(key, previous + amount);
             result.add(new GenericStack(key, amount));
         }
         return Collections.unmodifiableList(result);
@@ -91,18 +103,25 @@ public final class CellComponents {
                 old.getTag((String) name)
                     .copy());
         }
-        if (entries != null) fresh.setTag(CONTENTS, entries.nativeTag());
+        // An explicitly empty inventory is authoritative over the retained beta snapshot.
+        if (entries != null || fresh.hasKey("ECOStorage"))
+            fresh.setTag(CONTENTS, entries == null ? new net.minecraft.nbt.NBTTagList() : entries.nativeTag());
         return new CompoundTag(fresh);
     }
 
     public static CustomData readCustomData(ItemStack stack) {
         CompoundTag root = root(stack);
-        return root.contains(CUSTOM, Tag.TAG_COMPOUND) ? CustomData.view(root.getCompound(CUSTOM)) : CustomData.EMPTY;
+        return root.contains(CUSTOM, Tag.TAG_COMPOUND) ? CustomData.view(root.getCompound(CUSTOM))
+            : root.contains("ECOStorageMode") || root.contains("ECODiskId")
+                ? CustomData.view(cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.customData(root))
+                : CustomData.EMPTY;
     }
 
     public static CustomData readCustomDataOrNull(ItemStack stack) {
         CompoundTag root = root(stack);
-        return root.contains(CUSTOM, Tag.TAG_COMPOUND) ? CustomData.view(root.getCompound(CUSTOM)) : null;
+        if (root.contains(CUSTOM, Tag.TAG_COMPOUND)) return CustomData.view(root.getCompound(CUSTOM));
+        CompoundTag beta = cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.customData(root);
+        return beta.isEmpty() ? null : CustomData.view(beta);
     }
 
     public static void writeCustomData(ItemStack stack, CustomData value) {
@@ -113,7 +132,8 @@ public final class CellComponents {
 
     public static void clearCustomData(ItemStack stack) {
         CompoundTag root = root(stack).copy();
-        root.remove(CUSTOM);
+        if (root.contains("ECOStorageMode") || root.contains("ECODiskId")) root.put(CUSTOM, new CompoundTag());
+        else root.remove(CUSTOM);
         stack.setTagCompound(root.isEmpty() ? null : root.nativeTag());
     }
 }

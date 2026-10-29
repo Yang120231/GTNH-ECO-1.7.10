@@ -988,5 +988,22 @@
   "tooltip.neoecoae.storage.empty_only": "只有空儲存矩陣才能拆解",
   "gui.neoecoae.host.network_frequency.title": "切換網絡頻道",
   "gui.neoecoae.host.network_frequency.current": "目前頻道",
-  "gui.neoecoae.host.network_frequency.unassigned": "頻道未分配"
+  "gui.neoecoae.host.network_frequency.unassigned": "頻道未分配",
+  "gui.neoecoae.storage.cell_priority.title": "存储盘优先级",
+  "gui.neoecoae.storage.cell_priority.value": "存储盘优先级：%s",
+  "gui.neoecoae.storage.cell_priority.open": "光标为空时右键：调整此盘优先级",
+  "gui.neoecoae.processing.machine": "加工机器",
+  "gui.neoecoae.processing.unloaded": "机器所在区块尚未加载",
+  "gui.neoecoae.processing.unformed": "多方块结构未形成",
+  "gui.neoecoae.processing.stalled": "机器报告当前加工批次停滞",
+  "gui.neoecoae.processing.summary": "关联机器：%1$s；当前批次进度：%2$s%%",
+  "gui.neoecoae.processing.cycle": "当前批次：%1$s / %2$s tick；并行：%3$s",
+  "gui.neoecoae.processing.page": "机器详情：%1$s / %2$s（Shift + 滚轮翻页）",
+  "gui.neoecoae.processing.stop_hint": "右键：停止此步骤后续投料；已投料批次继续完成",
+  "gui.neoecoae.processing.resume_hint": "右键：恢复此步骤后续投料",
+  "gui.neoecoae.processing.state.running": "运行中",
+  "gui.neoecoae.processing.state.waiting": "等待中",
+  "gui.neoecoae.processing.state.paused": "已暂停",
+  "gui.neoecoae.processing.state.queued": "排队中",
+  "gui.neoecoae.processing.state.unavailable": "不可用"
 }

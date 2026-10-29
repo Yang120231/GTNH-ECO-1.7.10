@@ -167,7 +167,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
         return amountPerByte - div;
     }
 
-    public int getBytesPerType() {
+    public long getBytesPerType() {
         return this.cellType.getBytesPerType();
     }
 

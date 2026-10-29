@@ -72,6 +72,11 @@ public final class ECOWailaData {
     private static void writeStorageHost(ECOStorageSystemBlockEntity host, NBTTagCompound data) {
         if (!host.isFormed()) return;
         if (host.isFormedInfiniteMode()) data.setString("ecoStorageDomain", host.getInfiniteDomainText());
+        if (host.isMigratingToInfinite()) {
+            data.setInteger("migrationProgress", host.getInfiniteMigrationProgressPercent());
+            String blocked = host.getInfiniteMigrationBlockedReason();
+            if (blocked != null) data.setString("migrationBlocked", blocked);
+        }
         data.setString(
             "hostUsedBytes",
             host.getTotalUsedBytes()
@@ -143,6 +148,16 @@ public final class ECOWailaData {
         if (!domain.isEmpty()) {
             lines.add(EnumChatFormatting.LIGHT_PURPLE + translate("jade.neoecoae.storage.infinite_enabled"));
             lines.add(EnumChatFormatting.AQUA + "UUID: " + domain);
+        }
+        if (data.hasKey("migrationProgress")) {
+            lines.add(
+                EnumChatFormatting.YELLOW + StatCollector.translateToLocalFormatted(
+                    "gui.neoecoae.storage.ui.migration_progress",
+                    data.getInteger("migrationProgress") + "%"));
+            if (data.hasKey("migrationBlocked")) lines.add(
+                EnumChatFormatting.RED + StatCollector.translateToLocalFormatted(
+                    "gui.neoecoae.storage.ui.migration_blocked",
+                    translate(data.getString("migrationBlocked"))));
         }
         lines.add(
             bytesUsed(

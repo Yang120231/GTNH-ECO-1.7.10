@@ -64,15 +64,15 @@ ECO 存储系统为 ME 网络提供大容量存储。上方是最小结构，可
 
 | 等级 | 控制器 | 基础矩阵容量 | 每个能量元件容量 |
 |------|--------|----------|----------|
-| L4 | <ItemLink id="neoecoae:storage_system_l4" /> | 每单元16 MiB | 10,000,000 AE |
-| L6 | <ItemLink id="neoecoae:storage_system_l6" /> | 每单元64 MiB | 100,000,000 AE |
-| L9 | <ItemLink id="neoecoae:storage_system_l9" /> | 每单元256 MiB | 1,000,000,000 AE |
+| L4 | <ItemLink id="neoecoae:storage_system_l4" /> | 每单元4 GiB | 10,000,000 AE |
+| L6 | <ItemLink id="neoecoae:storage_system_l6" /> | 每单元16 GiB | 100,000,000 AE |
+| L9 | <ItemLink id="neoecoae:storage_system_l9" /> | 每单元64 GiB | 1,000,000,000 AE |
 
 三个等级分别对应入门的 L4、中级的 L6 和顶级的 L9，稀有度依次为罕见、稀有、史诗。准备材料时，把主机、能量元件和要使用的存储矩阵一起考虑。
 
 ## 装入存储矩阵
 
-物品和流体矩阵都放入驱动器。两类矩阵各有 16 MiB、64 MiB、256 MiB 三档：
+物品和流体矩阵都放入驱动器。两类矩阵各有 4 GiB、16 GiB、64 GiB 三档：
 
 <ItemGrid>
   <ItemIcon id="neoecoae:eco_item_storage_cell_16m" />
@@ -85,9 +85,9 @@ ECO 存储系统为 ME 网络提供大容量存储。上方是最小结构，可
 
 | 容量 | 物品矩阵 | 流体矩阵 |
 |------|----------|----------|
-| 16 MiB | <ItemLink id="neoecoae:eco_item_storage_cell_16m" /> | <ItemLink id="neoecoae:eco_fluid_storage_cell_16m" /> |
-| 64 MiB | <ItemLink id="neoecoae:eco_item_storage_cell_64m" /> | <ItemLink id="neoecoae:eco_fluid_storage_cell_64m" /> |
-| 256 MiB | <ItemLink id="neoecoae:eco_item_storage_cell_256m" /> | <ItemLink id="neoecoae:eco_fluid_storage_cell_256m" /> |
+| 4 GiB | <ItemLink id="neoecoae:eco_item_storage_cell_16m" /> | <ItemLink id="neoecoae:eco_fluid_storage_cell_16m" /> |
+| 16 GiB | <ItemLink id="neoecoae:eco_item_storage_cell_64m" /> | <ItemLink id="neoecoae:eco_fluid_storage_cell_64m" /> |
+| 64 GiB | <ItemLink id="neoecoae:eco_item_storage_cell_256m" /> | <ItemLink id="neoecoae:eco_fluid_storage_cell_256m" /> |
 
 安装 AE2 Omni Cells、AE2 闪电科技、AppFlux 等模组后，还可以使用[兼容存储矩阵](compat_storage_matrices.md)存放更多资源类型。
 

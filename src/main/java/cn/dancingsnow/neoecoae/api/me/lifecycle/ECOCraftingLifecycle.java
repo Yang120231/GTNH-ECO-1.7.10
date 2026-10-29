@@ -46,7 +46,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onJobStarted(context);
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn("ECO crafting lifecycle listener failed during job start", failure);
             }
         }
@@ -57,7 +57,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onPatternDispatched(event);
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn("ECO crafting lifecycle listener failed during dispatch notification", failure);
             }
         }
@@ -68,7 +68,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onJobFinished(context, result);
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn("ECO crafting lifecycle listener failed during job finish", failure);
             }
         }

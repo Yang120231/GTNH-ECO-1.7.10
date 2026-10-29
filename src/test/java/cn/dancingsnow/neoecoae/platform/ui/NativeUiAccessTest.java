@@ -21,6 +21,9 @@ class NativeUiAccessTest {
     @BeforeEach
     void openMenu() {
         world = mock(World.class);
+        var chunks = mock(net.minecraft.world.chunk.IChunkProvider.class);
+        when(world.getChunkProvider()).thenReturn(chunks);
+        when(chunks.chunkExists(0, 0)).thenReturn(true);
         tile = new TileEntity();
         tile.setWorldObj(world);
         tile.xCoord = 2;
@@ -54,6 +57,16 @@ class NativeUiAccessTest {
         when(player.getDistanceSq(2.5, 3.5, 4.5)).thenReturn(64.0);
         assertTrue(NativeUiAccess.canEdit(tile, player, container));
         when(container.canInteractWith(player)).thenReturn(false);
+        assertFalse(NativeUiAccess.canEdit(tile, player, container));
+    }
+
+    @Test
+    void unloadedChunksAndInvalidTilesRejectEditsWithoutLoadingTheWorld() {
+        when(world.getChunkProvider().chunkExists(0, 0)).thenReturn(false);
+        assertFalse(NativeUiAccess.canEdit(tile, player, container));
+        verify(world, never()).getTileEntity(anyInt(), anyInt(), anyInt());
+        when(world.getChunkProvider().chunkExists(0, 0)).thenReturn(true);
+        tile.invalidate();
         assertFalse(NativeUiAccess.canEdit(tile, player, container));
     }
 }

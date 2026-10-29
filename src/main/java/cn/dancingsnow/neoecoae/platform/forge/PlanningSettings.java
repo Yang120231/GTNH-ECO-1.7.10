@@ -21,6 +21,8 @@ public final class PlanningSettings {
     public static int patternUploadButtonOffsetX = 51, patternUploadButtonOffsetY = 9;
     public static boolean incrementalNetworkStorageList = true;
     public static int networkStorageListRepairTicks = 200;
+    public static int infiniteMigrationMicrosPerTick = 2000;
+    public static int infiniteMigrationKeysPerTick = 512;
 
     private PlanningSettings() {}
 
@@ -43,6 +45,23 @@ public final class PlanningSettings {
             72_000,
             "After incremental updates, rebuild the cached network list at most this often to absorb inaccurate "
                 + "change reports from other mods");
+        infiniteMigrationMicrosPerTick = config.getInt(
+            "infiniteMigrationMicrosPerTick",
+            "storage",
+            2000,
+            1,
+            1_000_000,
+            "Time budget per tick, in microseconds, for migrating finite cells into infinite storage; at least one "
+                + "resource type is still migrated every tick. / 有限存储盘迁移到无限存储时每 tick 的时间预算（微秒），"
+                + "每 tick 至少仍迁移一种资源。");
+        infiniteMigrationKeysPerTick = config.getInt(
+            "infiniteMigrationKeysPerTick",
+            "storage",
+            512,
+            1,
+            1_000_000,
+            "Maximum resource types migrated into infinite storage per tick, shared by all drives of a host. / "
+                + "每 tick 最多迁移到无限存储的资源种类数，由同一主机的所有驱动器共享。");
         craftingSystemMaxLength = config.getInt(
             "craftingSystemMaxLength",
             "multiblock",

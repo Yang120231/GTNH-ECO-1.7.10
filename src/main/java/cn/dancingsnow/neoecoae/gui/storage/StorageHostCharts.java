@@ -205,6 +205,15 @@ public final class StorageHostCharts {
             Component.translatable(
                 state().migrating() ? "gui.neoecoae.storage.ui.migrating"
                     : state().infinite() ? "gui.neoecoae.storage.ui.infinite" : "gui.neoecoae.storage.ui.normal"));
+        if (state().migrating()) {
+            lines.add(
+                Component.translatable("gui.neoecoae.storage.ui.migration_progress", state().migrationProgress() + "%")
+                    .withColor(0xFFD966));
+            String blocked = state().migrationBlockedReason();
+            if (blocked != null && !blocked.isEmpty()) lines.add(
+                Component.translatable("gui.neoecoae.storage.ui.migration_blocked", Component.translatable(blocked))
+                    .withColor(0xFF6A75));
+        }
         if (!state().domainId()
             .isEmpty())
             lines.add(

@@ -123,7 +123,18 @@ public final class ECOInfiniteStorageDomains {
     private static ECOInfiniteStorageData importLegacy(WorldServer overworld, UUID domainId, Path legacyFile) {
         ECOInfiniteStorageData data = ECOInfiniteStorageData.createNew();
         try {
-            if (!LegacyInfiniteStorageReader.exists(legacyFile)) return data;
+            if (!LegacyInfiniteStorageReader.exists(legacyFile)) {
+                var beta = cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.domain(
+                    legacyFile
+                        .resolveSibling(cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.DOMAIN_FILE),
+                    domainId);
+                if (beta == null) return data;
+                data = ECOInfiniteStorageData.load(
+                    cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.convertDomain(beta),
+                    cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);
+                if (data.canWrite()) data.setDirty();
+                return data;
+            }
             var recovered = LegacyInfiniteStorageReader.readAvailable(legacyFile);
             data = ECOInfiniteStorageData
                 .load(recovered.data(), cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);

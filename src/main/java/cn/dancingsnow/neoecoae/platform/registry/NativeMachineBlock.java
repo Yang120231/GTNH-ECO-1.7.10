@@ -178,6 +178,26 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
         super.breakBlock(world, x, y, z, block, metadata);
     }
 
+    @Override
+    public boolean removedByPlayer(World world, net.minecraft.entity.player.EntityPlayer player, int x, int y, int z,
+        boolean harvest) {
+        if (BetaStorageTile.protects(world, x, y, z)) return false;
+        return super.removedByPlayer(world, player, x, y, z, harvest);
+    }
+
+    @Override
+    public boolean canEntityDestroy(net.minecraft.world.IBlockAccess world, int x, int y, int z,
+        net.minecraft.entity.Entity entity) {
+        return !BetaStorageTile.protects(world, x, y, z) && super.canEntityDestroy(world, x, y, z, entity);
+    }
+
+    @Override
+    public float getExplosionResistance(net.minecraft.entity.Entity entity, World world, int x, int y, int z,
+        double explosionX, double explosionY, double explosionZ) {
+        return BetaStorageTile.protects(world, x, y, z) ? Float.MAX_VALUE
+            : super.getExplosionResistance(entity, world, x, y, z, explosionX, explosionY, explosionZ);
+    }
+
     private static boolean isNetworkSwitch(TileEntity tile) {
         return tile instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingNetworkSwitchBlockEntity
             || tile instanceof cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationNetworkSwitchBlockEntity;

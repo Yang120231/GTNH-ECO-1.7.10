@@ -73,7 +73,39 @@ public final class StorageHostUI {
         Supplier<List<CellEntry>> cellEntries, List<StorageTypeLine> storageTypes, BooleanSupplier infiniteStorage,
         BooleanSupplier migratingToInfinite, BooleanSupplier canExtractInfiniteComponents, Supplier<String> domainId,
         IntSupplier missingMembers, IItemHandlerModifiable infiniteComponentInventory, @Nullable EntityPlayer player,
-        CellExtractor cellExtractor, CellInserter cellInserter, Supplier<ItemStack> hostItem) {
+        CellExtractor cellExtractor, CellInserter cellInserter, Supplier<ItemStack> hostItem,
+        IntSupplier migrationProgress, Supplier<String> migrationBlockedReason) {
+
+        public Config(Supplier<Component> title, IntSupplier tier, BooleanSupplier formed, LongSupplier storedEnergy,
+            LongSupplier maxEnergy, LongSupplier energyConsumePerTick, Supplier<String> totalUsedBytesText,
+            Supplier<List<CellEntry>> cellEntries, List<StorageTypeLine> storageTypes, BooleanSupplier infiniteStorage,
+            BooleanSupplier migratingToInfinite, BooleanSupplier canExtractInfiniteComponents,
+            Supplier<String> domainId, IntSupplier missingMembers, IItemHandlerModifiable infiniteComponentInventory,
+            @Nullable EntityPlayer player, CellExtractor cellExtractor, CellInserter cellInserter,
+            Supplier<ItemStack> hostItem) {
+            this(
+                title,
+                tier,
+                formed,
+                storedEnergy,
+                maxEnergy,
+                energyConsumePerTick,
+                totalUsedBytesText,
+                cellEntries,
+                storageTypes,
+                infiniteStorage,
+                migratingToInfinite,
+                canExtractInfiniteComponents,
+                domainId,
+                missingMembers,
+                infiniteComponentInventory,
+                player,
+                cellExtractor,
+                cellInserter,
+                hostItem,
+                () -> 0,
+                () -> "");
+        }
 
         public Config(Supplier<Component> title, IntSupplier tier, BooleanSupplier formed, LongSupplier storedEnergy,
             LongSupplier maxEnergy, LongSupplier energyConsumePerTick, Supplier<String> totalUsedBytesText,

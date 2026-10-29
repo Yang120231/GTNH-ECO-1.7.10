@@ -48,7 +48,7 @@ public final class NativeStoragePriorityPages {
                     widget = dragBar;
                     break;
                 case "title":
-                    widget = new NativeText(() -> Component.translatable("gui.appliedenergistics2.Priority"));
+                    widget = new NativeText(() -> session.title());
                     break;
                 case "back":
                     widget = new ButtonWidget<>()
@@ -71,6 +71,7 @@ public final class NativeStoragePriorityPages {
                     int step = node.get("step")
                         .getAsInt();
                     widget = new NativeAe2Button(() -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)))
+                        .activeWhen(() -> session.editable())
                         .onMousePressed(button -> {
                             if (button != 0) return false;
                             session.change(step);
@@ -79,9 +80,11 @@ public final class NativeStoragePriorityPages {
                     break;
                 case "priority_field":
                     widget = new PriorityField().setMaxLength(11)
+                        .setEnabledIf(field -> session.editable())
                         .setPattern(Pattern.compile("[+-]?[0-9]*"))
                         .setTextColor(0xfff2f2f2)
-                        .value(new StringValue.Dynamic(() -> String.valueOf(session.priority()), session::set));
+                        // Common UI construction must not resolve a method stripped on dedicated servers.
+                        .value(new StringValue.Dynamic(() -> String.valueOf(session.priority()), text -> session.set(text)));
                     break;
                 case "help":
                     String key = node.get("key")

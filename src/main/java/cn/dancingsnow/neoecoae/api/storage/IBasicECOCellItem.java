@@ -17,7 +17,7 @@ public interface IBasicECOCellItem extends ICellWorkbenchItem, IECOStorageCellIt
 
     long getBytes();
 
-    int getBytesPerType();
+    long getBytesPerType();
 
     default double getIdleDrain() {
         return (double) getBytes() / (1 << 20);

@@ -9,6 +9,10 @@ public final class StoragePriority {
         return markedBulk ? adjust(hostPriority, 1) : Math.min(hostPriority, Integer.MAX_VALUE - 1);
     }
 
+    public static int mountPriority(int hostPriority, int cellPriority) {
+        return adjust(hostPriority, cellPriority);
+    }
+
     public static int adjust(int current, int delta) {
         long adjusted = (long) current + delta;
         if (adjusted > Integer.MAX_VALUE) {

@@ -79,6 +79,21 @@ public class ExecutingCraftingJob {
     final Map<AEKey, java.math.BigInteger> deferredEmitted = new LinkedHashMap<>();
     /** Outputs of successful multi-craft dispatches in this job, used by the ECO status page. */
     final Set<AEKey> batchedOutputs = new HashSet<>();
+    final Set<AEKey> stoppedProcessingOutputs = new HashSet<>();
+
+    /**
+     * A step is keyed by its primary output. Byproducts never stop a pattern, so stopping a shared byproduct
+     * cannot halt unrelated main steps.
+     */
+    boolean isProcessingStepStopped(IPatternDetails pattern) {
+        return !stoppedProcessingOutputs.isEmpty() && stoppedProcessingOutputs.contains(
+            pattern.getPrimaryOutput()
+                .what());
+    }
+
+    boolean isProcessingOutputStopped(AEKey output) {
+        return stoppedProcessingOutputs.contains(output);
+    }
     Set<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation> fuzzyPlanningItemIds = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
         .setOf();
     @Nullable
@@ -206,6 +221,10 @@ public class ExecutingCraftingJob {
             if (key != null) batchedOutputs.add(key);
         }
         this.timeTracker = new ElapsedTimeTracker(data.getCompound(NBT_TIME_TRACKER));
+        for (var tag : data.getList("stoppedProcessingOutputs", Tag.TAG_COMPOUND)) {
+            var key = AEKey.fromTagGeneric(registries, (CompoundTag) tag);
+            if (key != null) stoppedProcessingOutputs.add(key);
+        }
         if (data.contains(NBT_PLAYER_ID, Tag.TAG_INT)) {
             this.playerId = data.getInt(NBT_PLAYER_ID);
         } else {
@@ -351,6 +370,9 @@ public class ExecutingCraftingJob {
         ListTag batched = new ListTag();
         batchedOutputs.forEach(key -> batched.add(key.toTagGeneric(registries)));
         data.put(NBT_BATCHED_OUTPUTS, batched);
+        ListTag stopped = new ListTag();
+        stoppedProcessingOutputs.forEach(key -> stopped.add(key.toTagGeneric(registries)));
+        if (!stopped.isEmpty()) data.put("stoppedProcessingOutputs", stopped);
         ListTag seeds = new ListTag();
         seedKeys.forEach(key -> seeds.add(key.toTagGeneric(registries)));
         data.put("optimizationSeedKeys", seeds);

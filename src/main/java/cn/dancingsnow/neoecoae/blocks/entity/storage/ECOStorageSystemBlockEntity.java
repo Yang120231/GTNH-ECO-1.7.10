@@ -514,8 +514,15 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         return hostMode == ECOStorageHostMode.FORMED_INFINITE;
     }
 
-    private int getInfiniteMigrationProgressPercent() {
+    /** Server side: monotonic while migrating, 100 once the host is in infinite mode. */
+    public int getInfiniteMigrationProgressPercent() {
         return infiniteModeController.migrationProgressPercent();
+    }
+
+    /** Server side: translation key of what currently stops the migration, or null. */
+    @Nullable
+    public String getInfiniteMigrationBlockedReason() {
+        return infiniteModeController.migrationBlockedReason();
     }
 
     public boolean canUseHostDomainStorage() {
@@ -636,6 +643,25 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         setStorageHostMode(ECOStorageHostMode.fromId(data.getString("infiniteHostMode")));
         setInfiniteDomainId(data.hasUUID("infiniteDomainId") ? data.getUUID("infiniteDomainId") : null);
         loadInfiniteMembers(data);
+        if (!data.contains("neoecoae_fields") && data.contains("HostMode")) {
+            setStorageHostMode(ECOStorageHostMode.fromId(data.getString("HostMode")));
+            if (data.getBoolean("neoecoae_beta_restore_requested")) {
+                infiniteExitRequested = true;
+                setStorageHostMode(ECOStorageHostMode.RESTORING_TO_NORMAL);
+            }
+            if (data.contains("HostDomainId")) setInfiniteDomainId(UUID.fromString(data.getString("HostDomainId")));
+            storagePriority = data.getInt("Priority");
+            if (data.contains("InfiniteStorageComponent", 10)) {
+                ItemStack component = ItemStack.loadItemStackFromNBT(
+                    data.getCompound("InfiniteStorageComponent")
+                        .nativeTag());
+                if (component == null) throw new IllegalStateException(
+                    "Cannot resolve beta infinite storage component; original NBT retained");
+                infiniteComponentInventory.setStackInSlot(0, component);
+            }
+            for (var value : data.getList("MemberDiskIds", cn.dancingsnow.neoecoae.platform.nbt.Tag.TAG_COMPOUND))
+                infiniteMemberIds.add(UUID.fromString(((CompoundTag) value).getString("DiskId")));
+        }
     }
 
     private void loadLegacyInfiniteComponentInventory(CompoundTag data, HolderLookup.Provider registries) {
@@ -776,7 +802,12 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
             player,
             (position, expected, shift) -> StorageCellUiExtraction.extract(this, player, position, expected, shift),
             (position, expected) -> StorageCellUiInsertion.insert(this, player, position, expected),
-            () -> new ItemStack(getBlockState().getBlock()));
+            () -> new ItemStack(getBlockState().getBlock()),
+            () -> isMigratingToInfinite() ? getInfiniteMigrationProgressPercent() : 0,
+            () -> {
+                String reason = getInfiniteMigrationBlockedReason();
+                return reason == null ? "" : reason;
+            });
     }
 
     public void setMirrored(boolean value) {

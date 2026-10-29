@@ -153,7 +153,10 @@ public final class NativeStorageInterfacePages {
             () -> Component.translatable(
                 "gui.neoecoae.storage_interface." + (creative ? "ignore_creative" : "exclude_storage_bus")
                     + ((creative ? session.ignoringCreative() : session.excludingStorageBus()) ? ".on" : ".off")),
-            creative ? session::toggleCreative : session::toggleStorageBus);
+            () -> {
+                if (creative) session.toggleCreative();
+                else session.toggleStorageBus();
+            });
     }
 
     private ParentWidget<?> filters() {

@@ -609,6 +609,37 @@ class StoragePanelStateTest {
     }
 
     @Test
+    void migrationProgressAndBlockedReasonSurviveSynchronization() {
+        StoragePanelState state = new StoragePanelState(
+            Component.empty(),
+            2,
+            true,
+            false,
+            true,
+            0,
+            100,
+            0,
+            "0",
+            0,
+            0,
+            0,
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+            "",
+            0,
+            false,
+            BigInteger.ZERO,
+            42,
+            "gui.neoecoae.storage.migration_blocked.write_failed");
+        StoragePanelState synced = StoragePanelState.fromTag(state.toTag());
+        assertEquals(42, synced.migrationProgress());
+        assertEquals("gui.neoecoae.storage.migration_blocked.write_failed", synced.migrationBlockedReason());
+        StoragePanelState legacy = barState(false, 0.5, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
+        assertEquals(0, legacy.migrationProgress());
+        assertEquals("", legacy.migrationBlockedReason());
+    }
+
+    @Test
     void actualDriveStatesAndEmptyPositionsSurviveSynchronization() {
         List<CellEntry> cells = new ArrayList<>();
         cells.add(CellEntry.EMPTY);

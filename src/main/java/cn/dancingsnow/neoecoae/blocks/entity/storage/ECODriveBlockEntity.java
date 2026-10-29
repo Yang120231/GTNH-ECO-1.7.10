@@ -79,6 +79,19 @@ public class ECODriveBlockEntity extends
     }
 
     @Override
+    public void loadTag(CompoundTag tag, cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+        super.loadTag(tag, registries);
+        if (!tag.contains("neoecoae_fields") && tag.contains("Cell", 10)) {
+            cellStack = ItemStack.loadItemStackFromNBT(
+                tag.getCompound("Cell")
+                    .nativeTag());
+            if (cellStack == null)
+                throw new IllegalStateException("Cannot resolve beta drive cell; original NBT retained");
+        }
+        invalidateCellInventoryCache();
+    }
+
+    @Override
     public void setCellStack(@Nullable ItemStack cellStack) {
         if (!canExtractCell()) {
             return;
@@ -228,6 +241,13 @@ public class ECODriveBlockEntity extends
         super.saveAdditional(tag, registries);
     }
 
+    /** The description packet serializes the synced cell stack directly, bypassing {@link #saveAdditional}. */
+    @Override
+    public CompoundTag getUpdateTag(cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+        flushPendingCell();
+        return super.getUpdateTag(registries);
+    }
+
     @Override
     public void onChunkUnloaded() {
         flushPendingCell();
@@ -256,9 +276,12 @@ public class ECODriveBlockEntity extends
                         .canUseHostDomainStorage())
                 && !ECOInfiniteStorageMember.isMigrating(cellStack)
                 && !ECOInfiniteStorageMember.isMember(cellStack)) {
+                // Apply the cell offset first, then keep the reserved upper slot for marked bulk cells.
                 int priority = cn.dancingsnow.neoecoae.gui.storage.StoragePriority.mountPriority(
-                    storageCluster.getController()
-                        .getStoragePriority(),
+                    cn.dancingsnow.neoecoae.gui.storage.StoragePriority.adjust(
+                        storageCluster.getController()
+                            .getStoragePriority(),
+                        getConfiguredCellPriority()),
                     cellInventory.prioritizesMarkedInserts());
                 storageMounts.mount(cellInventory, priority);
                 updateMountState(true);
@@ -318,9 +341,13 @@ public class ECODriveBlockEntity extends
             persistenceSyncQueued = true;
             ServerTaskUtil.executeIfServerRunning(serverLevel, () -> {
                 persistenceSyncQueued = false;
+                if (isRemoved()) return;
+                CellState previousState = cellState;
                 updateCellState();
                 setChanged();
-                markForUpdate();
+                // Contents are server-authoritative (UI and WAILA read server snapshots); only the LED state is
+                // client-visible, so a description packet carrying the whole cell is sent only when it changes.
+                if (previousState != cellState) markForUpdate();
             });
         }
     }
@@ -336,6 +363,20 @@ public class ECODriveBlockEntity extends
     @Nullable
     public ECOStorageSystemBlockEntity getStorageController() {
         return (Object) cluster instanceof NEStorageCluster storageCluster ? storageCluster.getController() : null;
+    }
+
+    public int getConfiguredCellPriority() {
+        return cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.priority(cellStack);
+    }
+
+    public void setConfiguredCellPriority(int priority) {
+        if (level == null || level.isClientSide
+            || !cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.canConfigure(cellStack)) return;
+        flushPendingCell();
+        cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.setPriority(cellStack, priority);
+        onCellConfigurationChanged();
+        var controller = getStorageController();
+        if (controller != null) controller.notifyStorageConfigurationChanged();
     }
 
     /** Persists an in-place CellConfig mutation and refreshes this drive's AE2 storage mount. */

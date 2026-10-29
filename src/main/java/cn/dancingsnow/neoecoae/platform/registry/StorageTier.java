@@ -3,9 +3,9 @@ package cn.dancingsnow.neoecoae.platform.registry;
 /** Native registration descriptors transcribed from ECOTier at the locked business commit. */
 public enum StorageTier implements StorageTierDescriptor {
 
-    L4(1, 1L << 24),
-    L6(2, 1L << 26),
-    L9(3, 1L << 28);
+    L4(1, 1L << 32),
+    L6(2, 1L << 34),
+    L9(3, 1L << 36);
 
     private final int tier;
     private final long bytes;
@@ -21,6 +21,12 @@ public enum StorageTier implements StorageTierDescriptor {
 
     public long getStorageTotalBytes() {
         return bytes;
+    }
+
+    @Override
+    public double getStorageIdleDrain() {
+        // Capacity expansion does not increase the built-in cells' original idle power cost.
+        return 1L << (2 * tier + 2);
     }
 
     @Override

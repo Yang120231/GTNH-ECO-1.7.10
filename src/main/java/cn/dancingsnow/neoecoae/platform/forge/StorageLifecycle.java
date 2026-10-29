@@ -58,6 +58,8 @@ public final class StorageLifecycle {
     }
 
     public static void stopped() {
+        cn.dancingsnow.neoecoae.platform.gt.NativeProcessingMachines.clear();
+        cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.clearCache();
         MinecraftServer server = MinecraftServer.getServer();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.clear();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker.clear();

@@ -15,7 +15,8 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** Real native medium dispatch, retaining GTNH's generic item/fluid crafting table. */
-public final class NativeCraftingProvider implements ICraftingProvider, NativeProviderAdapters.BlockingState {
+public final class NativeCraftingProvider implements ICraftingProvider, NativeProviderAdapters.BlockingState,
+    cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
 
     private final ICraftingMedium medium;
     private final List<IPatternDetails> patterns;
@@ -33,6 +34,19 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
 
     public ICraftingMedium nativeMedium() {
         return medium;
+    }
+
+    @Override
+    public cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target neoecoae$getProcessingTarget() {
+        return medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
+            ? ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium).neoecoae$getProcessingTarget() : null;
+    }
+
+    @Override
+    public java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> neoecoae$getProcessingTargets() {
+        return medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
+            ? ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium).neoecoae$getProcessingTargets()
+            : java.util.Collections.emptyList();
     }
 
     @Override

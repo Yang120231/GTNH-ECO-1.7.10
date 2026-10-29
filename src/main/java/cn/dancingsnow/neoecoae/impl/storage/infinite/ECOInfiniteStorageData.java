@@ -402,6 +402,17 @@ public final class ECOInfiniteStorageData extends SavedData {
         return canExitOrRestore();
     }
 
+    /** The first condition that makes {@link #canMigrate()} or {@link #canWrite(AEKey)} refuse, or null. */
+    public String migrationBlockedReason(AEKey key) {
+        if (unreadable) return ECOInfiniteStorageTransfer.BLOCKED_DOMAIN_UNREADABLE;
+        if (incompleteLegacy) return ECOInfiniteStorageTransfer.BLOCKED_LEGACY_INCOMPLETE;
+        if (writeFailure != null) return ECOInfiniteStorageTransfer.BLOCKED_WRITE_FAILED;
+        if (!rawEntries.isEmpty() || !unresolvedMetadata.isEmpty())
+            return ECOInfiniteStorageTransfer.BLOCKED_UNRESOLVED_ENTRIES;
+        if (key != null && restores.containsKey(key)) return ECOInfiniteStorageTransfer.BLOCKED_RESTORE_PENDING;
+        return null;
+    }
+
     // Quantity changes only mark the snapshot due; they leave revision() alone so hot FE/item transfers don't
     // invalidate revision-keyed caches every operation. Callers bump the revision for structural changes.
     void add(AEKey key, long amount) {

@@ -52,7 +52,7 @@ public final class ECOCraftingJobAttachments {
                     entry.getKey(),
                     persisted.getCompound(id)
                         .copy());
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.error("ECO job attachment {} could not be restored; preserving raw state", id, failure);
                 bound.remove(entry.getKey());
                 unboundData.put(
@@ -87,7 +87,7 @@ public final class ECOCraftingJobAttachments {
                         .toString(),
                     data.copy());
                 unboundData.put(entry.getKey(), data.copy());
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 CompoundTag previous = unboundData.get(entry.getKey());
                 if (previous == null) {
                     throw new IllegalStateException("Unable to persist ECO job attachment " + entry.getKey(), failure);
@@ -118,7 +118,7 @@ public final class ECOCraftingJobAttachments {
         for (var attachment : new ArrayList<>(bound.values())) {
             try {
                 attachment.clear(result);
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.warn("ECO job attachment {} failed to clear", attachment.id(), failure);
             }
         }
@@ -138,7 +138,7 @@ public final class ECOCraftingJobAttachments {
                     registries);
                 bound.put(entry.getKey(), attachment);
                 unboundData.remove(entry.getKey());
-            } catch (RuntimeException failure) {
+            } catch (RuntimeException | LinkageError failure) {
                 LOGGER.error("ECO job attachment {} could not be restored", entry.getKey(), failure);
             }
         }

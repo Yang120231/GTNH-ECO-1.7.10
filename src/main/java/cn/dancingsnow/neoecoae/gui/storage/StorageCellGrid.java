@@ -53,6 +53,11 @@ public final class StorageCellGrid {
                 cell.extractionBlockReason()
                     .copy()
                     .withColor(0xFF5555));
+            // Only a configured offset adds a line; the tooltip does not repeat interaction hints.
+            int cellPriority = cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.priority(cell.stack());
+            if (cellPriority != 0
+                && cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.canConfigure(cell.stack()))
+                lines.add(Component.translatable("gui.neoecoae.storage.cell_priority.value", cellPriority));
         } else {
             lines.add(Component.translatable("gui.neoecoae.storage.ui.cell_state.absent"));
         }

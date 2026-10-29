@@ -100,6 +100,14 @@ public interface ECOInfiniteStorageEngine {
         return isHealthy();
     }
 
+    /**
+     * Why a migration insert of {@code key} (or of any key, when {@code null}) is refused right now, as a
+     * translation key from {@link ECOInfiniteStorageTransfer}; {@code null} when migration writes are accepted.
+     */
+    default String migrationBlockedReason(AEKey key) {
+        return isHealthy() ? null : ECOInfiniteStorageTransfer.BLOCKED_DOMAIN_UNAVAILABLE;
+    }
+
     Collection<TypeStats> getTypeStats();
 
     boolean hasHugeStacks();

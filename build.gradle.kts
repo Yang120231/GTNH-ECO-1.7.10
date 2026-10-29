@@ -61,6 +61,8 @@ dependencies {
     testImplementation(gtnhDevJar("ModularUI2", modularUi2Version))
     testImplementation(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     testRuntimeOnly(gtnhDevJar("GTNHLib", gtnhLibVersion))
+    // Bytecode contracts for optional GT monitoring; tests do not initialize GregTech.
+    testRuntimeOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
 
     runtimeOnlyNonPublishable(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version)) {
         // Select one explicitly remapped CoFHCore implementation for GT's Thermal dependency.

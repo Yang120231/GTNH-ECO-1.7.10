@@ -91,6 +91,7 @@ public final class StorageMachines {
         tile(EnergyL4.class, ENERGY_L4_TYPE);
         tile(EnergyL6.class, ENERGY_L6_TYPE);
         tile(EnergyL9.class, ENERGY_L9_TYPE);
+        BetaStorageTile.register();
     }
 
     private static void tile(Class<? extends TileEntity> type, BlockEntityType<?> key) {

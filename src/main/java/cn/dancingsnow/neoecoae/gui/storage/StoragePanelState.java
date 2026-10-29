@@ -23,7 +23,34 @@ import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 public record StoragePanelState(Component title, int tier, boolean formed, boolean infinite, boolean migrating,
     long energy, long maxEnergy, long drain, String usedBytes, double usage, int cellCount, int cellOffset,
     List<CellEntry> cells, List<TypeLine> types, String domainId, int missingMembers, boolean componentPresent,
-    BigInteger totalBytes) {
+    BigInteger totalBytes, int migrationProgress, String migrationBlockedReason) {
+
+    public StoragePanelState(Component title, int tier, boolean formed, boolean infinite, boolean migrating,
+        long energy, long maxEnergy, long drain, String usedBytes, double usage, int cellCount, int cellOffset,
+        List<CellEntry> cells, List<TypeLine> types, String domainId, int missingMembers, boolean componentPresent,
+        BigInteger totalBytes) {
+        this(
+            title,
+            tier,
+            formed,
+            infinite,
+            migrating,
+            energy,
+            maxEnergy,
+            drain,
+            usedBytes,
+            usage,
+            cellCount,
+            cellOffset,
+            cells,
+            types,
+            domainId,
+            missingMembers,
+            componentPresent,
+            totalBytes,
+            0,
+            "");
+    }
 
     StoragePanelState(Component title, int tier, boolean formed, boolean infinite, boolean migrating, long energy,
         long maxEnergy, long drain, String usedBytes, double usage, int cellCount, int cellOffset,
@@ -195,7 +222,13 @@ public record StoragePanelState(Component title, int tier, boolean formed, boole
             !cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(
                 config.infiniteComponentInventory()
                     .getStackInSlot(0)),
-            totalCapacity(all));
+            totalCapacity(all),
+            migrating ? config.migrationProgress()
+                .getAsInt() : 0,
+            migrating ? String.valueOf(
+                config.migrationBlockedReason()
+                    .get())
+                : "");
     }
 
     public static int pageOffset(int requested, int total, int pageSize) {
@@ -266,6 +299,8 @@ public record StoragePanelState(Component title, int tier, boolean formed, boole
         tag.putBoolean("formed", formed);
         tag.putBoolean("infinite", infinite);
         tag.putBoolean("migrating", migrating);
+        tag.putInt("migrationProgress", migrationProgress);
+        tag.putString("migrationBlocked", migrationBlockedReason == null ? "" : migrationBlockedReason);
         tag.putLong("energy", energy);
         tag.putLong("maxEnergy", maxEnergy);
         tag.putLong("drain", drain);
@@ -414,7 +449,9 @@ public record StoragePanelState(Component title, int tier, boolean formed, boole
             tag.getString("domain"),
             tag.getInt("missing"),
             tag.getBoolean("component"),
-            tag.contains("totalBytes") ? new BigInteger(tag.getString("totalBytes")) : totalCapacity(cells));
+            tag.contains("totalBytes") ? new BigInteger(tag.getString("totalBytes")) : totalCapacity(cells),
+            Math.max(0, Math.min(100, tag.getInt("migrationProgress"))),
+            tag.getString("migrationBlocked"));
     }
 
     private static void putComponent(CompoundTag tag, String key, Component component) {

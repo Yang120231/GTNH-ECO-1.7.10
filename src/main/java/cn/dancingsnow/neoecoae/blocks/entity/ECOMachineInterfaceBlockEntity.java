@@ -180,6 +180,13 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
         }
     }
 
+    @Override
+    public void loadTag(CompoundTag tag, cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+        super.loadTag(tag, registries);
+        if (!tag.contains("neoecoae_fields") && tag.contains("StorageInterfaceMode"))
+            storageInterfaceMode = ECOStorageInterfaceMode.valueOf(tag.getString("StorageInterfaceMode"));
+    }
+
     public void recordStorageInterfaceTransfer(long amount) {
         transferredLastTick = Math.max(0L, amount);
     }

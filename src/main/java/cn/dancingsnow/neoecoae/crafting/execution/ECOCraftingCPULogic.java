@@ -73,6 +73,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         ECOCraftingCPULogic.this::postChange);
     private final Set<Consumer<AEKey>> listeners = new HashSet<>();
     private final ECOCraftingJobAttachments jobAttachments = new ECOCraftingJobAttachments();
+    private final ECOProcessingMonitor processingMonitor = new ECOProcessingMonitor();
     /**
      * 如果 CPU 正在尝试清空库存但无法完成，则为 true。
      */
@@ -104,7 +105,10 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             this::postChange,
             this::markCpuDirty,
             this::createJobContext,
-            ECOCraftingLifecycle::firePatternDispatched);
+            event -> {
+                processingMonitor.dispatched(event);
+                ECOCraftingLifecycle.firePatternDispatched(event);
+            });
         this.fastPathDispatcher = new ECOCraftingFastPathDispatcher(this, energyTransaction, dispatchAccounting);
         this.providerDispatcher = new ECOCraftingProviderDispatcher(
             this,
@@ -489,6 +493,54 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     ECOCraftingJobAttachments jobAttachmentsForLifecycle() {
         return jobAttachments;
+    }
+
+    public ECOProcessingMonitor getProcessingMonitor() { return processingMonitor; }
+
+    @Nullable
+    public UUID getProcessingJobId() { return job == null ? null : job.link.getCraftingID(); }
+
+    public java.util.List<IPatternDetails> getProcessingPatterns(AEKey output) {
+        if (job == null) return java.util.Collections.emptyList();
+        return job.tasks.keySet().stream().filter(pattern -> output.equals(pattern.getPrimaryOutput()
+            .what())).collect(java.util.stream.Collectors.toList());
+    }
+
+    public boolean isProcessingStepStopped(AEKey output) {
+        return job != null && job.isProcessingOutputStopped(output);
+    }
+
+    public boolean canControlProcessingStep(AEKey output) {
+        // A stopped key stays controllable so it can always be resumed, even if no pattern is left for it.
+        return job != null && (job.isProcessingOutputStopped(output) || getProcessingPatterns(output).stream()
+            .anyMatch(pattern -> job.tasks.get(pattern).value > 0));
+    }
+
+    /** Stop only future admission. Accepted batches and expected outputs retain their original ownership. */
+    public boolean setProcessingStepStopped(AEKey output, boolean stopped) {
+        if (!canControlProcessingStep(output)) return false;
+        // Resume only this step; other outputs the player stopped separately stay stopped.
+        boolean changed = stopped ? job.stoppedProcessingOutputs.add(output)
+            : job.stoppedProcessingOutputs.remove(output);
+        if (changed) {
+            taskScheduler.resetDispatchState();
+            taskScheduler.progress(TickClock.currentTick());
+            markCpuDirty();
+            for (var pattern : getProcessingPatterns(output)) for (var result : pattern.getOutputs()) postChange(result.what());
+        }
+        return changed;
+    }
+
+    public void refreshProcessingProgress() {
+        var world = cpu.getLevel();
+        if (job != null && world != null) processingMonitor.advance(world, world.getTotalWorldTime());
+    }
+
+    public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress getProcessingProgress(AEKey output) {
+        var world = cpu.getLevel();
+        return job == null || getWaitingFor(output) <= 0 || world == null
+            ? cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY
+            : processingMonitor.sample(world, output, world.getTotalWorldTime());
     }
 
     ECOCraftingEnergyTransaction energyTransactionForPersistence() {

@@ -158,7 +158,7 @@ public final class NativeStoragePages {
                         144,
                         64,
                         () -> Component.translatable("gui.neoecoae.storage_priority.open"),
-                        priorityPanel::openPanel)
+                        () -> { priority.selectHost(); priorityPanel.openPanel(); })
                     .name("storage-priority")));
         return panel;
     }
@@ -200,7 +200,14 @@ public final class NativeStoragePages {
             this.index = index;
             slotInset(0);
             highlightWhen(() -> cell().position() != null);
-            onMousePressed(button -> (button == 0 || button == 1) && session.click(index, Interactable.hasShiftDown()));
+            onMousePressed(button -> {
+                if (button == 1 && !Interactable.hasShiftDown()
+                    && ItemStacks.isEmpty(player.inventory.getItemStack()) && priority.selectCell(cell())) {
+                    priorityPanel.openPanel();
+                    return true;
+                }
+                return (button == 0 || button == 1) && session.click(index, Interactable.hasShiftDown());
+            });
             onMouseScrolled((direction, amount) -> {
                 session.scroll(direction.modifier > 0 ? -amount : amount);
                 return true;
@@ -285,8 +292,11 @@ public final class NativeStoragePages {
                         case "energy":
                         case "energy_stored":
                             return charts.energyTooltip();
-                        case "bytes":
                         case "usage":
+                            if (session.state()
+                                .migrating()) return charts.domainTooltip();
+                            return charts.capacityTooltip();
+                        case "bytes":
                             return charts.capacityTooltip();
                         case "resources":
                             return charts.resourceTooltip();
@@ -381,7 +391,9 @@ public final class NativeStoragePages {
                         StorageHostCharts.capacityValue(state));
                     break;
                 case "usage":
-                    value = state.unbounded() ? Component.empty() : Component.literal(HostText.percent(state.usage()));
+                    // While migrating the capacity bar is unbounded; the caption shows the migration progress.
+                    value = state.migrating() ? Component.literal(state.migrationProgress() + "%")
+                        : state.unbounded() ? Component.empty() : Component.literal(HostText.percent(state.usage()));
                     break;
                 case "energy_stored":
                     value = Component.translatable(
