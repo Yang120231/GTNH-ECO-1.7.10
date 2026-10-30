@@ -270,7 +270,10 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
         return container != null ? container : cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.of(fluid);
     }
 
-    /** Item stacks a pattern terminal should encode: fluid stand-ins are left to the fluid-aware tooling. */
+    /**
+     * Stacks a pattern terminal should encode. NEE turns NEI fluid display stacks (GregTech's) into AE2 fluid stacks,
+     * as for GregTech's own recipes; buckets and the display-only item would encode as items, so those are dropped.
+     */
     List<PositionedStack> patternStacks(int recipe, boolean outputs) {
         var display = (DisplayRecipe) arecipes.get(recipe);
         List<PositionedStack> stacks = new ArrayList<>();
@@ -278,8 +281,13 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
             if (display.result != null) stacks.add(display.result);
             stacks.addAll(display.others);
         } else stacks.addAll(display.inputs);
-        stacks.removeIf(display.fluidSlots::contains);
+        stacks.removeIf(stack -> display.fluidSlots.contains(stack) && !isFluidDisplay(stack.item));
         return stacks;
+    }
+
+    /** NEI's own fluid display test (newer NEI's StackInfo.isFluidDisplayItem), spelled with the pinned API. */
+    private static boolean isFluidDisplay(ItemStack stack) {
+        return stack != null && StackInfo.getFluid(stack) != null && !StackInfo.isFluidContainer(stack);
     }
 
     String overlayIdentifier() {

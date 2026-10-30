@@ -5,10 +5,12 @@ import net.minecraft.item.ItemStack;
 
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
+import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
 import appeng.api.implementations.items.INetworkToolItem;
 import appeng.items.contents.NetworkToolViewer;
+import cn.dancingsnow.neoecoae.platform.ui.NativeSlotGroups;
 
 /** Actual native AE2 toolbox inventory; the owning player slot remains locked while this menu is open. */
 final class NativeNetworkToolbox {
@@ -37,7 +39,7 @@ final class NativeNetworkToolbox {
         return null;
     }
 
-    void attach(ModularPanel panel) {
+    void attach(ModularPanel panel, PanelSyncManager sync) {
         InvWrapper inventory = new InvWrapper(viewer) {
 
             @Override
@@ -46,8 +48,10 @@ final class NativeNetworkToolbox {
                 viewer.markDirty();
             }
         };
+        String group = NativeSlotGroups.register(sync, "network_toolbox", 3, NativeSlotGroups.TOOLBOX_PRIORITY);
         for (int index = 0; index < viewer.getSizeInventory(); index++) panel.child(
-            new cn.dancingsnow.neoecoae.platform.ui.NativeUpgradeSlot().slot(new ModularSlot(inventory, index))
+            new cn.dancingsnow.neoecoae.platform.ui.NativeUpgradeSlot()
+                .slot(new ModularSlot(inventory, index).slotGroup(group))
                 .background(com.cleanroommc.modularui.api.drawable.IDrawable.EMPTY)
                 .hoverBackground(com.cleanroommc.modularui.api.drawable.IDrawable.EMPTY)
                 .pos(174 + index % 3 * 18, 101 + index / 3 * 18));

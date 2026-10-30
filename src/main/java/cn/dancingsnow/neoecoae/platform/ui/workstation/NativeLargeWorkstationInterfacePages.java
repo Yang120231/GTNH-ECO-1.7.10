@@ -16,6 +16,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
+import cn.dancingsnow.neoecoae.platform.ui.NativeSlotGroups;
 import cn.dancingsnow.neoecoae.platform.ui.NativeSnapshotSession;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
@@ -51,10 +52,18 @@ public final class NativeLargeWorkstationInterfacePages {
                     .size(162, 9));
         LargeWorkstationPatternProvider provider = host.getWorkstationProvider();
         InvWrapper patterns = new InvWrapper(provider.getPatternInv());
+        String patternGroup = NativeSlotGroups.register(
+            sync,
+            "workstation.provider.patterns",
+            LargeWorkstationPatternProvider.PATTERN_COLUMNS,
+            NativeSlotGroups.STORAGE_PRIORITY);
+        String upgradeGroup = NativeSlotGroups
+            .register(sync, "workstation.provider.upgrades", 1, NativeSlotGroups.UPGRADE_PRIORITY);
+        InvWrapper upgrades = new InvWrapper(provider.getUpgrades());
         for (int index = 0; index < LargeWorkstationPatternProvider.MAX_PATTERN_SLOTS; index++) {
             int slot = index;
             panel.child(
-                new NativeItemSlot().slot(new ModularSlot(patterns, index))
+                new NativeItemSlot().slot(new ModularSlot(patterns, index).slotGroup(patternGroup))
                     .background(NativeUiStyle.slot())
                     .pos(28 + index % 9 * 18, 23 + index / 9 * 18)
                     .tooltipDynamic(lines -> {
@@ -66,7 +75,7 @@ public final class NativeLargeWorkstationInterfacePages {
                     }));
         }
         for (int slot = 0; slot < LargeWorkstationPatternProvider.UPGRADE_SLOTS; slot++) panel.child(
-            new NativeUpgradeSlot().slot(new ModularSlot(new InvWrapper(provider.getUpgrades()), slot))
+            new NativeUpgradeSlot().slot(new ModularSlot(upgrades, slot).slotGroup(upgradeGroup))
                 .background(NativeUiStyle.slot())
                 .pos(206, 23 + slot * 18));
         panel.child(
