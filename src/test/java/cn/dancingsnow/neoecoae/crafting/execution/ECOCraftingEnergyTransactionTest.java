@@ -103,6 +103,36 @@ class ECOCraftingEnergyTransactionTest {
                 .compareTo(credit(ledger)));
     }
 
+    /** AE2 routes CONFIG extraction through (amt * UsageMultiplier) / UsageMultiplier; GTNH ships 10.0. */
+    private void gtnhMultiplier() {
+        double multiplier = 10.0;
+        when(service.extractAEPower(anyDouble(), eq(Actionable.MODULATE), eq(PowerMultiplier.CONFIG)))
+            .thenAnswer(call -> ((double) call.getArgument(0) * multiplier) / multiplier);
+    }
+
+    @Test
+    void gtnhUsageMultiplierRoundingDoesNotRejectTheSamePatternForever() {
+        gtnhMultiplier();
+        // Three items plus 72 mB: 3 + 72 / 125 does not survive the x10 / 10 round trip exactly.
+        double power = 3 + 72.0 / 125;
+        assertNotEquals(power, (power * 10.0) / 10.0);
+        for (int attempt = 0; attempt < 3; attempt++) {
+            var reservation = ledger.reserve(service, power);
+            assertNotNull(reservation, "attempt " + attempt);
+            reservation.commit();
+        }
+        verify(service, never()).injectPower(anyDouble(), any());
+    }
+
+    @Test
+    void realShortfallIsStillRejected() {
+        when(service.extractAEPower(anyDouble(), eq(Actionable.MODULATE), eq(PowerMultiplier.CONFIG)))
+            .thenAnswer(call -> (double) call.getArgument(0) - 0.5);
+        when(service.injectPower(anyDouble(), eq(Actionable.MODULATE))).thenReturn(0.0);
+        assertNull(ledger.reserve(service, 4));
+        verify(service).injectPower(3.5, Actionable.MODULATE);
+    }
+
     @Test
     void legacyCreditMigratesAndInvalidPowerIsRejected() {
         var tag = new CompoundTag();

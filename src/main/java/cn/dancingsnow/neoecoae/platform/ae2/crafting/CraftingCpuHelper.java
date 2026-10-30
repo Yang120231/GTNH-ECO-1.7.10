@@ -30,8 +30,9 @@ public class CraftingCpuHelper {
     public static double calculatePatternPower(KeyCounter[] craftingContainer) {
         double sum = 0;
         for (var itemHolder : craftingContainer)
+            // GTNH CraftingCPUCluster charges stackSize / getAmountPerUnit() (1000 per bucket for fluids).
             for (var input : itemHolder) sum += ((double) input.getLongValue()) / input.getKey()
-                .getAmountPerOperation();
+                .getAmountPerUnit();
         return sum;
     }
 

@@ -317,7 +317,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
                 collector.used,
                 collector.emitted,
                 new KeyCounter(),
-                collector.patterns);
+                collector.patterns).markVanillaExecution();
         }
     }
 }
