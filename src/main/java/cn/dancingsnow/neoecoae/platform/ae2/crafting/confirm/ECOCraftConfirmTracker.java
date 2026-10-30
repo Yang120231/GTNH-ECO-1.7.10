@@ -109,8 +109,11 @@ public final class ECOCraftConfirmTracker {
         Future<ICraftingJob> job = access.neoecoae$getJob();
         ICraftingJob result = access.neoecoae$getResult();
         if (!session.isEco()) {
-            if (!NativeECOPlanning.isEcoPlanning(job) && !(result instanceof NativeECOCraftingJob)) return;
+            boolean ecoPlanned = NativeECOPlanning.isEcoPlanning(job) || result instanceof NativeECOCraftingJob;
             ECOComputationSystemBlockEntity host = planningHost(container);
+            // With the fast planner on, the ECO page owns every confirmation of the network, including requests
+            // routed to AE2's planner (NativePlannerRouting); those show AE2's plan in the ECO report.
+            if (!ecoPlanned && (host == null || !host.isFastPlannerEnabled())) return;
             tracked.options = host == null ? null : ECOPlannerOptions.from(host);
             session.begin(host != null && host.isCyclePlanningEnabled());
         }
@@ -120,10 +123,14 @@ public final class ECOCraftConfirmTracker {
                 return build(container, ecoJob, session, version);
             });
             if (job == null) adoptImprovedPlan(container, ecoJob, session);
+        } else if (result != null) {
+            session.observeResult(
+                result,
+                version -> NativeCraftConfirmReports
+                    .build(result, actionSource(container), session.cyclePlanningEnabled(), version));
         } else {
-            session.observeResult(result, null);
-            if (result == null && job == null)
-                session.planningFailed(() -> "ECO planning ended without a plan; see the server log");
+            session.observeResult(null, null);
+            if (job == null) session.planningFailed(() -> "ECO planning ended without a plan; see the server log");
         }
         session.setCpuTier(selectedCpuTier(container));
         session.setBigOrderCpu(
@@ -182,13 +189,14 @@ public final class ECOCraftConfirmTracker {
     }
 
     /** Start request from the ECO report; mirrors AE2's startJob but observes whether a CPU accepted the job. */
-    public static void start(EntityPlayerMP player, int windowId, boolean forced) {
+    public static void start(EntityPlayerMP player, int windowId, boolean forced, boolean follow) {
         Tracked tracked = lookup(player, windowId);
         if (tracked == null) return;
         ContainerCraftConfirm container = tracked.container;
         ECOCraftConfirmSession session = tracked.session;
         ICraftingJob result = ((ContainerCraftConfirmAccessor) container).neoecoae$getResult();
-        if (!(result instanceof NativeECOCraftingJob job) || job.sourcePlan() == null) {
+        NativeECOCraftingJob job = result instanceof NativeECOCraftingJob eco ? eco : null;
+        if (result == null || job != null && job.sourcePlan() == null) {
             reject(player, tracked, ECOCraftConfirmError.NO_PLAN, "");
             return;
         }
@@ -202,14 +210,15 @@ public final class ECOCraftConfirmTracker {
             reject(player, tracked, ECOCraftConfirmError.NO_CPU_ACCEPTED, "");
             return;
         }
-        NativeECOCraftingJob submitted = forced ? job.forced() : job;
+        // A natively planned request is submitted as AE2 planned it; rejectStart never lets one be forced.
+        ICraftingJob submitted = job == null ? result : forced ? job.forced() : job;
         // 1.21 freezes the displayed plan on every start attempt.
         session.closeImprovements();
         ICraftingLink link;
         try {
             ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
             ICraftingCPU target = selectedCpu(container);
-            link = crafting.submitJob(submitted, null, target, true, actionSource(container), false);
+            link = crafting.submitJob(submitted, null, target, true, actionSource(container), follow);
         } catch (RuntimeException | LinkageError failure) {
             container.setAutoStart(false);
             container.setAutoStartAndFollow(false);
@@ -224,8 +233,9 @@ public final class ECOCraftConfirmTracker {
                 "[craft-confirm] ECO start rejected by every CPU: container={}, forced={}, output={}",
                 windowId,
                 forced,
-                job.sourcePlan()
-                    .finalOutput());
+                job == null ? result.getOutput()
+                    : job.sourcePlan()
+                        .finalOutput());
             reject(player, tracked, ECOCraftConfirmError.NO_CPU_ACCEPTED, "");
             return;
         }
@@ -347,7 +357,7 @@ public final class ECOCraftConfirmTracker {
     }
 
     /** The same source AE2's confirmation uses for submission: the player acting through the terminal host. */
-    private static BaseActionSource actionSource(ContainerCraftConfirm container) {
+    static BaseActionSource actionSource(ContainerCraftConfirm container) {
         Object target = container.getTarget();
         if (target instanceof IActionHost host) return new PlayerSource(container.getPlayerInv().player, host);
         return container.getActionSource();

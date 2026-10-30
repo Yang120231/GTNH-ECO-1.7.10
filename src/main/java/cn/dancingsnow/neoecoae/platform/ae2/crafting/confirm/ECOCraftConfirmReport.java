@@ -100,13 +100,28 @@ public final class ECOCraftConfirmReport {
         public final BigInteger craft;
         /** Exact requested amount for planner-backed rows; zero when the row came from AE2's summary. */
         public final BigInteger requested;
+        /** Executions of the patterns producing this key in the plan (GTNH's "crafts" column). */
+        public final BigInteger rounds;
+        /** Network stock when the report was built; zero when unknown. */
+        public final BigInteger available;
 
         public Row(AEKey key, BigInteger stored, BigInteger missing, BigInteger craft, BigInteger requested) {
+            this(key, stored, missing, craft, requested, BigInteger.ZERO, BigInteger.ZERO);
+        }
+
+        public Row(AEKey key, BigInteger stored, BigInteger missing, BigInteger craft, BigInteger requested,
+            BigInteger rounds, BigInteger available) {
             this.key = key;
             this.stored = nonNegative(stored);
             this.missing = nonNegative(missing);
             this.craft = nonNegative(craft);
             this.requested = nonNegative(requested);
+            this.rounds = nonNegative(rounds);
+            this.available = nonNegative(available);
+        }
+
+        Row with(BigInteger rounds, BigInteger available) {
+            return new Row(key, stored, missing, craft, requested, rounds, available);
         }
 
         public Row(AEKey key, long stored, long missing, long craft) {
@@ -124,10 +139,19 @@ public final class ECOCraftConfirmReport {
             writeBig(data, missing);
             writeBig(data, craft);
             writeBig(data, requested);
+            writeBig(data, rounds);
+            writeBig(data, available);
         }
 
         static Row read(RegistryFriendlyByteBuf data) {
-            return new Row(AEKey.readKey(data), readBig(data), readBig(data), readBig(data), readBig(data));
+            return new Row(
+                AEKey.readKey(data),
+                readBig(data),
+                readBig(data),
+                readBig(data),
+                readBig(data),
+                readBig(data),
+                readBig(data));
         }
 
         private static BigInteger nonNegative(BigInteger value) {

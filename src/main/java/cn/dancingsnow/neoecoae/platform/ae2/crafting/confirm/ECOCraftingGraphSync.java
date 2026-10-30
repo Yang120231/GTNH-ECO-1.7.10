@@ -96,12 +96,17 @@ public final class ECOCraftingGraphSync {
 
     private static Encoded encode(ContainerCraftConfirm container, ICraftingJob result) {
         try {
-            if (!(result instanceof NativeECOCraftingJob job) || job.sourcePlan() == null)
-                return new Encoded(container, result, ECOCraftingGraphStream.Status.EMPTY, new byte[0]);
-            ECOPlanningResult planning = ECOCraftConfirmReports.resolve(job.sourcePlan());
-            if (planning == null)
-                return new Encoded(container, result, ECOCraftingGraphStream.Status.EMPTY, new byte[0]);
-            CraftingGraphSnapshot snapshot = CraftingGraphSnapshotFactory.create(planning);
+            CraftingGraphSnapshot snapshot;
+            if (result instanceof NativeECOCraftingJob job) {
+                ECOPlanningResult planning = job.sourcePlan() == null ? null
+                    : ECOCraftConfirmReports.resolve(job.sourcePlan());
+                if (planning == null)
+                    return new Encoded(container, result, ECOCraftingGraphStream.Status.EMPTY, new byte[0]);
+                snapshot = CraftingGraphSnapshotFactory.create(planning);
+            } else {
+                // A request AE2's planner planned (fast planner on, routed natively) shows in the same tree.
+                snapshot = NativeCraftingGraphSnapshots.build(result, ECOCraftConfirmTracker.actionSource(container));
+            }
             if (ECOCraftingGraphStream.isEmpty(snapshot))
                 return new Encoded(container, result, ECOCraftingGraphStream.Status.EMPTY, new byte[0]);
             byte[] bytes = ECOCraftingGraphStream.encode(snapshot);

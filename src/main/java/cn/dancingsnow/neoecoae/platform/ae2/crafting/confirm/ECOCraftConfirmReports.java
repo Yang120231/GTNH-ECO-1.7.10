@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /**
  * Builds the ECO report of one confirmed plan on the server, mirroring what 1.21's confirmation menu mixin derives
@@ -141,6 +143,7 @@ public final class ECOCraftConfirmReports {
                     entry.getMissingAmount(),
                     entry.getCraftAmount()));
         }
+        rows = withRoundsAndStock(rows, plan, grid);
         BigInteger theoretical = result == null ? BigInteger.ZERO : result.theoreticalBytes();
         ECOCraftConfirmState state = new ECOCraftConfirmState(
             true,
@@ -218,6 +221,42 @@ public final class ECOCraftConfirmReports {
                 entry.getValue()[2]));
         Collections.sort(entries);
         return entries;
+    }
+
+    /** Adds GTNH's per-item execution count and the network stock behind its usage percentage. */
+    private static List<ECOCraftConfirmReport.Row> withRoundsAndStock(List<ECOCraftConfirmReport.Row> rows,
+        ICraftingPlan plan, @Nullable GridView grid) {
+        Map<AEKey, BigInteger> rounds = new HashMap<>();
+        try {
+            for (var task : plan.patternTimes()
+                .entrySet()) {
+                BigInteger times = BigInteger.valueOf(task.getValue());
+                Set<AEKey> outputs = new LinkedHashSet<>();
+                for (var output : task.getKey()
+                    .getOutputs()) outputs.add(output.what());
+                for (AEKey output : outputs) rounds.merge(output, times, BigInteger::add);
+            }
+        } catch (RuntimeException failure) {
+            LOGGER.warn("[craft-confirm] ECO round counts failed for {}", plan.finalOutput(), failure);
+        }
+        KeyCounter stock = null;
+        if (grid != null) {
+            try {
+                stock = grid.getStorageService()
+                    .getInventory()
+                    .getAvailableStacks();
+            } catch (RuntimeException failure) {
+                LOGGER.warn("[craft-confirm] ECO stock lookup failed for {}", plan.finalOutput(), failure);
+            }
+        }
+        List<ECOCraftConfirmReport.Row> result = new ArrayList<>(rows.size());
+        for (ECOCraftConfirmReport.Row row : rows) {
+            BigInteger count = rounds.getOrDefault(row.key, BigInteger.ZERO);
+            BigInteger available = stock == null ? BigInteger.ZERO
+                : BigInteger.valueOf(Math.max(0L, stock.get(row.key)));
+            result.add(row.with(count, available));
+        }
+        return result;
     }
 
     private static List<ECOCraftConfirmReport.Row> nodeRows(List<CraftingGraphSnapshot.MaterialNode> nodes) {

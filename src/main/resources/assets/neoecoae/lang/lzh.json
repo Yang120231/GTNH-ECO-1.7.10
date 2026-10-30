@@ -647,6 +647,8 @@
   "gui.neoecoae.crafting_report.cycle_planning_disabled": "未開啓循環規劃",
   "gui.neoecoae.crafting_report.missing_startup_seed": "缺少啓動種子",
   "gui.neoecoae.crafting_graph.open": "規劃圖",
+  "gui.neoecoae.crafting_graph.close": "列表",
+  "gui.neoecoae.crafting_report.style_medium": "中",
   "gui.neoecoae.crafting_graph.title": "ECO 合成規劃圖",
   "gui.neoecoae.crafting_graph.search": "搜索",
   "gui.neoecoae.crafting_graph.search_hint": "搜索 AEKey / 物品",

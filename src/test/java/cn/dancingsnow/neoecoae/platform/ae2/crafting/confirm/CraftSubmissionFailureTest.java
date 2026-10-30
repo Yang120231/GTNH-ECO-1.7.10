@@ -86,7 +86,7 @@ class CraftSubmissionFailureTest {
                         var grid = mock(IGrid.class);
                         when(menu.getGrid()).thenReturn(grid);
                         when(grid.getCache(ICraftingGrid.class)).thenThrow(failure);
-                        assertDoesNotThrow(() -> ECOCraftConfirmTracker.start(player, 17, false));
+                        assertDoesNotThrow(() -> ECOCraftConfirmTracker.start(player, 17, false, false));
                     }
                     assertEquals(ECOCraftConfirmError.SUBMIT_FAILED, session.state().error);
                     assertTrue(session.state().errorDetail.contains(failure.getMessage()));

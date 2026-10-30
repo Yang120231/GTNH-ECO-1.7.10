@@ -344,6 +344,8 @@
   "gui.neoecoae.crafting_graph.details.witness_steps": "Witness steps: %s",
   "gui.neoecoae.crafting_graph.node.pending_craft": "Pending craft",
   "gui.neoecoae.crafting_graph.open": "Planning Graph",
+  "gui.neoecoae.crafting_graph.close": "List",
+  "gui.neoecoae.crafting_report.style_medium": "Medium",
   "gui.neoecoae.crafting_graph.search": "Search",
   "gui.neoecoae.crafting_graph.search_hint": "Search AEKey / item",
   "gui.neoecoae.crafting_graph.status.cancelled": "Cancelled",

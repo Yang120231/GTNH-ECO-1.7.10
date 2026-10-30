@@ -39,8 +39,8 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.sendTo(new Sync(windowId, state, report), player);
     }
 
-    public static void start(int windowId, boolean forced) {
-        CHANNEL.sendToServer(new Start(windowId, forced));
+    public static void start(int windowId, boolean forced, boolean follow) {
+        CHANNEL.sendToServer(new Start(windowId, forced, follow));
     }
 
     public static void clearError(int windowId) {
@@ -100,24 +100,29 @@ public final class ECOCraftConfirmPackets {
 
         int windowId;
         boolean forced;
+        /** Subscribe the player to the completion message, like GTNH's "Start and follow". */
+        boolean follow;
 
         public Start() {}
 
-        Start(int windowId, boolean forced) {
+        Start(int windowId, boolean forced, boolean follow) {
             this.windowId = windowId;
             this.forced = forced;
+            this.follow = follow;
         }
 
         @Override
         public void fromBytes(ByteBuf buf) {
             windowId = buf.readInt();
             forced = buf.readBoolean();
+            follow = buf.readBoolean();
         }
 
         @Override
         public void toBytes(ByteBuf buf) {
             buf.writeInt(windowId);
             buf.writeBoolean(forced);
+            buf.writeBoolean(follow);
         }
     }
 
@@ -127,7 +132,7 @@ public final class ECOCraftConfirmPackets {
         public IMessage onMessage(Start message, MessageContext context) {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
-                .execute(() -> ECOCraftConfirmTracker.start(player, message.windowId, message.forced));
+                .execute(() -> ECOCraftConfirmTracker.start(player, message.windowId, message.forced, message.follow));
             return null;
         }
     }

@@ -25,11 +25,12 @@ class ECOCraftConfirmPacketsTest {
     @Test
     void plainStartKeepsItsOwnEncoding() {
         ByteBuf buffer = Unpooled.buffer();
-        new ECOCraftConfirmPackets.Start(-7, true).toBytes(buffer);
+        new ECOCraftConfirmPackets.Start(-7, true, true).toBytes(buffer);
         var decoded = new ECOCraftConfirmPackets.Start();
         decoded.fromBytes(buffer);
         assertEquals(-7, decoded.windowId);
         assertTrue(decoded.forced);
+        assertTrue(decoded.follow);
         assertFalse(buffer.isReadable());
     }
 }

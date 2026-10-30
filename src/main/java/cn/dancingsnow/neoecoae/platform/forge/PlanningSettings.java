@@ -129,7 +129,7 @@ public final class PlanningSettings {
     @Config(modid = NeoECOAE.MODID, category = "pattern_upload")
     public static final class PatternUpload {
 
-        @Config.Comment("Horizontal offset of the upload buttons from the pattern terminal encode button")
+        @Config.Comment("Horizontal placement of the upload buttons; 51 aligns with the terminal's right-side buttons")
         @Config.DefaultInt(51)
         @Config.RangeInt(min = -512, max = 512)
         public static int patternUploadButtonOffsetX = 51;

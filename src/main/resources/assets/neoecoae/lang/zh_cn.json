@@ -796,6 +796,8 @@
   "gui.neoecoae.crafting_report.seed_shortfall_estimate_hint": "此数量是最低估计，尚未确认补齐后能完成订单。",
   "gui.neoecoae.crafting_report.seed_requirement_unknown": "启动材料需求尚未确定",
   "gui.neoecoae.crafting_graph.open": "规划图",
+  "gui.neoecoae.crafting_graph.close": "列表",
+  "gui.neoecoae.crafting_report.style_medium": "中",
   "gui.neoecoae.crafting_graph.title": "ECO 合成规划图",
   "gui.neoecoae.crafting_graph.empty": "该计划没有可显示的合成图。",
   "gui.neoecoae.crafting_graph.failed": "合成图加载失败，请查看日志。",
