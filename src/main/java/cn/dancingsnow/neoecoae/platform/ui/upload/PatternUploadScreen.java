@@ -34,16 +34,19 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
- * Client-only target list shown over an AE2 pattern terminal. It is a plain {@link GuiScreen}: the terminal container
- * stays open on both sides, every action is a packet naming the terminal window, and leaving always re-displays the
- * terminal GUI instead of closing the window.
+ * Client-only target list shown as a floating window over an AE2 pattern terminal. It is a plain {@link GuiScreen}:
+ * the terminal container stays open on both sides and is drawn underneath, every action is a packet naming the
+ * terminal window, and leaving always re-displays the terminal GUI instead of closing the window.
  */
 @SideOnly(Side.CLIENT)
 final class PatternUploadScreen extends GuiScreen {
 
-    private static final int TEXT = 0x3f3d52, MUTED = 0x6e6c80, DISABLED_TEXT = 0x9a98a8;
-    private static final int ROW_HEIGHT = 26, MAX_VISIBLE_ROWS = 10, HEADER = 60, FOOTER = 46;
-    private static final int LOCATE_SIZE = 16, SCROLLBAR_WIDTH = 6;
+    private static final int TEXT = 0x343548, MUTED = 0x6e6c80, DISABLED_TEXT = 0x9a98a8;
+    /** Body text is drawn at 7/9 of the vanilla font, like DataEnergistics' upload window. */
+    private static final float SMALL = 0.75F;
+    private static final int PANEL_WIDTH = 220, TITLE_HEIGHT = 14, ROW_HEIGHT = 20, CARD_HEIGHT = 19;
+    private static final int MAX_VISIBLE_ROWS = 10, HEADER = 60, FOOTER = 32, SCROLLBAR_WIDTH = 4;
+    private static final int CLOSE_SIZE = 10, TOGGLE_WIDTH = 46, BUTTON_HEIGHT = 14;
     private static final long BUSY_TIMEOUT = 5_000L;
 
     private static final int FREE = PatternTargetSelector.SlotState.FREE.ordinal();
@@ -53,9 +56,11 @@ final class PatternUploadScreen extends GuiScreen {
     private static final int ACCEPTED = MatchResult.Level.ACCEPTED.ordinal();
     private static final int INCOMPATIBLE = MatchResult.Level.INCOMPATIBLE.ordinal();
 
-    private static final String[] LOCATE_GLYPH = { "......oo......", "......oo......", "....oooooo....",
-        "...o..oo..o...", "..o...oo...o..", "..o........o..", "oooo..oo..oooo", "oooo..oo..oooo", "..o........o..",
-        "..o...oo...o..", "...o..oo..o...", "....oooooo....", "......oo......", "......oo......" };
+    private static final String[] CLOSE_GLYPH = { "o.....o", ".o...o.", "..o.o..", "...o...", "..o.o..", ".o...o.",
+        "o.....o" };
+
+    /** Window offset from the centred position; kept for the session so the window reopens where it was left. */
+    private static int offsetX, offsetY;
 
     final GuiContainer parent;
     final int windowId;
@@ -72,16 +77,20 @@ final class PatternUploadScreen extends GuiScreen {
     private int scroll;
     private boolean draggingScrollbar;
     private int dragOffset;
+    private boolean draggingWindow;
+    private int dragStartX, dragStartY, dragStartOffsetX, dragStartOffsetY;
     /** Shift was held on the last upload: stay on this screen when it succeeds. */
     private boolean stay;
     private long busyUntil;
     private String localMessage;
     private int mouseButtonsDown;
     private boolean returnPending;
+    /** The terminal underneath threw while drawing once; fall back to the plain dimmed background. */
+    private boolean parentRenderFailed;
 
     private int left, top, panelWidth, panelHeight, listX, listY, listWidth, visibleRows;
-    private int toggleX, toggleY, toggleWidth;
-    private final int[][] footerButtons = new int[4][];
+    private int toggleX, toggleY, closeX, closeY;
+    private final int[][] footerButtons = new int[3][];
 
     PatternUploadScreen(GuiContainer parent, TargetList list) {
         this.parent = parent;
@@ -250,28 +259,38 @@ final class PatternUploadScreen extends GuiScreen {
     @Override
     public void initGui() {
         Keyboard.enableRepeatEvents(true);
-        panelWidth = Math.min(340, width - 16);
-        int rows = (height - 16 - HEADER - FOOTER) / ROW_HEIGHT;
+        if (parent.width != width || parent.height != height) parent.setWorldAndResolution(mc, width, height);
+        panelWidth = Math.min(PANEL_WIDTH, width - 8);
+        int rows = (height - 8 - HEADER - FOOTER) / ROW_HEIGHT;
         visibleRows = Math.max(2, Math.min(MAX_VISIBLE_ROWS, rows));
         panelHeight = HEADER + visibleRows * ROW_HEIGHT + FOOTER;
-        left = (width - panelWidth) / 2;
-        top = Math.max(2, (height - panelHeight) / 2);
-        listX = left + 7;
+        layout();
+    }
+
+    /** Places everything from the window offset; called on init and while the title bar is dragged. */
+    private void layout() {
+        int centredX = (width - panelWidth) / 2, centredY = (height - panelHeight) / 2;
+        left = Math.max(2, Math.min(width - panelWidth - 2, centredX + offsetX));
+        top = Math.max(2, Math.min(height - panelHeight - 2, centredY + offsetY));
+        offsetX = left - centredX;
+        offsetY = top - centredY;
+        closeX = left + panelWidth - CLOSE_SIZE - 3;
+        closeY = top + 2;
+        listX = left + 5;
         listY = top + HEADER;
-        listWidth = panelWidth - 14 - SCROLLBAR_WIDTH - 2;
-        toggleWidth = 78;
-        toggleX = left + panelWidth - 7 - toggleWidth;
-        toggleY = top + 30;
+        listWidth = panelWidth - 10 - SCROLLBAR_WIDTH - 2;
+        toggleX = left + panelWidth - 5 - TOGGLE_WIDTH;
+        toggleY = top + 38;
         String text = search != null ? search.getText() : searchText == null ? "" : searchText;
         boolean focused = search != null && search.isFocused();
-        search = new GuiTextField(fontRendererObj, left + 8, top + 31, toggleX - 4 - (left + 8), 14);
+        search = new GuiTextField(fontRendererObj, left + 6, toggleY + 1, toggleX - 3 - (left + 6), 10);
         search.setMaxStringLength(128);
         search.setText(text);
         search.setFocused(focused);
-        int buttonY = listY + visibleRows * ROW_HEIGHT + FOOTER - 26;
-        int buttonWidth = (panelWidth - 14 - 3 * 4) / 4;
-        for (int index = 0; index < 4; index++)
-            footerButtons[index] = new int[] { left + 7 + index * (buttonWidth + 4), buttonY, buttonWidth, 20 };
+        int buttonY = top + panelHeight - BUTTON_HEIGHT - 5;
+        int buttonWidth = (panelWidth - 10 - 2 * 3) / 3;
+        for (int index = 0; index < footerButtons.length; index++) footerButtons[index] = new int[] {
+            left + 5 + index * (buttonWidth + 3), buttonY, buttonWidth, BUTTON_HEIGHT };
         refilter();
     }
 
@@ -348,8 +367,27 @@ final class PatternUploadScreen extends GuiScreen {
             return;
         }
         search.mouseClicked(mouseX, mouseY, button);
+        int index = rowAt(mouseX, mouseY);
+        if (button == 1 && index >= 0) {
+            click();
+            locate(visible.get(index));
+            return;
+        }
         if (button != 0) return;
-        if (inside(mouseX, mouseY, toggleX, toggleY, toggleWidth, 16)) {
+        if (inside(mouseX, mouseY, closeX, closeY, CLOSE_SIZE, CLOSE_SIZE)) {
+            click();
+            back();
+            return;
+        }
+        if (inside(mouseX, mouseY, left, top, panelWidth, TITLE_HEIGHT)) {
+            draggingWindow = true;
+            dragStartX = mouseX;
+            dragStartY = mouseY;
+            dragStartOffsetX = offsetX;
+            dragStartOffsetY = offsetY;
+            return;
+        }
+        if (inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12)) {
             click();
             showAll = !showAll;
             refilter();
@@ -365,26 +403,20 @@ final class PatternUploadScreen extends GuiScreen {
             }
             return;
         }
-        for (int index = 0; index < footerButtons.length; index++) {
-            int[] box = footerButtons[index];
-            if (!inside(mouseX, mouseY, box[0], box[1], box[2], box[3]) || !footerEnabled(index)) continue;
+        for (int footer = 0; footer < footerButtons.length; footer++) {
+            int[] box = footerButtons[footer];
+            if (!inside(mouseX, mouseY, box[0], box[1], box[2], box[3]) || !footerEnabled(footer)) continue;
             click();
-            switch (index) {
+            switch (footer) {
                 case 0 -> autoUpload(isShiftKeyDown());
                 case 1 -> undo();
-                case 2 -> refresh();
-                default -> back();
+                default -> refresh();
             }
             return;
         }
-        int index = rowAt(mouseX, mouseY);
         if (index < 0) return;
         Row row = visible.get(index);
-        int rowY = listY + (index - scroll) * ROW_HEIGHT;
-        if (overLocate(mouseX, mouseY, rowY)) {
-            click();
-            locate(row);
-        } else if (uploadable(row) && !busy()) {
+        if (uploadable(row) && !busy()) {
             click();
             upload(row, isShiftKeyDown());
         }
@@ -395,13 +427,20 @@ final class PatternUploadScreen extends GuiScreen {
         super.mouseMovedOrUp(mouseX, mouseY, state);
         if (state < 0) return;
         if (state < 8) mouseButtonsDown &= ~(1 << state);
-        if (state == 0) draggingScrollbar = false;
+        if (state == 0) {
+            draggingScrollbar = false;
+            draggingWindow = false;
+        }
         if (returnPending && mouseButtonsDown == 0) back();
     }
 
     @Override
     protected void mouseClickMove(int mouseX, int mouseY, int button, long time) {
-        if (draggingScrollbar) dragScrollbar(mouseY);
+        if (draggingWindow) {
+            offsetX = dragStartOffsetX + mouseX - dragStartX;
+            offsetY = dragStartOffsetY + mouseY - dragStartY;
+            layout();
+        } else if (draggingScrollbar) dragScrollbar(mouseY);
     }
 
     private void dragScrollbar(int mouseY) {
@@ -419,7 +458,7 @@ final class PatternUploadScreen extends GuiScreen {
         int max = visible.size() - visibleRows;
         if (max <= 0) return null;
         int track = visibleRows * ROW_HEIGHT;
-        int size = Math.max(12, track * visibleRows / visible.size());
+        int size = Math.max(10, track * visibleRows / visible.size());
         int y = listY + Math.round((track - size) * (scroll / (float) max));
         return new int[] { y, size };
     }
@@ -427,25 +466,16 @@ final class PatternUploadScreen extends GuiScreen {
     private int rowAt(int mouseX, int mouseY) {
         if (!inside(mouseX, mouseY, listX, listY, listWidth, visibleRows * ROW_HEIGHT)) return -1;
         int slot = (mouseY - listY) / ROW_HEIGHT;
-        if ((mouseY - listY) % ROW_HEIGHT >= ROW_HEIGHT - 2) return -1;
+        if ((mouseY - listY) % ROW_HEIGHT >= CARD_HEIGHT) return -1;
         int index = scroll + slot;
         return index >= 0 && index < visible.size() ? index : -1;
-    }
-
-    private boolean overLocate(int mouseX, int mouseY, int rowY) {
-        return inside(mouseX, mouseY, locateX(), rowY + 4, LOCATE_SIZE, LOCATE_SIZE);
-    }
-
-    private int locateX() {
-        return listX + listWidth - LOCATE_SIZE - 4;
     }
 
     private boolean footerEnabled(int index) {
         return switch (index) {
             case 0 -> list.autoToken != 0 && !busy();
             case 1 -> list.receipt && !busy();
-            case 2 -> !busy();
-            default -> true;
+            default -> !busy();
         };
     }
 
@@ -457,9 +487,10 @@ final class PatternUploadScreen extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
+        drawParent(partialTicks);
         GL11.glColor4f(1, 1, 1, 1);
         UploadDraw.panel(left, top, panelWidth, panelHeight);
+        drawTitle(mouseX, mouseY);
         drawHeader();
         drawSearch(mouseX, mouseY);
         drawRows(mouseX, mouseY);
@@ -475,13 +506,49 @@ final class PatternUploadScreen extends GuiScreen {
         }
     }
 
+    /** The terminal stays visible behind the floating window; it never sees the real mouse position. */
+    private void drawParent(float partialTicks) {
+        if (!parentRenderFailed) {
+            try {
+                if (parent instanceof AEBaseGui) AEBaseGui.aeRenderItem.parent = (AEBaseGui) parent;
+                parent.drawScreen(-10_000, -10_000, partialTicks);
+            } catch (RuntimeException ignored) {
+                parentRenderFailed = true;
+            }
+            RenderHelper.disableStandardItemLighting();
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glColor4f(1, 1, 1, 1);
+            // Items in the terminal were drawn with depth; the window must not be clipped by them.
+            GL11.glClear(GL11.GL_DEPTH_BUFFER_BIT);
+            UploadDraw.rect(0, 0, width, height, 0x50000000);
+        }
+        if (parentRenderFailed) drawDefaultBackground();
+    }
+
+    private void drawTitle(int mouseX, int mouseY) {
+        fontRendererObj.drawString(
+            fontRendererObj.trimStringToWidth(
+                StatCollector.translateToLocal("gui.neoecoae.pattern_upload.title"),
+                closeX - left - 10),
+            left + 6,
+            top + 4,
+            TEXT,
+            false);
+        boolean hover = inside(mouseX, mouseY, closeX, closeY, CLOSE_SIZE, CLOSE_SIZE);
+        UploadDraw.glyph(closeX + 1, closeY + 1, CLOSE_GLYPH, 'o', hover ? 0xFFC03030 : 0xFF4A4860);
+        UploadDraw.rect(left + 4, top + TITLE_HEIGHT, left + panelWidth - 4, top + TITLE_HEIGHT + 1, 0x30000000);
+    }
+
     private void drawHeader() {
-        UploadDraw.slot(left + 7, top + 6);
-        item(list.pattern, left + 8, top + 7);
-        int textX = left + 29, textWidth = panelWidth - 36;
+        int y = top + TITLE_HEIGHT + 3;
+        UploadDraw.slot(left + 5, y);
+        item(list.pattern, left + 6, y + 1);
+        int textX = left + 27, textWidth = left + panelWidth - 5 - textX;
         String name = list.pattern == null ? StatCollector.translateToLocal("gui.neoecoae.pattern_upload.no_pattern")
             : list.pattern.getDisplayName();
-        fontRendererObj.drawString(fontRendererObj.trimStringToWidth(name, textWidth), textX, top + 7, TEXT, false);
+        small(trim(name, textWidth), textX, y + 2, TEXT);
         StringBuilder detail = new StringBuilder();
         if (list.pattern != null) detail.append(
             StatCollector.translateToLocal(
@@ -495,25 +562,23 @@ final class PatternUploadScreen extends GuiScreen {
             if (detail.length() > 0) detail.append(" · ");
             detail.append(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.hinted"));
         }
-        fontRendererObj
-            .drawString(fontRendererObj.trimStringToWidth(detail.toString(), textWidth), textX, top + 17, MUTED, false);
+        small(trim(detail.toString(), textWidth), textX, y + 10, MUTED);
     }
 
     private void drawSearch(int mouseX, int mouseY) {
         search.drawTextBox();
         if (search.getText()
             .isEmpty() && !search.isFocused())
-            fontRendererObj.drawString(
-                StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search"),
-                search.xPosition + 4,
-                search.yPosition + 3,
-                0x707070,
-                false);
-        boolean hover = inside(mouseX, mouseY, toggleX, toggleY, toggleWidth, 16);
-        UploadDraw.button(toggleX, toggleY, toggleWidth, 16, hover);
+            small(
+                trim(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search"), search.width - 6),
+                search.xPosition + 3,
+                search.yPosition + 2,
+                0x707070);
+        boolean hover = inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12);
+        UploadDraw.button(toggleX, toggleY, TOGGLE_WIDTH, 12, hover);
         String label = StatCollector.translateToLocal(
             showAll ? "gui.neoecoae.pattern_upload.show_available" : "gui.neoecoae.pattern_upload.show_all");
-        centered(label, toggleX, toggleY + 4, toggleWidth, TEXT);
+        smallCentered(label, toggleX, toggleY + 3, TOGGLE_WIDTH, TEXT);
         StringBuilder info = new StringBuilder(
             StatCollector
                 .translateToLocalFormatted("gui.neoecoae.pattern_upload.count", visible.size(), list.rows.size()));
@@ -521,17 +586,12 @@ final class PatternUploadScreen extends GuiScreen {
             .append(StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.hidden", hiddenCount));
         if (queryIgnored) info.append(" · ")
             .append(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search.no_match"));
-        fontRendererObj.drawString(
-            fontRendererObj.trimStringToWidth(info.toString(), panelWidth - 14),
-            left + 8,
-            top + 49,
-            MUTED,
-            false);
+        small(trim(info.toString(), panelWidth - 12), left + 6, toggleY + 14, MUTED);
     }
 
     private void drawRows(int mouseX, int mouseY) {
         if (visible.isEmpty()) {
-            centered(
+            smallCentered(
                 StatCollector.translateToLocal("gui.neoecoae.pattern_upload.empty"),
                 listX,
                 listY + 8,
@@ -544,38 +604,31 @@ final class PatternUploadScreen extends GuiScreen {
             int index = scroll + slot;
             if (index >= visible.size()) break;
             Row row = visible.get(index);
-            int x = listX, y = listY + slot * ROW_HEIGHT, w = listWidth, h = ROW_HEIGHT - 2;
-            boolean clickable = uploadable(row) && !busy;
-            boolean overLocate = overLocate(mouseX, mouseY, y);
-            boolean hover = inside(mouseX, mouseY, x, y, w, h) && !overLocate;
-            UploadDraw.button(x, y, w, h, hover && clickable);
-            if (!uploadable(row)) UploadDraw.rect(x, y, x + w, y + h, 0x40000000);
-            UploadDraw.rect(x + 2, y + 2, x + 5, y + h - 4, accent(row));
-            item(row.icon, x + 7, y + 3);
-            int textX = x + 27, textWidth = locateX() - 3 - textX;
-            String title = title(row);
-            if (row.token == list.autoToken && list.autoToken != 0) title = "§6★§r " + title;
-            fontRendererObj.drawString(
-                fontRendererObj.trimStringToWidth(title, textWidth),
-                textX,
-                y + 4,
-                uploadable(row) ? TEXT : DISABLED_TEXT,
-                false);
-            fontRendererObj
-                .drawString(fontRendererObj.trimStringToWidth(detail(row), textWidth), textX, y + 13, MUTED, false);
-            int lx = locateX(), ly = y + 4;
-            UploadDraw.button(lx, ly, LOCATE_SIZE, LOCATE_SIZE, overLocate);
-            UploadDraw.glyph(lx + 1, ly + 1, LOCATE_GLYPH, 'o', overLocate ? 0xFFC03030 : 0xFF4A4860);
+            int x = listX, y = listY + slot * ROW_HEIGHT, w = listWidth, h = CARD_HEIGHT;
+            boolean enabled = uploadable(row);
+            boolean hover = inside(mouseX, mouseY, x, y, w, h);
+            UploadDraw.button(x, y, w, h, hover && enabled && !busy);
+            if (!enabled) UploadDraw.rect(x, y, x + w, y + h, 0x40000000);
+            UploadDraw.rect(x + 2, y + 2, x + 4, y + h - 3, accent(row));
+            item(row.icon, x + 6, y + 1);
+            String count = slotCount(row);
+            float countWidth = fontRendererObj.getStringWidth(count) * SMALL;
+            float countX = x + w - 5 - countWidth;
+            small(count, countX, y + 6, enabled ? slotColor(row) : DISABLED_TEXT);
+            String name = text(row.name);
+            if (row.token == list.autoToken && list.autoToken != 0) name = "§6★§r " + name;
+            int nameX = x + 25;
+            small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 6, enabled ? TEXT : DISABLED_TEXT);
         }
     }
 
     private void drawScrollbar() {
-        int x = listX + listWidth + 2, height = visibleRows * ROW_HEIGHT - 2;
+        int x = listX + listWidth + 2, height = visibleRows * ROW_HEIGHT - 1;
         UploadDraw.rect(x, listY, x + SCROLLBAR_WIDTH, listY + height, 0x30000000);
         int[] thumb = thumb();
         if (thumb == null) return;
         int size = Math.min(thumb[1], listY + height - thumb[0]);
-        UploadDraw.button(x, thumb[0], SCROLLBAR_WIDTH, size, draggingScrollbar);
+        UploadDraw.rect(x, thumb[0], x + SCROLLBAR_WIDTH, thumb[0] + size, draggingScrollbar ? 0xFF8A88A0 : 0xFFB8B6C8);
     }
 
     private void drawFooter(int mouseX, int mouseY) {
@@ -595,24 +648,19 @@ final class PatternUploadScreen extends GuiScreen {
             message = StatCollector.translateToLocal("gui.neoecoae.pattern_upload.keys");
             color = MUTED;
         }
-        fontRendererObj.drawString(
-            fontRendererObj.trimStringToWidth(message, panelWidth - 14),
-            left + 8,
-            messageY + 2,
-            color,
-            false);
+        small(trim(message, panelWidth - 12), left + 6, messageY + 1, color);
         String[] labels = { "gui.neoecoae.pattern_upload.auto_upload", "gui.neoecoae.pattern_upload.undo",
-            "gui.neoecoae.pattern_upload.refresh", "gui.neoecoae.pattern_upload.back" };
+            "gui.neoecoae.pattern_upload.refresh" };
         for (int index = 0; index < footerButtons.length; index++) {
             int[] box = footerButtons[index];
             boolean enabled = footerEnabled(index);
             boolean hover = inside(mouseX, mouseY, box[0], box[1], box[2], box[3]);
             UploadDraw.button(box[0], box[1], box[2], box[3], hover && enabled);
             if (!enabled) UploadDraw.rect(box[0], box[1], box[0] + box[2], box[1] + box[3], 0x40000000);
-            centered(
+            smallCentered(
                 StatCollector.translateToLocal(labels[index]),
                 box[0],
-                box[1] + 5,
+                box[1] + 4,
                 box[2],
                 enabled ? TEXT : DISABLED_TEXT);
         }
@@ -620,6 +668,11 @@ final class PatternUploadScreen extends GuiScreen {
 
     private List<String> tooltip(int mouseX, int mouseY) {
         List<String> lines = new ArrayList<>();
+        if (draggingWindow) return lines;
+        if (inside(mouseX, mouseY, closeX, closeY, CLOSE_SIZE, CLOSE_SIZE)) {
+            lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.back.tooltip"));
+            return lines;
+        }
         for (int index = 0; index < footerButtons.length; index++) {
             int[] box = footerButtons[index];
             if (!inside(mouseX, mouseY, box[0], box[1], box[2], box[3])) continue;
@@ -634,8 +687,7 @@ final class PatternUploadScreen extends GuiScreen {
                     list.receipt ? StatCollector
                         .translateToLocalFormatted("gui.neoecoae.pattern_upload.undo.tooltip", text(list.receiptName))
                         : "§7" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.reason.no_receipt"));
-            } else
-                if (index == 3) lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.back.tooltip"));
+            }
             return lines;
         }
         if (inside(mouseX, mouseY, search.xPosition, search.yPosition, search.width, search.height)) {
@@ -645,11 +697,6 @@ final class PatternUploadScreen extends GuiScreen {
         int index = rowAt(mouseX, mouseY);
         if (index < 0) return lines;
         Row row = visible.get(index);
-        if (overLocate(mouseX, mouseY, listY + (index - scroll) * ROW_HEIGHT)) {
-            lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.locate"));
-            lines.add("§7" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.locate.tooltip"));
-            return lines;
-        }
         lines.add(title(row));
         String kind = kindName(row);
         if (!kind.isEmpty()) lines.add("§7" + kind);
@@ -680,12 +727,27 @@ final class PatternUploadScreen extends GuiScreen {
             lines.add("§a" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.click"));
             lines.add("§a" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.stay"));
         } else lines.add("§c" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.disabled"));
+        lines.add("§b" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.locate"));
         return lines;
     }
 
-    private void centered(String text, int x, int y, int width, int color) {
-        String trimmed = fontRendererObj.trimStringToWidth(text, width - 4);
-        fontRendererObj.drawString(trimmed, x + (width - fontRendererObj.getStringWidth(trimmed)) / 2, y, color, false);
+    /** Trims to {@code width} screen pixels of small text. */
+    private String trim(String text, int width) {
+        return fontRendererObj.trimStringToWidth(text, Math.max(0, (int) (width / SMALL)));
+    }
+
+    private void small(String text, float x, float y, int color) {
+        GL11.glPushMatrix();
+        GL11.glTranslatef(x, y, 0);
+        GL11.glScalef(SMALL, SMALL, 1);
+        fontRendererObj.drawString(text, 0, 0, color, false);
+        GL11.glPopMatrix();
+        GL11.glColor4f(1, 1, 1, 1);
+    }
+
+    private void smallCentered(String text, int x, int y, int width, int color) {
+        String trimmed = trim(text, width - 4);
+        small(trimmed, x + (width - fontRendererObj.getStringWidth(trimmed) * SMALL) / 2, y, color);
     }
 
     private void item(ItemStack stack, int x, int y) {
@@ -717,6 +779,20 @@ final class PatternUploadScreen extends GuiScreen {
         return 0xffd0a020;
     }
 
+    /** Used / total pattern slots, as DataEnergistics shows it. */
+    private static String slotCount(Row row) {
+        if (row.totalSlots <= 0) return "-";
+        return Math.max(0, row.totalSlots - row.emptySlots) + "/" + row.totalSlots;
+    }
+
+    private static int slotColor(Row row) {
+        if (row.totalSlots <= 0) return MUTED;
+        long used = Math.max(0, row.totalSlots - row.emptySlots);
+        if (used * 100L < row.totalSlots * 70L) return 0x168a16;
+        if (used * 100L < row.totalSlots * 90L) return 0xc09000;
+        return 0xd52c2c;
+    }
+
     private static String levelColor(Row row) {
         if (row.level == EXACT || row.level == ACCEPTED) return "§a";
         if (row.level == INCOMPATIBLE) return "§c";
@@ -735,24 +811,6 @@ final class PatternUploadScreen extends GuiScreen {
     static String title(Row row) {
         String name = text(row.name);
         return row.route.isEmpty() ? name : name + " → " + text(row.route);
-    }
-
-    private static String detail(Row row) {
-        StringBuilder line = new StringBuilder(
-            text(MatchResult.Level.values()[safe(row.level, MatchResult.Level.values().length)].translationKey()))
-                .append(" · ")
-                .append(text(stateKey(row)))
-                .append(" · ")
-                .append(
-                    StatCollector.translateToLocalFormatted(
-                        "gui.neoecoae.pattern_upload.empty_slots",
-                        row.emptySlots,
-                        row.totalSlots))
-                .append(" · ")
-                .append(StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.members", row.members));
-        if (row.duplicates > 0) line.append(" · ")
-            .append(StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.duplicates", row.duplicates));
-        return line.toString();
     }
 
     static String kindName(Row row) {
