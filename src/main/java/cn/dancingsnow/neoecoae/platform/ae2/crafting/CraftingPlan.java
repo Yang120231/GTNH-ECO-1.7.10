@@ -18,6 +18,8 @@ public final class CraftingPlan implements ICraftingPlan, ECOCraftingPlanDiagnos
     private final KeyCounter used, emitted, missing;
     private final Map<IPatternDetails, Long> tasks;
     private volatile ECOPlanningResult diagnostics;
+    /** Planned by AE2's own planner: an ECO CPU must then execute it exactly like a native crafting CPU. */
+    private boolean vanillaExecution;
 
     public CraftingPlan(GenericStack output, long bytes, boolean simulation, boolean multiplePaths, KeyCounter used,
         KeyCounter emitted, KeyCounter missing, Map<IPatternDetails, Long> tasks) {
@@ -29,6 +31,15 @@ public final class CraftingPlan implements ICraftingPlan, ECOCraftingPlanDiagnos
         this.emitted = emitted.copy();
         this.missing = missing.copy();
         this.tasks = Collections.unmodifiableMap(new LinkedHashMap<>(tasks));
+    }
+
+    public CraftingPlan markVanillaExecution() {
+        vanillaExecution = true;
+        return this;
+    }
+
+    public boolean vanillaExecution() {
+        return vanillaExecution;
     }
 
     @Override

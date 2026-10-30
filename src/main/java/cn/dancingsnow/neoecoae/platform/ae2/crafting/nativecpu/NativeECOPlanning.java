@@ -105,6 +105,8 @@ public final class NativeECOPlanning {
         var host = settings(grid, action);
         if (host == null || !host.isFastPlannerEnabled()) return null;
         ServerTasks.assertServerThread();
+        // Patterns whose GTNH semantics the ECO planner does not model are planned (and then executed) natively.
+        if (NativePlannerRouting.routeToNative(grid, output)) return null;
         var view = GridView.of(grid);
         MECraftingInventory snapshot = new MECraftingInventory();
         for (var entry : view.getStorageService()

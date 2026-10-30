@@ -113,13 +113,16 @@ final class ECOProcessingPatternDispatcher {
         IPatternDetails cachedExecutionPattern = null;
         long cachedCopies = 0;
         int visitAttempts = 0;
+        // Unbounded pattern hatches store any push whole: offer everything material and energy allow at once.
+        // The first rejection hands control back to the normal probing ramp.
+        boolean offerAll = isUnboundedTarget(provider);
         while (ramp.owned < limit && attempts < MAX_ATTEMPTS_PER_TICK
             && visitAttempts < MAX_ATTEMPTS_PER_VISIT
             && !provider.isBusy()
             && !NativeProviderAdapters.isEnabled(provider)) {
             attempts++;
             visitAttempts++;
-            long offer = Math.min(ramp.offer(limit - ramp.owned), transportLimit);
+            long offer = offerAll ? limit - ramp.owned : Math.min(ramp.offer(limit - ramp.owned), transportLimit);
             var plan = planning.plan(offer, limit - ramp.owned, onePower, service, ECOBatchMode.LINEAR);
             if (plan == null) {
                 state.nextDispatchTick = tick + 1;
@@ -173,6 +176,7 @@ final class ECOProcessingPatternDispatcher {
                 throw failure;
             }
             if (admission.status() != ECOBatchAdmission.Status.ACCEPTED) {
+                offerAll = false;
                 if (ramp.record(offer, 0, false, tick)) continue;
                 break;
             }
@@ -201,6 +205,12 @@ final class ECOProcessingPatternDispatcher {
         return logic instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
             && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) logic)
                 .isScaledProcessingFullyInserted();
+    }
+
+    private static boolean isUnboundedTarget(ICraftingProvider provider) {
+        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
+                .isUnboundedPatternHatch();
     }
 
     private static boolean isProcessingPattern(Object pattern) {

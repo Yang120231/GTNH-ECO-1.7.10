@@ -57,6 +57,8 @@ public class ExecutingCraftingJob {
     private static final String NBT_EXECUTION_RUNTIME = "executionRuntime";
     private static final String NBT_EXECUTION_PERSISTENCE_FAILED = "executionPersistenceFailed";
     private static final String NBT_BATCHED_OUTPUTS = "batchedOutputs";
+    private static final String NBT_VANILLA_EXECUTION = "vanillaExecution";
+    private static final String NBT_VANILLA_FAKE_CRAFTING = "vanillaFakeCrafting";
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
@@ -75,6 +77,13 @@ public class ExecutingCraftingJob {
     GenericStack finalOutput;
     long remainingAmount;
     boolean exactOrder;
+    /**
+     * Planned by AE2's own planner (the ECO fast planner was off or declined the request). Such a job is executed
+     * by {@link ECOVanillaCraftingExecutor} with native CraftingCPUCluster semantics and none of ECO's dispatch.
+     */
+    boolean vanillaExecution;
+    /** Native {@code finalOutput.fakeCrafting} for a vanilla-executed job. */
+    boolean vanillaFakeCrafting;
     final Map<AEKey, java.math.BigInteger> deferredStock = new LinkedHashMap<>();
     final Map<AEKey, java.math.BigInteger> deferredEmitted = new LinkedHashMap<>();
     /** Outputs of successful multi-craft dispatches in this job, used by the ECO status page. */
@@ -120,6 +129,8 @@ public class ExecutingCraftingJob {
         this.reservedBytes = plan.bytes();
         this.remainingAmount = this.finalOutput.amount();
         this.exactOrder = plan instanceof cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan;
+        this.vanillaExecution = plan instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan nativePlan
+            && nativePlan.vanillaExecution();
         this.waitingFor = createWaitingInventory(exactOrder, postCraftingDifference);
 
         // Fill waiting for and tasks
@@ -209,6 +220,8 @@ public class ExecutingCraftingJob {
         this.reservedBytes = data.getLong("optimizationReservedBytes");
         this.remainingAmount = data.getLong(NBT_REMAINING_AMOUNT);
         this.exactOrder = data.getBoolean("exactOrder");
+        this.vanillaExecution = data.getBoolean(NBT_VANILLA_EXECUTION);
+        this.vanillaFakeCrafting = data.getBoolean(NBT_VANILLA_FAKE_CRAFTING);
         var fuzzyItems = new HashSet<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation>();
         for (var tag : data.getList("fuzzyPlanningItemIds", Tag.TAG_STRING)) {
             var id = cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.tryParse(tag.getAsString());
@@ -404,6 +417,8 @@ public class ExecutingCraftingJob {
 
         data.putLong(NBT_REMAINING_AMOUNT, remainingAmount);
         data.putBoolean("exactOrder", exactOrder);
+        if (vanillaExecution) data.putBoolean(NBT_VANILLA_EXECUTION, true);
+        if (vanillaFakeCrafting) data.putBoolean(NBT_VANILLA_FAKE_CRAFTING, true);
         var fuzzyItems = new ListTag();
         fuzzyPlanningItemIds.stream()
             .sorted()

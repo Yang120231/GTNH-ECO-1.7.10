@@ -84,8 +84,10 @@ final class ECOCraftingEnergyTransaction {
                 logAccountingFailure("energy reservation failed", failure);
                 return null;
             }
-            // Do not forgive an underpayment with a growing floating-point tolerance.
-            if (!Double.isFinite(charged) || charged != request) {
+            // GTNH CraftingCPUCluster accepts power within 0.01 of the sum. AE2 routes CONFIG extraction through
+            // (amt * UsageMultiplier) / UsageMultiplier, which is not exact for GTNH's 10.0 multiplier; an exact
+            // comparison would reject the same pattern on every attempt. Any sub-tolerance shortfall is forgiven.
+            if (!Double.isFinite(charged) || charged < request - chargeTolerance(request)) {
                 if (Double.isFinite(charged) && charged > 0) refundEnergyOrRetainCredit(service, decimal(charged));
                 logAccountingFailure("reservation charged " + charged + " of " + request, null);
                 return null;
@@ -111,6 +113,11 @@ final class ECOCraftingEnergyTransaction {
         prepaidEnergyCredit = BigDecimal.ZERO;
         markDirty.run();
         refundEnergyOrRetainCredit(service, refund);
+    }
+
+    /** GTNH's absolute 0.01 tolerance, widened relatively so very large batches survive multiplier rounding. */
+    static double chargeTolerance(double request) {
+        return Math.max(0.01, Math.abs(request) * 1.0e-12);
     }
 
     private static BigDecimal decimal(double value) {

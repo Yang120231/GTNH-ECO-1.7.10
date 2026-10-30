@@ -87,7 +87,10 @@ final class ECOCraftingOutputDelivery {
         }
         boolean tasksDone = !host.taskSchedulerForOutput()
             .hasPendingTasks(current);
-        boolean physicallyComplete = current.remainingAmount <= 0L && current.waitingFor.list.isEmpty()
+        // A native CPU completes once the final output is satisfied and no task remains (completeJob); it never
+        // waits for byproducts or containers, which may legitimately never return (e.g. chanced outputs).
+        boolean physicallyComplete = current.remainingAmount <= 0L
+            && (current.vanillaExecution || current.waitingFor.list.isEmpty())
             && tasksDone
             && pendingFinalOutputs.isEmpty();
         if (physicallyComplete) {

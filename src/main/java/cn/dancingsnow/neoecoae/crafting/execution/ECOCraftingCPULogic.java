@@ -96,6 +96,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     private final ECOCraftingCpuPersistence persistence;
     private final ECOCraftingJobLifecycleController lifecycle;
     private final ECOCraftingPlanUpdater planUpdater;
+    private final ECOVanillaCraftingExecutor vanillaExecutor = new ECOVanillaCraftingExecutor(this);
     final ECOBigOrderController bigOrder = new ECOBigOrderController(this);
 
     public ECOCraftingCPULogic(ECOCraftingCPU cpu) {
@@ -164,6 +165,13 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         if (job == null || job.suspended) {
             return;
         }
+        if (job.vanillaExecution) {
+            // AE2-planned job: behave exactly like a native CPU with this host's co-processors. ECO dispatch
+            // policies, plan improvements and the ECO scheduler never see it.
+            taskScheduler.finishResolveTick();
+            tickVanillaCrafting(eg);
+            return;
+        }
         planUpdater.tick(currentTick);
         World level = cpu.getLevel();
         if (level == null) {
@@ -199,6 +207,16 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         if (job != null) {
             taskScheduler.check(job);
         }
+    }
+
+    private void tickVanillaCrafting(IEnergyGrid eg) {
+        World level = cpu.getLevel();
+        var grid = cpu.getGrid();
+        var nativeGrid = grid == null ? null : grid.nativeGrid();
+        var cache = nativeGrid == null ? null : nativeGrid.getCache(appeng.api.networking.crafting.ICraftingGrid.class);
+        if (level == null || eg == null || !(cache instanceof appeng.me.cache.CraftingGridCache)) return;
+        vanillaExecutor
+            .tick(job, eg, (appeng.me.cache.CraftingGridCache) cache, level, Math.max(0, cpu.getCoProcessors()));
     }
 
     /** 从所有配方输入共用的实际库存中重试交付产物。 */
@@ -571,6 +589,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     void setJobFromLifecycle(@Nullable ExecutingCraftingJob nextJob) {
         planUpdater.reset();
+        vanillaExecutor.reset();
         this.job = nextJob;
         exactInventory().setEnabled(nextJob != null && nextJob.exactOrder);
     }
