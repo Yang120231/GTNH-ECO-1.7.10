@@ -12,7 +12,7 @@ public final class PatternContext {
     public final ItemStack pattern;
     public final ICraftingPatternDetails details;
     public final boolean processing;
-    /** Null unless the NEI hint is still bound to exactly this pattern in this window. */
+    /** Null unless an NEI hint naming a recipe map is still bound to exactly this pattern in this window. */
     public final RouteHint hint;
     public final World world;
 

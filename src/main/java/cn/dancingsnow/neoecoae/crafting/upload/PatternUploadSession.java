@@ -1,11 +1,7 @@
 package cn.dancingsnow.neoecoae.crafting.upload;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -15,35 +11,30 @@ import net.minecraft.item.ItemStack;
 import appeng.api.networking.IGrid;
 
 /**
- * One player's upload interaction, from the terminal window through the upload page.
+ * One player's upload interaction with one open pattern terminal window.
  *
  * <p>
- * The MUI2 page replaces (and closes) the AE2 terminal container, so the session moves through an explicit
- * {@code TERMINAL -> UPLOAD_PAGE} transition bound to the new window instead of treating the close as a cancel.
- * Clients only ever hold server-issued target tokens.
+ * The target screen is drawn client-side on top of the terminal, so the server-side container never changes while
+ * the player picks a target. The session lives exactly as long as that terminal window stays open and is reused for
+ * every request and action sent from it, which keeps the server-issued group tokens stable between lists.
  * </p>
  */
 public final class PatternUploadSession {
 
-    public enum State {
-        TERMINAL,
-        UPLOAD_PAGE,
-        CLOSED
-    }
-
     private static final long IDLE_MILLIS = 15L * 60L * 1000L;
+
+    private static final String REASON_TARGET_MISSING = "gui.neoecoae.pattern_upload.reason.target_missing";
+    private static final String REASON_NO_PERMISSION = "gui.neoecoae.pattern_upload.reason.no_permission";
+    private static final String REASON_NO_PATTERN = "gui.neoecoae.pattern_upload.no_pattern";
 
     private final EntityPlayerMP player;
     private final PatternUploadSource source;
     private final Container sourceContainer;
     private final int sourceWindowId;
     private final Function<IGrid, List<PatternUploadTarget>> discovery;
-    private final Map<Integer, PatternUploadTarget> tokens = new HashMap<>();
-    private final IdentityHashMap<PatternUploadTarget, Integer> tokenOf = new IdentityHashMap<>();
+    private final PatternTargetGroups groups = new PatternTargetGroups();
     private List<PatternTargetSelector.Evaluation> evaluations = Collections.emptyList();
-    private Container uploadContainer;
-    private State state = State.TERMINAL;
-    private int serial, lastSequence = Integer.MIN_VALUE;
+    private boolean closed;
     private long touchedAt = System.currentTimeMillis();
     private String message = "";
     private boolean messageError;
@@ -61,12 +52,13 @@ public final class PatternUploadSession {
         return player;
     }
 
-    public State state() {
-        return state;
-    }
-
     public int sourceWindowId() {
         return sourceWindowId;
+    }
+
+    /** True when this session belongs to exactly {@code container}. */
+    public boolean boundTo(Container container) {
+        return container != null && container == sourceContainer && container.windowId == sourceWindowId;
     }
 
     public String message() {
@@ -77,68 +69,46 @@ public final class PatternUploadSession {
         return messageError;
     }
 
-    public void bindUploadPage(Container container) {
-        if (state == State.CLOSED) return;
-        uploadContainer = container;
-        state = State.UPLOAD_PAGE;
-        touch();
-    }
-
     public void close() {
-        state = State.CLOSED;
-        tokens.clear();
-        tokenOf.clear();
+        closed = true;
+        groups.clear();
         evaluations = Collections.emptyList();
-        uploadContainer = null;
     }
 
     public boolean isOpen() {
-        if (state == State.CLOSED || player.playerNetServerHandler == null) return false;
+        if (closed || player.playerNetServerHandler == null) return false;
         if (System.currentTimeMillis() - touchedAt > IDLE_MILLIS) return false;
-        Container open = player.openContainer;
-        return state == State.TERMINAL ? open == sourceContainer : open == uploadContainer;
-    }
-
-    /** Request ordering: a repeated or late request never moves a second pattern. */
-    public boolean acceptSequence(int sequence) {
-        if (sequence <= lastSequence) return false;
-        lastSequence = sequence;
-        return true;
+        return player.openContainer == sourceContainer;
     }
 
     private void touch() {
         touchedAt = System.currentTimeMillis();
     }
 
-    public PatternContext context() {
-        ItemStack pattern = source.slots()
+    /** Any hint bound to the pattern currently in the terminal, including a category-only one. */
+    public RouteHint hint() {
+        return PatternUploadSessions.hintFor(player, sourceWindowId, currentPattern());
+    }
+
+    private ItemStack currentPattern() {
+        return source.slots()
             .get(source.slot());
-        RouteHint hint = PatternUploadSessions.hintFor(player, sourceWindowId, pattern);
+    }
+
+    public PatternContext context() {
+        ItemStack pattern = currentPattern();
+        RouteHint hint = PatternUploadSessions.routeHintFor(player, sourceWindowId, pattern);
         return PatternContext.of(pattern, hint, player.worldObj);
     }
 
-    /** Re-discovers targets and re-evaluates them against the live machines. */
+    /** Re-discovers targets, re-evaluates them against the live machines and regroups them. */
     public List<PatternTargetSelector.Evaluation> refresh() {
         touch();
         IGrid grid = source.grid();
         PatternContext context = context();
-        if (grid == null || context == null) {
-            evaluations = Collections.emptyList();
-            return evaluations;
-        }
-        Map<String, Integer> previous = new HashMap<>();
-        tokenOf.forEach((target, token) -> previous.put(target.positionKey(), token));
-        tokens.clear();
-        tokenOf.clear();
-        List<PatternUploadTarget> targets = discovery.apply(grid);
-        for (PatternUploadTarget target : targets) {
-            // Keep the token of an unchanged position so an in-flight click still names the same host.
-            Integer token = previous.get(target.positionKey());
-            if (token == null) token = ++serial;
-            tokens.put(token, target);
-            tokenOf.put(target, token);
-        }
-        evaluations = PatternTargetSelector.evaluateAll(targets, context, grid);
+        if (grid == null || context == null) evaluations = Collections.emptyList();
+        else evaluations = PatternTargetSelector.evaluateAll(discovery.apply(grid), context, grid);
+        groups.update(evaluations);
         return evaluations;
     }
 
@@ -146,26 +116,56 @@ public final class PatternUploadSession {
         return evaluations;
     }
 
-    public int token(PatternUploadTarget target) {
-        Integer token = tokenOf.get(target);
-        return token == null ? 0 : token;
+    /** Groups of the latest refresh, best first. */
+    public List<PatternTargetGroups.Group> groups() {
+        return groups.groups();
     }
 
-    public PatternUploadTarget target(int token) {
-        return tokens.get(token);
+    public PatternTargetGroups.Group group(int token) {
+        return groups.group(token);
     }
 
-    public PatternTransfer.Result upload(int token, boolean automatic) {
-        PatternUploadTarget target = tokens.get(token);
-        if (target == null) return fail("gui.neoecoae.pattern_upload.reason.target_missing");
-        return upload(target, automatic);
+    public PatternTargetGroups.Group groupOf(PatternUploadTarget target) {
+        return groups.groupOf(target);
+    }
+
+    /**
+     * Uploads into the group named by {@code token}. Members are tried most-empty first; each attempt re-verifies its
+     * target, and a failure that belongs to that target alone (slot taken meanwhile, machine went offline) moves on
+     * to the next member. A failure that would repeat for every member stops at once.
+     */
+    public GroupUpload uploadGroup(int token) {
+        PatternTargetGroups.Group group = groups.group(token);
+        if (group == null) return new GroupUpload(fail(REASON_TARGET_MISSING), null);
+        List<PatternTargetSelector.Evaluation> order = group.uploadOrder();
+        if (order.isEmpty()) {
+            PatternTargetSelector.Evaluation best = group.best();
+            String reason = best.state != PatternTargetSelector.SlotState.FREE ? best.state.translationKey()
+                : best.match.level.translationKey();
+            return new GroupUpload(fail(reason), null);
+        }
+        PatternTransfer.Result result = null;
+        for (PatternTargetSelector.Evaluation member : order) {
+            result = upload(member.target, false);
+            if (result.succeeded()) return new GroupUpload(result, member.target);
+            if (!targetSpecific(result)) break;
+        }
+        return new GroupUpload(result, null);
+    }
+
+    /** Whether another member of the same group could still succeed after {@code result}. */
+    static boolean targetSpecific(PatternTransfer.Result result) {
+        if (result.status != PatternTransfer.Status.REJECTED) return false;
+        String reason = result.reason;
+        return !REASON_NO_PERMISSION.equals(reason) && !REASON_NO_PATTERN.equals(reason)
+            && !PatternTransfer.REASON_SOURCE_CHANGED.equals(reason);
     }
 
     public PatternTransfer.Result upload(PatternUploadTarget target, boolean automatic) {
         touch();
-        if (!isOpen() || !source.canEdit(player)) return fail("gui.neoecoae.pattern_upload.reason.no_permission");
+        if (!isOpen() || !source.canEdit(player)) return fail(REASON_NO_PERMISSION);
         PatternContext context = context();
-        if (context == null) return fail("gui.neoecoae.pattern_upload.no_pattern");
+        if (context == null) return fail(REASON_NO_PATTERN);
         IGrid grid = source.grid();
         // Re-read the destination and its machine route at submit time.
         PatternTargetSelector.Evaluation evaluation = PatternTargetSelector.evaluate(target, context, grid);
@@ -191,7 +191,7 @@ public final class PatternUploadSession {
         UploadReceipt receipt = PatternUploadSessions.receipt(player);
         if (receipt == null) return fail("gui.neoecoae.pattern_upload.reason.no_receipt");
         if (receipt.sourceIdentity != source.identity()) return fail("gui.neoecoae.pattern_upload.reason.other_source");
-        if (!isOpen() || !source.canEdit(player)) return fail("gui.neoecoae.pattern_upload.reason.no_permission");
+        if (!isOpen() || !source.canEdit(player)) return fail(REASON_NO_PERMISSION);
         PatternTransfer.Result result = PatternTransfer
             .move(receipt.target.access, receipt.target.slot, source.slots(), source.slot(), receipt.pattern);
         if (result.succeeded()) {
@@ -201,15 +201,14 @@ public final class PatternUploadSession {
         return result;
     }
 
-    public boolean hasReceipt() {
+    /** The receipt of the player's last upload when it can be undone into this terminal, else null. */
+    public UploadReceipt receipt() {
         UploadReceipt receipt = PatternUploadSessions.receipt(player);
-        return receipt != null && receipt.sourceIdentity == source.identity();
+        return receipt != null && receipt.sourceIdentity == source.identity() ? receipt : null;
     }
 
-    public List<PatternTargetSelector.Evaluation> page(int page, int size) {
-        int from = Math.max(0, page * size);
-        if (from >= evaluations.size()) return Collections.emptyList();
-        return new ArrayList<>(evaluations.subList(from, Math.min(evaluations.size(), from + size)));
+    public boolean hasReceipt() {
+        return receipt() != null;
     }
 
     private PatternTransfer.Result fail(String reason) {
@@ -220,5 +219,21 @@ public final class PatternUploadSession {
     public void message(String key, boolean error) {
         message = key == null ? "" : key;
         messageError = error;
+    }
+
+    /** Outcome of a group upload and the member that received the pattern, if any. */
+    public static final class GroupUpload {
+
+        public final PatternTransfer.Result result;
+        public final PatternUploadTarget target;
+
+        GroupUpload(PatternTransfer.Result result, PatternUploadTarget target) {
+            this.result = result;
+            this.target = target;
+        }
+
+        public boolean succeeded() {
+            return result.succeeded();
+        }
     }
 }

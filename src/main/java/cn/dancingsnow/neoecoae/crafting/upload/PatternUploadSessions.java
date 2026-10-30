@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
 
 /** Server-thread registry: at most one active session, one NEI hint and one undo receipt per player. */
@@ -26,14 +27,21 @@ public final class PatternUploadSessions {
         return session;
     }
 
+    /** The player's session if it is still bound to the window the player has open; a stale one is released. */
     public static PatternUploadSession active(EntityPlayer player) {
         PatternUploadSession session = SESSIONS.get(player.getUniqueID());
-        if (session != null && !session.isOpen() && session.state() != PatternUploadSession.State.TERMINAL) {
+        if (session != null && !session.isOpen()) {
             session.close();
             SESSIONS.remove(player.getUniqueID());
             return null;
         }
         return session;
+    }
+
+    /** The open session for exactly {@code container}, or null (another window's session stays untouched). */
+    public static PatternUploadSession active(EntityPlayer player, Container container) {
+        PatternUploadSession session = active(player);
+        return session != null && session.boundTo(container) ? session : null;
     }
 
     public static void setHint(EntityPlayer player, RouteHint hint) {
@@ -49,9 +57,16 @@ public final class PatternUploadSessions {
         else HINTS.remove(player.getUniqueID());
     }
 
+    /** Any hint bound to {@code pattern} in this window, including one that only names the NEI category. */
     public static RouteHint hintFor(EntityPlayer player, int windowId, ItemStack pattern) {
         RouteHint hint = HINTS.get(player.getUniqueID());
         return hint != null && hint.appliesTo(windowId, pattern) ? hint : null;
+    }
+
+    /** Like {@link #hintFor} but only a hint that names a recipe map; this is the one route matching may use. */
+    public static RouteHint routeHintFor(EntityPlayer player, int windowId, ItemStack pattern) {
+        RouteHint hint = hintFor(player, windowId, pattern);
+        return hint != null && hint.hasRecipeMap() ? hint : null;
     }
 
     static void remember(EntityPlayer player, UploadReceipt receipt) {

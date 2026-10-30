@@ -1,9 +1,12 @@
 package cn.dancingsnow.neoecoae.platform.ui.upload;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.RenderGlobal;
 import net.minecraft.item.ItemStack;
@@ -21,16 +24,19 @@ import appeng.client.gui.widgets.GuiImgButton;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.network.PatternUploadPackets;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
  * Client entry points, attached through Forge GUI events rather than remapped GUI mixins: upload/auto buttons,
- * right-click encode, the auto-target tooltip and the in-world target marker. All state is bound to one window.
+ * right-click encode, the auto-target tooltip, the target list screen and the in-world target marker. All state is
+ * bound to one window. Registered on both the Forge bus (GUI/render events) and the FML bus (client tick).
  */
 public final class PatternUploadClient {
 
     private static volatile PatternUploadPackets.AutoTarget autoTarget;
+    private static final AtomicReference<PatternUploadPackets.TargetList> PENDING_LIST = new AtomicReference<>();
     private static int highlightDimension, highlightX, highlightY, highlightZ;
     private static long highlightUntil;
 
@@ -51,19 +57,85 @@ public final class PatternUploadClient {
         return target;
     }
 
+    /**
+     * A complete target list arrived. Called on the network thread (1.7.10 has no scheduled tasks): only the newest
+     * list is kept and {@link #tick} hands it to the GUI on the client thread.
+     */
+    public static void targetList(PatternUploadPackets.TargetList list) {
+        PENDING_LIST.set(list);
+    }
+
+    /** Client thread: the terminal window whose upload request may open the list; -1 for none. */
+    private static int awaitingWindow = -1;
+    private static long awaitingUntil;
+
+    @SideOnly(Side.CLIENT)
+    private static void expectList(int windowId) {
+        awaitingWindow = windowId;
+        awaitingUntil = System.currentTimeMillis() + 15_000L;
+    }
+
+    /** The list screen of this window was left; later replies to its actions must not reopen it. */
+    @SideOnly(Side.CLIENT)
+    static void screenClosed(int windowId) {
+        if (awaitingWindow == windowId) awaitingWindow = -1;
+    }
+
+    @SubscribeEvent
+    @SideOnly(Side.CLIENT)
+    public void tick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
+        PatternUploadPackets.TargetList list = PENDING_LIST.getAndSet(null);
+        if (list != null) deliver(list);
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static void deliver(PatternUploadPackets.TargetList list) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        GuiScreen screen = minecraft.currentScreen;
+        if (screen instanceof PatternUploadScreen) {
+            if (((PatternUploadScreen) screen).windowId == list.windowId) ((PatternUploadScreen) screen).accept(list);
+            return;
+        }
+        if (!(screen instanceof GuiPatternTerm) || minecraft.thePlayer == null) return;
+        GuiPatternTerm terminal = (GuiPatternTerm) screen;
+        int windowId = terminal.inventorySlots.windowId;
+        if (windowId != list.windowId || minecraft.thePlayer.openContainer != terminal.inventorySlots) return;
+        if (awaitingWindow != windowId || System.currentTimeMillis() > awaitingUntil) return;
+        awaitingWindow = -1;
+        // An upload started from the terminal itself succeeded: stay on the terminal.
+        if (list.event == PatternUploadPackets.EVENT_UPLOADED) return;
+        // GuiContainer.onGuiClosed runs Container.onContainerClosed on the client, which would drop a stack held on
+        // the cursor client-side only; the server window stays open, so keep the cursor stack untouched.
+        ItemStack held = minecraft.thePlayer.inventory.getItemStack();
+        minecraft.thePlayer.inventory.setItemStack(null);
+        try {
+            minecraft.displayGuiScreen(new PatternUploadScreen(terminal, list));
+        } finally {
+            minecraft.thePlayer.inventory.setItemStack(held);
+        }
+    }
+
     public static synchronized void highlight(int dimension, int x, int y, int z) {
         highlightDimension = dimension;
         highlightX = x;
         highlightY = y;
         highlightZ = z;
-        highlightUntil = System.currentTimeMillis() + 10_000L;
+        highlightUntil = System.currentTimeMillis() + 30_000L;
     }
 
-    /** NEI filled a pattern terminal; an empty map clears the previous hint for this window. */
+    /**
+     * NEI filled a pattern terminal; an empty map clears the previous hint for this window. The category is NEI's
+     * display name of the recipe tab (empty for crafting-table recipes) and prefills the target search.
+     */
     @SideOnly(Side.CLIENT)
-    public static void captureHint(GuiContainer gui, String recipeMapId, ItemStack circuit) {
+    public static void captureHint(GuiContainer gui, String recipeMapId, ItemStack circuit, String category) {
         if (!(gui instanceof GuiPatternTerm)) return;
-        PatternUploadPackets.hint(gui.inventorySlots.windowId, recipeMapId == null ? "" : recipeMapId, circuit);
+        PatternUploadPackets.hint(
+            gui.inventorySlots.windowId,
+            recipeMapId == null ? "" : recipeMapId,
+            circuit,
+            category == null ? "" : category);
     }
 
     @SubscribeEvent
@@ -88,8 +160,10 @@ public final class PatternUploadClient {
     public void action(GuiScreenEvent.ActionPerformedEvent.Pre event) {
         GuiButton button = event.button;
         if (!(event.gui instanceof GuiPatternTerm) || !(button instanceof PatternUploadButton)) return;
+        int windowId = ((GuiContainer) event.gui).inventorySlots.windowId;
+        expectList(windowId);
         PatternUploadPackets.request(
-            ((GuiContainer) event.gui).inventorySlots.windowId,
+            windowId,
             ((PatternUploadButton) button).automatic ? PatternUploadPackets.AUTO : PatternUploadPackets.OPEN);
         event.setCanceled(true);
     }
@@ -102,8 +176,10 @@ public final class PatternUploadClient {
         boolean pressed = down && !rightDown;
         rightDown = down;
         if (!pressed || !(event.gui instanceof GuiPatternTerm) || encodeButton == null) return;
-        if (encodeButton.mousePressed(Minecraft.getMinecraft(), event.mouseX, event.mouseY)) PatternUploadPackets
-            .request(((GuiContainer) event.gui).inventorySlots.windowId, PatternUploadPackets.ENCODE_AND_OPEN);
+        if (!encodeButton.mousePressed(Minecraft.getMinecraft(), event.mouseX, event.mouseY)) return;
+        int windowId = ((GuiContainer) event.gui).inventorySlots.windowId;
+        expectList(windowId);
+        PatternUploadPackets.request(windowId, PatternUploadPackets.ENCODE_AND_OPEN);
     }
 
     @SubscribeEvent

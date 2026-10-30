@@ -1,10 +1,15 @@
 package cn.dancingsnow.neoecoae.platform.gt.upload;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fluids.FluidStack;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
@@ -14,6 +19,7 @@ import appeng.api.storage.data.IAEStack;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
+import gregtech.common.items.ItemIntegratedCircuit;
 
 /**
  * Two-step recipe check. GT's lenient query only proposes candidates; each candidate is then re-checked with the
@@ -34,7 +40,11 @@ final class GtRecipeVerifier {
 
     /** {@code circuit} is the non-consumed selector supplied by the machine or NEI when the pattern omits it. */
     static Verdict verify(RecipeMap<?> map, ICraftingPatternDetails details, ItemStack circuit) {
-        Pattern pattern = Pattern.of(details, circuit);
+        Pattern base = Pattern.of(details);
+        return lookup(map, base == null ? null : base.withSelector(circuit));
+    }
+
+    private static Verdict lookup(RecipeMap<?> map, Pattern pattern) {
         if (pattern == null || pattern.outputs.isEmpty()) return Verdict.NONE;
         Verdict best = Verdict.NONE;
         Iterator<GTRecipe> candidates;
@@ -144,31 +154,198 @@ final class GtRecipeVerifier {
         return -1;
     }
 
+    /**
+     * Memoized verdicts for one evaluation pass. A verdict is a pure function of (recipe map, decoded pattern, selector
+     * circuit) and recipe maps are fixed after load, so it is shared by every target of the pass that exposes the same
+     * map and circuit. Machine state (which map, which circuit) is never cached here: callers read it from the live
+     * host. Entries live at most for the server tick they were computed in, are dropped on every discovery, and are
+     * bounded in count; without a running server nothing is cached. Server thread only.
+     */
+    static final class Cache {
+
+        private static final int MAX_PATTERNS = 32;
+        private static final int MAX_VERDICTS = 4096;
+        private static final Object NO_CIRCUIT = new Object();
+
+        private final Map<ICraftingPatternDetails, PatternEntry> patterns = new IdentityHashMap<>();
+        private long tick = Long.MIN_VALUE;
+        private int verdicts;
+
+        void clear() {
+            patterns.clear();
+            verdicts = 0;
+            tick = Long.MIN_VALUE;
+        }
+
+        Verdict verify(RecipeMap<?> map, ICraftingPatternDetails details, ItemStack circuit) {
+            Object key = circuitKey(circuit);
+            PatternEntry entry = key == null || map == null ? null : entry(details);
+            if (entry == null) return GtRecipeVerifier.verify(map, details, circuit);
+            Map<Object, Verdict> known = entry.verdicts(map);
+            Verdict verdict = known.get(key);
+            if (verdict == null) {
+                verdict = lookup(map, entry.pattern == null ? null : entry.pattern.withSelector(circuit));
+                known.put(key, verdict);
+                verdicts++;
+            }
+            return verdict;
+        }
+
+        /** Whether some integrated circuit 0..MAX makes the pattern a recipe of {@code map}. */
+        boolean matchesWithAnyCircuit(RecipeMap<?> map, ICraftingPatternDetails details) {
+            PatternEntry entry = map == null ? null : entry(details);
+            Boolean known = entry == null ? null : entry.anyCircuit.get(map);
+            if (known != null) return known;
+            boolean found = false;
+            for (int number = 0; number <= ItemIntegratedCircuit.MAX_CIRCUIT_NUMBER && !found; number++) {
+                ItemStack circuit = GTUtility.getIntegratedCircuit(number);
+                found = circuit != null && verify(map, details, circuit) != Verdict.NONE;
+            }
+            // Re-read: a bound overflow inside verify may have started a fresh pass.
+            entry = map == null ? null : entry(details);
+            if (entry != null) entry.anyCircuit.put(map, found);
+            return found;
+        }
+
+        private PatternEntry entry(ICraftingPatternDetails details) {
+            if (details == null) return null;
+            long now = currentTick();
+            if (now == Long.MIN_VALUE) {
+                clear();
+                return null;
+            }
+            if (now != tick || verdicts >= MAX_VERDICTS
+                || patterns.size() >= MAX_PATTERNS && !patterns.containsKey(details)) {
+                clear();
+                tick = now;
+            }
+            PatternEntry entry = patterns.get(details);
+            if (entry == null) {
+                entry = new PatternEntry(Pattern.of(details));
+                patterns.put(details, entry);
+            }
+            return entry;
+        }
+
+        private static long currentTick() {
+            MinecraftServer server = MinecraftServer.getServer();
+            return server == null ? Long.MIN_VALUE : server.getTickCounter();
+        }
+
+        /**
+         * A selector as {@link Pattern#withSelector} uses it: absent, or an untagged stack by item and damage (the
+         * selector is always copied to size 1). Tagged stacks return null and are verified uncached.
+         */
+        private static Object circuitKey(ItemStack circuit) {
+            if (circuit == null) return NO_CIRCUIT;
+            if (circuit.getItem() == null || circuit.hasTagCompound()) return null;
+            return new CircuitKey(circuit.getItem(), circuit.getItemDamage());
+        }
+    }
+
+    private static final class PatternEntry {
+
+        /** Null when the details decode to no processing pattern; every verdict is then NONE. */
+        final Pattern pattern;
+        final Map<RecipeMap<?>, Map<Object, Verdict>> verdicts = new IdentityHashMap<>();
+        final Map<RecipeMap<?>, Boolean> anyCircuit = new IdentityHashMap<>();
+
+        PatternEntry(Pattern pattern) {
+            this.pattern = pattern;
+        }
+
+        Map<Object, Verdict> verdicts(RecipeMap<?> map) {
+            Map<Object, Verdict> known = verdicts.get(map);
+            if (known == null) {
+                known = new HashMap<>();
+                verdicts.put(map, known);
+            }
+            return known;
+        }
+    }
+
+    private static final class CircuitKey {
+
+        final Item item;
+        final int damage;
+
+        CircuitKey(Item item, int damage) {
+            this.item = item;
+            this.damage = damage;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            return other instanceof CircuitKey && ((CircuitKey) other).item == item
+                && ((CircuitKey) other).damage == damage;
+        }
+
+        @Override
+        public int hashCode() {
+            return System.identityHashCode(item) * 31 + damage;
+        }
+    }
+
+    /** Decoded pattern amounts; built once per pattern and not mutated afterwards. */
     private static final class Pattern {
 
-        final List<ItemStack> items = new ArrayList<>();
-        final List<Long> itemAmounts = new ArrayList<>();
-        final List<FluidStack> fluids = new ArrayList<>();
-        final List<Long> fluidAmounts = new ArrayList<>();
-        final List<ItemStack> outputs = new ArrayList<>();
-        final List<Long> outputAmounts = new ArrayList<>();
-        final List<FluidStack> fluidOutputs = new ArrayList<>();
-        final List<Long> fluidOutputAmounts = new ArrayList<>();
+        final List<ItemStack> items;
+        final List<Long> itemAmounts;
+        final List<FluidStack> fluids;
+        final List<Long> fluidAmounts;
+        final List<ItemStack> outputs;
+        final List<Long> outputAmounts;
+        final List<FluidStack> fluidOutputs;
+        final List<Long> fluidOutputAmounts;
+        boolean hasCircuit;
 
-        static Pattern of(ICraftingPatternDetails details, ItemStack circuit) {
+        private Pattern() {
+            items = new ArrayList<>();
+            itemAmounts = new ArrayList<>();
+            fluids = new ArrayList<>();
+            fluidAmounts = new ArrayList<>();
+            outputs = new ArrayList<>();
+            outputAmounts = new ArrayList<>();
+            fluidOutputs = new ArrayList<>();
+            fluidOutputAmounts = new ArrayList<>();
+        }
+
+        /** Same pattern plus one selector; everything but the item inputs is shared read-only with {@code base}. */
+        private Pattern(Pattern base, ItemStack selector) {
+            items = new ArrayList<>(base.items);
+            itemAmounts = new ArrayList<>(base.itemAmounts);
+            items.add(selector);
+            itemAmounts.add(1L);
+            fluids = base.fluids;
+            fluidAmounts = base.fluidAmounts;
+            outputs = base.outputs;
+            outputAmounts = base.outputAmounts;
+            fluidOutputs = base.fluidOutputs;
+            fluidOutputAmounts = base.fluidOutputAmounts;
+            hasCircuit = base.hasCircuit;
+        }
+
+        /** The pattern as verified with {@code circuit} supplied by the machine or NEI when it encodes none itself. */
+        Pattern withSelector(ItemStack circuit) {
+            if (hasCircuit || circuit == null) return this;
+            ItemStack selector = circuit.copy();
+            selector.stackSize = 1;
+            return new Pattern(this, selector);
+        }
+
+        static Pattern of(ICraftingPatternDetails details) {
             if (details == null || details.isCraftable()) return null;
             Pattern pattern = new Pattern();
             IAEStack<?>[] inputs = details.getCondensedAEInputs();
             IAEStack<?>[] outputs = details.getCondensedAEOutputs();
             if (inputs == null || outputs == null) return null;
-            boolean hasCircuit = false;
             for (IAEStack<?> input : inputs) {
                 if (input instanceof IAEItemStack) {
                     ItemStack raw = ((IAEItemStack) input).getItemStack();
                     ItemStack stack = GtCircuits.normalizeForRecipe(raw);
                     // An empty programming circuit is a reset marker, not an ingredient.
                     if (stack == null) continue;
-                    hasCircuit |= GtCircuits.isCircuit(stack);
+                    pattern.hasCircuit |= GtCircuits.isCircuit(stack);
                     pattern.items.add(stack);
                     pattern.itemAmounts.add(Math.max(1L, input.getStackSize()));
                 } else if (input instanceof IAEFluidStack) {
@@ -177,12 +354,6 @@ final class GtRecipeVerifier {
                     pattern.fluids.add(stack.copy());
                     pattern.fluidAmounts.add(Math.max(1L, input.getStackSize()));
                 }
-            }
-            if (!hasCircuit && circuit != null) {
-                ItemStack selector = circuit.copy();
-                selector.stackSize = 1;
-                pattern.items.add(selector);
-                pattern.itemAmounts.add(1L);
             }
             for (IAEStack<?> output : outputs) {
                 if (output instanceof IAEItemStack) {

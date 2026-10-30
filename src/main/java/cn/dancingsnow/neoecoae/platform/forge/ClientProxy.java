@@ -14,8 +14,12 @@ public class ClientProxy extends CommonProxy {
         cn.dancingsnow.neoecoae.platform.render.NativeModelItems.install();
         net.minecraftforge.common.MinecraftForge.EVENT_BUS
             .register(new cn.dancingsnow.neoecoae.platform.render.NativeFluidRendering());
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS
-            .register(new cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient());
+        var patternUpload = new cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient();
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(patternUpload);
+        // Target lists arrive on the network thread and are handed to the GUI on the client tick.
+        cpw.mods.fml.common.FMLCommonHandler.instance()
+            .bus()
+            .register(patternUpload);
         cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
             .register(new cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftConfirmClient());

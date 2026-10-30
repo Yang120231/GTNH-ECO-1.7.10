@@ -41,6 +41,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     private static final long OWNER_INDEX_TICKS = 100;
 
     private final Map<World, OwnerIndex> owners = new WeakHashMap<>();
+    /** Recipe-lookup verdicts shared by the targets of one pass; never holds machine state. */
+    private final GtRecipeVerifier.Cache verdicts = new GtRecipeVerifier.Cache();
 
     private GtPatternRoutes() {}
 
@@ -51,6 +53,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     @Override
     public void invalidate() {
         // Ownership is time-bounded instead; structure changes are re-read at submit through the live routes.
+        verdicts.clear();
     }
 
     @Override
@@ -105,6 +108,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         Candidate best = null;
         for (Route route : routes) {
             Candidate candidate = evaluate(
+                verdicts,
                 route,
                 context,
                 hintMap,
@@ -125,8 +129,9 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             best.route.programmingCover || programmable && programmingCircuit);
     }
 
-    private static Candidate evaluate(Route route, PatternContext context, String hintMap, ItemStack hintCircuit,
-        ItemStack patternCircuit, boolean programmingCircuit, boolean canProgram) {
+    private static Candidate evaluate(GtRecipeVerifier.Cache verdicts, Route route, PatternContext context,
+        String hintMap, ItemStack hintCircuit, ItemStack patternCircuit, boolean programmingCircuit,
+        boolean canProgram) {
         if (hintMap != null && !hintMap.equals(route.map.unlocalizedName)) return new Candidate(
             MatchResult.Level.WRONG_RECIPE,
             "gui.neoecoae.pattern_upload.reason.hint_map",
@@ -146,10 +151,10 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             selector = route.circuit != null ? route.circuit : hintCircuit;
         }
         ItemStack shown = patternCircuit != null ? patternCircuit : selector;
-        GtRecipeVerifier.Verdict verdict = GtRecipeVerifier.verify(route.map, context.details, selector);
+        GtRecipeVerifier.Verdict verdict = verdicts.verify(route.map, context.details, selector);
         if (verdict == GtRecipeVerifier.Verdict.NONE && patternCircuit == null
             && selector == null
-            && matchesWithAnyCircuit(route.map, context))
+            && verdicts.matchesWithAnyCircuit(route.map, context.details))
             return new Candidate(
                 MatchResult.Level.UNVERIFIED,
                 "gui.neoecoae.pattern_upload.reason.circuit_unknown",
@@ -183,15 +188,6 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                     route,
                     shown);
         }
-    }
-
-    private static boolean matchesWithAnyCircuit(RecipeMap<?> map, PatternContext context) {
-        for (int number = 0; number <= gregtech.common.items.ItemIntegratedCircuit.MAX_CIRCUIT_NUMBER; number++) {
-            ItemStack circuit = gregtech.api.util.GTUtility.getIntegratedCircuit(number);
-            if (circuit != null
-                && GtRecipeVerifier.verify(map, context.details, circuit) != GtRecipeVerifier.Verdict.NONE) return true;
-        }
-        return false;
     }
 
     private static boolean knownMap(String id) {
