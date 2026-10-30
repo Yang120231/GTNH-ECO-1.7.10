@@ -26,6 +26,7 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler;
 import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeOwnedFluidSync;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
+import cn.dancingsnow.neoecoae.platform.ui.NativeSlotGroups;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -55,9 +56,12 @@ public final class NativeWorkstationPages {
         NativeItemHandler input = new NativeItemHandler(
             host.getInputInv()
                 .toItemHandler());
+        String inputGroup = NativeSlotGroups.register(sync, "workstation.input", 3, NativeSlotGroups.STORAGE_PRIORITY);
+        String upgradeGroup = NativeSlotGroups
+            .register(sync, "workstation.upgrades", 1, NativeSlotGroups.UPGRADE_PRIORITY);
         // The source panel already contains the slots; null would restore MUI2's default slot texture.
         for (int row = 0; row < 3; row++) for (int column = 0; column < 3; column++) panel.child(
-            new NativeItemSlot().slot(new ModularSlot(input, row + column * 3))
+            new NativeItemSlot().slot(new ModularSlot(input, row + column * 3).slotGroup(inputGroup))
                 .background(IDrawable.EMPTY)
                 .hoverBackground(IDrawable.EMPTY)
                 .pos(35 + column * 18, 23 + row * 18));
@@ -74,7 +78,7 @@ public final class NativeWorkstationPages {
         var upgrades = new java.util.ArrayList<com.cleanroommc.modularui.widget.Widget<?>>();
         for (int index = 0; index < 4; index++) upgrades.add(
             new cn.dancingsnow.neoecoae.platform.ui.NativeUpgradeSlot()
-                .slot(new ModularSlot(new InvWrapper(host.getUpgrades()), index))
+                .slot(new ModularSlot(new InvWrapper(host.getUpgrades()), index).slotGroup(upgradeGroup))
                 .hoverBackground(IDrawable.NONE));
         panel.child(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.upgrades(176, upgrades));
 
@@ -113,7 +117,7 @@ public final class NativeWorkstationPages {
                 .hoverBackground(IDrawable.EMPTY);
         })
             .pos(7, 105));
-        if (toolbox != null) toolbox.attach(panel);
+        if (toolbox != null) toolbox.attach(panel, sync);
 
         IPanelHandler outputs = sync.syncedPanel(
             "workstation.outputs",

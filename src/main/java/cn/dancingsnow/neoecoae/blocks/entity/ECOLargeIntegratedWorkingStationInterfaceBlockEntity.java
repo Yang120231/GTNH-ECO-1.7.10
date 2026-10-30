@@ -30,9 +30,9 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 /** Native AE2 medium for the large workstation, retaining the source batch and job ownership contracts. */
 public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
-    extends ECOMachineInterfaceBlockEntity<NEIntegratedWorkingStationCluster>
-    implements appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium,
-    ECOJobAwareCraftingProvider, ECOParallelCraftingProvider, appeng.api.util.IInterfaceViewable {
+    extends ECOMachineInterfaceBlockEntity<NEIntegratedWorkingStationCluster> implements
+    appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium, ECOJobAwareCraftingProvider,
+    ECOParallelCraftingProvider, appeng.api.util.IInterfaceViewable, appeng.api.implementations.IUpgradeableHost {
 
     private final LargeWorkstationPatternProvider workstationProvider = new LargeWorkstationPatternProvider(this);
 
@@ -53,6 +53,24 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
 
     public appeng.parts.automation.UpgradeInventory getUpgrades() {
         return workstationProvider.getUpgrades();
+    }
+
+    /** AE2 upgrade cards Shift-right-clicked onto the block insert through this inventory's own slot limits. */
+    @Override
+    public net.minecraft.inventory.IInventory getInventoryByName(String name) {
+        if ("upgrades".equals(name)) return getUpgrades();
+        if ("patterns".equals(name)) return workstationProvider.getPatternInv();
+        return null;
+    }
+
+    @Override
+    public int getInstalledUpgrades(appeng.api.config.Upgrades upgrade) {
+        return getUpgrades().getInstalledUpgrades(upgrade);
+    }
+
+    @Override
+    public appeng.api.util.IConfigManager getConfigManager() {
+        return workstationProvider.getConfigManager();
     }
 
     @Override

@@ -145,10 +145,15 @@ public final class NativeCraftingPages {
         var handler = new cn.dancingsnow.neoecoae.platform.ui.NativeItemHandler(
             host.getInternalInventory()
                 .toItemHandler());
+        String patterns = cn.dancingsnow.neoecoae.platform.ui.NativeSlotGroups.register(
+            sync,
+            "crafting.pattern_bus",
+            9,
+            cn.dancingsnow.neoecoae.platform.ui.NativeSlotGroups.STORAGE_PRIORITY);
         for (int index = 0; index < host.getInternalInventory()
             .size(); index++)
             panel.child(
-                new PatternSlot().slot(new ModularSlot(handler, index))
+                new PatternSlot().slot(new ModularSlot(handler, index).slotGroup(patterns))
                     .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.slot())
                     .pos(4 + index % 9 * 18, 22 + index / 9 * 18));
         panel.child(
