@@ -13,8 +13,8 @@
 		"logoFile": "",
 		"screenshots": [],
 		"parent": "",
-		"requiredMods": ["modularui2", "appliedenergistics2", "structurelib"],
-		"dependencies": ["gtnhlib", "modularui2", "appliedenergistics2", "structurelib", "gregtech"],
+		"requiredMods": ["modularui2", "appliedenergistics2", "ae2fc", "structurelib"],
+		"dependencies": ["gtnhlib", "modularui2", "appliedenergistics2", "ae2fc", "structurelib", "gregtech"],
 		"dependants": [],
 		"useDependencyInformation": true
 	}]

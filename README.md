@@ -11,6 +11,8 @@
 | --- | --- |
 | 2.9.0-RC1 及以上 | [![最新版本](https://img.shields.io/github/v/release/Yang120231/GTNH-ECO-1.7.10)](https://github.com/Yang120231/GTNH-ECO-1.7.10/releases) |
 
+必需前置包括 Applied Energistics 2、AE2 Fluid Crafting（AE2FC，1.5.64-gtnh 及以上）、ModularUI2 和 StructureLib。工作站配方可直接从 NEI 写入样板终端，保留物品数量、流体种类与 mB 数量。
+
 ## 内容简介
 
 ### ECO 存储系统

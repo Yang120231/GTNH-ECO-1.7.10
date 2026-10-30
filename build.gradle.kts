@@ -22,6 +22,7 @@ val guideNhVersion = "1.3.53"
 val structureLibVersion = "1.4.39"
 // Match the reviewed GT API artifact; newer GT releases require unrelated AE2/MUI2 upgrades.
 val gregTechVersion = "5.09.52.398"
+val ae2fcVersion = "1.5.64-gtnh"
 val gtRuntime = providers.gradleProperty("gtRuntime").map(String::toBoolean).getOrElse(true)
 
 repositories {
@@ -46,6 +47,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     // Native adapters compile against the investigation's pinned APIs.
     compileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
+    compileOnly(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
     compileOnly(gtnhDevJar("ModularUI2", modularUi2Version))
     compileOnly(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
     compileOnly(gtnhDevJar("GuideNH", guideNhVersion)) { isTransitive = false }
@@ -63,6 +65,8 @@ dependencies {
     compileOnly(project.extra["mixinProviderSpec"] as String)
     testImplementation(project.extra["mixinProviderSpec"] as String)
     testImplementation(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
+    testImplementation(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
+    testImplementation(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
     testImplementation(gtnhDevJar("ModularUI2", modularUi2Version))
     testImplementation(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
     testRuntimeOnly(gtnhDevJar("GTNHLib", gtnhLibVersion))
@@ -77,16 +81,15 @@ dependencies {
     runtimeOnlyNonPublishable(gtnhDevJar("GTNHLib", gtnhLibVersion))
     runtimeOnlyNonPublishable(gtnhDevJar("ModularUI2", modularUi2Version))
     runtimeOnlyNonPublishable(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
+    // Required even without GregTech: ECO recipe transfer uses AE2FC's native fluid packets.
+    runtimeOnlyNonPublishable(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
+    runtimeOnlyNonPublishable(gtnhDevJar("WirelessCraftingTerminal", "1.12.12")) { isTransitive = false }
     if (gtRuntime) {
         runtimeOnlyNonPublishable(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
         // Explicitly select IC2 2.2.827, the native artifact used by GTNH's dependency substitution.
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:ic2-242638:2353971"))
         runtimeOnlyNonPublishable(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
         runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
-        // GT's client proxy implements AE2FC's NEI extractor API during mod construction.
-        // These are the versions declared by GT 5.09.52.398 and AE2FC 1.5.64.
-        runtimeOnlyNonPublishable(gtnhDevJar("AE2FluidCraft-Rework", "1.5.64-gtnh")) { isTransitive = false }
-        runtimeOnlyNonPublishable(gtnhDevJar("WirelessCraftingTerminal", "1.12.12")) { isTransitive = false }
         runtimeOnlyNonPublishable(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
         runtimeOnlyNonPublishable(gtnhDevJar("Postea", "1.2.5")) { isTransitive = false }
         runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughIds", "2.1.10")) { isTransitive = false }
@@ -230,7 +233,7 @@ val verifyGtRuntimeProfile by tasks.registering {
             "GTNHLib" to "0.11.37",
             "ModularUI" to "1.3.2",
             "NotEnoughItems" to "2.8.105-GTNH",
-            "AE2FluidCraft-Rework" to "1.5.64-gtnh",
+            "AE2FluidCraft-Rework" to ae2fcVersion,
             "WirelessCraftingTerminal" to "1.12.12",
             "waila" to "1.19.22",
             "Postea" to "1.2.5",

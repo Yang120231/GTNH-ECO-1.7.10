@@ -9,21 +9,25 @@ import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.init.Items;
+import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
-import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
+import com.glodblock.github.common.item.ItemFluidPacket;
+
+import appeng.api.storage.data.IAEStack;
+import appeng.container.implementations.ContainerPatternTerm;
 import cn.dancingsnow.neoecoae.platform.recipe.WorkstationRecipes;
 import codechicken.lib.gui.GuiDraw;
 import codechicken.nei.PositionedStack;
+import codechicken.nei.api.IOverlayHandler;
 import codechicken.nei.recipe.GuiRecipe;
 import codechicken.nei.recipe.StackInfo;
 import codechicken.nei.recipe.TemplateRecipeHandler;
-import cpw.mods.fml.common.Loader;
 
 /** Separate NEI categories backed by the same catalog the two machine hosts execute. */
 public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
@@ -72,6 +76,18 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
     @Override
     public String getOverlayIdentifier() {
         return kind.id();
+    }
+
+    @Override
+    public boolean hasOverlay(GuiContainer gui, Container container, int recipe) {
+        return kind != Kind.COOLING && container instanceof ContainerPatternTerm;
+    }
+
+    @Override
+    public IOverlayHandler getOverlayHandler(GuiContainer gui, int recipe) {
+        return kind != Kind.COOLING && gui.inventorySlots instanceof ContainerPatternTerm
+            ? WorkstationPatternOverlay.INSTANCE
+            : null;
     }
 
     @Override
@@ -257,41 +273,22 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
     }
 
     private ItemStack fluidDisplay(FluidStack fluid) {
-        if (Loader.isModLoaded("gregtech")) return GregTechFluidDisplay.create(fluid, kind != Kind.COOLING);
-        // fillFluidContainer needs a full container's worth (100 mB coolant never fills a bucket) and a registered
-        // container (cryotheum solution has none), so match registered containers by fluid alone, then fall back.
-        ItemStack container = null;
-        for (var data : FluidContainerRegistry.getRegisteredFluidContainerData()) {
-            if (data.fluid == null || data.filledContainer == null || !data.fluid.isFluidEqual(fluid)) continue;
-            if (data.emptyContainer != null && data.emptyContainer.getItem() == Items.bucket)
-                return data.filledContainer.copy();
-            if (container == null) container = data.filledContainer.copy();
-        }
-        return container != null ? container : cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.of(fluid);
+        return ItemFluidPacket.newStack(fluid);
     }
 
-    /**
-     * Stacks a pattern terminal should encode. NEE turns NEI fluid display stacks (GregTech's) into AE2 fluid stacks,
-     * as for GregTech's own recipes; buckets and the display-only item would encode as items, so those are dropped.
-     */
-    List<PositionedStack> patternStacks(int recipe, boolean outputs) {
+    /** Typed IO for the displayed recipe, including fluid-only and combined item/fluid outputs. */
+    List<IAEStack<?>> patternStacks(int recipe, boolean outputs) {
         var display = (DisplayRecipe) arecipes.get(recipe);
         List<PositionedStack> stacks = new ArrayList<>();
         if (outputs) {
             if (display.result != null) stacks.add(display.result);
             stacks.addAll(display.others);
         } else stacks.addAll(display.inputs);
-        stacks.removeIf(stack -> display.fluidSlots.contains(stack) && !isFluidDisplay(stack.item));
-        return stacks;
-    }
-
-    /** NEI's own fluid display test (newer NEI's StackInfo.isFluidDisplayItem), spelled with the pinned API. */
-    private static boolean isFluidDisplay(ItemStack stack) {
-        return stack != null && StackInfo.getFluid(stack) != null && !StackInfo.isFluidContainer(stack);
-    }
-
-    String overlayIdentifier() {
-        return kind.id();
+        List<IAEStack<?>> typed = new ArrayList<>();
+        for (PositionedStack stack : stacks) {
+            typed.add(WorkstationPatternOverlay.stack(stack.item, display.fluidSlots.contains(stack)));
+        }
+        return typed;
     }
 
     private final class DisplayRecipe extends CachedRecipe {

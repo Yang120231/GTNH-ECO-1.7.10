@@ -14,7 +14,7 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
     modid = NeoECOAE.MODID,
     version = Tags.VERSION,
     name = "Neo ECO AE Extension",
-    dependencies = "required-after:modularui2@[2.3.49-1.7.10,);required-after:appliedenergistics2;required-after:structurelib;after:gregtech;after:guidenh;",
+    dependencies = "required-after:modularui2@[2.3.49-1.7.10,);required-after:appliedenergistics2;required-after:ae2fc@[1.5.64-gtnh,);required-after:structurelib;after:gregtech;after:guidenh;",
     acceptedMinecraftVersions = "[1.7.10]",
     guiFactory = "cn.dancingsnow.neoecoae.platform.forge.PlanningSettingsGuiFactory")
 public class NeoECOAE {
