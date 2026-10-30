@@ -87,7 +87,9 @@ final class ECOCraftingOutputDelivery {
         }
         boolean tasksDone = !host.taskSchedulerForOutput()
             .hasPendingTasks(current);
-        boolean physicallyComplete = current.remainingAmount <= 0L && current.waitingFor.list.isEmpty()
+        // GTNH completes a fake-crafting job once every task is dispatched, without waiting for other returns.
+        boolean physicallyComplete = current.remainingAmount <= 0L
+            && (current.fakeCrafting || current.waitingFor.list.isEmpty())
             && tasksDone
             && pendingFinalOutputs.isEmpty();
         if (physicallyComplete) {

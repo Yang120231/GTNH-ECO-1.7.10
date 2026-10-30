@@ -91,7 +91,7 @@ final class ECOCraftingDispatchAccounting {
         ICraftingProvider provider) {
         var job = request.job();
         audit(request, result.acceptedCrafts(), result.outputs(), result.remainders(), "dispatch", () -> {
-            boolean virtual = false;
+            boolean virtual = isFakeCraftingDispatch(request, provider);
             for (var output : result.outputs()) {
                 boolean virtualOutput = virtual && output.what()
                     .equals(job.finalOutput.what());
@@ -101,11 +101,12 @@ final class ECOCraftingDispatchAccounting {
                     virtualAmount,
                     output.what()
                         .getType());
-                // Virtual final products need no return. Intermediate products and containers still do.
-                if (!virtualOutput)
+                // GTNH fake crafting awaits none of the final pattern's outputs; every other dispatch still does.
+                if (!virtual)
                     job.waitingFor.insert(output.what(), output.amount(), appeng.api.config.Actionable.MODULATE);
             }
             for (var remainder : result.remainders()) {
+                if (virtual) continue;
                 job.waitingFor.insert(remainder.what(), remainder.amount(), appeng.api.config.Actionable.MODULATE);
                 job.timeTracker.addMaxItems(
                     remainder.amount(),
@@ -139,6 +140,34 @@ final class ECOCraftingDispatchAccounting {
             }
             markDirty.run();
         });
+    }
+
+    /**
+     * GTNH CraftingCPUCluster semantics for the fake crafting card: the first final-pattern push to a
+     * {@code DualityInterface} with the card switches the job to fake crafting, after which every final-pattern push
+     * counts as already delivered instead of being awaited.
+     */
+    private static boolean isFakeCraftingDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider) {
+        var job = request.job();
+        if (job.exactOrder || job.finalOutput == null
+            || !isFinalPattern(request.pattern(), job.finalOutput.what())
+            || !hasTerminalVirtualOutput(request)) return false;
+        if (!job.fakeCrafting) {
+            if (!(provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider)
+                || !((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
+                    .isFakeCraftingMode())
+                return false;
+            job.fakeCrafting = true;
+        }
+        return true;
+    }
+
+    private static boolean isFinalPattern(cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails pattern,
+        AEKey finalKey) {
+        for (var output : pattern.getOutputs()) {
+            if (finalKey.equals(output.what())) return true;
+        }
+        return false;
     }
 
     private static boolean hasTerminalVirtualOutput(ECOCraftingDispatchRequest request) {

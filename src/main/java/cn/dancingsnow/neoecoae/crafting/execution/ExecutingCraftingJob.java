@@ -57,6 +57,7 @@ public class ExecutingCraftingJob {
     private static final String NBT_EXECUTION_RUNTIME = "executionRuntime";
     private static final String NBT_EXECUTION_PERSISTENCE_FAILED = "executionPersistenceFailed";
     private static final String NBT_BATCHED_OUTPUTS = "batchedOutputs";
+    private static final String NBT_FAKE_CRAFTING = "fakeCrafting";
 
     final CraftingLink link;
     final ListCraftingInventory waitingFor;
@@ -75,6 +76,11 @@ public class ExecutingCraftingJob {
     GenericStack finalOutput;
     long remainingAmount;
     boolean exactOrder;
+    /**
+     * Set once a final-output pattern is pushed to an interface with the fake crafting card. As in GTNH, from then
+     * on final-output pushes are not awaited and the job completes once every task has been dispatched.
+     */
+    boolean fakeCrafting;
     final Map<AEKey, java.math.BigInteger> deferredStock = new LinkedHashMap<>();
     final Map<AEKey, java.math.BigInteger> deferredEmitted = new LinkedHashMap<>();
     /** Outputs of successful multi-craft dispatches in this job, used by the ECO status page. */
@@ -209,6 +215,7 @@ public class ExecutingCraftingJob {
         this.reservedBytes = data.getLong("optimizationReservedBytes");
         this.remainingAmount = data.getLong(NBT_REMAINING_AMOUNT);
         this.exactOrder = data.getBoolean("exactOrder");
+        this.fakeCrafting = data.getBoolean(NBT_FAKE_CRAFTING);
         var fuzzyItems = new HashSet<cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation>();
         for (var tag : data.getList("fuzzyPlanningItemIds", Tag.TAG_STRING)) {
             var id = cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.tryParse(tag.getAsString());
@@ -404,6 +411,7 @@ public class ExecutingCraftingJob {
 
         data.putLong(NBT_REMAINING_AMOUNT, remainingAmount);
         data.putBoolean("exactOrder", exactOrder);
+        if (fakeCrafting) data.putBoolean(NBT_FAKE_CRAFTING, true);
         var fuzzyItems = new ListTag();
         fuzzyPlanningItemIds.stream()
             .sorted()

@@ -81,6 +81,12 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return medium.getClass() == appeng.helpers.DualityInterface.class;
     }
 
+    /** Mirrors GTNH CraftingCPUCluster: only a DualityInterface medium carrying the fake crafting card qualifies. */
+    public boolean isFakeCraftingMode() {
+        return medium instanceof appeng.helpers.DualityInterface
+            && ((appeng.helpers.DualityInterface) medium).isFakeCraftingMode();
+    }
+
     public boolean isScaledProcessingFullyInserted() {
         return supportsScaledProcessing()
             && NativeProcessingAccess.isSendBufferEmpty((appeng.helpers.DualityInterface) medium);

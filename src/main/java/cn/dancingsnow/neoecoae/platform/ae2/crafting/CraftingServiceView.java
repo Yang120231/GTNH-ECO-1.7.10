@@ -36,13 +36,15 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
         // The source compiler runs off-thread. Resolve every native pattern/recipe query here on the server thread.
         Set<AEKey> keys = new LinkedHashSet<>(candidates);
         Set<AEKey> outputs = new LinkedHashSet<>();
-        for (var nativeKey : crafting.getCraftingMultiPatterns()
-            .keySet()) {
-            AEKey key = AEKey.fromNative(nativeKey);
+        // Match GTNH CraftingContext#getPrecisePatternsFor: native getCraftingFor(IAEStack) only answers item stacks,
+        // so fluid (and other generic) producers must be read from the multi-type catalog directly.
+        var catalog = crafting.getCraftingMultiPatterns();
+        for (var entry : catalog.entrySet()) {
+            AEKey key = AEKey.fromNative(entry.getKey());
             if (key == null) continue;
             outputs.add(key);
             keys.add(key);
-            for (var pattern : crafting.getCraftingFor(nativeKey, null, 0, world)) {
+            for (var pattern : entry.getValue()) {
                 for (var input : pattern.getAEInputs()) if (input != null) keys.add(AEKey.fromNative(input));
                 for (var output : pattern.getAEOutputs()) if (output != null) keys.add(AEKey.fromNative(output));
             }
@@ -52,8 +54,9 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
         Set<AEKey> emitted = new LinkedHashSet<>();
         for (var key : keys) {
             var captured = new ArrayList<IPatternDetails>();
-            for (var pattern : crafting.getCraftingFor(key.toNative(1), null, 0, world))
-                captured.add(patterns.computeIfAbsent(pattern, substitutes::details));
+            var producers = catalog.get(key.toNative(1));
+            if (producers != null)
+                for (var pattern : producers) captured.add(patterns.computeIfAbsent(pattern, substitutes::details));
             index.put(key, Collections.unmodifiableList(captured));
             if (crafting.canEmitFor(key.toNative(1))) emitted.add(key);
         }
