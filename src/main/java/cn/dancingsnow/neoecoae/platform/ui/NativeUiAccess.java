@@ -18,7 +18,9 @@ public final class NativeUiAccess {
             && tile.getWorldObj() != null
             && !tile.getWorldObj().isRemote
             && player.worldObj == tile.getWorldObj()
-            && player.getDistanceSq(tile.xCoord + .5, tile.yCoord + .5, tile.zCoord + .5) <= 64
+            && (player.getDistanceSq(tile.xCoord + .5, tile.yCoord + .5, tile.zCoord + .5) <= 64
+                || cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECORemoteGuiOpener
+                    .isRemoteTarget(player, tile.getWorldObj(), tile.xCoord, tile.yCoord, tile.zCoord))
             && tile.getWorldObj()
                 .getChunkProvider()
                 .chunkExists(tile.xCoord >> 4, tile.zCoord >> 4)

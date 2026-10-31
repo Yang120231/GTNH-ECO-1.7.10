@@ -189,7 +189,7 @@ public final class ECOCraftingStatusTracker {
         tracked.nextProcessingTick = Long.MIN_VALUE;
     }
 
-    private static @Nullable ECOCraftingNativeRuntime ecoRuntime(@Nullable ICraftingCPU cpu) {
+    static @Nullable ECOCraftingNativeRuntime ecoRuntime(@Nullable ICraftingCPU cpu) {
         if (!(cpu instanceof NativeECOCpu eco) || !eco.isBusy()
             || !(eco.runtime() instanceof ECOCraftingNativeRuntime runtime)) return null;
         return runtime;
@@ -234,7 +234,7 @@ public final class ECOCraftingStatusTracker {
         return container.getActionSource();
     }
 
-    private static @Nullable ICraftingCPU selectedCpu(ContainerCraftingStatus container) {
+    static @Nullable ICraftingCPU selectedCpu(ContainerCraftingStatus container) {
         CraftingCPUStatus selected = container.getCPUTable()
             .getSelectedCPU();
         return selected == null ? null : selected.getServerCluster();

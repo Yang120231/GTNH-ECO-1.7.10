@@ -64,6 +64,7 @@ public final class StorageLifecycle {
         cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.clear();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker.clear();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingStatusTracker.clear();
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECORemoteGuiOpener.clear();
         cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingGraphSync.clear();
         cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.clearAll();
         ECOCellMutationBatch.flushTickDeferred();

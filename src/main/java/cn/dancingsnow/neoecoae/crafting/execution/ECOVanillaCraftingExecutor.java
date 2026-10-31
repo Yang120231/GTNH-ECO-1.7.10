@@ -284,6 +284,9 @@ final class ECOVanillaCraftingExecutor {
                         somethingChanged = true;
                         remainingOperations--;
                         pushedPattern = true;
+                        // Read-only side record for the status page; native push semantics are unchanged.
+                        host.getProcessingMonitor()
+                            .dispatchedNative(job.link.getCraftingID(), medium, details);
 
                         if (!job.vanillaFakeCrafting && isFinalPattern(job, details)) {
                             if (traits.isFakeCraftingMode(medium)) {

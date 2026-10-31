@@ -65,13 +65,14 @@ public final class NativeECOCpuSelection {
         if (job.isSimulation()) return null;
         if (target != null && !(target instanceof NativeECOCpu)) return null;
         List<NativeECOCpu> candidates = new ArrayList<>();
-        for (CraftingCPUCluster cpu : published) if (cpu instanceof NativeECOCpu && (target == null || target == cpu)
-            && cpu.isActive()
-            && !cpu.isBusy()
-            && ((NativeECOCpu) cpu).runtime()
-                .hasFreeThread()
-            && cpu.getAvailableStorage() >= job.getByteTotal()
-            && allows(cpu, source)) candidates.add((NativeECOCpu) cpu);
+        for (CraftingCPUCluster cpu : published)
+            if (cpu instanceof NativeECOCpu && (target == null || target == cpu) && cpu.isActive()
+            // An explicitly selected busy ECO CPU still admits into its pool's free thread.
+                && (target != null || !cpu.isBusy())
+                && ((NativeECOCpu) cpu).runtime()
+                    .hasFreeThread()
+                && cpu.getAvailableStorage() >= job.getByteTotal()
+                && allows(cpu, source)) candidates.add((NativeECOCpu) cpu);
         if (!candidates.isEmpty()) {
             Comparator<NativeECOCpu> order = Comparator.comparingInt(NativeECOCpu::getCoProcessors)
                 .thenComparingLong(NativeECOCpu::getAvailableStorage);

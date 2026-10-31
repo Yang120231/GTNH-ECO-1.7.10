@@ -72,6 +72,22 @@ public final class ECOCraftingStatusClient {
         return container != null && value.windowId == container.windowId ? value : Processing.NONE;
     }
 
+    private static volatile Processing itemAction = Processing.NONE;
+
+    /** Network thread: the newest answer to the status cell menu; the open screen takes it once. */
+    public static void acceptItemAction(int windowId, CompoundTag result) {
+        itemAction = new Processing(windowId, result);
+    }
+
+    /** The pending menu answer for this window, consumed by the call. */
+    @Nullable
+    static CompoundTag takeItemAction(Container container) {
+        Processing value = itemAction;
+        if (container == null || value.windowId != container.windowId) return null;
+        itemAction = Processing.NONE;
+        return value.tag;
+    }
+
     /** Network thread: store the newest state; an update without cycles keeps the list already held. */
     public static void accept(int windowId, boolean eco, int cpuTier, @Nullable ECOCycleItemList cycles) {
         State previous = latest;

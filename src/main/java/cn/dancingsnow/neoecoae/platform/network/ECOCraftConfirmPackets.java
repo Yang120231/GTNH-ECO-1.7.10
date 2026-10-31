@@ -41,6 +41,8 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.registerMessage(StatusSyncHandler.class, StatusSync.class, 4, Side.CLIENT);
         CHANNEL.registerMessage(StatusProcessingHandler.class, StatusProcessing.class, 5, Side.CLIENT);
         CHANNEL.registerMessage(ProcessingDetailHandler.class, ProcessingDetail.class, 6, Side.SERVER);
+        CHANNEL.registerMessage(ItemActionHandler.class, ItemAction.class, 7, Side.SERVER);
+        CHANNEL.registerMessage(ItemActionResultHandler.class, ItemActionResult.class, 8, Side.CLIENT);
     }
 
     public static void sync(EntityPlayerMP player, int windowId, ECOCraftConfirmState state,
@@ -61,6 +63,15 @@ public final class ECOCraftConfirmPackets {
     /** Asks for the machine details of the hovered output; {@code null} stops the detail sampling. */
     public static void requestProcessingDetail(int windowId, @Nullable AEKey key, int page) {
         CHANNEL.sendToServer(new ProcessingDetail(windowId, key, page));
+    }
+
+    /** Status cell right-click menu: inspect an output, or open one of the places the inspection reported. */
+    public static void requestItemAction(int windowId, long sequence, String action, AEKey key, @Nullable String id) {
+        CHANNEL.sendToServer(new ItemAction(windowId, sequence, action, key, id));
+    }
+
+    public static void sendItemActionResult(EntityPlayerMP player, int windowId, CompoundTag result) {
+        CHANNEL.sendTo(new ItemActionResult(windowId, result), player);
     }
 
     public static void start(int windowId, boolean forced, boolean follow) {
@@ -363,6 +374,103 @@ public final class ECOCraftConfirmPackets {
             ServerTasks.captureSession()
                 .execute(
                     () -> ECOCraftingStatusTracker.requestDetail(player, message.windowId, message.key, message.page));
+            return null;
+        }
+    }
+
+    /** Client to server: one status-cell menu action for an output of the selected CPU. */
+    public static final class ItemAction implements IMessage {
+
+        int windowId;
+        long sequence;
+        String action = "";
+        @Nullable
+        AEKey key;
+        @Nullable
+        String id;
+
+        public ItemAction() {}
+
+        ItemAction(int windowId, long sequence, String action, AEKey key, @Nullable String id) {
+            this.windowId = windowId;
+            this.sequence = sequence;
+            this.action = action;
+            this.key = key;
+            this.id = id;
+        }
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            windowId = data.readVarInt();
+            sequence = data.readLong();
+            action = data.readUtf();
+            key = data.readBoolean() ? AEKey.readKey(data) : null;
+            id = data.readBoolean() ? data.readUtf() : null;
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            data.writeVarInt(windowId);
+            data.writeLong(sequence);
+            data.writeUtf(action);
+            data.writeBoolean(key != null);
+            if (key != null) AEKey.writeKey(data, key);
+            data.writeBoolean(id != null);
+            if (id != null) data.writeUtf(id);
+        }
+    }
+
+    public static final class ItemActionHandler implements IMessageHandler<ItemAction, IMessage> {
+
+        @Override
+        public IMessage onMessage(ItemAction message, MessageContext context) {
+            EntityPlayerMP player = context.getServerHandler().playerEntity;
+            if (message.action.length() > 32 || message.id != null && message.id.length() > 128) return null;
+            ServerTasks.captureSession()
+                .execute(
+                    () -> cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingStatusItemActions
+                        .handle(player, message.windowId, message.sequence, message.action, message.key, message.id));
+            return null;
+        }
+    }
+
+    /** Server to client: the answer to one status-cell menu action. */
+    public static final class ItemActionResult implements IMessage {
+
+        public int windowId;
+        public CompoundTag result = new CompoundTag();
+
+        public ItemActionResult() {}
+
+        ItemActionResult(int windowId, CompoundTag result) {
+            this.windowId = windowId;
+            this.result = result;
+        }
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            windowId = data.readVarInt();
+            CompoundTag tag = data.readNbt();
+            result = tag == null ? new CompoundTag() : tag;
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            data.writeVarInt(windowId);
+            data.writeNbt(result);
+        }
+    }
+
+    public static final class ItemActionResultHandler implements IMessageHandler<ItemActionResult, IMessage> {
+
+        @Override
+        public IMessage onMessage(ItemActionResult message, MessageContext context) {
+            cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftingStatusClient
+                .acceptItemAction(message.windowId, message.result);
             return null;
         }
     }

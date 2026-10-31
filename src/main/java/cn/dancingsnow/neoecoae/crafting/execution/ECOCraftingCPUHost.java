@@ -28,6 +28,11 @@ public interface ECOCraftingCPUHost {
 
     boolean replaceBigOrderPlan(ECOCraftingCPU cpu, ICraftingPlan plan);
 
+    /** Swaps the running job's byte reservation for a merged plan; false when the extra bytes do not fit. */
+    default boolean replaceMergedPlan(ECOCraftingCPU cpu, ICraftingPlan plan) {
+        return false;
+    }
+
     World getLevel();
 
     GridView getGrid();

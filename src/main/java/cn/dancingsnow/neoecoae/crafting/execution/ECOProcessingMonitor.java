@@ -71,6 +71,28 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
         }
     }
 
+    /**
+     * Native-execution counterpart of {@link #dispatched}: AE2-planned jobs push through the native medium directly and
+     * fire no ECO dispatch event, so the vanilla executor reports the accepted destinations here.
+     */
+    void dispatchedNative(UUID craftingJobId, appeng.api.networking.crafting.ICraftingMedium medium,
+        appeng.api.networking.crafting.ICraftingPatternDetails details) {
+        try {
+            bind(craftingJobId);
+            var destinations = cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+                .processingTargets(medium);
+            if (destinations.isEmpty()) return;
+            for (var output : details.getCondensedAEOutputs()) {
+                if (output == null || output.getStackSize() <= 0) continue;
+                AEKey key = AEKey.fromNative(output);
+                if (key == null) continue;
+                for (Target target : destinations) observe(key, target);
+            }
+        } catch (RuntimeException | LinkageError incompatible) {
+            report(incompatible);
+        }
+    }
+
     void observe(AEKey output, Target target) {
         if (!targets.computeIfAbsent(output, ignored -> new LinkedHashSet<>())
             .add(target)) return;
@@ -95,6 +117,13 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
         }
         advance(level, tick);
         return survey.published.refreshing(survey.scan != null);
+    }
+
+    /** Recorded push destinations of an output (input buses, hatches, adjacent machines), as accepted by providers. */
+    public List<Target> destinations(AEKey output) {
+        var recorded = targets.get(output);
+        return recorded == null ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()
+            : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listCopyOf(recorded);
     }
 
     /** Actual recipe controllers resolved by the same budgeted status scan, never the pattern holder or input bus. */

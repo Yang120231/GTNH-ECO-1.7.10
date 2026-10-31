@@ -34,8 +34,12 @@ public final class NativeLateMixins implements ILateMixinLoader {
                 "ProcessingTargetMixin",
                 "NetworkMonitorMixin",
                 "ContainerCraftConfirmAccessor",
-                "ContainerCraftConfirmStartMixin"));
-        if (loadedMods.contains("gregtech")) mixins.add("GTProcessingControllerMixin");
+                "ContainerCraftConfirmStartMixin",
+                "RemoteTileGuiReachMixin"));
+        if (loadedMods.contains("gregtech")) {
+            mixins.add("GTProcessingControllerMixin");
+            mixins.add("GTRemoteGuiReachMixin");
+        }
         // The NEI route capture only exists on the physical client.
         if (FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("NotEnoughItems")) mixins.add("NeiPatternRouteMixin");

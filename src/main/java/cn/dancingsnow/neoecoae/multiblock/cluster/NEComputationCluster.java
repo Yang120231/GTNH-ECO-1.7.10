@@ -479,6 +479,23 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return activeCpus.get(next) == cpu;
     }
 
+    /**
+     * GTNH merge reservation: the running job's plan is replaced by one covering both requests. Only the extra bytes
+     * must still be free in the pool ({@code availableStorage >= usedStorage + job.getByteTotal()}).
+     */
+    @Override
+    public boolean replaceMergedPlan(ECOCraftingCPU cpu, ICraftingPlan next) {
+        ICraftingPlan previous = cpu.getPlan();
+        if (previous == null || activeCpus.get(previous) != cpu || bigOrderPlans.contains(previous)) return false;
+        long extra = next.bytes() - previous.bytes();
+        if (next.bytes() < 0 || extra < 0 || extra > getAvailableStorage()) return false;
+        activeCpus.remove(previous);
+        cpu.setBigOrderChildPlan(next);
+        activeCpus.put(next, cpu);
+        recalculateRemainingStorage();
+        return activeCpus.get(next) == cpu;
+    }
+
     private long getActiveJobBytes() {
         long usedStorage = 0L;
         for (ICraftingPlan plan : new ArrayList<>(this.activeCpus.keySet())) {

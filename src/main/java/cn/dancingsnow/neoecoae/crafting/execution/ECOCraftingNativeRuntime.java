@@ -250,6 +250,14 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
     }
 
     @Override
+    public ICraftingLink merge(cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan plan,
+        BaseActionSource source) {
+        var link = cpu.getLogic()
+            .tryMergeVanillaJob(grid(), plan, IActionSource.of(source));
+        return link == null ? null : link.nativeLink();
+    }
+
+    @Override
     public Object submissionPool() {
         return cpu.getCluster()
             .submissionPool();

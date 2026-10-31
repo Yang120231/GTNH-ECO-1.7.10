@@ -93,6 +93,13 @@ public interface NativeECOCpuRuntime extends ECOCraftingOutputRouter {
     @Nullable
     ICraftingLink submit(ICraftingPlan plan, BaseActionSource source, @Nullable ICraftingRequester requester);
 
+    /** GTNH {@code mergeJob}: joins an AE2-planned request into the running job; null when it cannot merge. */
+    @Nullable
+    default ICraftingLink merge(cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan plan,
+        BaseActionSource source) {
+        return null;
+    }
+
     /** Supplies the same stable native CPU identity used when restoring CraftingLink/Nexus state. */
     void bindNativeCPU(CraftingCPUCluster cpu);
 

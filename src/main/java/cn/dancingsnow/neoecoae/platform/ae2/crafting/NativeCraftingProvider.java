@@ -47,17 +47,31 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
 
     @Override
     public java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> neoecoae$getProcessingTargets() {
-        return medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
-            ? ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium)
-                .neoecoae$getProcessingTargets()
-            : ownPosition();
+        return processingTargets(medium);
+    }
+
+    /** Destinations of the last accepted push of a raw native medium; same rules as a wrapped provider. */
+    public static java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> processingTargets(
+        ICraftingMedium medium) {
+        if (medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider)
+            return ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium)
+                .neoecoae$getProcessingTargets();
+        if (medium instanceof NativeSourceCraftingMedium) {
+            var source = ((NativeSourceCraftingMedium) medium).sourceCraftingProvider();
+            return source instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
+                ? ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) source)
+                    .neoecoae$getProcessingTargets()
+                : ownPosition(medium);
+        }
+        return ownPosition(medium);
     }
 
     /**
      * A medium that is itself the destination (GT's ME crafting input bus/buffer, other pattern hatches) records no
      * push targets; its own block is where the inputs went, and the status scan resolves its controllers from there.
      */
-    private java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> ownPosition() {
+    private static java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> ownPosition(
+        ICraftingMedium medium) {
         net.minecraft.tileentity.TileEntity tile = medium instanceof net.minecraft.tileentity.TileEntity
             ? (net.minecraft.tileentity.TileEntity) medium
             : cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.hostTile(medium);

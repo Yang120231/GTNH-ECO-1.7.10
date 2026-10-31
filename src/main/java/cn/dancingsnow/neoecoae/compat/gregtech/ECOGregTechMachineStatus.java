@@ -36,13 +36,36 @@ public final class ECOGregTechMachineStatus {
     /**
      * A GT recipe controller's current cycle, read through the typed GT API.
      *
-     * @param outputs the cycle's pending ItemStack and FluidStack outputs
-     * @param formed  false for an unformed multiblock controller
-     * @param failure the last recipe check's message when it failed, otherwise null
+     * @param outputs           the cycle's pending ItemStack and FluidStack outputs
+     * @param formed            false for an unformed multiblock controller
+     * @param failure           the last recipe check's message when it failed, otherwise null
+     * @param shutdown          the machine's last shutdown reason when it was shut down, otherwise null
+     * @param maintenanceIssues missing maintenance fixes of a multiblock (ideal minus repair status)
+     * @param outputBlocked     a basic machine cannot empty its output slots
      */
     @com.github.bsideup.jabel.Desugar
     public record Sample(String name, List<Object> outputs, int progress, int maxProgress, boolean active,
-        boolean allowedToWork, boolean stuttering, boolean formed, String failure, long lastParallel) {}
+        boolean allowedToWork, boolean stuttering, boolean formed, String failure, long lastParallel, String shutdown,
+        int maintenanceIssues, boolean outputBlocked) {
+
+        public Sample(String name, List<Object> outputs, int progress, int maxProgress, boolean active,
+            boolean allowedToWork, boolean stuttering, boolean formed, String failure, long lastParallel) {
+            this(
+                name,
+                outputs,
+                progress,
+                maxProgress,
+                active,
+                allowedToWork,
+                stuttering,
+                formed,
+                failure,
+                lastParallel,
+                null,
+                0,
+                false);
+        }
+    }
 
     public static List<Target> targets(ICraftingProvider provider) {
         return provider instanceof ECOProcessingTargetProvider
@@ -121,7 +144,18 @@ public final class ECOGregTechMachineStatus {
             }
             // Hatches are not recipe controllers; only GT machines with a native output cycle are sampled.
             Sample sample = NativeGregTech.sample(tile);
-            if (sample == null) return;
+            if (sample == null) {
+                // The inputs went here, but no formed controller has ever claimed this block: say so instead of
+                // silently showing no machine at all.
+                String hatch = NativeGregTech.machineName(tile);
+                machines.put(
+                    location(target),
+                    unresolvedDestination(
+                        Component.literal(hatch != null ? hatch : blockName(world, pos)),
+                        location(target),
+                        hatch != null));
+                return;
+            }
             machineTargets.add(target);
             machines.put(
                 location(target),
@@ -139,19 +173,61 @@ public final class ECOGregTechMachineStatus {
         int progress = duration > 0 ? Math.max(0, sample.progress()) : 0;
         boolean active = sample.active();
         boolean paused = !active && !sample.allowedToWork();
-        Component reason = Component.empty();
-        if (!sample.formed()) reason = Component.translatable("gui.neoecoae.processing.unformed");
-        else if (sample.stuttering()) reason = Component.translatable("gui.neoecoae.processing.stalled");
-        else if (!active && sample.failure() != null) reason = Component.literal(sample.failure());
+        Component reason = reason(sample, active, paused, matches);
         State state = paused ? State.PAUSED
             : !reason.getString()
-                .isEmpty() ? State.WAITING : duration > 0 && active ? State.RUNNING : State.QUEUED;
-        if (state == State.QUEUED) {
+                .isEmpty() && !(active && !matches) ? State.WAITING
+                    : duration > 0 && active ? State.RUNNING : State.QUEUED;
+        if (state == State.QUEUED || state == State.PAUSED && duration == 0) {
             duration = 0;
             progress = 0;
         }
         long parallel = duration > 0 ? Math.max(1L, sample.lastParallel()) : 0;
         return new Machine(name, location, "", progress, duration, parallel, state, reason);
+    }
+
+    /** The most specific reason a machine is not advancing this output, in the order GT itself checks them. */
+    private static Component reason(Sample sample, boolean active, boolean paused, boolean matches) {
+        String shutdown = sample.shutdown() == null || sample.shutdown()
+            .trim()
+            .isEmpty() ? null : sample.shutdown();
+        if (!sample.formed()) return Component.translatable("gui.neoecoae.processing.unformed");
+        if (paused) return shutdown == null ? Component.translatable("gui.neoecoae.processing.disabled")
+            : Component.translatable("gui.neoecoae.processing.shutdown", shutdown);
+        if (sample.maintenanceIssues() > 0)
+            return Component.translatable("gui.neoecoae.processing.maintenance", sample.maintenanceIssues());
+        if (sample.stuttering()) return Component.translatable("gui.neoecoae.processing.stalled");
+        if (sample.outputBlocked()) return Component.translatable("gui.neoecoae.processing.output_blocked");
+        if (active) return matches ? Component.empty() : Component.translatable("gui.neoecoae.processing.other_recipe");
+        if (shutdown != null) return Component.translatable("gui.neoecoae.processing.shutdown", shutdown);
+        if (sample.failure() != null && !sample.failure()
+            .trim()
+            .isEmpty()) return Component.literal(sample.failure());
+        return Component.translatable("gui.neoecoae.processing.idle");
+    }
+
+    /** A destination that holds the pushed inputs but is not itself a recipe controller. */
+    static Machine unresolvedDestination(Component name, String location, boolean gregTech) {
+        return new Machine(
+            name,
+            location,
+            "",
+            0,
+            0,
+            0,
+            State.WAITING,
+            Component.translatable(
+                gregTech ? "gui.neoecoae.processing.no_controller" : "gui.neoecoae.processing.not_machine"));
+    }
+
+    private static String blockName(World world, cn.dancingsnow.neoecoae.platform.minecraft.BlockPos pos) {
+        try {
+            var block = world.getBlock(pos.getX(), pos.getY(), pos.getZ());
+            var stack = new ItemStack(block, 1, world.getBlockMetadata(pos.getX(), pos.getY(), pos.getZ()));
+            return stack.getItem() == null ? block.getLocalizedName() : stack.getDisplayName();
+        } catch (RuntimeException unnamed) {
+            return "?";
+        }
     }
 
     private static boolean matches(Object contents, AEKey output) {

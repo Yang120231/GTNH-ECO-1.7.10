@@ -481,6 +481,59 @@ public class ExecutingCraftingJob {
         seedKeys.addAll(prepared.seedKeys);
     }
 
+    /**
+     * Ledger half of GTNH {@code CraftingCPUCluster#mergeJob}: another AE2-planned request for the same output joins
+     * this vanilla-executed job. Its tasks add to the running ones (native {@code addCrafting}), its emitted items are
+     * awaited ({@code addEmitable}) and the requested amount grows ({@code finalOutput.merge}). Materials are moved
+     * into the CPU inventory by the caller before this runs.
+     */
+    void mergeVanillaPlan(ICraftingPlan plan) {
+        if (!vanillaExecution) throw new IllegalStateException("Only vanilla-executed jobs can merge");
+        for (var entry : plan.emittedItems()) {
+            waitingFor.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+            timeTracker.addMaxItems(
+                entry.getLongValue(),
+                entry.getKey()
+                    .getType());
+        }
+        for (var entry : plan.patternTimes()
+            .entrySet()) {
+            IPatternDetails pattern = runningTaskFor(entry.getKey());
+            var progress = tasks.computeIfAbsent(pattern, p -> new ECOExecutionTaskProgress());
+            progress.value = NEMath.saturatingAdd(progress.value, entry.getValue());
+            for (var output : pattern.getOutputs()) {
+                var amount = NEMath.saturatingMultiply(output.amount(), entry.getValue());
+                amount = NEMath.saturatingMultiply(
+                    amount,
+                    output.what()
+                        .getAmountPerUnit());
+                timeTracker.addMaxItems(
+                    amount,
+                    output.what()
+                        .getType());
+            }
+        }
+        long added = plan.finalOutput()
+            .amount();
+        finalOutput = new GenericStack(finalOutput.what(), NEMath.saturatingAdd(finalOutput.amount(), added));
+        remainingAmount = NEMath.saturatingAdd(remainingAmount, added);
+    }
+
+    /** Native task maps merge equal patterns; captured wrappers are fresh objects, so match by native pattern. */
+    private IPatternDetails runningTaskFor(IPatternDetails incoming) {
+        if (tasks.containsKey(incoming)
+            || !(incoming instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails))
+            return incoming;
+        var nativeIncoming = ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails) incoming)
+            .nativeDetails();
+        for (IPatternDetails running : tasks.keySet()) {
+            if (running instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails && nativeIncoming
+                .equals(((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails) running).nativeDetails()))
+                return running;
+        }
+        return incoming;
+    }
+
     void failPermanently(String reason) {
         permanentExecutionError = reason;
         suspended = true;

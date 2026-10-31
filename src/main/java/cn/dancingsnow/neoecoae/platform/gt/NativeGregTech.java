@@ -44,6 +44,16 @@ public final class NativeGregTech {
         return isAvailable() ? GregTechMachineAccess.sample(tile) : null;
     }
 
+    /** Opens a GT machine's or hatch's own GUI the way a right click would, without held-item side effects. */
+    public static boolean openGui(TileEntity tile, net.minecraft.entity.player.EntityPlayer player) {
+        return isAvailable() && GregTechMachineAccess.openGui(tile, player);
+    }
+
+    /** Localized name of a GT meta tile entity (hatch, bus, machine), or null for any other tile. */
+    public static String machineName(TileEntity tile) {
+        return isAvailable() ? GregTechMachineAccess.machineName(tile) : null;
+    }
+
     /** The GT block hosting a meta tile entity (e.g. a pattern hatch acting as crafting medium), else null. */
     public static TileEntity hostTile(Object machine) {
         return isAvailable() ? GregTechMachineAccess.hostTile(machine) : null;

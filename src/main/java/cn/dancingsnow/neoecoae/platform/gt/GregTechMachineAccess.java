@@ -53,7 +53,10 @@ final class GregTechMachineAccess {
                 false,
                 multi.mMachine,
                 result == null || result.wasSuccessful() ? null : result.getDisplayString(),
-                multi.lastParallel);
+                multi.lastParallel,
+                shutdown(host),
+                maintenanceIssues(multi),
+                false);
         }
         if (machine instanceof MTEBasicMachine) {
             MTEBasicMachine basic = (MTEBasicMachine) machine;
@@ -69,9 +72,51 @@ final class GregTechMachineAccess {
                 basic.mStuttering,
                 true,
                 null,
-                1);
+                1,
+                shutdown(host),
+                0,
+                basic.mOutputBlocked > 0);
         }
         return null;
+    }
+
+    static boolean openGui(TileEntity tile, net.minecraft.entity.player.EntityPlayer player) {
+        if (!(tile instanceof IGregTechTileEntity)) return false;
+        IMetaTileEntity machine = ((IGregTechTileEntity) tile).getMetaTileEntity();
+        if (!(machine instanceof gregtech.api.metatileentity.CommonMetaTileEntity common)) return false;
+        common.openGui(player);
+        return true;
+    }
+
+    static String machineName(TileEntity tile) {
+        if (!(tile instanceof IGregTechTileEntity)) return null;
+        IMetaTileEntity machine = ((IGregTechTileEntity) tile).getMetaTileEntity();
+        if (machine == null) return null;
+        String name = machine.getLocalName();
+        return name == null ? machine.getMetaName() : name;
+    }
+
+    /**
+     * GT's own last shutdown reason (power loss, out of fluid, structure broken...), when the machine was shut down.
+     */
+    private static String shutdown(IGregTechTileEntity host) {
+        try {
+            if (!host.wasShutdown()) return null;
+            var reason = host.getLastShutDownReason();
+            return reason == null ? null : reason.getDisplayString();
+        } catch (RuntimeException | LinkageError olderGregTech) {
+            return null;
+        }
+    }
+
+    /** Unfixed maintenance problems; a controller that skips maintenance reports none. */
+    private static int maintenanceIssues(MTEMultiBlockBase multi) {
+        try {
+            if (!multi.shouldCheckMaintenance()) return 0;
+            return Math.max(0, multi.getIdealStatus() - multi.getRepairStatus());
+        } catch (RuntimeException | LinkageError olderGregTech) {
+            return 0;
+        }
     }
 
     /**

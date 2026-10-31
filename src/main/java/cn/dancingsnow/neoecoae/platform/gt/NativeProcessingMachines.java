@@ -36,10 +36,13 @@ public final class NativeProcessingMachines {
         if (world == null || world.isRemote) return;
         BlockPos position = new BlockPos(tile.xCoord, tile.yCoord, tile.zCoord);
         Relations relations = WORLDS.computeIfAbsent(world, ignored -> new Relations());
-        if (!formed || tile.isInvalid()) {
+        if (tile.isInvalid()) {
             relations.remove(position);
             return;
         }
+        // GT clears its hatch lists before a failed check, so an unformed controller keeps its last known inputs:
+        // the status scan must still reach it from those hatches to report the broken structure.
+        if (!formed) return;
         Set<BlockPos> inputs = new LinkedHashSet<>();
         for (TileEntity input : inputTiles) if (input.getWorldObj() == world && !input.isInvalid())
             inputs.add(new BlockPos(input.xCoord, input.yCoord, input.zCoord));

@@ -50,6 +50,7 @@ class ECOVanillaCraftingExecutorTest {
     private final NativePatternDetails pattern = mock(NativePatternDetails.class);
     private final ListCraftingInventory inventory = new ListCraftingInventory(key -> {});
     private final ECOCraftingCPULogic host = mock(ECOCraftingCPULogic.class);
+    private final ECOProcessingMonitor monitor = new ECOProcessingMonitor();
     private List<ICraftingMedium> mediums = new ArrayList<>();
     private final Set<ICraftingMedium> fakeInterfaces = new HashSet<>();
     private final IEnergyGrid energy = mock(IEnergyGrid.class);
@@ -120,6 +121,7 @@ class ECOVanillaCraftingExecutorTest {
 
         when(host.getInventory()).thenReturn(inventory);
         when(host.getJob()).thenAnswer(call -> job);
+        when(host.getProcessingMonitor()).thenReturn(monitor);
         this.mediums = Arrays.asList(mediums);
         when(energy.extractAEPower(anyDouble(), any(), eq(PowerMultiplier.CONFIG)))
             .thenAnswer(call -> call.getArgument(0));
@@ -151,6 +153,62 @@ class ECOVanillaCraftingExecutorTest {
         when(medium.pushPattern(any(), any())).thenReturn(true);
         when(medium.getBlockingMode()).thenReturn(ICraftingMedium.BlockingMode.NONE);
         return medium;
+    }
+
+    @Test
+    void acceptedPushRecordsItsDestinationForTheStatusPage() {
+        ICraftingMedium medium = mock(
+            ICraftingMedium.class,
+            withSettings()
+                .extraInterfaces(cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.class));
+        when(medium.pushPattern(any(), any())).thenReturn(true);
+        when(medium.getBlockingMode()).thenReturn(ICraftingMedium.BlockingMode.NONE);
+        var target = new cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target(
+            0,
+            new cn.dancingsnow.neoecoae.platform.minecraft.BlockPos(1, 2, 3));
+        when(
+            ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium)
+                .neoecoae$getProcessingTargets())
+                    .thenReturn(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(target));
+        setUp(1, medium);
+        inventory.insert(stone, 2, Actionable.MODULATE);
+
+        executor.tick(job, energy, this::mediumsOf, null, world, 0);
+
+        var entries = monitor.save(cn.dancingsnow.neoecoae.platform.TestItemRegistry.CONTEXT)
+            .getList("entries", 10);
+        assertEquals(1, entries.size());
+        assertEquals(
+            1,
+            entries.getCompound(0)
+                .getList("targets", 10)
+                .size());
+    }
+
+    @Test
+    void mergedRequestJoinsTheRunningTaskAndIsDispatchedNatively() {
+        var medium = accepting();
+        setUp(2, medium);
+        // GTNH mergeJob: a freshly captured wrapper of the same native pattern adds to the running task.
+        NativePatternDetails recaptured = mock(NativePatternDetails.class);
+        when(recaptured.nativeDetails()).thenReturn(details);
+        when(recaptured.getOutputs())
+            .thenReturn(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(new GenericStack(cobble, 1)));
+        ICraftingPlan more = mock(ICraftingPlan.class);
+        when(more.finalOutput()).thenReturn(new GenericStack(cobble, 3));
+        when(more.emittedItems()).thenReturn(new KeyCounter());
+        when(more.patternTimes()).thenReturn(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(recaptured, 3L));
+
+        job.mergeVanillaPlan(more);
+
+        assertEquals(1, job.tasks.size());
+        assertEquals(5L, job.tasks.get(pattern).value);
+        assertEquals(5L, job.finalOutput.amount());
+        assertEquals(5L, job.remainingAmount);
+        inventory.insert(stone, 10, Actionable.MODULATE);
+        executor.tick(job, energy, this::mediumsOf, null, world, 100);
+        verify(medium, times(5)).pushPattern(eq(details), any());
+        assertEquals(5L, job.waitingFor.extract(cobble, Long.MAX_VALUE, Actionable.SIMULATE));
     }
 
     @Test

@@ -129,6 +129,80 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return lifecycle.submit(grid, plan, src, requester);
     }
 
+    /**
+     * GTNH {@code CraftingCPUCluster#mergeJob}: a player's AE2-planned request for the item this CPU is already
+     * crafting joins the running vanilla-executed job. ECO-planned jobs carry a fixed phase schedule and never merge.
+     *
+     * @return the running job's link on success, null when this CPU cannot merge the plan
+     */
+    @Nullable
+    public ICraftingLink tryMergeVanillaJob(GridView grid,
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan plan, IActionSource src) {
+        var current = job;
+        if (current == null || grid == null
+            || !plan.vanillaExecution()
+            || !current.vanillaExecution
+            || current.suspended
+            || current.permanentExecutionError != null
+            || current.exactOrder
+            || bigOrder.progress() != null
+            || !current.link.isStandalone()
+            || current.link.isCanceled()
+            || current.finalOutput == null
+            || !current.finalOutput.what()
+                .equals(
+                    plan.finalOutput()
+                        .what())
+            || !cpu.isActive()) return null;
+        var previous = cpu.getPlan();
+        if (previous == null) return null;
+        var merged = new cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan(
+            new GenericStack(
+                current.finalOutput.what(),
+                cn.dancingsnow.neoecoae.crafting.amount.NEMath.saturatingAdd(
+                    previous.finalOutput()
+                        .amount(),
+                    plan.finalOutput()
+                        .amount())),
+            cn.dancingsnow.neoecoae.crafting.amount.NEMath.saturatingAdd(previous.bytes(), plan.bytes()),
+            previous.simulation(),
+            previous.multiplePaths(),
+            new KeyCounter(),
+            new KeyCounter(),
+            new KeyCounter(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf()).markVanillaExecution();
+        if (merged.bytes() - previous.bytes() > cpu.getCluster()
+            .getAvailableStorage()) return null;
+
+        // Stage into a scratch inventory: a failed extraction must roll back only this request, never the running
+        // job's materials (native mergeJob restores its backup inventory for the same reason).
+        var staged = new ListCraftingInventory(ignored -> {});
+        if (cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper
+            .tryExtractInitialItems(plan, grid, staged, src) != null) return null;
+        if (!cpu.getCluster()
+            .replaceMergedPlan(cpu, merged)) {
+            var storage = grid.getStorageService()
+                .getInventory();
+            for (var entry : staged.list) {
+                long returned = storage.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE, src);
+                if (returned < entry.getLongValue())
+                    inventory.insert(entry.getKey(), entry.getLongValue() - returned, Actionable.MODULATE);
+            }
+            return null;
+        }
+        for (var entry : staged.list) {
+            if (entry.getLongValue() > 0) inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+        }
+        // The vanilla executor re-reads job.tasks every tick and keeps its native three-tick operation window.
+        current.mergeVanillaPlan(plan);
+        var touched = new KeyCounter();
+        getAllItems(touched);
+        for (var entry : touched) postChange(entry.getKey());
+        postChange(current.finalOutput.what());
+        markCpuDirty();
+        return current.link;
+    }
+
     public void tickCraftingLogic(IEnergyGrid eg, ICraftingService cc) {
         if (job != null && ECOCraftingJobLifecycle.isTerminated(cpu.getLevel(), job.link.getCraftingID())) {
             cancel();
@@ -512,6 +586,33 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     ECOCraftingJobAttachments jobAttachmentsForLifecycle() {
         return jobAttachments;
+    }
+
+    /** The running job's patterns that output {@code key}, primary outputs first; empty without a job. */
+    public java.util.List<IPatternDetails> patternsProducing(AEKey key) {
+        var current = job;
+        if (current == null || key == null) return java.util.Collections.emptyList();
+        var primary = new java.util.ArrayList<IPatternDetails>();
+        var secondary = new java.util.ArrayList<IPatternDetails>();
+        for (var pattern : current.tasks.keySet()) {
+            if (key.equals(
+                pattern.getPrimaryOutput()
+                    .what()))
+                primary.add(pattern);
+            else for (var output : pattern.getOutputs()) if (key.equals(output.what())) {
+                secondary.add(pattern);
+                break;
+            }
+        }
+        primary.addAll(secondary);
+        return primary;
+    }
+
+    /** The running job's crafting id, or null without a job. */
+    @Nullable
+    public UUID runningJobId() {
+        var current = job;
+        return current == null ? null : current.link.getCraftingID();
     }
 
     public ECOProcessingMonitor getProcessingMonitor() {

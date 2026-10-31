@@ -22,6 +22,7 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -133,18 +134,14 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     /** The tab under the tables spans panel x -1..235 on both textures. */
     private static final int TAB_CENTER = 117;
     private static final int TAB_TEXT_WIDTH = 226;
-    /**
-     * Title above the low part of the header line; the search box above its raised right part (x 163..212 at y 13)
-     * with the operation count just left of it, as AE2 places both at its header's right end.
-     */
+    /** Title above the low part of the header line, with the search box above its raised right part. */
     private static final int TITLE_X = 54;
     private static final int TITLE_Y = 9;
     private static final int SEARCH_X = 148;
     private static final int SEARCH_Y = 1;
     private static final int SEARCH_WIDTH = 64;
     private static final int SEARCH_HEIGHT = 12;
-    private static final int OPERATIONS_RIGHT = SEARCH_X - 3;
-    private static final int OPERATIONS_Y = 3;
+    private static final int TITLE_RIGHT = SEARCH_X - 3;
     /** AE2's CPU table lays its cards from y=19; the ECO column starts them level with the table. */
     private static final int CPU_LIST_SHIFT = TABLE_Y - 19;
 
@@ -161,7 +158,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private final GuiScrollbar cycleScroll = new GuiScrollbar();
     private final Map<IAEStack<?>, CraftingCpuEntry> entries = new LinkedHashMap<>();
     private List<CraftingCpuEntry> visible = Collections.emptyList();
-    private int remainingOperations;
     /** The layout currently applied; changed only through {@link #setWorldAndResolution}. */
     private boolean ecoLayout;
     private boolean cycleLayout;
@@ -217,6 +213,10 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private long nextDetailRequest;
     @Nullable
     private List<NamedDimensionalCoord> interfaceLocations;
+    /** 1.21.1's right-click menu of a status cell. */
+    private final StatusItemActionsMenu itemMenu = new StatusItemActionsMenu(
+        (sequence, action, key, id) -> ECOCraftConfirmPackets
+            .requestItemAction(inventorySlots.windowId, sequence, action, key, id));
 
     public ECOCraftingStatusGui(InventoryPlayer inventoryPlayer, ITerminalHost host) {
         super(inventoryPlayer, host);
@@ -269,17 +269,23 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             setWorldAndResolution(mc, width, height);
         }
         if (!ecoLayout) {
+            itemMenu.close();
             super.drawScreen(mouseX, mouseY, partialTicks);
             return;
         }
         refreshProcessing();
+        CompoundTag itemAction = ECOCraftingStatusClient.takeItemAction(inventorySlots);
+        if (itemAction != null) itemMenu.accept(itemAction);
         tooltip = null;
         processingTooltip = null;
         hoveredEntry = null;
         hoveredItem = null;
         super.drawScreen(mouseX, mouseY, partialTicks);
         requestDetails();
-        if (processingTooltip != null) {
+        if (itemMenu.isOpen()) {
+            itemMenu.draw(fontRendererObj, mouseX, mouseY);
+            GL11.glDisable(GL11.GL_LIGHTING);
+        } else if (processingTooltip != null) {
             ProcessingTooltip.draw(fontRendererObj, processingTooltip, mouseX, mouseY, width, height);
             GL11.glDisable(GL11.GL_LIGHTING);
         } else if (tooltip != null && !tooltip.isEmpty()) {
@@ -431,14 +437,12 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             if (update.getTotalAmount() <= 0) entries.remove(key);
             else entries.put(key, update);
         }
-        this.remainingOperations = remainingOperations;
         super.postVisualEntryUpdate(updates, clearFirst, remainingOperations);
     }
 
     @Override
     public void clearItems() {
         entries.clear();
-        remainingOperations = 0;
         super.clearItems();
     }
 
@@ -519,7 +523,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         int localX = mouseX - offsetX;
         int localY = mouseY - offsetY;
         drawCpuTierGlyph();
-        drawHeader(localX, localY);
+        drawHeader();
         drawEntries(localX, localY);
         if (cycleLayout) {
             drawCycleItems(localX, localY);
@@ -561,27 +565,20 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         Gui.func_146110_a(38, 5, u, 0, 13, 18, 288, 256);
     }
 
-    /** AE2's title and elapsed time beside the ECO logo, and its remaining operation count at the header's end. */
-    private void drawHeader(int localX, int localY) {
+    /** AE2's title and elapsed time beside the ECO logo. */
+    private void drawHeader() {
         String title = GuiText.CraftingStatus.getLocal();
         if (cpuContainer.getElapsedTime() > 0 && hasVisualEntries()) {
             long millis = TimeUnit.MILLISECONDS.convert(cpuContainer.getElapsedTime(), TimeUnit.NANOSECONDS);
             title = title + " - " + DurationFormatUtils.formatDuration(millis, GuiText.ETAFormat.getLocal());
         }
-        String operations = String.valueOf(remainingOperations);
-        int width = fontRendererObj.getStringWidth(operations);
-        int titleWidth = OPERATIONS_RIGHT - width - 4 - TITLE_X;
+        int titleWidth = TITLE_RIGHT - TITLE_X;
         float scale = Math.min(1F, titleWidth / (float) Math.max(1, fontRendererObj.getStringWidth(title)));
         GL11.glPushMatrix();
         GL11.glTranslatef(TITLE_X, TITLE_Y, 0);
         GL11.glScalef(scale, scale, 1);
         fontRendererObj.drawStringWithShadow(title, 0, 0, 0xFFFFFF);
         GL11.glPopMatrix();
-        fontRendererObj.drawStringWithShadow(operations, OPERATIONS_RIGHT - width, OPERATIONS_Y, 0xFFFFFF);
-        if (localX >= OPERATIONS_RIGHT - width && localX < OPERATIONS_RIGHT
-            && localY >= OPERATIONS_Y
-            && localY < OPERATIONS_Y + fontRendererObj.FONT_HEIGHT)
-            tooltip = Collections.singletonList(GuiText.RemainingOperations.getLocal());
     }
 
     private void drawEntries(int localX, int localY) {
@@ -744,6 +741,9 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         rows.addAll(
             ProcessingTooltip.rows(entry.hasActiveAmount(), entry.hasPendingAmount(), processingMonitored, progress));
         for (String line : nativeTooltip(visual)) rows.add(ProcessingTooltip.Row.text(line));
+        if (processingMonitored) rows.add(
+            ProcessingTooltip.Row
+                .text(EnumChatFormatting.DARK_GRAY + I18n.format("gui.neoecoae.processing.context_hint")));
         return rows;
     }
 
@@ -927,7 +927,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
     @Override
     protected void handleTooltip(int mouseX, int mouseY, ITooltip tip) {
-        // AE2's remaining-operations hover zone sits at its own header position; the ECO header draws its own.
+        // The ECO header omits AE2's remaining-operations display and its hover zone.
         if (ecoLayout && !(tip instanceof GuiButton)) return;
         super.handleTooltip(mouseX, mouseY, tip);
     }
@@ -937,7 +937,9 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
         if (ecoLayout) {
+            if (itemMenu.click(mouseX, mouseY, button)) return;
             CraftingCpuEntry entry = hoveredEntry;
+            if (entry != null && button == 1 && openItemMenu(entry, mouseX, mouseY)) return;
             if (entry != null && isShiftKeyDown() && interfaceLocations != null && !interfaceLocations.isEmpty()) {
                 highlightInterfaces(interfaceLocations);
                 return;
@@ -954,6 +956,27 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             if (cycleLayout) cycleScroll.click(this, mouseX - guiLeft, mouseY - guiTop);
         }
         super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    private boolean openItemMenu(CraftingCpuEntry entry, int mouseX, int mouseY) {
+        IAEStack<?> visual = entry.getVisualStack();
+        AEKey key = AEKey.fromNative(entry.getStack());
+        if (visual == null || key == null) return false;
+        itemMenu.open(key, Platform.getItemDisplayName(visual), mouseX + 4, mouseY + 4, width, height);
+        return true;
+    }
+
+    @Override
+    protected void keyTyped(char character, int keyCode) {
+        if (ecoLayout && itemMenu.keyTyped(keyCode)) return;
+        super.keyTyped(character, keyCode);
+    }
+
+    @Override
+    public void handleMouseInput() {
+        int wheel = org.lwjgl.input.Mouse.getEventDWheel();
+        if (wheel != 0 && ecoLayout && itemMenu.scroll(wheel)) return;
+        super.handleMouseInput();
     }
 
     private void highlightInterfaces(List<NamedDimensionalCoord> locations) {

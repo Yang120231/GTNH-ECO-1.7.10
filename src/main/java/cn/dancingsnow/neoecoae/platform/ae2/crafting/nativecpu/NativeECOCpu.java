@@ -240,8 +240,14 @@ public final class NativeECOCpu extends CraftingCPUCluster
     @Override
     public ICraftingLink submitJob(IGrid grid, ICraftingJob job, BaseActionSource source,
         ICraftingRequester requester) {
+        if (job != null && !job.isSimulation() && !(job instanceof NativeECOCraftingJob)) {
+            ICraftingLink merged = tryMerge(grid, job, source, requester);
+            if (merged != null) return merged;
+        }
+        // A busy identity submits through its cluster like the idle placeholder does: the pool spawns a fresh CPU
+        // on a free thread and never hands this running CPU a second plan.
         if (job == null || job.isSimulation()
-            || runtime.isBusy()
+            || runtime.isBusy() && !runtime.hasFreeThread()
             || !runtime.isActive()
             || job.getByteTotal() > runtime.availableStorage()
             || !job.supportsCPUCluster(this)) return null;
@@ -252,6 +258,25 @@ public final class NativeECOCpu extends CraftingCPUCluster
         }
         try {
             return runtime.submit(NativeJobPlan.capture(grid, job, source, runtime.world()), source, requester);
+        } catch (appeng.crafting.CraftBranchFailure changedInventory) {
+            return null;
+        }
+    }
+
+    /**
+     * GTNH {@code CraftingCPUCluster#submitJob} preamble: a player's standalone request for the output this busy CPU
+     * is crafting merges into it when the extra bytes fit, instead of being rejected as busy.
+     */
+    private ICraftingLink tryMerge(IGrid grid, ICraftingJob job, BaseActionSource source,
+        ICraftingRequester requester) {
+        if (requester != null || !runtime.isBusy() || !runtime.isActive() || !isCraftingLinkStandalone()) return null;
+        IAEStack<?> running = getFinalMultiOutput();
+        if (running == null || job.getOutput() == null
+            || !job.getOutput()
+                .isSameType((Object) running)
+            || runtime.availableStorage() < runtime.usedStorage() + job.getByteTotal()) return null;
+        try {
+            return runtime.merge(NativeJobPlan.capture(grid, job, source, runtime.world()), source);
         } catch (appeng.crafting.CraftBranchFailure changedInventory) {
             return null;
         }

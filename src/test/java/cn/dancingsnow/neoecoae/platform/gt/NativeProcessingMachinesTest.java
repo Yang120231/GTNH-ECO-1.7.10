@@ -57,6 +57,13 @@ class NativeProcessingMachinesTest {
         when(world.getTileEntity(3, 64, 0)).thenReturn(new TileEntity());
         assertFalse(NativeProcessingMachines.isCurrentController(world, new BlockPos(3, 64, 0), new TileEntity()));
         when(world.getTileEntity(3, 64, 0)).thenReturn(controller);
+        // An unformed controller keeps its last inputs so the status page can report the broken structure.
+        NativeProcessingMachines.observeController(controller, Collections.emptyList(), false);
+        assertEquals(
+            1,
+            NativeProcessingMachines.controllers(world, position)
+                .size());
+        controller.invalidate();
         NativeProcessingMachines.observeController(controller, Collections.emptyList(), false);
         assertTrue(
             NativeProcessingMachines.controllers(world, position)
