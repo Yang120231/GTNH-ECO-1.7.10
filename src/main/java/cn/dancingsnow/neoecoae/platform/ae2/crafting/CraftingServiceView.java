@@ -8,8 +8,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.world.World;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
@@ -20,6 +24,9 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Frozen pattern contracts captured on the owning server thread; revision reads stay lock-free for the planner. */
 public final class CraftingServiceView implements ICraftingService, ECOCraftingProviderRevision {
+
+    private static final Logger LOGGER = LogManager.getLogger("neoecoae.crafting");
+    private static final Set<String> REJECTED_TYPES = ConcurrentHashMap.newKeySet();
 
     private final ICraftingGrid crafting;
     private final NativePatternTrackingCache tracking;
@@ -55,14 +62,37 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
         for (var key : keys) {
             var captured = new ArrayList<IPatternDetails>();
             var producers = catalog.get(key.toNative(1));
-            if (producers != null)
-                for (var pattern : producers) captured.add(patterns.computeIfAbsent(pattern, substitutes::details));
+            if (producers != null) for (var pattern : producers) {
+                var details = capture(pattern, substitutes);
+                if (details != null) captured.add(details);
+            }
             index.put(key, Collections.unmodifiableList(captured));
             if (crafting.canEmitFor(key.toNative(1))) emitted.add(key);
         }
         byOutput = Collections.unmodifiableMap(index);
         craftables = Collections.unmodifiableSet(outputs);
         emitters = Collections.unmodifiableSet(emitted);
+    }
+
+    /** Native AE2 declines unrepresentable patterns (e.g. zero-sized stacks) instead of failing the grid tick. */
+    private NativePatternDetails capture(ICraftingPatternDetails pattern, NativeSubstitutionIndex substitutes) {
+        NativePatternDetails details = patterns.get(pattern);
+        if (details != null) return details;
+        try {
+            details = substitutes.details(pattern);
+        } catch (IllegalArgumentException rejected) {
+            if (REJECTED_TYPES.add(
+                pattern.getClass()
+                    .getName()))
+                LOGGER.warn(
+                    "Ignoring native pattern {} that ECO cannot represent: {}",
+                    pattern.getClass()
+                        .getName(),
+                    rejected.getMessage());
+            return null;
+        }
+        patterns.put(pattern, details);
+        return details;
     }
 
     Set<ICraftingPatternDetails> nativePatterns() {

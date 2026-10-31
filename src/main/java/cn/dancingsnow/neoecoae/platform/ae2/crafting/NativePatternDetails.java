@@ -35,11 +35,16 @@ public class NativePatternDetails implements IPatternDetails {
         definition = AEItemKey.of(pattern.getPattern());
         IAEStack<?>[] nativeSparse = pattern.getAEInputs();
         if (nativeSparse == null) throw new IllegalArgumentException("Null native sparse inputs");
+        boolean dropEmpty = mightHaveEmptyInputs(pattern);
         sparse = new GenericStack[nativeSparse.length];
-        for (int i = 0; i < sparse.length; i++) if (nativeSparse[i] != null) sparse[i] = stack(nativeSparse[i]);
+        for (int i = 0; i < sparse.length; i++)
+            if (nativeSparse[i] != null && !(dropEmpty && nativeSparse[i].getStackSize() <= 0))
+                sparse[i] = stack(nativeSparse[i]);
         List<IInput> captured = new ArrayList<>();
         int inputIndex = 0;
         for (IAEStack<?> raw : pattern.getCondensedAEInputs()) {
+            // Programmable Hatches marks "no input" with a zero-sized placeholder that its native mixin filters out.
+            if (raw == null || dropEmpty && raw.getStackSize() <= 0) continue;
             GenericStack primary = stack(raw);
             Set<AEKey> choices = new LinkedHashSet<>();
             choices.add(primary.what());
@@ -109,6 +114,24 @@ public class NativePatternDetails implements IPatternDetails {
     interface Substitutes {
 
         Iterable<AEKey> accepted(ICraftingPatternDetails pattern, int input, AEKey primary, GenericStack[] sparse);
+    }
+
+    private static final String EMPTY_INPUT_MARKER = "reobf.proghatches.eucrafting.IInputMightBeEmptyPattern";
+    private static final ClassValue<Boolean> EMPTY_INPUT_TYPES = new ClassValue<>() {
+
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+                if (EMPTY_INPUT_MARKER.equals(c.getName())) return true;
+                for (Class<?> implemented : c.getInterfaces()) if (get(implemented)) return true;
+            }
+            return false;
+        }
+    };
+
+    /** Mirrors Programmable Hatches' CraftFromPatternTask patch, which drops zero-sized inputs of marked patterns. */
+    static boolean mightHaveEmptyInputs(ICraftingPatternDetails pattern) {
+        return EMPTY_INPUT_TYPES.get(pattern.getClass());
     }
 
     private static GenericStack stack(IAEStack<?> stack) {
