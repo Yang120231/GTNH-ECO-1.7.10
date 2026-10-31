@@ -39,8 +39,18 @@ final class GregTechRecipeMaterials {
                 return ItemList.Sensor_IV.get(count);
             case "gtceu:iv_field_generator":
                 return ItemList.Field_Generator_IV.get(count);
+            case "gtceu:luv_sensor":
+                return ItemList.Sensor_LuV.get(count);
+            case "gtceu:luv_field_generator":
+                return ItemList.Field_Generator_LuV.get(count);
+            case "gtceu:zpm_emitter":
+                return ItemList.Emitter_ZPM.get(count);
+            case "gtceu:zpm_sensor":
+                return ItemList.Sensor_ZPM.get(count);
             case "gtceu:zpm_field_generator":
                 return ItemList.Field_Generator_ZPM.get(count);
+            case "gtceu:uhv_field_generator":
+                return ItemList.Field_Generator_UHV.get(count);
             case "gtceu:aluminium_ingot":
                 return material(OrePrefixes.ingot, Materials.Aluminium, count);
             case "gtceu:aluminium_dust":

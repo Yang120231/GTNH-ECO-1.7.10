@@ -28,6 +28,9 @@ public final class SourceItems {
         AE.put("calculation_processor", m.calcProcessor());
         AE.put("calculation_processor_press", m.calcProcessorPress());
         AE.put("cell_component_256k", m.cell256kPart());
+        AE.put("cell_component_1024k", m.cell1024kPart());
+        AE.put("cell_component_4096k", m.cell4096kPart());
+        AE.put("cell_component_16384k", m.cell16384kPart());
         AE.put("cell_workbench", b.cellWorkbench());
         AE.put("charged_certus_quartz_crystal", m.certusQuartzCrystalCharged());
         AE.put("charger", b.charger());

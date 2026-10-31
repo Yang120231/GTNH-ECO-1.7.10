@@ -37,4 +37,6 @@ item_ids:
 
 <RecipeFor id="neoecoae:energized_superconductive_ingot" />
 
-16MB、64MB、256MB 的 ECO 存储元件组件，以及计算系统的计算元件，也都在这里合成。准备好材料后，继续查看要搭建的[存储系统](storage_system.md)、[计算系统](computation_system.md)或[合成系统](crafting_system.md)，按对应等级制作控制器和结构部件。
+L4、L6、L9 级 ECO 存储元件，以及计算系统的计算元件，也都在这里合成。准备好材料后，继续查看要搭建的[存储系统](storage_system.md)、[计算系统](computation_system.md)或[合成系统](crafting_system.md)，按对应等级制作控制器和结构部件。
+
+存储元件、闪存晶阵、无限存储组件和无限物品元件的物品、流体及能量投入均为原配方的两倍。GTNH 配方中，L4 对应 IV，L6 对应 LuV，L9 对应 ZPM，无限元件对应 UHV；三档存储元件分别使用 1024k、4096k、16384k ME 存储组件，高阶配方仍需低阶 ECO 元件。

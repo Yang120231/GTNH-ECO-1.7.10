@@ -66,7 +66,7 @@ The Integrated Working Station is used to craft many important items:
 
 ### ECO Cell Components
 
-All ECO storage cell components (16MB, 64MB, 256MB) are crafted using the Integrated Working Station.
+All ECO storage cell components (L4, L6, L9) are crafted using the Integrated Working Station.
 
 ### ECO Computation Cells
 
@@ -82,3 +82,5 @@ The controllers for all three ECO multiblock systems (Storage, Computation, Craf
 - Connect to a Dense Energy Cell or high-capacity power source for uninterrupted crafting
 - Enable Auto Export when batch processing to automatically push outputs to adjacent inventories
 - The station can accept fluids from pipes or fluid cells
+
+Storage components, flash arrays, infinite storage components and infinite item cells consume twice the original items, fluids and energy. In GTNH, L4 requires IV, L6 requires LuV, L9 requires ZPM and infinite cells require UHV. The three storage component tiers use 1024k, 4096k and 16384k ME components respectively; higher tiers still require lower-tier ECO components.

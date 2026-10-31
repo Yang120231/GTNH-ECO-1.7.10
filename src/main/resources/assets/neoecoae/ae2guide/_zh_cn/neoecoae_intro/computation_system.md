@@ -99,9 +99,9 @@ ECO 计算系统在 ME 网络中承担合成 CPU 的工作，为任务提供线�
   <ItemIcon id="neoecoae:eco_computation_cell_l9" />
 </ItemGrid>
 
-- <ItemLink id="neoecoae:eco_computation_cell_l4" /> - CE4 闪存晶阵，64MB
-- <ItemLink id="neoecoae:eco_computation_cell_l6" /> - CE6 闪存晶阵，256MB
-- <ItemLink id="neoecoae:eco_computation_cell_l9" /> - CE9 闪存晶阵，1GB
+- <ItemLink id="neoecoae:eco_computation_cell_l4" /> - CE4 闪存晶阵，128 MiB
+- <ItemLink id="neoecoae:eco_computation_cell_l6" /> - CE6 闪存晶阵，512 MiB
+- <ItemLink id="neoecoae:eco_computation_cell_l9" /> - CE9 闪存晶阵，2 GiB
 
 ## 让 ME 网络使用这台 CPU
 
