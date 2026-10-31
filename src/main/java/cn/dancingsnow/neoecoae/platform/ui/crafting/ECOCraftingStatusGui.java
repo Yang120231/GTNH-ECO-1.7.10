@@ -93,7 +93,11 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         "textures/guis/crafting_widgets.png");
     private static final int TEXTURE_WIDTH = 512;
     private static final int TEXTURE_HEIGHT = 384;
-    private static final int HEIGHT = 260;
+    /** Panel height: the texture's 260 rows less the blank tab rows skipped in {@link #drawBG}. */
+    private static final int HEIGHT = 237;
+    /** Texture rows 232..254 are the bottom tab's plain middle; they are left out since the search moved up. */
+    private static final int TAB_SKIP_FROM = 232;
+    private static final int TAB_SKIP = 260 - HEIGHT;
     /** The CPU column left of the panel; every other coordinate is panel-relative, as on the ECO report. */
     private static final int CPU_PANEL_WIDTH = 96;
     private static final int CPU_PANEL_HEIGHT = 214;
@@ -120,22 +124,27 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private static final int CYCLE_SCROLL_X = 312;
     private static final int CYCLE_STATUS_Y = 191;
     private static final int SCROLL_HEIGHT = 160;
-    /** The row between the tables and the bottom tab, and the bottom tab's status line and button row. */
-    private static final int SEARCH_Y = 195;
-    private static final int STATUS_Y = 218;
-    private static final int BUTTON_Y = 232;
+    /** The status line under the tables and the button row in the bottom tab. */
+    private static final int STATUS_Y = 195;
+    private static final int BUTTON_Y = 209;
     private static final int BUTTON_WIDTH = 54;
     private static final int BUTTON_GAP = 4;
     private static final int BUTTON_LEFT = 4;
     /** The tab under the tables spans panel x -1..235 on both textures. */
     private static final int TAB_CENTER = 117;
     private static final int TAB_TEXT_WIDTH = 226;
-    /** Title above the low part of the header line, the operation count above its raised right part. */
+    /**
+     * Title above the low part of the header line; the search box above its raised right part (x 163..212 at y 13)
+     * with the operation count just left of it, as AE2 places both at its header's right end.
+     */
     private static final int TITLE_X = 54;
     private static final int TITLE_Y = 9;
-    private static final int TITLE_WIDTH = 104;
-    private static final int OPERATIONS_RIGHT = 212;
-    private static final int OPERATIONS_Y = 4;
+    private static final int SEARCH_X = 148;
+    private static final int SEARCH_Y = 1;
+    private static final int SEARCH_WIDTH = 64;
+    private static final int SEARCH_HEIGHT = 12;
+    private static final int OPERATIONS_RIGHT = SEARCH_X - 3;
+    private static final int OPERATIONS_Y = 3;
     /** AE2's CPU table lays its cards from y=19; the ECO column starts them level with the table. */
     private static final int CPU_LIST_SHIFT = TABLE_Y - 19;
 
@@ -353,10 +362,10 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             placeOriginalButton();
             buttonList.add(originalGuiBtn);
         }
-        searchField.x = guiLeft + 19;
-        searchField.y = guiTop + SEARCH_Y + extra();
-        searchField.w = 198;
-        searchField.h = 16;
+        searchField.x = guiLeft + SEARCH_X;
+        searchField.y = guiTop + SEARCH_Y;
+        searchField.w = SEARCH_WIDTH;
+        searchField.h = SEARCH_HEIGHT;
         cycleScroll.setLeft(CYCLE_SCROLL_X)
             .setTop(TABLE_Y)
             .setHeight(SCROLL_HEIGHT + extra());
@@ -482,7 +491,8 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         blit(left, offsetY, 0, 50, width);
         int y = offsetY + 50;
         for (int i = 0; i < rows - 2; i++, y += ROW_PITCH) blit(left, y, 50, ROW_PITCH, width);
-        blit(left, y, 165, HEIGHT - 165, width);
+        blit(left, y, 165, TAB_SKIP_FROM - 165, width);
+        blit(left, y + TAB_SKIP_FROM - 165, TAB_SKIP_FROM + TAB_SKIP, HEIGHT - TAB_SKIP_FROM, width);
         searchField.drawTextBox();
         GL11.glColor4f(1, 1, 1, 1);
     }
@@ -558,14 +568,15 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             long millis = TimeUnit.MILLISECONDS.convert(cpuContainer.getElapsedTime(), TimeUnit.NANOSECONDS);
             title = title + " - " + DurationFormatUtils.formatDuration(millis, GuiText.ETAFormat.getLocal());
         }
-        float scale = Math.min(1F, TITLE_WIDTH / (float) Math.max(1, fontRendererObj.getStringWidth(title)));
+        String operations = String.valueOf(remainingOperations);
+        int width = fontRendererObj.getStringWidth(operations);
+        int titleWidth = OPERATIONS_RIGHT - width - 4 - TITLE_X;
+        float scale = Math.min(1F, titleWidth / (float) Math.max(1, fontRendererObj.getStringWidth(title)));
         GL11.glPushMatrix();
         GL11.glTranslatef(TITLE_X, TITLE_Y, 0);
         GL11.glScalef(scale, scale, 1);
         fontRendererObj.drawStringWithShadow(title, 0, 0, 0xFFFFFF);
         GL11.glPopMatrix();
-        String operations = String.valueOf(remainingOperations);
-        int width = fontRendererObj.getStringWidth(operations);
         fontRendererObj.drawStringWithShadow(operations, OPERATIONS_RIGHT - width, OPERATIONS_Y, 0xFFFFFF);
         if (localX >= OPERATIONS_RIGHT - width && localX < OPERATIONS_RIGHT
             && localY >= OPERATIONS_Y

@@ -44,6 +44,11 @@ public final class NativeGregTech {
         return isAvailable() ? GregTechMachineAccess.sample(tile) : null;
     }
 
+    /** The GT block hosting a meta tile entity (e.g. a pattern hatch acting as crafting medium), else null. */
+    public static TileEntity hostTile(Object machine) {
+        return isAvailable() ? GregTechMachineAccess.hostTile(machine) : null;
+    }
+
     @com.github.bsideup.jabel.Desugar
     public record MachineSnapshot(int metaTileId, String machineClass, boolean active, long storedEu, long euCapacity,
         int progress, int maxProgress, int euPerTick) {}

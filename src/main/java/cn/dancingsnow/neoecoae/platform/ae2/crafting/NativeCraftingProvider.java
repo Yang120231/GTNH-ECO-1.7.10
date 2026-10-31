@@ -50,7 +50,22 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
             ? ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium)
                 .neoecoae$getProcessingTargets()
-            : java.util.Collections.emptyList();
+            : ownPosition();
+    }
+
+    /**
+     * A medium that is itself the destination (GT's ME crafting input bus/buffer, other pattern hatches) records no
+     * push targets; its own block is where the inputs went, and the status scan resolves its controllers from there.
+     */
+    private java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> ownPosition() {
+        net.minecraft.tileentity.TileEntity tile = medium instanceof net.minecraft.tileentity.TileEntity
+            ? (net.minecraft.tileentity.TileEntity) medium
+            : cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.hostTile(medium);
+        if (tile == null || tile.isInvalid() || tile.getWorldObj() == null) return java.util.Collections.emptyList();
+        return java.util.Collections.singletonList(
+            new cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target(
+                tile.getWorldObj().provider.dimensionId,
+                new cn.dancingsnow.neoecoae.platform.minecraft.BlockPos(tile.xCoord, tile.yCoord, tile.zCoord)));
     }
 
     @Override

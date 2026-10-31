@@ -111,12 +111,43 @@ final class GregTechMachineAccess {
             }
             if (!(value instanceof List)) continue;
             List<?> hatches = (List<?>) value;
-            for (Object hatch : hatches) if (hatch instanceof IMetaTileEntity) {
-                IGregTechTileEntity base = ((IMetaTileEntity) hatch).getBaseMetaTileEntity();
-                if (base instanceof TileEntity) tiles.add((TileEntity) base);
+            for (Object hatch : hatches) {
+                TileEntity base = hostTile(hatch);
+                if (base != null) tiles.add(base);
+                // A crafting input proxy feeds from its master buffer, which is where patterns are pushed.
+                TileEntity master = hostTile(craftingInputMaster(hatch));
+                if (master != null) tiles.add(master);
             }
         }
         return tiles;
+    }
+
+    static TileEntity hostTile(Object machine) {
+        if (!(machine instanceof IMetaTileEntity)) return null;
+        IGregTechTileEntity base = ((IMetaTileEntity) machine).getBaseMetaTileEntity();
+        return base instanceof TileEntity ? (TileEntity) base : null;
+    }
+
+    /** MTEHatchCraftingInputSlave#getMaster, resolved reflectively since the proxy class varies between GT builds. */
+    private static final java.lang.reflect.Method CRAFTING_INPUT_MASTER = craftingInputMaster();
+
+    private static java.lang.reflect.Method craftingInputMaster() {
+        try {
+            return Class.forName("gregtech.common.tileentities.machines.MTEHatchCraftingInputSlave")
+                .getMethod("getMaster");
+        } catch (ReflectiveOperationException | LinkageError | RuntimeException absent) {
+            return null;
+        }
+    }
+
+    private static Object craftingInputMaster(Object hatch) {
+        if (CRAFTING_INPUT_MASTER == null || !CRAFTING_INPUT_MASTER.getDeclaringClass()
+            .isInstance(hatch)) return null;
+        try {
+            return CRAFTING_INPUT_MASTER.invoke(hatch);
+        } catch (ReflectiveOperationException | RuntimeException unavailable) {
+            return null;
+        }
     }
 
     static NativeGregTech.MachineSnapshot inspect(TileEntity tile) {
