@@ -8,7 +8,7 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
-version = providers.gradleProperty("releaseVersion").getOrElse("7.3.4")
+version = providers.gradleProperty("releaseVersion").getOrElse("7.3.5-beta")
 // GTNH's generated Tags and mcmod.info read this extra property, rather than project.version.
 extra["modVersion"] = version.toString()
 

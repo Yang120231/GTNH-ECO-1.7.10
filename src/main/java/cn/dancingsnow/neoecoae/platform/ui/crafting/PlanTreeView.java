@@ -3,19 +3,25 @@ package cn.dancingsnow.neoecoae.platform.ui.crafting;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
@@ -64,6 +70,10 @@ final class PlanTreeView {
     /** Nodes built before further branches are left collapsed; opening one builds it. */
     private static final int BUILD_BUDGET = 4000;
     private static final int[] DEPTHS = { 2, 4, 8, Integer.MAX_VALUE };
+    /** Below this zoom an icon is a few pixels wide; the tinted frames alone show the shape of the tree. */
+    private static final float ICON_MIN_ZOOM = 0.2F;
+    /** Below this zoom the half-size counts are unreadable. */
+    private static final float COUNT_MIN_ZOOM = 0.45F;
 
     private enum Kind {
         REQUEST,
@@ -90,6 +100,9 @@ final class PlanTreeView {
         boolean collapsed;
         int x;
         int y;
+        /** The formatted count, made once instead of every frame. */
+        @Nullable
+        String countText;
 
         Node(Kind kind, @Nullable Node parent, int materialId, @Nullable CraftingGraphSnapshot.PatternNode pattern,
             BigInteger amount, int depth, Set<Integer> path) {
@@ -119,12 +132,18 @@ final class PlanTreeView {
     private final Map<Integer, List<CraftingGraphSnapshot.PatternNode>> producers = new HashMap<>();
     private final Map<Integer, Integer> cycleOf = new HashMap<>();
     private final Set<Integer> leadsToMissing = new HashSet<>();
+    /** One native stack per material for its icon; drawing ignores the amount, so it is never copied per frame. */
+    private final Map<Integer, IAEStack<?>> icons = new HashMap<>();
 
     private int depthIndex = 1;
     private boolean missingOnly;
     @Nullable
     private Node root;
+    /** Laid-out nodes in placement order, which is also ascending x: the layout cursor only moves right. */
     private final List<Node> visible = new ArrayList<>();
+    /** Connector rectangles of the current layout as {@code left, top, right, bottom} quadruples. */
+    private int[] lineRects = new int[0];
+    private int lineRectCount;
     private int builtNodes;
     private int treeWidth;
     private int treeHeight;
@@ -138,6 +157,7 @@ final class PlanTreeView {
 
     private String query = "";
     private final List<Node> matches = new ArrayList<>();
+    private final Set<Node> matchSet = Collections.newSetFromMap(new IdentityHashMap<>());
     private int matchIndex = -1;
     @Nullable
     private Node highlighted;
@@ -185,6 +205,7 @@ final class PlanTreeView {
         producers.clear();
         cycleOf.clear();
         leadsToMissing.clear();
+        icons.clear();
         for (CraftingGraphSnapshot.MaterialNode material : graph.nodes()) materials.put(material.nodeId(), material);
         Map<Integer, CraftingGraphSnapshot.PatternNode> patterns = new HashMap<>();
         for (CraftingGraphSnapshot.PatternNode pattern : graph.patterns())
@@ -208,26 +229,28 @@ final class PlanTreeView {
         }
         for (CraftingGraphSnapshot.CycleGroup cycle : graph.cycleGroups())
             for (int member : cycle.memberNodeIds()) cycleOf.put(member, cycle.componentId());
-        for (Integer id : materials.keySet()) reachesMissing(id, new HashSet<>());
+        markLeadsToMissing();
     }
 
-    private boolean reachesMissing(int materialId, Set<Integer> visiting) {
-        if (leadsToMissing.contains(materialId)) return true;
-        if (!visiting.add(materialId)) return false;
-        CraftingGraphSnapshot.MaterialNode material = materials.get(materialId);
-        boolean missing = material != null && material.missingBigInteger()
-            .signum() > 0;
-        if (!missing) for (CraftingGraphSnapshot.PatternNode pattern : producers
-            .getOrDefault(materialId, Collections.emptyList())) {
+    /**
+     * A material leads to a shortage when it is short itself or one of its producing patterns takes an input that
+     * does. Spreading backwards from the short materials over "input of a producer of" visits every link once, where a
+     * search per material repeated the whole subgraph for every material that does not lead to a shortage.
+     */
+    private void markLeadsToMissing() {
+        Map<Integer, List<Integer>> consumers = new HashMap<>();
+        for (Map.Entry<Integer, List<CraftingGraphSnapshot.PatternNode>> entry : producers.entrySet())
+            for (CraftingGraphSnapshot.PatternNode pattern : entry.getValue())
                 for (CraftingGraphSnapshot.Relationship input : pattern.inputs())
-                    if (reachesMissing(input.materialNodeId(), visiting)) {
-                        missing = true;
-                        break;
-                    }
-                if (missing) break;
-            }
-        if (missing) leadsToMissing.add(materialId);
-        return missing;
+                    consumers.computeIfAbsent(input.materialNodeId(), id -> new ArrayList<>())
+                        .add(entry.getKey());
+        ArrayDeque<Integer> queue = new ArrayDeque<>();
+        for (CraftingGraphSnapshot.MaterialNode material : materials.values()) if (material.missingBigInteger()
+            .signum() > 0 && leadsToMissing.add(material.nodeId())) queue.add(material.nodeId());
+        while (!queue.isEmpty()) {
+            for (int consumer : consumers.getOrDefault(queue.poll(), Collections.emptyList()))
+                if (leadsToMissing.add(consumer)) queue.add(consumer);
+        }
     }
 
     private void rebuild() {
@@ -359,10 +382,35 @@ final class PlanTreeView {
         if (root == null) return;
         int[] cursor = { 0 };
         place(root, 0, cursor);
+        lineRectCount = 0;
         for (Node node : visible) {
             treeWidth = Math.max(treeWidth, node.x + 16);
             treeHeight = Math.max(treeHeight, node.y + 16);
+            if (node.parent != null) addLine(node.x + 8, node.y - 3, node.parent.x + 8, node.parent.y + 18);
         }
+    }
+
+    /** GTNH's elbow connector from a child's top up to its parent's bottom, kept as up to three rectangles. */
+    private void addLine(int x0, int y0, int x1, int y1) {
+        if (x0 == x1) {
+            addRect(x0, Math.min(y0, y1), x0 + 1, Math.max(y0, y1));
+            return;
+        }
+        int midY = (y0 + y1) / 2;
+        addRect(x0, Math.min(y0, midY), x0 + 1, Math.max(y0, midY));
+        addRect(Math.min(x0, x1), midY, Math.max(x0, x1) + 1, midY + 1);
+        addRect(x1, Math.min(midY, y1), x1 + 1, Math.max(midY, y1));
+    }
+
+    private void addRect(int left, int top, int right, int bottom) {
+        if (left >= right || top >= bottom) return;
+        int at = lineRectCount * 4;
+        if (at + 4 > lineRects.length) lineRects = Arrays.copyOf(lineRects, Math.max(64, lineRects.length * 2));
+        lineRects[at] = left;
+        lineRects[at + 1] = top;
+        lineRects[at + 2] = right;
+        lineRects[at + 3] = bottom;
+        lineRectCount++;
     }
 
     private void place(Node node, int y, int[] cursor) {
@@ -422,11 +470,17 @@ final class PlanTreeView {
             : text.trim()
                 .toLowerCase(Locale.ROOT);
         matches.clear();
+        matchSet.clear();
         matchIndex = -1;
         highlighted = null;
         if (query.isEmpty()) return;
-        for (Node node : visible) if (node.kind == Kind.REQUEST && name(node.materialId).toLowerCase(Locale.ROOT)
-            .contains(query)) matches.add(node);
+        Map<Integer, Boolean> named = new HashMap<>();
+        for (Node node : visible) if (node.kind == Kind.REQUEST && named.computeIfAbsent(
+            node.materialId,
+            id -> name(id).toLowerCase(Locale.ROOT)
+                .contains(query)))
+            matches.add(node);
+        matchSet.addAll(matches);
         findNext();
     }
 
@@ -506,16 +560,38 @@ final class PlanTreeView {
     private @Nullable Node nodeAt(int localX, int localY) {
         float treeX = (localX - widgetX) / zoom + scrollX;
         float treeY = (localY - widgetY) / zoom + scrollY;
-        for (Node node : visible)
+        for (int i = firstAtOrRightOf(treeX - 16); i < visible.size(); i++) {
+            Node node = visible.get(i);
+            if (node.x > treeX) break;
             if (treeX >= node.x && treeY >= node.y && treeX < node.x + 16 && treeY < node.y + 16) return node;
+        }
         return null;
+    }
+
+    /** Index of the first laid-out node whose x is at least {@code x}; {@link #visible} is sorted by x. */
+    private int firstAtOrRightOf(float x) {
+        int low = 0, high = visible.size();
+        while (low < high) {
+            int middle = (low + high) >>> 1;
+            if (visible.get(middle).x < x) low = middle + 1;
+            else high = middle;
+        }
+        return low;
     }
 
     // ---- drawing --------------------------------------------------------------------------------------------------
 
-    /** Draws in the host's foreground layer (origin at guiLeft/guiTop); {@code mouse*} are host-relative. */
+    /**
+     * Draws in the host's foreground layer (origin at guiLeft/guiTop); {@code mouse*} are host-relative. The tree sits
+     * on the panel texture's own graph area, so only the nodes and connectors are drawn.
+     *
+     * <p>
+     * Like the 1.21 graph renderer, a frame costs a few batched passes instead of several GL state changes per node:
+     * every connector is one untextured batch, every slot frame and step icon one textured batch, the item icons share
+     * one lighting setup and the counts one scaled matrix. Only nodes inside the area are visited, found by binary
+     * search over the x-sorted layout, and icons and counts are left out once they are too small to read.
+     */
     void draw(int localMouseX, int localMouseY) {
-        Gui.drawRect(widgetX, widgetY, widgetX + widgetW, widgetY + widgetH, 0xFF0E1115);
         if (root == null) {
             drawStatus();
             return;
@@ -532,6 +608,8 @@ final class PlanTreeView {
             (int) (widgetW * scale),
             (int) (widgetH * scale));
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glPushMatrix();
         GL11.glTranslatef(widgetX - scrollX * zoom, widgetY - scrollY * zoom, 0);
         GL11.glScalef(zoom, zoom, 1);
@@ -539,16 +617,19 @@ final class PlanTreeView {
         float right = scrollX + widgetW / zoom + 32;
         float top = scrollY - 32;
         float bottom = scrollY + widgetH / zoom + 32;
-        for (Node node : visible) {
-            if (node.parent != null && intersects(node, node.parent, left, right, top, bottom))
-                line(node.x + 8, node.y - 3, node.parent.x + 8, node.parent.y + 18);
+        int from = firstAtOrRightOf(left - 16);
+        int to = from;
+        while (to < visible.size() && visible.get(to).x <= right) to++;
+        try {
+            drawLines(left, right, top, bottom);
+            drawFrames(from, to, top, bottom);
+            if (zoom >= ICON_MIN_ZOOM) drawStacks(mc, from, to, top, bottom);
+            drawMarkers(from, to, top, bottom);
+            if (zoom >= COUNT_MIN_ZOOM) drawCounts(from, to, top, bottom);
+        } finally {
+            GL11.glPopMatrix();
+            GL11.glPopAttrib();
         }
-        for (Node node : visible) {
-            if (node.x + 16 < left || node.x > right || node.y + 16 < top || node.y > bottom) continue;
-            drawNode(node);
-        }
-        GL11.glPopMatrix();
-        GL11.glPopAttrib();
         // GTNH's scroll position marks along the bottom and right edges.
         float percentX = treeWidth <= 0 ? 0 : MathHelper.clamp_float(scrollX / treeWidth, 0, 1);
         float percentY = treeHeight <= 0 ? 0 : MathHelper.clamp_float(scrollY / treeHeight, 0, 1);
@@ -559,124 +640,182 @@ final class PlanTreeView {
         GL11.glColor4f(1, 1, 1, 1);
     }
 
-    private static boolean intersects(Node a, Node b, float left, float right, float top, float bottom) {
-        return Math.max(a.x, b.x) + 16 >= left && Math.min(a.x, b.x) <= right
-            && Math.max(a.y, b.y) + 16 >= top
-            && Math.min(a.y, b.y) <= bottom;
+    private static boolean outsideRows(Node node, float top, float bottom) {
+        return node.y + 16 < top || node.y > bottom;
     }
 
-    private static void line(int x0, int y0, int x1, int y1) {
-        if (x0 == x1) {
-            Gui.drawRect(x0, Math.min(y0, y1), x0 + 1, Math.max(y0, y1), LINE_COLOR);
-            return;
+    /** Every connector in the area as one untextured batch. */
+    private void drawLines(float left, float right, float top, float bottom) {
+        Tessellator tessellator = Tessellator.instance;
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_BLEND);
+        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
+        tessellator.startDrawingQuads();
+        tessellator.setColorRGBA_I(LINE_COLOR & 0xFFFFFF, LINE_COLOR >>> 24);
+        int[] rects = lineRects;
+        for (int i = 0, end = lineRectCount * 4; i < end; i += 4) {
+            int x0 = rects[i], y0 = rects[i + 1], x1 = rects[i + 2], y1 = rects[i + 3];
+            if (x1 < left || x0 > right || y1 < top || y0 > bottom) continue;
+            tessellator.addVertex(x0, y1, 0);
+            tessellator.addVertex(x1, y1, 0);
+            tessellator.addVertex(x1, y0, 0);
+            tessellator.addVertex(x0, y0, 0);
         }
-        int midY = (y0 + y1) / 2;
-        Gui.drawRect(x0, Math.min(y0, midY), x0 + 1, Math.max(y0, midY), LINE_COLOR);
-        Gui.drawRect(Math.min(x0, x1), midY, Math.max(x0, x1) + 1, midY + 1, LINE_COLOR);
-        Gui.drawRect(x1, Math.min(midY, y1), x1 + 1, Math.max(midY, y1), LINE_COLOR);
+        tessellator.draw();
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
     }
 
-    private void drawNode(Node node) {
-        boolean searchHit = !query.isEmpty() && matches.contains(node);
-        int highlight = node == highlighted ? ColorUtils.searchGoToHighlight.getColor()
-            : ColorUtils.searchHighlight.getColor();
-        CraftingGraphSnapshot.MaterialNode material = materials.get(node.materialId);
-        switch (node.kind) {
-            case REQUEST: {
-                boolean missing = leadsToMissing.contains(node.materialId) && material != null
-                    && material.missingBigInteger()
-                        .signum() > 0;
-                int color = searchHit ? highlight
-                    : cycleOf.containsKey(node.materialId) ? REQUEST_CYCLE_COLOR
-                        : missing ? REQUEST_MISSING_COLOR : REQUEST_COLOR;
-                outline(node.x, node.y, color, false);
-                stack(node.x, node.y, node.materialId, node.amount);
-                count(node.x, node.y, node.amount, ColorUtils.searchboxText.getColor());
-                if (hasBranch(node)) {
-                    // GTNH's open/closed marker under a request with steps.
-                    parent.bindTexture("guis/states.png");
-                    GL11.glPushMatrix();
-                    GL11.glScalef(0.25F, 0.25F, 1);
-                    icon(4 * (node.x + 3), 4 * (node.y + 19), 14 * 16 + (node.collapsed ? 14 : 13));
-                    GL11.glPopMatrix();
+    /** GTNH's tinted slot frames with the step icon of storage, craft and shortage steps, as one textured batch. */
+    private void drawFrames(int from, int to, float top, float bottom) {
+        int searchColor = ColorUtils.searchHighlight.getColor();
+        int goToColor = ColorUtils.searchGoToHighlight.getColor();
+        beginStates();
+        Tessellator tessellator = Tessellator.instance;
+        for (int i = from; i < to; i++) {
+            Node node = visible.get(i);
+            if (outsideRows(node, top, bottom)) continue;
+            switch (node.kind) {
+                case REQUEST: {
+                    int color = matchSet.contains(node) ? node == highlighted ? goToColor : searchColor
+                        : cycleOf.containsKey(node.materialId) ? REQUEST_CYCLE_COLOR
+                            : showsMissing(node) ? REQUEST_MISSING_COLOR : REQUEST_COLOR;
+                    frame(tessellator, node, color, false);
+                    break;
                 }
-                if (missing) {
-                    parent.bindTexture("guis/states.png");
-                    GL11.glPushMatrix();
-                    GL11.glScalef(0.5F, 0.5F, 1);
-                    icon(2 * node.x + 16, 2 * node.y, 8 * 16);
-                    GL11.glPopMatrix();
-                }
-                break;
+                case CRAFT:
+                    frame(tessellator, node, TASK_COLOR, true);
+                    icon(tessellator, node.x, node.y, 16, 16 + 3);
+                    break;
+                case STORAGE:
+                    frame(tessellator, node, TASK_COLOR, true);
+                    icon(tessellator, node.x, node.y, 16, 16 + 2);
+                    break;
+                case MISSING:
+                    frame(tessellator, node, TASK_COLOR, true);
+                    icon(tessellator, node.x, node.y, 16, 8 * 16);
+                    break;
+                case CYCLE:
+                    frame(tessellator, node, REQUEST_CYCLE_COLOR, false);
+                    break;
             }
-            case CRAFT:
-                outline(node.x, node.y, TASK_COLOR, true);
-                icon(node.x, node.y, 16 + 3);
-                count(node.x, node.y, node.amount, ColorUtils.searchboxText.getColor());
-                break;
-            case STORAGE:
-                outline(node.x, node.y, TASK_COLOR, true);
-                icon(node.x, node.y, 16 + 2);
-                count(node.x, node.y, node.amount, ColorUtils.searchboxText.getColor());
-                break;
-            case MISSING:
-                outline(node.x, node.y, TASK_COLOR, true);
-                icon(node.x, node.y, 8 * 16);
-                count(node.x, node.y, node.amount, MISSING_TEXT);
-                break;
-            case CYCLE:
-                outline(node.x, node.y, REQUEST_CYCLE_COLOR, false);
-                stack(node.x, node.y, node.materialId, node.amount);
-                count(node.x, node.y, node.amount, ColorUtils.searchboxText.getColor());
-                break;
         }
-        GL11.glColor4f(1, 1, 1, 1);
+        tessellator.draw();
     }
 
-    private void outline(int x, int y, int rgb, boolean operation) {
-        parent.bindTexture("guis/states.png");
-        GL11.glColor4f(((rgb >> 16) & 0xFF) / 255F, ((rgb >> 8) & 0xFF) / 255F, (rgb & 0xFF) / 255F, 1);
-        parent.drawTexturedModalRect(x - 3, y - 3, 192, operation ? 32 : 56, 24, 24);
-        GL11.glColor4f(1, 1, 1, 1);
-    }
-
-    private void icon(int x, int y, int index) {
-        parent.bindTexture("guis/states.png");
-        GL11.glColor4f(1, 1, 1, 1);
-        GL11.glTranslatef(0, 0, 100);
-        parent.drawTexturedModalRect(x, y, (index % 16) * 16, (index / 16) * 16, 16, 16);
-        GL11.glTranslatef(0, 0, -100);
-    }
-
-    private void stack(int x, int y, int materialId, BigInteger amount) {
-        CraftingGraphSnapshot.MaterialNode material = materials.get(materialId);
-        if (material == null) return;
-        IAEStack<?> stack = material.key()
-            .toNative(clamp(amount));
-        if (stack == null) return;
+    /** The materials' item and fluid icons under one item lighting setup. */
+    private void drawStacks(Minecraft mc, int from, int to, float top, float bottom) {
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_LIGHTING_BIT);
+        GL11.glColor4f(1, 1, 1, 1);
         RenderHelper.enableGUIStandardItemLighting();
         GL11.glEnable(GL12.GL_RESCALE_NORMAL);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         try {
-            stack.drawInGui(Minecraft.getMinecraft(), x, y);
+            for (int i = from; i < to; i++) {
+                Node node = visible.get(i);
+                if (node.kind != Kind.REQUEST && node.kind != Kind.CYCLE || outsideRows(node, top, bottom)) continue;
+                IAEStack<?> stack = iconStack(node.materialId);
+                if (stack == null) continue;
+                try {
+                    stack.drawInGui(mc, node.x, node.y);
+                } catch (RuntimeException ignored) {
+                    // A broken item renderer must not take the whole tree down.
+                }
+            }
         } finally {
             RenderHelper.disableStandardItemLighting();
             GL11.glPopAttrib();
         }
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDisable(GL11.GL_LIGHTING);
     }
 
-    /** GTNH's half-size count in the slot's bottom-right corner. */
-    private void count(int x, int y, BigInteger amount, int color) {
-        String text = ReadableNumberConverter.INSTANCE.toWideReadableForm(clamp(amount));
-        int width = parent.getFontRenderer()
-            .getStringWidth(text);
+    /** GTNH's open/closed marker under a request with steps and the shortage mark on its icon, over the icons. */
+    private void drawMarkers(int from, int to, float top, float bottom) {
+        beginStates();
+        Tessellator tessellator = Tessellator.instance;
+        for (int i = from; i < to; i++) {
+            Node node = visible.get(i);
+            if (node.kind != Kind.REQUEST || outsideRows(node, top, bottom)) continue;
+            if (hasBranch(node)) icon(tessellator, node.x + 3, node.y + 19, 4, 14 * 16 + (node.collapsed ? 14 : 13));
+            if (showsMissing(node)) icon(tessellator, node.x + 8, node.y, 8, 8 * 16);
+        }
+        tessellator.draw();
+    }
+
+    /** GTNH's half-size counts in the slots' bottom-right corners, under one scaled matrix. */
+    private void drawCounts(int from, int to, float top, float bottom) {
+        FontRenderer font = parent.getFontRenderer();
+        int textColor = ColorUtils.searchboxText.getColor();
         GL11.glPushMatrix();
         GL11.glScalef(0.5F, 0.5F, 1);
         GL11.glTranslatef(0, 0, 200);
-        parent.getFontRenderer()
-            .drawString(text, x * 2 + 32 - width, y * 2 + 22, color, true);
+        for (int i = from; i < to; i++) {
+            Node node = visible.get(i);
+            if (outsideRows(node, top, bottom)) continue;
+            String text = node.countText;
+            if (text == null)
+                node.countText = text = ReadableNumberConverter.INSTANCE.toWideReadableForm(clamp(node.amount));
+            font.drawString(
+                text,
+                node.x * 2 + 32 - font.getStringWidth(text),
+                node.y * 2 + 22,
+                node.kind == Kind.MISSING ? MISSING_TEXT : textColor,
+                true);
+        }
         GL11.glPopMatrix();
+        GL11.glColor4f(1, 1, 1, 1);
+    }
+
+    private boolean showsMissing(Node node) {
+        if (!leadsToMissing.contains(node.materialId)) return false;
+        CraftingGraphSnapshot.MaterialNode material = materials.get(node.materialId);
+        return material != null && material.missingBigInteger()
+            .signum() > 0;
+    }
+
+    private void beginStates() {
+        parent.bindTexture("guis/states.png");
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_BLEND);
+        OpenGlHelper.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0);
+        GL11.glColor4f(1, 1, 1, 1);
+        Tessellator.instance.startDrawingQuads();
+    }
+
+    /** The 24px slot frame of {@code states.png} around a node, tinted like GTNH's tree. */
+    private static void frame(Tessellator tessellator, Node node, int rgb, boolean operation) {
+        quad(tessellator, node.x - 3, node.y - 3, 24, 192, operation ? 32 : 56, 24, rgb);
+    }
+
+    /** One 16px cell of {@code states.png} drawn {@code size} wide. */
+    private static void icon(Tessellator tessellator, int x, int y, int size, int index) {
+        quad(tessellator, x, y, size, (index % 16) * 16, (index / 16) * 16, 16, 0xFFFFFF);
+    }
+
+    private static void quad(Tessellator tessellator, float x, float y, float size, int u, int v, int span, int rgb) {
+        float unit = 1F / 256F;
+        float u0 = u * unit, v0 = v * unit, u1 = (u + span) * unit, v1 = (v + span) * unit;
+        tessellator.setColorOpaque_I(rgb);
+        tessellator.addVertexWithUV(x, y + size, 0, u0, v1);
+        tessellator.addVertexWithUV(x + size, y + size, 0, u1, v1);
+        tessellator.addVertexWithUV(x + size, y, 0, u1, v0);
+        tessellator.addVertexWithUV(x, y, 0, u0, v0);
+    }
+
+    private @Nullable IAEStack<?> iconStack(int materialId) {
+        if (icons.containsKey(materialId)) return icons.get(materialId);
+        CraftingGraphSnapshot.MaterialNode material = materials.get(materialId);
+        IAEStack<?> stack = null;
+        if (material != null && material.key() != null) {
+            try {
+                stack = material.key()
+                    .toNative(1);
+            } catch (RuntimeException ignored) {
+                // An unreadable key just shows no icon.
+            }
+        }
+        icons.put(materialId, stack);
+        return stack;
     }
 
     private void drawStatus() {
