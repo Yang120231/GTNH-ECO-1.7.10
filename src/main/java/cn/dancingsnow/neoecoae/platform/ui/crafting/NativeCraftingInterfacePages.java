@@ -74,18 +74,24 @@ public final class NativeCraftingInterfacePages {
                 case "side_controls":
                     return NativeHostSideBar.left(
                         true,
-                        NativeHostSideBar.button(
-                            32,
-                            48,
-                            () -> Component.translatable("gui.neoecoae.host.crafting.pattern_transfer"),
+                        NativeHostSideBar.multilineButton(
+                            () -> NativePageLayout.texture(NativeHostSideBar.ATLAS, 32, 48, 16, 16),
+                            () -> withResult(
+                                Component.translatable("gui.neoecoae.host.crafting.pattern_transfer"),
+                                session,
+                                1),
                             () -> session.action(4, 0)),
-                        NativeHostSideBar.button(
-                            32,
-                            64,
-                            () -> Component.translatable("gui.neoecoae.crafting_interface.preview.organize"),
+                        NativeHostSideBar.multilineButton(
+                            () -> NativePageLayout.texture(NativeHostSideBar.ATLAS, 32, 64, 16, 16),
+                            () -> withResult(
+                                Component.translatable("gui.neoecoae.crafting_interface.preview.organize"),
+                                session,
+                                2),
                             () -> session.action(3, 0)));
                 case "status_label":
+                    var recent = new RecentResult(session);
                     return new NativeText(() -> {
+                        if (recent.showing()) return result(session).get(0);
                         int rows = session.state()
                             .getInt("rows"),
                             offset = session.state()
@@ -106,6 +112,76 @@ public final class NativeCraftingInterfacePages {
             }
         });
         return panel;
+    }
+
+    /** Result lines of the last transfer or organize pass, as reported by the server snapshot. */
+    static java.util.List<Component> result(NativePatternInterfaceSession session) {
+        var state = session.state();
+        var lines = new java.util.ArrayList<Component>();
+        if (state.getInt("operation") == 1) {
+            switch (state.getInt("transferState")) {
+                case NativePatternInterfaceSession.TRANSFER_UNAVAILABLE:
+                    lines.add(Component.translatable("gui.neoecoae.host.crafting.pattern_transfer.unavailable"));
+                    break;
+                case NativePatternInterfaceSession.TRANSFER_NO_TARGET:
+                    lines.add(Component.translatable("gui.neoecoae.host.crafting.pattern_transfer.no_target"));
+                    break;
+                default:
+                    lines.add(
+                        Component.translatable(
+                            "gui.neoecoae.host.crafting.pattern_transfer.result_primary",
+                            state.getInt("transferred"),
+                            state.getInt("alreadyPresent")));
+                    lines.add(
+                        Component.translatable(
+                            "gui.neoecoae.host.crafting.pattern_transfer.result_secondary",
+                            state.getInt("noSpace"),
+                            state.getInt("incompatible")));
+            }
+        } else if (state.getInt("operation") == 2) {
+            lines.add(
+                Component.translatable(
+                    "gui.neoecoae.crafting_interface.preview.organize.result_primary",
+                    state.getInt("recovered"),
+                    state.getInt("duplicates")));
+            if (state.getInt("remaining") > 0) lines.add(
+                Component.translatable(
+                    "gui.neoecoae.crafting_interface.preview.organize.result_secondary",
+                    state.getInt("remaining")));
+        }
+        return lines;
+    }
+
+    private static java.util.List<Component> withResult(Component title, NativePatternInterfaceSession session,
+        int operation) {
+        var lines = new java.util.ArrayList<Component>();
+        lines.add(title);
+        if (session.state()
+            .getInt("operation") == operation) lines.addAll(result(session));
+        return lines;
+    }
+
+    /** Shows the newest result in the status line for a few seconds after the server reports a new pass. */
+    private static final class RecentResult {
+
+        private final NativePatternInterfaceSession session;
+        private int seenSerial = -1;
+        private long until;
+
+        RecentResult(NativePatternInterfaceSession session) {
+            this.session = session;
+        }
+
+        boolean showing() {
+            int serial = session.state()
+                .getInt("operationSerial");
+            if (seenSerial < 0) seenSerial = serial;
+            else if (serial != seenSerial) {
+                seenSerial = serial;
+                until = System.currentTimeMillis() + 6000;
+            }
+            return System.currentTimeMillis() < until && !result(session).isEmpty();
+        }
     }
 
     private static TextFieldWidget search(NativePatternInterfaceSession session, boolean output) {

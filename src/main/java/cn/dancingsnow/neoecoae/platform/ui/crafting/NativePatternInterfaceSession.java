@@ -28,7 +28,11 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
     private final Map<Integer, Target> targets = new HashMap<>();
     private volatile String inputs = "", outputs = "";
     private volatile int offset;
-    private int serial, recovered, remaining;
+    private static final int OPERATION_TRANSFER = 1, OPERATION_ORGANIZE = 2;
+    static final int TRANSFER_DONE = 0, TRANSFER_UNAVAILABLE = 1, TRANSFER_NO_TARGET = 2;
+    private int serial, recovered, remaining, duplicates;
+    private int lastOperation, operationSerial, transferState;
+    private int transferred, alreadyPresent, noSpace, incompatible;
 
     public NativePatternInterfaceSession(ECOMachineInterfaceBlockEntity<?> host) {
         super(host);
@@ -95,6 +99,14 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
         tag.putInt("occupied", occupied);
         tag.putInt("recovered", recovered);
         tag.putInt("remaining", remaining);
+        tag.putInt("duplicates", duplicates);
+        tag.putInt("operation", lastOperation);
+        tag.putInt("operationSerial", operationSerial);
+        tag.putInt("transferState", transferState);
+        tag.putInt("transferred", transferred);
+        tag.putInt("alreadyPresent", alreadyPresent);
+        tag.putInt("noSpace", noSpace);
+        tag.putInt("incompatible", incompatible);
         tag.putBoolean("online", host.isTargetOnline());
         var page = new ListTag();
         for (int index = offset * 9; index < Math.min(matches.size(), offset * 9 + 54); index++) {
@@ -189,10 +201,16 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
         cn.dancingsnow.neoecoae.platform.minecraft.NativePlayerInventory.syncMenu(player);
     }
 
+    /**
+     * Compacts every bus into one ordered run: recovers invalid and duplicate patterns to the player, then lays the
+     * rest out by primary product so the preview reads alphabetically from its first slot.
+     */
     private void organize() {
-        recovered = remaining = 0;
+        lastOperation = OPERATION_ORGANIZE;
+        recovered = remaining = duplicates = 0;
+        operationSerial++;
         var seen = new java.util.HashSet<cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey>();
-        var retained = new ArrayList<ItemStack>();
+        var retained = new ArrayList<Sorted>();
         var positions = new ArrayList<Target>();
         var player = getSyncManager().getPlayer();
         for (var bus : buses()) for (int slot = 0; slot < bus.getInternalInventory()
@@ -202,61 +220,183 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
                 positions.add(new Target(0, bus, slot, null));
                 if (ItemStacks.isEmpty(stack)) continue;
                 boolean duplicate = !seen.add(cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(stack));
-                if (duplicate || !inventory.isItemValid(slot, stack)) {
+                boolean invalid = !duplicate && !inventory.isItemValid(slot, stack);
+                if (duplicate || invalid) {
                     var moving = stack.copy();
                     if (player.inventory.addItemStackToInventory(moving) || moving.stackSize < stack.stackSize) {
-                        recovered++;
-                        if (moving.stackSize > 0) retained.add(moving);
+                        if (duplicate) duplicates++;
+                        else recovered++;
+                        if (moving.stackSize > 0) retained.add(new Sorted(moving, sortKey(moving)));
                     } else {
                         remaining++;
-                        retained.add(stack.copy());
+                        retained.add(new Sorted(stack.copy(), sortKey(stack)));
                     }
-                } else retained.add(stack.copy());
+                } else retained.add(new Sorted(stack.copy(), sortKey(stack)));
             }
-        retained.sort(
-            Comparator.comparing(
-                stack -> stack.getDisplayName()
-                    .toLowerCase(Locale.ROOT)));
+        retained.sort(Comparator.comparing(sorted -> sorted.key));
         for (int index = 0; index < positions.size(); index++) {
             var position = positions.get(index);
-            position.bus.getInternalInventory()
-                .setStackInSlot(position.slot, index < retained.size() ? retained.get(index) : null);
+            var inventory = position.bus.getInternalInventory();
+            ItemStack next = index < retained.size() ? retained.get(index).stack : null;
+            // Rewriting an unchanged slot would still invalidate its catalog entry and dirty the bus.
+            if (!ItemStack.areItemStacksEqual(inventory.getStackInSlot(position.slot), next))
+                inventory.setStackInSlot(position.slot, next);
         }
         player.inventory.markDirty();
         cn.dancingsnow.neoecoae.platform.minecraft.NativePlayerInventory.syncMenu(player);
     }
 
+    /** Primary product name first, then its registry identity, so equal names still order deterministically. */
+    String sortKey(ItemStack pattern) {
+        ItemStack output = displayStack(pattern);
+        boolean decoded = output != pattern;
+        String name = ItemStacks.isEmpty(output) ? "" : output.getDisplayName();
+        Object id = ItemStacks.isEmpty(output) ? null
+            : net.minecraft.item.Item.itemRegistry.getNameForObject(output.getItem());
+        String nbt = pattern.getTagCompound() == null ? ""
+            : pattern.getTagCompound()
+                .toString();
+        // Undecodable patterns sort last so the readable ones stay together at the top.
+        return (decoded ? "0" : "1") + name.toLowerCase(Locale.ROOT)
+            + '\u0000'
+            + id
+            + '\u0000'
+            + String.format("%08d", ItemStacks.isEmpty(output) ? 0 : output.getItemDamage())
+            + '\u0000'
+            + nbt;
+    }
+
+    /**
+     * Moves crafting patterns out of every other pattern host on the grid into free bus slots. Patterns the buses
+     * already hold are cleared from their source and refunded as a blank pattern into the network.
+     */
     private void transfer() {
+        lastOperation = OPERATION_TRANSFER;
+        transferred = alreadyPresent = noSpace = incompatible = 0;
+        transferState = TRANSFER_DONE;
+        operationSerial++;
         var grid = host.getMainNode()
             .getGrid();
         if (grid == null || !host.getMainNode()
-            .isOnline()) return;
+            .isOnline()) {
+            transferState = TRANSFER_UNAVAILABLE;
+            return;
+        }
         var buses = buses();
+        if (buses.isEmpty()) {
+            transferState = TRANSFER_NO_TARGET;
+            return;
+        }
+        // Index the buses once: free slots in preview order and the patterns they already hold. Inserting through
+        // insertItem would decode the pattern again for every occupied slot it walks past.
+        var free = new java.util.ArrayDeque<Target>();
+        var present = new java.util.HashSet<cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey>();
+        for (var bus : buses) for (int slot = 0; slot < bus.getInternalInventory()
+            .size(); slot++) {
+                ItemStack stack = bus.getInternalInventory()
+                    .getStackInSlot(slot);
+                if (ItemStacks.isEmpty(stack)) free.add(new Target(0, bus, slot, null));
+                else present.add(cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(stack));
+            }
         var seen = java.util.Collections.newSetFromMap(new IdentityHashMap<IInventory, Boolean>());
         for (var node : grid.nativeGrid()
             .getNodes()) {
-            if (!(node.getMachine() instanceof appeng.helpers.IInterfaceHost)) continue;
-            IInventory source = ((appeng.helpers.IInterfaceHost) node.getMachine()).getPatterns();
+            Object machine;
+            IInventory source;
+            try {
+                machine = node.getMachine();
+                if (!(machine instanceof appeng.api.util.IInterfaceViewable) || machine.getClass()
+                    .getName()
+                    .startsWith("cn.dancingsnow.neoecoae.")) continue;
+                source = ((appeng.api.util.IInterfaceViewable) machine).getPatterns();
+            } catch (RuntimeException rebuilding) {
+                continue;
+            }
             if (source == null || !seen.add(source)) continue;
+            boolean changed = false;
             for (int slot = 0; slot < source.getSizeInventory(); slot++) {
                 var stack = source.getStackInSlot(slot);
-                if (ItemStacks.isEmpty(stack)) continue;
-                var moving = stack.copy();
-                for (var bus : buses) {
-                    var target = bus.getInternalInventory();
-                    for (int index = 0; index < target.size() && !ItemStacks.isEmpty(moving); index++)
-                        moving = target.insertItem(index, moving, false);
-                    if (ItemStacks.isEmpty(moving)) break;
+                if (ItemStacks.isEmpty(stack)
+                    || !(stack.getItem() instanceof appeng.api.implementations.ICraftingPatternItem)) continue;
+                if (!isCraftingPattern(stack)) {
+                    incompatible++;
+                    continue;
                 }
-                if (ItemStacks.count(moving) != stack.stackSize) source.setInventorySlotContents(slot, moving);
+                var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(stack);
+                if (present.contains(key)) {
+                    if (!refundBlank(grid, stack.stackSize)) {
+                        noSpace++;
+                        continue;
+                    }
+                    source.setInventorySlotContents(slot, null);
+                    alreadyPresent++;
+                    changed = true;
+                    continue;
+                }
+                var target = free.poll();
+                if (target == null) {
+                    noSpace++;
+                    continue;
+                }
+                target.bus.getInternalInventory()
+                    .setStackInSlot(target.slot, ItemStacks.copyWithCount(stack, 1));
+                present.add(key);
+                // Bus slots hold one pattern; extra copies are duplicates and are refunded as blanks when possible.
+                if (stack.stackSize > 1 && !refundBlank(grid, stack.stackSize - 1))
+                    source.setInventorySlotContents(slot, ItemStacks.copyWithCount(stack, stack.stackSize - 1));
+                else source.setInventorySlotContents(slot, null);
+                transferred++;
+                changed = true;
             }
-            source.markDirty();
+            if (changed) source.markDirty();
+        }
+    }
+
+    private boolean isCraftingPattern(ItemStack stack) {
+        try {
+            var pattern = ((appeng.api.implementations.ICraftingPatternItem) stack.getItem())
+                .getPatternForItem(stack, host.getWorldObj());
+            return pattern != null && pattern.isCraftable();
+        } catch (RuntimeException invalid) {
+            return false;
+        }
+    }
+
+    /** All-or-nothing: the source may only be cleared once the whole refund landed in network storage. */
+    private boolean refundBlank(cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid, int count) {
+        var blank = appeng.api.AEApi.instance()
+            .definitions()
+            .materials()
+            .blankPattern()
+            .maybeStack(count)
+            .orNull();
+        if (blank == null) return false;
+        try {
+            var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(blank);
+            var inventory = grid.getStorageService()
+                .getInventory();
+            var source = cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource.ofMachine(host);
+            return inventory.insert(key, count, appeng.api.config.Actionable.SIMULATE, source) == count
+                && inventory.insert(key, count, appeng.api.config.Actionable.MODULATE, source) == count;
+        } catch (RuntimeException rejected) {
+            return false;
         }
     }
 
     public CompoundTag entry(int index) {
         var page = state().getList("page", 10);
         return index < page.size() ? page.getCompound(index) : new CompoundTag();
+    }
+
+    private static final class Sorted {
+
+        final ItemStack stack;
+        final String key;
+
+        Sorted(ItemStack stack, String key) {
+            this.stack = stack;
+            this.key = key;
+        }
     }
 
     private static final class Target {
