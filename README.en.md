@@ -1,3 +1,4 @@
+<p align="center"><img src="https://raw.githubusercontent.com/DancingSnow0517/NeoECOAEExtension/main/images/logo.png" alt="Neo ECO AE Extension"></p>
 <h1 align="center">Neo ECO AE Extension</h1>
 <p align="center"><strong>GT New Horizons · Applied Energistics 2 Addon</strong></p>
 
@@ -9,9 +10,19 @@ Provides expandable storage, crafting, and computation multiblocks for ME networ
 
 ## Version Support
 
-| GTNH | Download |
-| --- | --- |
-| 2.9.0-RC1 and later | [![Latest release](https://img.shields.io/github/v/release/Yang120231/GTNH-ECO-1.7.10)](https://github.com/Yang120231/GTNH-ECO-1.7.10/releases) |
+<div align="center">
+<table align="center">
+  <thead>
+    <tr><th align="center">GTNH</th><th align="center">Download</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center">2.9.0-RC1 and later</td>
+      <td align="center"><a href="https://github.com/Yang120231/GTNH-ECO-1.7.10/releases"><img src="https://img.shields.io/github/v/release/Yang120231/GTNH-ECO-1.7.10" alt="Latest release"></a></td>
+    </tr>
+  </tbody>
+</table>
+</div>
 
 Required dependencies include Applied Energistics 2, AE2 Fluid Crafting (AE2FC, 1.5.64-gtnh or later), ModularUI2, and StructureLib.
 
