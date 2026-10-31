@@ -3,6 +3,8 @@ package cn.dancingsnow.neoecoae.platform.ui.computation;
 import java.math.BigInteger;
 import java.util.function.IntConsumer;
 
+import net.minecraft.util.EnumChatFormatting;
+
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
@@ -27,7 +29,6 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import net.minecraft.util.EnumChatFormatting;
 
 /** Source CPU selector and 326x254 status artwork, using native hitboxes and server-owned exact resource pages. */
 public final class NativeCpuPages {
@@ -232,11 +233,9 @@ public final class NativeCpuPages {
                 if (cpu.getInt("token") == 0) return;
                 java.util.List<String> out = new java.util.ArrayList<>();
                 out.add(NativeCpuPages.name(cpu));
+                out.add(field("gui.neoecoae.cpu.tooltip.storage", NEByteFormatter.format(cpu.getLong("storage"))));
                 out.add(
-                    field(
-                        "gui.neoecoae.cpu.tooltip.storage",
-                        NEByteFormatter.format(cpu.getLong("storage"))));
-                out.add(field("gui.neoecoae.cpu.tooltip.parallel", grouped(BigInteger.valueOf(cpu.getInt("parallel")))));
+                    field("gui.neoecoae.cpu.tooltip.parallel", grouped(BigInteger.valueOf(cpu.getInt("parallel")))));
                 if (cpu.getBoolean("busy")) {
                     if (!cpu.getString("output")
                         .isEmpty()) out.add(field("gui.neoecoae.cpu.tooltip.crafting", cpu.getString("output")));
@@ -384,7 +383,8 @@ public final class NativeCpuPages {
                     String exact = grouped(amount);
                     out.add(
                         EnumChatFormatting.GRAY + Component.translatable("gui.appliedenergistics2." + labels[field])
-                            .getString() + ": "
+                            .getString()
+                            + ": "
                             + EnumChatFormatting.WHITE
                             + shortForm
                             + (key instanceof AEItemKey && !shortForm.equals(exact)
@@ -395,12 +395,13 @@ public final class NativeCpuPages {
                     .read(value.getCompound("processing"));
                 if (progress.machineCount() > 0 || progress.refreshing()) {
                     out.add(
-                        EnumChatFormatting.AQUA + Component
-                            .translatable(
-                                "gui.neoecoae.processing.summary",
-                                progress.machineCount(),
-                                Math.round(progress.progress() * 100))
-                            .getString()
+                        EnumChatFormatting.AQUA
+                            + Component
+                                .translatable(
+                                    "gui.neoecoae.processing.summary",
+                                    progress.machineCount(),
+                                    Math.round(progress.progress() * 100))
+                                .getString()
                             + EnumChatFormatting.GRAY
                             + "  "
                             + Component.translatable(
@@ -410,24 +411,30 @@ public final class NativeCpuPages {
                                 .getString());
                     for (var machine : progress.machines()) {
                         out.add(
-                            EnumChatFormatting.WHITE + " " + machine.name()
-                                .getString() + EnumChatFormatting.DARK_GRAY + " " + machine.location());
+                            EnumChatFormatting.WHITE + " "
+                                + machine.name()
+                                    .getString()
+                                + EnumChatFormatting.DARK_GRAY
+                                + " "
+                                + machine.location());
                         out.add(
-                            EnumChatFormatting.GRAY + "   " + Component
-                                .translatable(
-                                    "gui.neoecoae.processing.cycle",
-                                    machine.progressTicks(),
-                                    machine.durationTicks(),
-                                    machine.parallel())
-                                .getString());
+                            EnumChatFormatting.GRAY + "   "
+                                + Component
+                                    .translatable(
+                                        "gui.neoecoae.processing.cycle",
+                                        machine.progressTicks(),
+                                        machine.durationTicks(),
+                                        machine.parallel())
+                                    .getString());
                         if (!machine.recipe()
                             .isEmpty()) out.add(EnumChatFormatting.GRAY + "   " + machine.recipe());
                         if (!machine.reason()
                             .getString()
                             .isEmpty())
                             out.add(
-                                EnumChatFormatting.RED + "   " + machine.reason()
-                                    .getString());
+                                EnumChatFormatting.RED + "   "
+                                    + machine.reason()
+                                        .getString());
                     }
                     if (progress.pages() > 1) out.add(
                         EnumChatFormatting.DARK_GRAY + Component
@@ -550,7 +557,9 @@ public final class NativeCpuPages {
         int colon = Math.max(template.indexOf(": "), template.indexOf('：'));
         if (colon < 0) return template;
         int split = template.charAt(colon) == '：' ? colon + 1 : colon + 2;
-        return EnumChatFormatting.GRAY + template.substring(0, split) + EnumChatFormatting.WHITE + template.substring(split);
+        return EnumChatFormatting.GRAY + template.substring(0, split)
+            + EnumChatFormatting.WHITE
+            + template.substring(split);
     }
 
     private static String grouped(BigInteger value) {
