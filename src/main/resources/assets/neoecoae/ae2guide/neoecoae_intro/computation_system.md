@@ -213,3 +213,5 @@ The computation system supports different CPU selection modes:
 
 
 Fast planning requires an online host that accepts the request source. Cyclic routes also require Cycle Planning and actual startup seeds; an unfinished search is different from missing materials. In the computation interface, hold a sample and left-click to mark an item whose component differences may be ignored, or right-click to clear it. Samples are not consumed, and the physical pattern and machine must still accept the inputs.
+
+Stored intermediate ingredients are consumed as needed, even when they also participate in cyclic recipes. For example, a crystal dust order grinds existing crystals directly and grows more only to cover a shortfall. Actual startup materials are still required, and catalysts and containers are returned according to the pattern. Seed retention is accepted only when it adds no executions of any pattern; background optimization does not prefer a plan with more work solely because it retains seeds.

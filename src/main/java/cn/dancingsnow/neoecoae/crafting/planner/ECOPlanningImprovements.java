@@ -8,7 +8,6 @@ import org.jetbrains.annotations.Nullable;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
 import cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus;
 import cn.dancingsnow.neoecoae.crafting.planner.solve.PlannerInventorySnapshot;
-import cn.dancingsnow.neoecoae.crafting.planner.trace.PlannerDiagnostic;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** Owns optional confirmation work and the frozen recipe context used for remaining-work searches. */
@@ -108,21 +107,11 @@ public final class ECOPlanningImprovements implements AutoCloseable {
                     incumbent.plan()
                         .finalOutput()))
             return false;
-        boolean retained = retainsSeeds(incumbent);
-        boolean retaining = retainsSeeds(candidate);
-        if (retained != retaining) return retaining;
         int cost = firings(candidate).compareTo(firings(incumbent));
         return cost < 0 || cost == 0 && candidate.plan()
             .bytes()
             < incumbent.plan()
                 .bytes();
-    }
-
-    private static boolean retainsSeeds(ECOPlanningResult result) {
-        return result.trace()
-            .diagnostics()
-            .stream()
-            .anyMatch(d -> d.code() == PlannerDiagnostic.Code.CYCLE_SEED_RETAINED);
     }
 
     public static BigInteger firings(ECOPlanningResult result) {
