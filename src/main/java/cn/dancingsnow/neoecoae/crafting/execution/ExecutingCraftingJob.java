@@ -90,6 +90,8 @@ public class ExecutingCraftingJob {
     boolean vanillaExecution;
     /** Native {@code finalOutput.fakeCrafting} for a vanilla-executed job. */
     boolean vanillaFakeCrafting;
+    /** Bumped whenever {@link #tasks} gains, loses or replaces keys; lets executors cache derived task lookups. */
+    transient int tasksRevision;
     final Map<AEKey, java.math.BigInteger> deferredStock = new LinkedHashMap<>();
     final Map<AEKey, java.math.BigInteger> deferredEmitted = new LinkedHashMap<>();
     /** Outputs of successful multi-craft dispatches in this job, used by the ECO status page. */
@@ -154,6 +156,7 @@ public class ExecutingCraftingJob {
         for (var entry : plan.patternTimes()
             .entrySet()) {
             tasks.computeIfAbsent(entry.getKey(), p -> new ECOExecutionTaskProgress()).value += entry.getValue();
+            tasksRevision++;
             for (var output : entry.getKey()
                 .getOutputs()) {
                 var amount = NEMath.saturatingMultiply(output.amount(), entry.getValue());
@@ -265,6 +268,7 @@ public class ExecutingCraftingJob {
                     new java.math.BigInteger(item.getString("exactTotal")),
                     new java.math.BigInteger(item.getString("exactRemaining")));
                 this.tasks.put(details, tp);
+                tasksRevision++;
             } else taskDefinitionLost = true;
         }
 
@@ -475,6 +479,7 @@ public class ExecutingCraftingJob {
         timeTracker.replaceRemainingWork(prepared.timeTracker);
         tasks.clear();
         tasks.putAll(prepared.tasks);
+        tasksRevision++;
         executionPlan = prepared.executionPlan;
         executionRuntime = prepared.executionRuntime;
         growthBarrier = null;
@@ -500,6 +505,7 @@ public class ExecutingCraftingJob {
             .entrySet()) {
             IPatternDetails pattern = runningTaskFor(entry.getKey());
             var progress = tasks.computeIfAbsent(pattern, p -> new ECOExecutionTaskProgress());
+            tasksRevision++;
             progress.value = NEMath.saturatingAdd(progress.value, entry.getValue());
             for (var output : pattern.getOutputs()) {
                 var amount = NEMath.saturatingMultiply(output.amount(), entry.getValue());

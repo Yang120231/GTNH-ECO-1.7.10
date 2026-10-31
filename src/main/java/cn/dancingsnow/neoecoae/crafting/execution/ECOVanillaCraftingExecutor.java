@@ -99,6 +99,20 @@ final class ECOVanillaCraftingExecutor {
     private final Map<IPatternDetails, ECOExecutionTaskProgress> workableTasks = new LinkedHashMap<>();
     private int remainingOperations;
     private boolean somethingChanged;
+    /*
+     * Native AE2 recomputes the final pattern on every push by scanning all tasks; with large plans that scan
+     * dominated the server thread. The lookup only depends on the job's task keys, so it is cached per job and task
+     * revision, and per-pattern match results are memoised alongside it.
+     */
+    private ExecutingCraftingJob finalPatternJob;
+    private int finalPatternRevision;
+    private ICraftingPatternDetails finalPattern;
+    private final java.util.IdentityHashMap<ICraftingPatternDetails, Boolean> finalPatternMatches = new java.util.IdentityHashMap<>();
+    /** Wall-clock deadline of the current tick, or {@link Long#MAX_VALUE} when the guard is disabled. */
+    private long tickDeadline = Long.MAX_VALUE;
+    private boolean timeBudgetHit;
+    private int tickStartedOperations;
+    private int consumedAtBudgetStop;
     /** Native view of the CPU inventory for {@code findFuzzy}; rebuilt lazily once per executeCrafting pass. */
     private IItemList<IAEItemStack> fuzzyView;
 
@@ -117,6 +131,9 @@ final class ECOVanillaCraftingExecutor {
         parallelismProvider.clear();
         workableTasks.clear();
         fuzzyView = null;
+        finalPatternJob = null;
+        finalPattern = null;
+        finalPatternMatches.clear();
     }
 
     /** {@code CraftingCPUCluster#updateCraftingLogic} after the native completion/cancel preamble. */
@@ -132,6 +149,11 @@ final class ECOVanillaCraftingExecutor {
         long operations = (long) Math.max(0, accelerator) + 1L - ((long) usedOps[0] + usedOps[1] + usedOps[2]);
         remainingOperations = (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, operations));
         final int started = remainingOperations;
+        long budgetMs = cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.vanillaCpuTickTimeBudgetMs;
+        tickDeadline = budgetMs > 0 ? System.nanoTime() + budgetMs * 1_000_000L : Long.MAX_VALUE;
+        timeBudgetHit = false;
+        tickStartedOperations = started;
+        consumedAtBudgetStop = 0;
 
         // Shallow copy tasks so we may remove them after visiting
         workableTasks.clear();
@@ -145,7 +167,9 @@ final class ECOVanillaCraftingExecutor {
         }
         usedOps[2] = usedOps[1];
         usedOps[1] = usedOps[0];
-        usedOps[0] = started - remainingOperations;
+        // A wall-clock stop must not be booked as spent operations, or the next two ticks would be starved too.
+        usedOps[0] = timeBudgetHit ? consumedAtBudgetStop : started - remainingOperations;
+        tickDeadline = Long.MAX_VALUE;
 
         knownBusyMediums.clear();
     }
@@ -160,6 +184,7 @@ final class ECOVanillaCraftingExecutor {
             .iterator();
 
         while (craftingTaskIterator.hasNext()) {
+            if (stopForTimeBudget()) return;
             final Map.Entry<IPatternDetails, ECOExecutionTaskProgress> craftingEntry = craftingTaskIterator.next();
             final IPatternDetails pattern = craftingEntry.getKey();
             final ECOExecutionTaskProgress progress = craftingEntry.getValue();
@@ -288,13 +313,14 @@ final class ECOVanillaCraftingExecutor {
                         host.getProcessingMonitor()
                             .dispatchedNative(job.link.getCraftingID(), medium, details);
 
-                        if (!job.vanillaFakeCrafting && isFinalPattern(job, details)) {
+                        final boolean finalPush = isFinalPattern(job, details);
+                        if (!job.vanillaFakeCrafting && finalPush) {
                             if (traits.isFakeCraftingMode(medium)) {
                                 job.vanillaFakeCrafting = true;
                             }
                         }
 
-                        if (job.vanillaFakeCrafting && isFinalPattern(job, details)) {
+                        if (job.vanillaFakeCrafting && finalPush) {
                             progress.accept(1);
                             host.markCpuDirty();
 
@@ -342,7 +368,7 @@ final class ECOVanillaCraftingExecutor {
                             break doWhileCraftingLoop;
                         }
 
-                        if (remainingOperations == 0) {
+                        if (remainingOperations == 0 || stopForTimeBudget()) {
                             if (mediumListCheck != null) parallelismProvider.put(details, mediumListCheck);
                             return;
                         }
@@ -504,6 +530,19 @@ final class ECOVanillaCraftingExecutor {
         host.postChange(key);
     }
 
+    /**
+     * Stops the current tick once its wall-clock budget is spent, at a point where no push is half done. Remaining
+     * work resumes next tick exactly like an exhausted native operation budget.
+     */
+    private boolean stopForTimeBudget() {
+        if (timeBudgetHit) return true;
+        if (tickDeadline == Long.MAX_VALUE || System.nanoTime() < tickDeadline) return false;
+        timeBudgetHit = true;
+        consumedAtBudgetStop = Math.max(0, tickStartedOperations - remainingOperations);
+        remainingOperations = 0;
+        return true;
+    }
+
     private void postChange(IAEStack<?> stack) {
         AEKey key = AEKey.fromNative(stack);
         if (key != null) host.postChange(key);
@@ -513,9 +552,23 @@ final class ECOVanillaCraftingExecutor {
      * Native {@code finalOutput#isFinalPattern}: the pattern whose condensed outputs equal those of the task producing
      * the requested output. Native stack equality is item/damage/NBT (fluid/NBT), i.e. {@link AEKey} equality.
      */
-    private static boolean isFinalPattern(ExecutingCraftingJob job, ICraftingPatternDetails details) {
-        ICraftingPatternDetails finalPattern = finalPattern(job);
+    private boolean isFinalPattern(ExecutingCraftingJob job, ICraftingPatternDetails details) {
+        if (finalPatternJob != job || finalPatternRevision != job.tasksRevision) {
+            finalPatternJob = job;
+            finalPatternRevision = job.tasksRevision;
+            finalPattern = finalPattern(job);
+            finalPatternMatches.clear();
+        }
         if (finalPattern == null) return false;
+        Boolean cached = finalPatternMatches.get(details);
+        if (cached == null) {
+            cached = matchesFinalPattern(finalPattern, details);
+            finalPatternMatches.put(details, cached);
+        }
+        return cached;
+    }
+
+    private static boolean matchesFinalPattern(ICraftingPatternDetails finalPattern, ICraftingPatternDetails details) {
         IAEStack<?>[] patternOutputs = finalPattern.getAEOutputs();
         IAEStack<?>[] outputs = details.getCondensedAEOutputs();
         if (patternOutputs == null || outputs.length != patternOutputs.length) return false;

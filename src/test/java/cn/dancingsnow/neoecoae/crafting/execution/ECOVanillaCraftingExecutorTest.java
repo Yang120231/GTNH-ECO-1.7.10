@@ -292,6 +292,45 @@ class ECOVanillaCraftingExecutorTest {
     }
 
     @Test
+    void wallClockBudgetStopsBetweenPushesWithoutStarvingLaterTicks() {
+        ICraftingMedium slow = mock(ICraftingMedium.class);
+        when(slow.pushPattern(any(), any())).thenAnswer(call -> {
+            Thread.sleep(5);
+            return true;
+        });
+        when(slow.getBlockingMode()).thenReturn(ICraftingMedium.BlockingMode.NONE);
+        setUp(5, slow);
+        inventory.insert(stone, 10, Actionable.MODULATE);
+        int previous = cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.vanillaCpuTickTimeBudgetMs;
+        cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.vanillaCpuTickTimeBudgetMs = 1;
+        try {
+            executor.tick(job, energy, this::mediumsOf, null, world, 100);
+            // The first push already exceeds the budget; the rest waits for the next tick.
+            assertEquals(4, job.tasks.get(pattern).value);
+            assertEquals(1, job.waitingFor.list.get(cobble));
+
+            // Only the push actually made is booked, so the next tick still has operations left.
+            executor.tick(job, energy, this::mediumsOf, null, world, 100);
+            assertEquals(3, job.tasks.get(pattern).value);
+        } finally {
+            cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Crafting.vanillaCpuTickTimeBudgetMs = previous;
+        }
+    }
+
+    @Test
+    void finalPatternLookupIsNotRepeatedForEveryPush() {
+        var medium = accepting();
+        setUp(5, medium);
+        inventory.insert(stone, 10, Actionable.MODULATE);
+
+        executor.tick(job, energy, this::mediumsOf, null, world, 100);
+
+        assertEquals(0, job.tasks.get(pattern).value);
+        // One scan resolves the final pattern for the whole job instead of one task scan per push.
+        verify(details, times(1)).getAEOutputs();
+    }
+
+    @Test
     void missingInputsNeverReachAMedium() {
         var medium = accepting();
         setUp(5, medium);

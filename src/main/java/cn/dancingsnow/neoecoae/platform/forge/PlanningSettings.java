@@ -108,6 +108,12 @@ public final class PlanningSettings {
         @Config.RangeInt(min = 1, max = MAX_ECO_CPU_PUSH_TICK_LIMIT)
         public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
 
+        // Unloaded settings (unit tests) keep the guard disabled so native operation counts stay deterministic.
+        @Config.Comment("Per-CPU wall-clock budget in milliseconds for AE2-planned (vanilla) job execution each tick; 0 disables")
+        @Config.DefaultInt(10)
+        @Config.RangeInt(min = 0, max = 1_000)
+        public static int vanillaCpuTickTimeBudgetMs = 0;
+
         @Config.Comment("Verified source recipe cache limit")
         @Config.DefaultInt(512)
         @Config.RangeInt(min = 16, max = 16_384)
