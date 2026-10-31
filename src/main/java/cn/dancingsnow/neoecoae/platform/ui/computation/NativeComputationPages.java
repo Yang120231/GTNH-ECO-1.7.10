@@ -108,6 +108,7 @@ public final class NativeComputationPages {
                 case "computation_info":
                     return new com.cleanroommc.modularui.widget.ParentWidget<>().pos(251, 0)
                         .size(23, 30)
+                        .excludeAreaInRecipeViewer()
                         .background(
                             com.cleanroommc.modularui.drawable.UITexture
                                 .fullImage("neoecoae:textures/gui/common/side_bar/mirrored_button_slot_up.png"))

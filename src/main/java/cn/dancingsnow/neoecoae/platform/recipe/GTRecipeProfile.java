@@ -49,8 +49,8 @@ public final class GTRecipeProfile {
         if (id.endsWith("_l4") || id.equals("neoecoae:eco_cell_component_16m")) tier = "iv";
         else if (id.endsWith("_l6") || id.equals("neoecoae:eco_cell_component_64m")) tier = "luv";
         else if (id.endsWith("_l9") || id.equals("neoecoae:eco_cell_component_256m")) tier = "zpm";
-        else if (id.equals("neoecoae:eco_infinite_cell_component")
-            || id.equals("neoecoae:eco_infinite_item_cell")) tier = "uhv";
+        else if (id.equals("neoecoae:eco_infinite_cell_component") || id.equals("neoecoae:eco_infinite_item_cell"))
+            tier = "uhv";
         else return;
         var inputs = recipe.getAsJsonArray("inputItems");
         for (var entry : inputs) {

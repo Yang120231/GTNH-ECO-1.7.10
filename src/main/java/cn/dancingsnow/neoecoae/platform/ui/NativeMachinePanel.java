@@ -7,6 +7,8 @@ public final class NativeMachinePanel extends ModularPanel {
 
     private NativeMachinePanel(String name) {
         super(name);
+        // Keep the panel theme from filling transparent artwork when hovering blank space.
+        disableHoverBackground();
     }
 
     public static ModularPanel create(String name, int width, int height) {

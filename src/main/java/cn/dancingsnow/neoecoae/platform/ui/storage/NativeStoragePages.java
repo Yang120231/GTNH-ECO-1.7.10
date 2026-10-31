@@ -125,8 +125,10 @@ public final class NativeStoragePages {
                     case "storage_type_scrollbar":
                     case "storage_infinite_status":
                     case "storage_infinite_animation":
-                    case "storage_information":
                         widget = new ArtNode(custom, node);
+                        break;
+                    case "storage_information":
+                        widget = new ArtNode(custom, node).excludeAreaInRecipeViewer();
                         break;
                     default:
                         throw new IllegalArgumentException("Unbound source storage node: " + custom);
