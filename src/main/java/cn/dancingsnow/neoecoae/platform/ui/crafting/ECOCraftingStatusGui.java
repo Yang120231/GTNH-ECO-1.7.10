@@ -607,7 +607,9 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             // AE2's colours are drawn opaque on its light cells; translucent they keep the dark ECO cell readable.
             overlay = stateColor(reason, active) & 0xFFFFFF | 0x80000000;
         else if (isCycleMember(entry.getStack())) overlay = CYCLE_OVERLAY;
-        if (overlay != 0) Gui.drawRect(cellX, cellY, cellX + CELL_WIDTH, cellY + CELL_HEIGHT, overlay);
+        ECOProcessingProgress progress = progressOf(entry);
+        if (active && progress.hasProgress()) drawProgress(progress, overlay, cellX, cellY);
+        else if (overlay != 0) Gui.drawRect(cellX, cellY, cellX + CELL_WIDTH, cellY + CELL_HEIGHT, overlay);
         List<String> lines = new ArrayList<>(3);
         List<String> details = new ArrayList<>(4);
         if (entry.hasStoredAmount()) amountLine(GuiText.Stored.getLocal(), entry.getStoredAmount(), lines, details);
@@ -616,8 +618,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         drawLines(lines, cellX, cellY);
         drawReasonIcon(cellX, cellY, reasonIcon(reason));
         drawStack(entry.getStack(), cellX + CELL_WIDTH - 19, cellY + 3);
-        ECOProcessingProgress progress = progressOf(entry);
-        if (active && progress.hasProgress()) drawProgress(progress, cellX, cellY);
         if (hovered) {
             IAEStack<?> visual = entry.getVisualStack();
             hoveredEntry = entry;
@@ -626,19 +626,20 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         }
     }
 
-    /** 1.20.1's cycle track along the cell's bottom edge, coloured by the machines' combined state. */
-    private static void drawProgress(ECOProcessingProgress progress, int cellX, int cellY) {
-        int left = cellX + 2;
-        int right = cellX + CELL_WIDTH - 2;
-        int top = cellY + CELL_HEIGHT - 3;
-        Gui.drawRect(left, top, right, top + 2, 0xFF5B566B);
-        int color = switch (progress.state()) {
-            case WAITING -> 0xFFE2AA4F;
-            case PAUSED -> 0xFF90909F;
-            default -> 0xFFC7A6FF;
+    /**
+     * Whole-cell cycle fill: the state colour sweeps left to right across the full cell as the machines progress,
+     * and the unfilled remainder keeps a faint tint of the same colour so the cell still reads as active.
+     */
+    private static void drawProgress(ECOProcessingProgress progress, int overlay, int cellX, int cellY) {
+        int rgb = overlay != 0 ? overlay & 0xFFFFFF : switch (progress.state()) {
+            case WAITING -> 0xE2AA4F;
+            case PAUSED -> 0x90909F;
+            default -> 0xC7A6FF;
         };
-        int filled = Math.round((right - left) * progress.progress());
-        if (filled > 0) Gui.drawRect(left, top, left + filled, top + 2, color);
+        int filled = Math.round(CELL_WIDTH * Math.min(1f, Math.max(0f, progress.progress())));
+        int right = cellX + CELL_WIDTH, bottom = cellY + CELL_HEIGHT;
+        if (filled < CELL_WIDTH) Gui.drawRect(cellX + filled, cellY, right, bottom, rgb | 0x30000000);
+        if (filled > 0) Gui.drawRect(cellX, cellY, cellX + filled, bottom, rgb | 0x90000000);
     }
 
     private ECOProcessingProgress progressOf(CraftingCpuEntry entry) {

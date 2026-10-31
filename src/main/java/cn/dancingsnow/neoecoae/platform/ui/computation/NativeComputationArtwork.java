@@ -166,7 +166,7 @@ public final class NativeComputationArtwork extends ParentWidget<NativeComputati
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
         CompoundTag values = session.state();
         var state = panelState();
-        NativeUiDraw.text(text("title"), 44, 10, 92, 1, 0x3f3d52, false, false);
+        NativeUiDraw.text(text("title"), 44, 10, 198, 1, 0x3f3d52, false, false);
         NativeUiDraw.text(text("control_heading"), 9, 90, 65, .75f, 0x3f3d52, false, false);
         String[] switches = { "substitutions", "cycle_planning", "fast_planner" };
         for (int index = 0; index < 3; index++)

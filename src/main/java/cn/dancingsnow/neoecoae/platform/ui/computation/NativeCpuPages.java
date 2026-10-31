@@ -13,6 +13,7 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 import cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter;
 import cn.dancingsnow.neoecoae.crafting.display.format.NEByteFormatter;
+import cn.dancingsnow.neoecoae.gui.common.HostText;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
@@ -26,6 +27,7 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import net.minecraft.util.EnumChatFormatting;
 
 /** Source CPU selector and 326x254 status artwork, using native hitboxes and server-owned exact resource pages. */
 public final class NativeCpuPages {
@@ -228,12 +230,36 @@ public final class NativeCpuPages {
             tooltipDynamic(lines -> {
                 var cpu = row();
                 if (cpu.getInt("token") == 0) return;
-                lines.add(NativeCpuPages.name(cpu))
-                    .add(cpu.getString("output"))
-                    .add(NEByteFormatter.format(cpu.getLong("storage")))
-                    .add(cpu.getString("requested") + " / " + cpu.getString("remaining"));
+                java.util.List<String> out = new java.util.ArrayList<>();
+                out.add(NativeCpuPages.name(cpu));
+                out.add(
+                    field(
+                        "gui.neoecoae.cpu.tooltip.storage",
+                        NEByteFormatter.format(cpu.getLong("storage"))));
+                out.add(field("gui.neoecoae.cpu.tooltip.parallel", grouped(BigInteger.valueOf(cpu.getInt("parallel")))));
+                if (cpu.getBoolean("busy")) {
+                    if (!cpu.getString("output")
+                        .isEmpty()) out.add(field("gui.neoecoae.cpu.tooltip.crafting", cpu.getString("output")));
+                    BigInteger requested = number(cpu.getString("requested")),
+                        completed = number(cpu.getString("completed"));
+                    if (requested.signum() > 0) {
+                        int percent = completed.multiply(BigInteger.valueOf(100))
+                            .divide(requested)
+                            .min(BigInteger.valueOf(100))
+                            .intValue();
+                        out.add(
+                            field(
+                                "gui.neoecoae.cpu.tooltip.progress",
+                                grouped(completed),
+                                grouped(requested),
+                                percent + "%"));
+                    }
+                } else out.add(
+                    EnumChatFormatting.GRAY + Component.translatable("gui.neoecoae.cpu.status.idle")
+                        .getString());
                 String bigOrder = bigOrderStatus(cpu);
-                if (!bigOrder.isEmpty()) lines.add(bigOrder);
+                if (!bigOrder.isEmpty()) out.add(EnumChatFormatting.GOLD + bigOrder);
+                emit(lines, out);
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
@@ -295,24 +321,18 @@ public final class NativeCpuPages {
                 icon(208, 224, 27, 10);
                 if (!"ANY".equals(row.getString("mode")))
                     icon(192, "PLAYER_ONLY".equals(row.getString("mode")) ? 224 : 234, 55, 10);
-                NativeUiDraw.text(
-                    Component.literal(Integer.toString(row.getInt("parallel"))),
-                    14,
-                    13,
-                    12,
+                // Both readouts share one scale so the parallel count and the byte size never differ in size.
+                String parallel = HostText.ae2Amount(row.getInt("parallel"));
+                String storage = NEByteFormatter.format(row.getLong("storage"));
+                var font = net.minecraft.client.Minecraft.getMinecraft().fontRenderer;
+                float scale = Math.min(
                     .666f,
-                    0x413f54,
-                    false,
-                    false);
-                NativeUiDraw.text(
-                    Component.literal(NEByteFormatter.format(row.getLong("storage"))),
-                    39,
-                    13,
-                    26,
-                    .666f,
-                    0x413f54,
-                    false,
-                    false);
+                    Math.min(
+                        12f / Math.max(1, font.getStringWidth(parallel)),
+                        26f / Math.max(1, font.getStringWidth(storage))));
+                float y = 16 - 4.5f * scale; // keep the icon-row centre line of the old .666 layout
+                NativeUiDraw.text(Component.literal(parallel), 14, y, 12, scale, 0x413f54, false, false);
+                NativeUiDraw.text(Component.literal(storage), 39, y, 26, scale, 0x413f54, false, false);
             }
         }
     }
@@ -351,32 +371,49 @@ public final class NativeCpuPages {
             tooltipDynamic(lines -> {
                 var value = entry();
                 if (value.isEmpty()) return;
-                lines.add(value.getString("name"));
-                for (String kind : new String[] { "stored", "active", "pending" }) if (!value.getString(kind)
-                    .isEmpty()) lines.add(kind + ": " + value.getString(kind));
+                java.util.List<String> out = new java.util.ArrayList<>();
+                AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, value.getCompound("key"));
+                out.add(value.getString("name"));
+                // Same labels as the card face (Available / Crafting / Scheduled), never raw field names.
+                String[] fields = { "stored", "active", "pending" };
+                String[] labels = { "FromStorage", "Crafting", "Scheduled" };
+                for (int field = 0; field < fields.length; field++) {
+                    BigInteger amount = number(value.getString(fields[field]));
+                    if (amount.signum() <= 0) continue;
+                    String shortForm = amount(value.getString(fields[field]), key);
+                    String exact = grouped(amount);
+                    out.add(
+                        EnumChatFormatting.GRAY + Component.translatable("gui.appliedenergistics2." + labels[field])
+                            .getString() + ": "
+                            + EnumChatFormatting.WHITE
+                            + shortForm
+                            + (key instanceof AEItemKey && !shortForm.equals(exact)
+                                ? EnumChatFormatting.DARK_GRAY + " (" + exact + ")"
+                                : ""));
+                }
                 var progress = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress
                     .read(value.getCompound("processing"));
                 if (progress.machineCount() > 0 || progress.refreshing()) {
-                    lines.add(
-                        Component
+                    out.add(
+                        EnumChatFormatting.AQUA + Component
                             .translatable(
                                 "gui.neoecoae.processing.summary",
                                 progress.machineCount(),
                                 Math.round(progress.progress() * 100))
-                            .getString());
-                    lines.add(
-                        Component.translatable(
-                            "gui.neoecoae.processing.state." + progress.state()
-                                .name()
-                                .toLowerCase(java.util.Locale.ROOT))
-                            .getString());
+                            .getString()
+                            + EnumChatFormatting.GRAY
+                            + "  "
+                            + Component.translatable(
+                                "gui.neoecoae.processing.state." + progress.state()
+                                    .name()
+                                    .toLowerCase(java.util.Locale.ROOT))
+                                .getString());
                     for (var machine : progress.machines()) {
-                        lines.add(
-                            machine.name()
-                                .getString() + " "
-                                + machine.location());
-                        lines.add(
-                            Component
+                        out.add(
+                            EnumChatFormatting.WHITE + " " + machine.name()
+                                .getString() + EnumChatFormatting.DARK_GRAY + " " + machine.location());
+                        out.add(
+                            EnumChatFormatting.GRAY + "   " + Component
                                 .translatable(
                                     "gui.neoecoae.processing.cycle",
                                     machine.progressTicks(),
@@ -384,25 +421,27 @@ public final class NativeCpuPages {
                                     machine.parallel())
                                 .getString());
                         if (!machine.recipe()
-                            .isEmpty()) lines.add(machine.recipe());
+                            .isEmpty()) out.add(EnumChatFormatting.GRAY + "   " + machine.recipe());
                         if (!machine.reason()
                             .getString()
                             .isEmpty())
-                            lines.add(
-                                machine.reason()
+                            out.add(
+                                EnumChatFormatting.RED + "   " + machine.reason()
                                     .getString());
                     }
-                    lines.add(
-                        Component
+                    if (progress.pages() > 1) out.add(
+                        EnumChatFormatting.DARK_GRAY + Component
                             .translatable("gui.neoecoae.processing.page", progress.detailPage() + 1, progress.pages())
                             .getString());
                 }
-                if (value.getBoolean("canControl")) lines.add(
-                    Component
-                        .translatable(
-                            value.getBoolean("stepStopped") ? "gui.neoecoae.processing.resume_hint"
-                                : "gui.neoecoae.processing.stop_hint")
-                        .getString());
+                if (value.getBoolean("canControl")) out.add(
+                    (value.getBoolean("stepStopped") ? EnumChatFormatting.YELLOW : EnumChatFormatting.DARK_GRAY)
+                        + Component
+                            .translatable(
+                                value.getBoolean("stepStopped") ? "gui.neoecoae.processing.resume_hint"
+                                    : "gui.neoecoae.processing.stop_hint")
+                            .getString());
+                emit(lines, out);
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
@@ -420,11 +459,14 @@ public final class NativeCpuPages {
             AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, entry.getCompound("key"));
             boolean active = number(entry.getString("active")).signum() > 0;
             boolean pending = number(entry.getString("pending")).signum() > 0;
-            if (active || pending) GuiDraw.drawRect(0, 0, 67, 22, active ? 0x5a005500 : 0x5a555500);
             var processing = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress
                 .read(entry.getCompound("processing"));
-            if (processing.hasProgress())
-                GuiDraw.drawRect(0, 21, Math.round(67 * processing.progress()), 1, 0xfface9ff);
+            if (active && processing.hasProgress()) {
+                // Whole-card fill sweeping left to right, with a faint tint on the unfilled remainder.
+                int filled = Math.round(67 * Math.min(1f, Math.max(0f, processing.progress())));
+                if (filled < 67) GuiDraw.drawRect(filled, 0, 67 - filled, 22, 0x30005500);
+                if (filled > 0) GuiDraw.drawRect(0, 0, filled, 22, 0x90005500);
+            } else if (active || pending) GuiDraw.drawRect(0, 0, 67, 22, active ? 0x5a005500 : 0x5a555500);
             if (entry.getBoolean("stepStopped")) GuiDraw.drawRect(1, 1, 3, 3, 0xffffaa00);
             drawKey(key, 48, 3, 1, context.getCurrentDrawingZ());
             String[] fields = { "stored", "active", "pending" };
@@ -492,6 +534,27 @@ public final class NativeCpuPages {
     private static String name(CompoundTag row) {
         return row.getString("name")
             .isEmpty() ? "CPU #" + row.getInt("token") : row.getString("name");
+    }
+
+    /** RichTooltip.add appends inline; every entry needs its own line break or the tooltip runs together. */
+    private static void emit(com.cleanroommc.modularui.screen.RichTooltip lines, java.util.List<String> out) {
+        for (int index = 0; index < out.size(); index++) {
+            if (index > 0) lines.newLine();
+            lines.add(out.get(index));
+        }
+    }
+
+    private static String field(String key, Object... arguments) {
+        String template = Component.translatable(key, arguments)
+            .getString();
+        int colon = Math.max(template.indexOf(": "), template.indexOf('：'));
+        if (colon < 0) return template;
+        int split = template.charAt(colon) == '：' ? colon + 1 : colon + 2;
+        return EnumChatFormatting.GRAY + template.substring(0, split) + EnumChatFormatting.WHITE + template.substring(split);
+    }
+
+    private static String grouped(BigInteger value) {
+        return String.format(java.util.Locale.ROOT, "%,d", value);
     }
 
     private static BigInteger number(String value) {

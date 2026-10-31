@@ -79,7 +79,7 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
             0xff5555,
             false,
             true);
-        else label("title", 44, 10, 105, 1, false);
+        else NativeUiDraw.text(text("title"), 44, 10, 160, 1, 0x3f3d52, false, false);
         NativeUiDraw
             .text(Component.literal(performance(values.getLong("averageNanos"))), 210, 10, 39, 1, PRIMARY, true, true);
         heading("control_heading", 9, 68, 43);
