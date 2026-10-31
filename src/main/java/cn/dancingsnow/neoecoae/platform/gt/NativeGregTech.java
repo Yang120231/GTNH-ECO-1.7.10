@@ -21,7 +21,7 @@ public final class NativeGregTech {
             .getIndexedModList()
             .get("gregtech")
             .getVersion();
-        NeoECOAE.LOG.info("NEOECOAE_NATIVE_GT_AVAILABLE version={} reviewed_api=5.09.52.398", version);
+        NeoECOAE.LOG.info("NEOECOAE_NATIVE_GT_AVAILABLE version={} reviewed_api=5.09.54.264", version);
         GregTechMachineRecipes.register();
         cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
             .gregTechInit();
