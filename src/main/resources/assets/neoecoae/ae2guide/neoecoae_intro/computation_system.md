@@ -177,9 +177,9 @@ To assemble the structure more quickly, use the StructureLib hologram projector;
 
 The following computation cells provide storage for crafting jobs:
 
-- <ItemLink id="neoecoae:eco_computation_cell_l4" /> - CE4 Flash Array, 128 MiB
-- <ItemLink id="neoecoae:eco_computation_cell_l6" /> - CE6 Flash Array, 512 MiB
-- <ItemLink id="neoecoae:eco_computation_cell_l9" /> - CE9 Flash Array, 2 GiB
+- <ItemLink id="neoecoae:eco_computation_cell_l4" /> - CE4 Flash Array, 256 MiB
+- <ItemLink id="neoecoae:eco_computation_cell_l6" /> - CE6 Flash Array, 1 GiB
+- <ItemLink id="neoecoae:eco_computation_cell_l9" /> - CE9 Flash Array, 4 GiB
 
 ## Usage
 
