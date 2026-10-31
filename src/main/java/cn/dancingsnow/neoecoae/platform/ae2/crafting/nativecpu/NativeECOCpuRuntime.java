@@ -79,6 +79,9 @@ public interface NativeECOCpuRuntime extends ECOCraftingOutputRouter {
     /** Real active, pending and stored projections for native AE2's three status panes. */
     void getItems(KeyCounter out, CraftingItemList which);
 
+    /** Single-key status amount; must not rebuild the full item projection per query. */
+    long getItemAmount(AEKey key, CraftingItemList which);
+
     ECOPlannerOptions planningOptions();
 
     boolean ownsJob(UUID jobId);

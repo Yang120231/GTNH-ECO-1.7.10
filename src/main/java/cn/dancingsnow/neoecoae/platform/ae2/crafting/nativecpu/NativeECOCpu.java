@@ -232,9 +232,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
     @Override
     public long getStackAmount(IAEStack stack, CraftingItemList which) {
         if (stack == null) return 0;
-        KeyCounter items = new KeyCounter();
-        runtime.getItems(items, which);
-        return items.get(AEKey.fromNative(stack));
+        return runtime.getItemAmount(AEKey.fromNative(stack), which);
     }
 
     @Override

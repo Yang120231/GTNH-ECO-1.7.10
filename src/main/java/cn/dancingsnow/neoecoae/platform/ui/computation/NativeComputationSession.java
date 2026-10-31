@@ -318,9 +318,11 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         }
         var all = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter();
         logic.getAllItems(all);
+        var pending = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter();
+        logic.collectPendingOutputs(pending);
         for (var entry : all) {
             AEKey key = entry.getKey();
-            long[] amounts = { logic.getStored(key), logic.getPendingOutputs(key), logic.getWaitingFor(key) };
+            long[] amounts = { logic.getStored(key), pending.get(key), logic.getWaitingFor(key) };
             for (int kind = 0; kind < 3; kind++) {
                 if (amounts[kind] <= 0) continue;
                 var preview = previews.get(kind);

@@ -209,17 +209,32 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
             getAllItems(out);
             return;
         }
-        KeyCounter all = new KeyCounter();
-        getAllItems(all);
-        for (var entry : all) {
-            AEKey key = entry.getKey();
-            long amount = which == CraftingItemList.STORAGE ? cpu.getLogic()
-                .getStored(key)
-                : which == CraftingItemList.ACTIVE ? cpu.getLogic()
-                    .getWaitingFor(key)
-                    : cpu.getLogic()
-                        .getPendingOutputs(key);
-            if (amount > 0) out.add(key, amount);
+        var logic = cpu.getLogic();
+        if (which == CraftingItemList.PENDING) {
+            logic.collectPendingOutputs(out);
+            return;
+        }
+        if (which == CraftingItemList.STORAGE) {
+            addPositive(out, logic.getInventory().list);
+            return;
+        }
+        var job = logic.getJob();
+        if (job != null) addPositive(out, job.waitingFor.list);
+    }
+
+    @Override
+    public long getItemAmount(AEKey key, CraftingItemList which) {
+        if (key == null) return 0L;
+        var logic = cpu.getLogic();
+        long amount = which == CraftingItemList.ALL ? logic.getAllAmount(key)
+            : which == CraftingItemList.STORAGE ? logic.getStored(key)
+                : which == CraftingItemList.ACTIVE ? logic.getWaitingFor(key) : logic.getPendingOutputs(key);
+        return Math.max(0L, amount);
+    }
+
+    private static void addPositive(KeyCounter out, KeyCounter source) {
+        for (var entry : source) {
+            if (entry.getLongValue() > 0) out.add(entry.getKey(), entry.getLongValue());
         }
     }
 

@@ -82,6 +82,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     private boolean returningItemsToNetwork;
 
     private long lastModifiedOnTick = TickClock.currentTick();
+    /** Bumped on every posted change or job swap so read-only view aggregates can be reused safely. */
+    private long viewRevision;
 
     private boolean markedForDeletion = false;
 
@@ -553,6 +555,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     void postChange(@Nullable AEKey what) {
         taskScheduler.invalidateInputTemplates(what);
         lastModifiedOnTick = TickClock.currentTick();
+        viewRevision++;
         notifyListeners(what);
     }
 
@@ -685,6 +688,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     void setJobFromPersistence(@Nullable ExecutingCraftingJob restoredJob) {
         planUpdater.reset();
         this.job = restoredJob;
+        viewRevision++;
         exactInventory().setEnabled(restoredJob != null && restoredJob.exactOrder);
     }
 
@@ -692,6 +696,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         planUpdater.reset();
         vanillaExecutor.reset();
         this.job = nextJob;
+        viewRevision++;
         exactInventory().setEnabled(nextJob != null && nextJob.exactOrder);
     }
 
@@ -812,6 +817,20 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     public long getPendingOutputs(AEKey template) {
         return view.getPendingOutputs(template);
+    }
+
+    /** Adds every positive pending output in one pass. */
+    public void collectPendingOutputs(KeyCounter out) {
+        view.collectPendingOutputs(out);
+    }
+
+    /** Single-key equivalent of {@link #getAllItems(KeyCounter)}. */
+    public long getAllAmount(AEKey template) {
+        return view.getAllAmount(template);
+    }
+
+    long viewRevision() {
+        return viewRevision;
     }
 
     public java.util.Map<AEKey, java.math.BigInteger> getExactPendingPreview() {
