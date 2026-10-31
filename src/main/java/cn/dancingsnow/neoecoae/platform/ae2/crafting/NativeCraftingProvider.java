@@ -145,9 +145,15 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
                     throw new IllegalArgumentException("Resource has no native dispatch channel: " + entry.getKey());
                 stacks.add(stack);
             }
-            if (stacks.isEmpty()) return false;
-            table = new MEInventoryCrafting(new ContainerNull(), stacks.size(), 1);
-            for (int i = 0; i < stacks.size(); i++) table.setInventorySlotContents(i, stacks.get(i));
+            if (stacks.isEmpty()) {
+                // Input-less Programmable Hatches patterns receive an empty grid, like native MEInvDummy.
+                if (pattern.getInputs().length > 0
+                    || !NativePatternDetails.mightHaveEmptyInputs(nativePattern.nativeDetails())) return false;
+                table = new MEInventoryCrafting(new ContainerNull(), 3, 3);
+            } else {
+                table = new MEInventoryCrafting(new ContainerNull(), stacks.size(), 1);
+                for (int i = 0; i < stacks.size(); i++) table.setInventorySlotContents(i, stacks.get(i));
+            }
         }
         var before = new ArrayList<IAEStack<?>>();
         var beforeItems = new ArrayList<ItemStack>();
