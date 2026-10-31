@@ -3,8 +3,8 @@ package cn.dancingsnow.neoecoae.platform.gt;
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
+import org.spongepowered.asm.lib.ClassReader;
+import org.spongepowered.asm.lib.tree.ClassNode;
 
 /** Exact native descriptors from the pinned AE2 and GT JARs, without initializing optional mod classes. */
 class ProcessingTargetsContractTest {

@@ -36,17 +36,20 @@ class NativeCpuTargetsContractTest {
     void requiredNativeHooksExistInPinnedJar() throws IOException {
         Set<String> methods = readMethods("/appeng/me/cache/CraftingGridCache.class");
         assertRequiredHooks(methods);
-        assertTrue(methods.contains(NativeCpuTargets.PLAN), "Pinned AE2 must exercise the legacy planning entry");
+        assertTrue(
+            methods.contains(NativeCpuTargets.PLAN_WITH_LITE_MODE),
+            "Pinned AE2 must exercise the lite-mode planning entry");
     }
 
     @Test
     void optionalPlanningSelectorsStayExactDuringPermissiveRemapping() throws IOException {
         Set<String> pinnedMethods = readMethods("/appeng/me/cache/CraftingGridCache.class");
-        assertPlanningSelectors(pinnedMethods, NativeCpuTargets.PLAN);
-        Set<String> liteMethods = new HashSet<>(pinnedMethods);
-        liteMethods.remove(NativeCpuTargets.PLAN);
-        liteMethods.add(NativeCpuTargets.PLAN_WITH_LITE_MODE);
-        assertPlanningSelectors(liteMethods, NativeCpuTargets.PLAN_WITH_LITE_MODE);
+        assertPlanningSelectors(pinnedMethods, NativeCpuTargets.PLAN_WITH_LITE_MODE);
+        // Older AE2 releases (rv3-beta-990 and earlier) only expose the legacy overload.
+        Set<String> legacyMethods = new HashSet<>(pinnedMethods);
+        legacyMethods.remove(NativeCpuTargets.PLAN_WITH_LITE_MODE);
+        legacyMethods.add(NativeCpuTargets.PLAN);
+        assertPlanningSelectors(legacyMethods, NativeCpuTargets.PLAN);
     }
 
     /**

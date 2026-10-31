@@ -119,7 +119,8 @@ public final class NativeGTMachineAcceptance {
             GridView grid = GridView.of(node.getGrid());
             if (stage == 1) {
                 var configured = (MTEBasicMachine) furnace.getMetaTileEntity();
-                if (!configured.mHasBeenUpdated) return;
+                // GT 5.09.54 removed mHasBeenUpdated; wait until the machine has run its first tick.
+                if (furnace.getTimer() < 2) return;
                 configured.setMainFacing(ForgeDirection.NORTH);
                 furnace.setFrontFacing(ForgeDirection.SOUTH);
                 configured.mItemTransfer = true;

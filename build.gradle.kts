@@ -18,11 +18,11 @@ fun gtnhDevJar(artifactId: String, version: String) =
 val ae2Version: String by project
 val gtnhLibVersion: String by project
 val modularUi2Version: String by project
-val guideNhVersion = "1.3.53"
-val structureLibVersion = "1.4.39"
-// Match the reviewed GT API artifact; newer GT releases require unrelated AE2/MUI2 upgrades.
-val gregTechVersion = "5.09.52.398"
-val ae2fcVersion = "1.5.64-gtnh"
+val guideNhVersion = "1.3.54"
+val structureLibVersion = "1.4.47"
+// Pinned to the GTNH 2.9.0 modpack set, together with AE2/AE2FC/MUI2.
+val gregTechVersion = "5.09.54.264"
+val ae2fcVersion = "1.5.116-gtnh"
 val gtRuntime = providers.gradleProperty("gtRuntime").map(String::toBoolean).getOrElse(true)
 
 repositories {
@@ -41,7 +41,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("org.mockito:mockito-core:5.12.0")
     testCompileOnly("com.github.GTNewHorizons:jabel-javac-plugin:1.0.2-GTNH")
-    implementation("it.unimi.dsi:fastutil:8.5.9")
+    implementation("it.unimi.dsi:fastutil:8.5.18")
     compileOnly("org.jetbrains:annotations:24.1.0")
     testImplementation("org.jetbrains:annotations:24.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
@@ -49,10 +49,10 @@ dependencies {
     compileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     compileOnly(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
     compileOnly(gtnhDevJar("ModularUI2", modularUi2Version))
-    compileOnly(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
+    compileOnly(gtnhDevJar("NotEnoughItems", "2.8.171-GTNH"))
     compileOnly(gtnhDevJar("GuideNH", guideNhVersion)) { isTransitive = false }
     // The pinned MUI2 handler API extends optional ModularUI 1 interfaces before FML strips absent-mod parents.
-    compileOnly(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
+    compileOnly(gtnhDevJar("ModularUI", "1.3.4")) { isTransitive = false }
     // The native GT bridge is loaded only after FML confirms gregtech is installed.
     compileOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
     // StructureLib is a hard dependency: its hologram projector builds ECO multiblocks and feeds NEI previews.
@@ -60,15 +60,15 @@ dependencies {
     // GTNHLib is always present through AE2 and MUI2; compile against the version they resolve to.
     compileOnly(gtnhDevJar("GTNHLib", gtnhLibVersion)) { isTransitive = false }
     // The WAILA provider is reached only through WAILA's own IMC callback.
-    compileOnly(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
+    compileOnly(gtnhDevJar("waila", "1.19.34")) { isTransitive = false }
     // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
     compileOnly(project.extra["mixinProviderSpec"] as String)
     testImplementation(project.extra["mixinProviderSpec"] as String)
     testImplementation(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     testImplementation(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
-    testImplementation(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
+    testImplementation(gtnhDevJar("NotEnoughItems", "2.8.171-GTNH"))
     testImplementation(gtnhDevJar("ModularUI2", modularUi2Version))
-    testImplementation(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
+    testImplementation(gtnhDevJar("ModularUI", "1.3.4")) { isTransitive = false }
     testRuntimeOnly(gtnhDevJar("GTNHLib", gtnhLibVersion))
     testImplementation(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
     // Bytecode contracts for optional GT monitoring; tests do not initialize GregTech.
@@ -83,16 +83,19 @@ dependencies {
     runtimeOnlyNonPublishable(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
     // Required even without GregTech: ECO recipe transfer uses AE2FC's native fluid packets.
     runtimeOnlyNonPublishable(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
-    runtimeOnlyNonPublishable(gtnhDevJar("WirelessCraftingTerminal", "1.12.12")) { isTransitive = false }
+    runtimeOnlyNonPublishable(gtnhDevJar("WirelessCraftingTerminal", "1.12.17")) { isTransitive = false }
     if (gtRuntime) {
         runtimeOnlyNonPublishable(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
         // Explicitly select IC2 2.2.827, the native artifact used by GTNH's dependency substitution.
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:ic2-242638:2353971"))
-        runtimeOnlyNonPublishable(gtnhDevJar("ModularUI", "1.3.2")) { isTransitive = false }
-        runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughItems", "2.8.105-GTNH"))
-        runtimeOnlyNonPublishable(gtnhDevJar("waila", "1.19.22")) { isTransitive = false }
-        runtimeOnlyNonPublishable(gtnhDevJar("Postea", "1.2.5")) { isTransitive = false }
-        runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughIds", "2.1.10")) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("ModularUI", "1.3.4")) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("NotEnoughItems", "2.8.171-GTNH"))
+        runtimeOnlyNonPublishable(gtnhDevJar("waila", "1.19.34")) { isTransitive = false }
+        runtimeOnlyNonPublishable(gtnhDevJar("Postea", "1.2.7")) { isTransitive = false }
+        // GT 5.09.54 replaced NotEnoughIds with FalsePattern's Chunk API and EndlessIDs (GTNH 2.9.0 set).
+        runtimeOnlyNonPublishable("com.falsepattern:chunkapi-mc1.7.10:0.8.4:dev") { isTransitive = false }
+        runtimeOnlyNonPublishable("com.falsepattern:endlessids-mc1.7.10:1.7.4:dev") { isTransitive = false }
+        runtimeOnlyNonPublishable("com.falsepattern:falsepatternlib-mc1.7.10:1.12.2:dev") { isTransitive = false }
         // GT++ and GoodGenerator in the original GT bundle require real Thermal fluids at init.
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:cofh-core-69162:2388751"))
         runtimeOnlyNonPublishable(rfg.deobf("curse.maven:thermal-foundation-222880:2388753"))
@@ -194,11 +197,13 @@ val verifyGtRuntimeProfile by tasks.registering {
             "industrialcraft-2" to "ic2/core/IC2.class",
             "ModularUI" to "com/gtnewhorizons/modularui/ModularUI.class",
             "NotEnoughItems" to "codechicken/nei/NEIModContainer.class",
-            "AE2FluidCraft-Rework" to "com/glodblock/github/nei/object/IRecipeExtractor.class",
+            "AE2FluidCraft-Rework" to "com/glodblock/github/FluidCraft.class",
             "WirelessCraftingTerminal" to "net/p455w0rd/wirelesscraftingterminal/common/WirelessCraftingTerminal.class",
             "waila" to "mcp/mobius/waila/Waila.class",
             "Postea" to "com/gtnewhorizons/postea/utility/BlockInfo.class",
-            "NotEnoughIds" to "com/gtnewhorizons/neid/mixins/interfaces/ClientBlockTransformer.class",
+            "chunkapi-mc1.7.10" to "com/falsepattern/chunk/api/DataManager.class",
+            "endlessids-mc1.7.10" to "com/falsepattern/endlessids/EndlessIDs.class",
+            "falsepatternlib-mc1.7.10" to "com/falsepattern/lib/StableAPI.class",
             "CoFHCore" to "cofh/CoFHCore.class",
             "ThermalFoundation" to "cofh/thermalfoundation/ThermalFoundation.class"
         )
@@ -223,21 +228,23 @@ val verifyGtRuntimeProfile by tasks.registering {
             logger.lifecycle("NEOECOAE_GT_RUNTIME_CLASS {} {} sha256={}", entry, jar.name, sha256)
         }
         val modules = artifacts.map { it.moduleVersion.id }.distinct()
-            .filter { it.name in setOf("GT5-Unofficial", "StructureLib", "industrialcraft-2", "ModularUI", "NotEnoughItems", "AE2FluidCraft-Rework", "WirelessCraftingTerminal", "waila", "GTNHLib", "Applied-Energistics-2-Unofficial", "ModularUI2", "Postea", "NotEnoughIds") }
+            .filter { it.name in setOf("GT5-Unofficial", "StructureLib", "industrialcraft-2", "ModularUI", "NotEnoughItems", "AE2FluidCraft-Rework", "WirelessCraftingTerminal", "waila", "GTNHLib", "Applied-Energistics-2-Unofficial", "ModularUI2", "Postea", "chunkapi-mc1.7.10", "endlessids-mc1.7.10", "falsepatternlib-mc1.7.10") }
             .sortedBy { it.name }
         for ((name, version) in mapOf(
             "Applied-Energistics-2-Unofficial" to ae2Version,
             "ModularUI2" to modularUi2Version,
             "GT5-Unofficial" to gregTechVersion,
-            "StructureLib" to "1.4.39",
-            "GTNHLib" to "0.11.37",
-            "ModularUI" to "1.3.2",
-            "NotEnoughItems" to "2.8.105-GTNH",
+            "StructureLib" to structureLibVersion,
+            "GTNHLib" to gtnhLibVersion,
+            "ModularUI" to "1.3.4",
+            "NotEnoughItems" to "2.8.171-GTNH",
             "AE2FluidCraft-Rework" to ae2fcVersion,
-            "WirelessCraftingTerminal" to "1.12.12",
-            "waila" to "1.19.22",
-            "Postea" to "1.2.5",
-            "NotEnoughIds" to "2.1.10"
+            "WirelessCraftingTerminal" to "1.12.17",
+            "waila" to "1.19.34",
+            "Postea" to "1.2.7",
+            "chunkapi-mc1.7.10" to "0.8.4",
+            "endlessids-mc1.7.10" to "1.7.4",
+            "falsepatternlib-mc1.7.10" to "1.12.2"
         )) {
             check(modules.filter { it.name == name }.map { it.version }.toSet() == setOf(version)) {
                 "Native GT profile changed pinned module $name:$version"
