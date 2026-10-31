@@ -1,0 +1,15 @@
+gradle.projectsEvaluated {
+    rootProject.spotless {
+        java {
+            target rootProject.fileTree('src') {
+                include '**/api/storage/IBasicECOCellItem.java'
+                include '**/impl/storage/ECOStorageCell.java'
+                include '**/items/ECOInfiniteResourceCellItem.java'
+                include '**/platform/registry/NativeStorageCellItem.java'
+                include '**/platform/registry/StorageTier.java'
+                include '**/platform/registry/StorageTierDescriptor.java'
+                include '**/platform/FiniteStorageContractTest.java'
+            }
+        }
+    }
+}

@@ -9,6 +9,10 @@ public interface StorageTierDescriptor {
 
     long getStorageTotalBytes();
 
+    default double getStorageIdleDrain() {
+        return (double) getStorageTotalBytes() / (1 << 20);
+    }
+
     long getCPUTotalBytes();
 
     boolean supportsFeature(ECOFeature feature);

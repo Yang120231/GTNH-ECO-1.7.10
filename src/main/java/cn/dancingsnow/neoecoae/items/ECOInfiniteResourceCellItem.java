@@ -61,13 +61,13 @@ public class ECOInfiniteResourceCellItem extends NativeStorageCellItem {
     }
 
     @Override
-    public int getBytesPerType() {
+    public long getBytesPerType() {
         return bytesPerType(getTier());
     }
 
     @Override
     public double getIdleDrain() {
-        return (double) getTier().getStorageTotalBytes() / (1 << 20);
+        return getTier().getStorageIdleDrain();
     }
 
     /** Matches the base cell's per-type cost (1 GiB per type at L9) without overflow. */

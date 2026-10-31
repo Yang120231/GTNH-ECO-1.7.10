@@ -26,6 +26,64 @@ import cn.dancingsnow.neoecoae.platform.registry.StorageTier;
 class FiniteStorageContractTest {
 
     @Test
+    void expandedTiersConserveFullItemAndFluidCapacityAcrossReloadAndMigration() {
+        long[] capacities = { 4L << 30, 16L << 30, 64L << 30 };
+        for (StorageTier tier : StorageTier.values()) {
+            long capacity = capacities[tier.ordinal()];
+            assertEquals(capacity, tier.getStorageTotalBytes());
+            for (AEKeyType type : new AEKeyType[] { AEKeyType.items(), AEKeyType.fluids() }) {
+                boolean fluid = type == AEKeyType.fluids();
+                NativeStorageCellItem item = new NativeStorageCellItem(
+                    tier,
+                    type,
+                    new ECOCellType(Component.literal("test"), fluid ? 25 : 315),
+                    false);
+                ItemStack stack = new ItemStack(item);
+                ECOStorageCell cell = new ECOStorageCell(stack, null);
+                AEKey key = new TestResourceKey("expanded-resource", fluid);
+                long expectedAmount = (capacity - (1L << (12 + tier.getTier()))) * type.getAmountPerByte();
+                assertEquals(capacity, cell.getTotalBytes());
+                assertEquals(1L << (2 * tier.getTier() + 2), cell.getIdleDrain());
+                assertEquals(
+                    expectedAmount,
+                    cell.simulateInsertForMigration(
+                        key,
+                        Long.MAX_VALUE,
+                        new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter()));
+                assertEquals(
+                    expectedAmount,
+                    cell.insert(key, Long.MAX_VALUE, Actionable.SIMULATE, IActionSource.empty()));
+                assertEquals(0, cell.getStoredItemCount());
+                assertEquals(
+                    expectedAmount,
+                    cell.insert(key, Long.MAX_VALUE, Actionable.MODULATE, IActionSource.empty()));
+                assertEquals(capacity, cell.getUsedBytes());
+                assertEquals(0, cell.insert(key, 1, Actionable.MODULATE, IActionSource.empty()));
+                ECOStorageCell loaded = new ECOStorageCell(stack, null);
+                assertEquals(expectedAmount, loaded.getAvailableAmount(key));
+                assertEquals(
+                    expectedAmount,
+                    loaded.extract(key, Long.MAX_VALUE, Actionable.MODULATE, IActionSource.empty()));
+                assertEquals(0, new ECOStorageCell(stack, null).getStoredItemCount());
+            }
+        }
+    }
+
+    @Test
+    void bulkTypeByteCostsRemainPositiveAboveTheIntegerRange() {
+        for (StorageTier tier : StorageTier.values()) {
+            NativeStorageCellItem item = new NativeStorageCellItem(
+                tier,
+                AEKeyType.items(),
+                new ECOCellType(Component.literal("bulk"), 1),
+                true);
+            assertEquals(tier.getStorageTotalBytes(), item.getBytesPerType());
+            ECOStorageCell cell = new ECOStorageCell(new ItemStack(item), null);
+            assertEquals(1, cell.getRemainingItemTypes());
+        }
+    }
+
+    @Test
     void addonTierDescriptorsRemainUsableByTheImportedMigrationContract() {
         cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor addon = new cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor() {
 

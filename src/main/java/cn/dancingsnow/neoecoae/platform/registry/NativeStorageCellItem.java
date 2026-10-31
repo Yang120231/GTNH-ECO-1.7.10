@@ -59,13 +59,18 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
         return tier.getStorageTotalBytes();
     }
 
+    @Override
+    public double getIdleDrain() {
+        return tier.getStorageIdleDrain();
+    }
+
     public boolean isLegacyBulk() {
         return bulk;
     }
 
     @Override
-    public int getBytesPerType() {
-        return bulk ? (int) getBytes() : 1 << (12 + tier.getTier());
+    public long getBytesPerType() {
+        return bulk ? getBytes() : 1L << (12 + tier.getTier());
     }
 
     @Override
