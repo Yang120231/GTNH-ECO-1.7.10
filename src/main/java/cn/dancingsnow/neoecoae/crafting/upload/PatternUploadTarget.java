@@ -38,6 +38,11 @@ public interface PatternUploadTarget {
     /** Translation key or literal name of the host. */
     String name();
 
+    /** Literal text shown after the translated {@link #name()}, such as GT's ghost circuit " [1]"; may be empty. */
+    default String nameSuffix() {
+        return "";
+    }
+
     ItemStack icon();
 
     int dimension();

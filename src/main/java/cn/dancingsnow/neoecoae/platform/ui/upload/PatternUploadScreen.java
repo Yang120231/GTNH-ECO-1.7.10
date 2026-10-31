@@ -120,7 +120,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static String haystack(Row row) {
-        return strip(text(row.name)) + "\n" + strip(text(row.route)) + "\n" + strip(kindName(row));
+        return strip(hostName(row)) + "\n" + strip(text(row.route)) + "\n" + strip(kindName(row));
     }
 
     private static String strip(String value) {
@@ -615,7 +615,7 @@ final class PatternUploadScreen extends GuiScreen {
             float countWidth = fontRendererObj.getStringWidth(count) * SMALL;
             float countX = x + w - 5 - countWidth;
             small(count, countX, y + 6, enabled ? slotColor(row) : DISABLED_TEXT);
-            String name = text(row.name);
+            String name = hostName(row);
             if (row.token == list.autoToken && list.autoToken != 0) name = "§6★§r " + name;
             int nameX = x + 25;
             small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 6, enabled ? TEXT : DISABLED_TEXT);
@@ -684,8 +684,10 @@ final class PatternUploadScreen extends GuiScreen {
                 } else if (!list.autoReason.isEmpty()) lines.add("§7" + text(list.autoReason));
             } else if (index == 1) {
                 lines.add(
-                    list.receipt ? StatCollector
-                        .translateToLocalFormatted("gui.neoecoae.pattern_upload.undo.tooltip", text(list.receiptName))
+                    list.receipt
+                        ? StatCollector.translateToLocalFormatted(
+                            "gui.neoecoae.pattern_upload.undo.tooltip",
+                            text(list.receiptName) + list.receiptNameSuffix)
                         : "§7" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.reason.no_receipt"));
             }
             return lines;
@@ -808,8 +810,13 @@ final class PatternUploadScreen extends GuiScreen {
         return states[safe(row.state, states.length)].translationKey();
     }
 
+    /** Translated host name followed by its literal suffix (e.g. GT's ghost circuit " [1]"). */
+    static String hostName(Row row) {
+        return text(row.name) + row.nameSuffix;
+    }
+
     static String title(Row row) {
-        String name = text(row.name);
+        String name = hostName(row);
         return row.route.isEmpty() ? name : name + " → " + text(row.route);
     }
 

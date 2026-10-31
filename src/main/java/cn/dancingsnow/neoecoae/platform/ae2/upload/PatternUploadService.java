@@ -10,8 +10,11 @@ import java.util.WeakHashMap;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.IChatComponent;
+import net.minecraft.util.StatCollector;
 
 import appeng.api.networking.IGrid;
 import appeng.container.implementations.ContainerPatternTerm;
@@ -194,7 +197,7 @@ public final class PatternUploadService {
         player.addChatMessage(
             new ChatComponentTranslation(
                 "gui.neoecoae.pattern_upload.success_to",
-                translatable(target.name()),
+                displayName(target),
                 target.x(),
                 target.y(),
                 target.z()));
@@ -219,6 +222,7 @@ public final class PatternUploadService {
         UploadReceipt receipt = session.receipt();
         list.receipt = receipt != null;
         list.receiptName = receipt == null || receipt.targetName == null ? "" : receipt.targetName;
+        list.receiptNameSuffix = receipt == null || receipt.targetNameSuffix == null ? "" : receipt.targetNameSuffix;
         PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(session.evaluations());
         if (choice.selected != null) {
             PatternTargetGroups.Group group = session.groupOf(choice.selected.target);
@@ -238,6 +242,7 @@ public final class PatternUploadService {
         PatternUploadPackets.Row row = new PatternUploadPackets.Row();
         row.token = group.token();
         row.name = target.name() == null ? "" : target.name();
+        row.nameSuffix = target.nameSuffix() == null ? "" : target.nameSuffix();
         row.route = match.routeName == null ? "" : match.routeName;
         row.kind = target.kind()
             .ordinal();
@@ -311,6 +316,7 @@ public final class PatternUploadService {
                     match.circuit,
                     match.programmingCover,
                     "");
+                if (match.routeName == null && target.nameSuffix() != null) message.nameSuffix = target.nameSuffix();
             }
         }
         String key = message.key();
@@ -330,9 +336,18 @@ public final class PatternUploadService {
         player.addChatMessage(message);
     }
 
-    private static Object translatable(String name) {
-        return name != null && name.indexOf('.') > 0 && name.indexOf(' ') < 0 ? new ChatComponentTranslation(name)
-            : name;
+    /** Host name for chat: a key translated on the client (block/item keys need ".name"), then the literal suffix. */
+    private static IChatComponent displayName(PatternUploadTarget target) {
+        String name = target.name();
+        IChatComponent component;
+        if (name == null) component = new ChatComponentText("");
+        else if (name.indexOf('.') <= 0 || name.indexOf(' ') >= 0) component = new ChatComponentText(name);
+        else if (!StatCollector.canTranslate(name) && StatCollector.canTranslate(name + ".name"))
+            component = new ChatComponentTranslation(name + ".name");
+        else component = new ChatComponentTranslation(name);
+        String suffix = target.nameSuffix();
+        if (suffix != null && !suffix.isEmpty()) component.appendText(suffix);
+        return component;
     }
 
     private static ItemStack copy(ItemStack stack) {

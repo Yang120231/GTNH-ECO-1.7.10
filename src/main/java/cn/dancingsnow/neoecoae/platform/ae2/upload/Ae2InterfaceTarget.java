@@ -55,8 +55,21 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
 
     @Override
     public String name() {
-        String name = viewable.getName();
+        String name = viewable.getRawName();
         return name == null || name.isEmpty() ? kind.translationKey() : name;
+    }
+
+    /**
+     * What AE2 appends to the raw name, e.g. GT's ghost circuit " [1]". Derived from {@code getName()} because
+     * {@code getNameSuffix()} returns String or IChatComponent depending on the AE2 build.
+     */
+    @Override
+    public String nameSuffix() {
+        String full = viewable.getName();
+        String raw = viewable.getRawName();
+        return full != null && raw != null && full.length() > raw.length() && full.startsWith(raw)
+            ? full.substring(raw.length())
+            : "";
     }
 
     @Override

@@ -46,7 +46,7 @@ final class PatternUploadButton extends GuiImgButton {
             .append(
                 StatCollector.translateToLocalFormatted(
                     "gui.neoecoae.pattern_upload.button.auto.tooltip.target",
-                    PatternUploadScreen.text(target.name),
+                    PatternUploadScreen.text(target.name) + target.nameSuffix,
                     kind));
         if (target.programmingCover) message.append('\n')
             .append(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programming_cover"));

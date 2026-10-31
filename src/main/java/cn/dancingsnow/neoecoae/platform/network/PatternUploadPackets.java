@@ -183,6 +183,8 @@ public final class PatternUploadPackets {
 
         public int windowId, kind = -1;
         public String name = "", reason = "";
+        /** Literal text after the translated name; see {@code PatternUploadTarget#nameSuffix()}. */
+        public String nameSuffix = "";
         public ItemStack circuit;
         public boolean programmingCover;
 
@@ -199,7 +201,8 @@ public final class PatternUploadPackets {
         }
 
         public String key() {
-            return name + "|"
+            return name + nameSuffix
+                + "|"
                 + kind
                 + "|"
                 + (circuit == null ? "" : circuit.getItemDamage())
@@ -213,6 +216,7 @@ public final class PatternUploadPackets {
         public void fromBytes(ByteBuf buf) {
             windowId = buf.readInt();
             name = readString(buf, 256);
+            nameSuffix = readString(buf, 256);
             kind = buf.readByte();
             circuit = ByteBufUtils.readItemStack(buf);
             programmingCover = buf.readBoolean();
@@ -223,6 +227,7 @@ public final class PatternUploadPackets {
         public void toBytes(ByteBuf buf) {
             buf.writeInt(windowId);
             ByteBufUtils.writeUTF8String(buf, name);
+            ByteBufUtils.writeUTF8String(buf, nameSuffix);
             buf.writeByte(kind);
             ByteBufUtils.writeItemStack(buf, circuit);
             buf.writeBoolean(programmingCover);
@@ -331,6 +336,8 @@ public final class PatternUploadPackets {
         public int token;
         /** Translation key or literal host name. */
         public String name = "";
+        /** Literal text after the translated name, e.g. GT's ghost circuit " [1]"; may be empty. */
+        public String nameSuffix = "";
         /** Translation key or literal machine route name; empty when the host has no readable route. */
         public String route = "";
         /** Ordinals of {@code PatternUploadTarget.Kind}, {@code MatchResult.Level} and {@code SlotState}. */
@@ -351,6 +358,7 @@ public final class PatternUploadPackets {
         void write(ByteBuf buf) {
             buf.writeInt(token);
             ByteBufUtils.writeUTF8String(buf, name);
+            ByteBufUtils.writeUTF8String(buf, nameSuffix);
             ByteBufUtils.writeUTF8String(buf, route);
             buf.writeByte(kind);
             buf.writeByte(level);
@@ -375,6 +383,7 @@ public final class PatternUploadPackets {
             Row row = new Row();
             row.token = buf.readInt();
             row.name = readString(buf, 256);
+            row.nameSuffix = readString(buf, 256);
             row.route = readString(buf, 256);
             row.kind = buf.readByte();
             row.level = buf.readByte();
@@ -414,7 +423,7 @@ public final class PatternUploadPackets {
         public boolean error;
         public int event = EVENT_NONE;
         public boolean receipt;
-        public String receiptName = "";
+        public String receiptName = "", receiptNameSuffix = "";
         /** Token of the row auto-upload would use, or 0 with {@link #autoReason}. */
         public int autoToken;
         public String autoReason = "";
@@ -433,6 +442,7 @@ public final class PatternUploadPackets {
             copy.event = event;
             copy.receipt = receipt;
             copy.receiptName = receiptName;
+            copy.receiptNameSuffix = receiptNameSuffix;
             copy.autoToken = autoToken;
             copy.autoReason = autoReason;
             return copy;
@@ -456,6 +466,7 @@ public final class PatternUploadPackets {
                 event = buf.readByte();
                 receipt = buf.readBoolean();
                 receiptName = readString(buf, 256);
+                receiptNameSuffix = readString(buf, 256);
                 autoToken = buf.readInt();
                 autoReason = readString(buf, 256);
             }
@@ -481,6 +492,7 @@ public final class PatternUploadPackets {
                 buf.writeByte(event);
                 buf.writeBoolean(receipt);
                 ByteBufUtils.writeUTF8String(buf, receiptName);
+                ByteBufUtils.writeUTF8String(buf, receiptNameSuffix);
                 buf.writeInt(autoToken);
                 ByteBufUtils.writeUTF8String(buf, autoReason);
             }

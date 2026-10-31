@@ -9,7 +9,7 @@ public final class UploadReceipt {
     public final PatternSlotAccess.SlotRef target;
     public final ItemStack pattern;
     public final PatternUploadTarget.Kind kind;
-    public final String targetName;
+    public final String targetName, targetNameSuffix;
     public final int dimension, x, y, z;
 
     public UploadReceipt(Object sourceIdentity, PatternSlotAccess.SlotRef target, ItemStack pattern,
@@ -19,6 +19,7 @@ public final class UploadReceipt {
         this.pattern = PatternStacks.copy(pattern, 1);
         this.kind = destination.kind();
         this.targetName = destination.name();
+        this.targetNameSuffix = destination.nameSuffix();
         this.dimension = destination.dimension();
         this.x = destination.x();
         this.y = destination.y();

@@ -165,6 +165,7 @@ public final class PatternTargetGroups {
         return target.kind()
             .name() + '\u0001'
             + nullToEmpty(target.name())
+            + nullToEmpty(target.nameSuffix())
             + '\u0001'
             + nullToEmpty(match.routeName)
             + '\u0001'
