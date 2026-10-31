@@ -98,6 +98,7 @@ public final class NativeCraftingPages {
         panel.child(
             new com.cleanroommc.modularui.widget.ParentWidget<>().pos(251, 0)
                 .size(23, 30)
+                .excludeAreaInRecipeViewer()
                 .background(
                     com.cleanroommc.modularui.drawable.UITexture
                         .fullImage("neoecoae:textures/gui/common/side_bar/gray_mirrored_button_slot_up.png"))

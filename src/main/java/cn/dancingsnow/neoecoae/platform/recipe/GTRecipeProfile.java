@@ -33,9 +33,49 @@ public final class GTRecipeProfile {
             if (file.get("kind")
                 .getAsString()
                 .equals("tag")) SourceTags.add(id, normalizeTag(id, source));
-            else recipes.put(id.substring("neoecoae:".length()), normalize(source));
+            else {
+                JsonObject recipe = normalize(source);
+                applyNativeProgression(id, recipe);
+                recipes.put(id.substring("neoecoae:".length()), recipe);
+            }
         }
         return recipes;
+    }
+
+    /** GTNH progression overrides live here so the imported source catalog stays byte-for-byte intact. */
+    private static void applyNativeProgression(String id, JsonObject recipe) {
+        if (!recipe.has("inputItems")) return;
+        String tier;
+        if (id.endsWith("_l4") || id.equals("neoecoae:eco_cell_component_16m")) tier = "iv";
+        else if (id.endsWith("_l6") || id.equals("neoecoae:eco_cell_component_64m")) tier = "luv";
+        else if (id.endsWith("_l9") || id.equals("neoecoae:eco_cell_component_256m")) tier = "zpm";
+        else if (id.equals("neoecoae:eco_infinite_cell_component") || id.equals("neoecoae:eco_infinite_item_cell"))
+            tier = "uhv";
+        else return;
+        var inputs = recipe.getAsJsonArray("inputItems");
+        for (var entry : inputs) {
+            var input = entry.getAsJsonObject();
+            if (input.has("tag") && input.get("tag")
+                .getAsString()
+                .startsWith("gtceu:circuits/")) input.addProperty("tag", "gtceu:circuits/" + tier);
+            if (!input.has("item")) continue;
+            String item = input.get("item")
+                .getAsString();
+            for (String part : new String[] { "field_generator", "sensor", "emitter" }) {
+                if (item.startsWith("gtceu:") && item.endsWith("_" + part))
+                    input.addProperty("item", "gtceu:" + tier + "_" + part);
+            }
+            if (id.equals("neoecoae:eco_cell_component_16m") && item.equals("ae2:cell_component_256k"))
+                input.addProperty("item", "ae2:cell_component_1024k");
+        }
+        String component = id.equals("neoecoae:eco_cell_component_64m") ? "4096k"
+            : id.equals("neoecoae:eco_cell_component_256m") ? "16384k" : null;
+        if (component != null) {
+            var input = new JsonObject();
+            input.addProperty("item", "ae2:cell_component_" + component);
+            input.addProperty("count", 12);
+            inputs.add(input);
+        }
     }
 
     /** GTNH-specific progression belongs in the adapter, not the byte-locked source tag. */

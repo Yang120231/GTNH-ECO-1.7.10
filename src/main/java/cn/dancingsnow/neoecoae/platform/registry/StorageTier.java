@@ -31,7 +31,7 @@ public enum StorageTier implements StorageTierDescriptor {
 
     @Override
     public long getCPUTotalBytes() {
-        return 1L << (24 + 2 * tier);
+        return 1L << (26 + 2 * tier);
     }
 
     @Override

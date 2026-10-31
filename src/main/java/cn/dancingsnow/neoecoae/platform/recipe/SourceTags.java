@@ -141,8 +141,12 @@ public final class SourceTags {
                     return "circuitData";
                 case "iv":
                     return "circuitElite";
+                case "luv":
+                    return "circuitMaster";
                 case "zpm":
                     return "circuitUltimate";
+                case "uhv":
+                    return "circuitInfinite";
                 default:
                     throw new IllegalArgumentException("Unmapped GT circuit tier: " + tag);
             }

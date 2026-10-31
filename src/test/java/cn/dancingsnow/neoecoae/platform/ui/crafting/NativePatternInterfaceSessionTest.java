@@ -121,6 +121,34 @@ class NativePatternInterfaceSessionTest {
         assertSame(pattern, session.displayStack(pattern));
     }
 
+    private static ItemStack patternFor(String productName) {
+        var details = mock(ICraftingPatternDetails.class);
+        var output = mock(IAEItemStack.class);
+        var product = new ItemStack(TestItems.DIAMOND);
+        product.setStackDisplayName(productName);
+        when(output.getItemStack()).thenReturn(product);
+        when(details.getOutputs()).thenReturn(new IAEItemStack[] { output });
+        var pattern = new ItemStack(new PreviewPattern(details));
+        // Every encoded pattern shares one item name; only the product may decide the order.
+        pattern.setStackDisplayName("Encoded Pattern");
+        return pattern;
+    }
+
+    @Test
+    void organizeOrdersPatternsByPrimaryProductAndKeepsUndecodablePatternsLast() {
+        var session = session(mock(NECraftingCluster.class));
+        var undecodable = new ItemStack(new PreviewPattern(mock(ICraftingPatternDetails.class)));
+        var keys = new ArrayList<String>(
+            Arrays.asList(
+                session.sortKey(patternFor("Copper")),
+                session.sortKey(undecodable),
+                session.sortKey(patternFor("apple")),
+                session.sortKey(patternFor("Brass"))));
+        var sorted = new ArrayList<>(keys);
+        Collections.sort(sorted);
+        assertEquals(Arrays.asList(keys.get(2), keys.get(3), keys.get(0), keys.get(1)), sorted);
+    }
+
     private static final class PreviewPattern extends Item implements ICraftingPatternItem {
 
         private final ICraftingPatternDetails details;

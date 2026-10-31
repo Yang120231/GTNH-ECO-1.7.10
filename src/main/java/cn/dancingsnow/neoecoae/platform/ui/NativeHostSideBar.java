@@ -26,6 +26,7 @@ public final class NativeHostSideBar {
     public static ParentWidget<?> left(boolean gray, Widget<?>... buttons) {
         ParentWidget<?> bar = new ParentWidget<>().pos(-21, 0)
             .size(23, height(buttons.length))
+            .excludeAreaInRecipeViewer()
             .background(IDrawable.EMPTY);
         for (int index = 0; index < buttons.length; index++) {
             int top = index == 0 ? 0 : 23 + (index - 1) * 22;
@@ -60,6 +61,7 @@ public final class NativeHostSideBar {
         int h = slots.size() * 18;
         ParentWidget<?> bar = new ParentWidget<>().pos(panelWidth - 2, 0)
             .size(23, h + 12)
+            .excludeAreaInRecipeViewer()
             .background(
                 NativeSpriteTexture
                     .of(

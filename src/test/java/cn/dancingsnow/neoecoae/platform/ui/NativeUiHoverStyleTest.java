@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +18,9 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
+import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
+import com.cleanroommc.modularui.theme.WidgetTheme;
+import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 
 /** MUI2's button theme paints vanilla's hovered button over any hitbox whose hover background is left unset. */
@@ -36,6 +40,29 @@ class NativeUiHoverStyleTest {
         Probe textured = NativeUiStyle.plainHover(new Probe().background(track));
         assertSame(track, textured.getBackground());
         assertSame(IDrawable.NONE, textured.getHoverBackground());
+    }
+
+    @Test
+    void machinePanelDrawsOnlyItsArtworkWhenHoveringBlankSpace() {
+        IDrawable artwork = mock(IDrawable.class);
+        IDrawable themeBackground = mock(IDrawable.class);
+        IDrawable hoverBackground = mock(IDrawable.class);
+        var normal = WidgetTheme.darkTextNoShadow(195, 237, themeBackground);
+        var hovered = WidgetTheme.darkTextNoShadow(195, 237, hoverBackground);
+        var theme = new WidgetThemeEntry<>(null, normal, hovered);
+        ModularGuiContext context = null;
+        var panel = NativeMachinePanel.create("pattern-manager-hover", 195, 237)
+            .background(artwork);
+
+        panel.drawBackground(context, theme);
+        panel.onMouseStartHover();
+        panel.drawBackground(context, theme);
+        panel.onMouseEndHover();
+        panel.drawBackground(context, theme);
+
+        verify(artwork, times(2)).drawAtZero(context, panel.getArea(), normal);
+        verify(artwork).drawAtZero(context, panel.getArea(), hovered);
+        verifyNoInteractions(themeBackground, hoverBackground);
     }
 
     @Test

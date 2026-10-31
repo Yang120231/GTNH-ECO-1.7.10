@@ -24,17 +24,29 @@ public final class WorkstationRecipes {
     private WorkstationRecipes() {}
 
     static void install(ResourceLocation id, JsonObject value) {
+        // Apply the same storage rebalance after either the standalone or GT recipe profile has been selected.
+        String outputId = value.has("itemOutput") ? value.getAsJsonObject("itemOutput")
+            .get("id")
+            .getAsString() : "";
+        int costMultiplier = outputId.startsWith("neoecoae:eco_cell_component_")
+            || outputId.startsWith("neoecoae:eco_computation_cell_")
+            || outputId.equals("neoecoae:eco_infinite_cell_component")
+            || outputId.equals("neoecoae:eco_infinite_item_cell") ? 2 : 1;
         List<SizedIngredient> inputs = new ArrayList<>();
         if (value.has("inputItems")) for (var element : value.getAsJsonArray("inputItems")) {
             var input = element.getAsJsonObject();
             inputs.add(
                 new SizedIngredient(
                     SourceIngredient.of(input),
-                    input.get("count")
-                        .getAsInt()));
+                    Math.multiplyExact(
+                        input.get("count")
+                            .getAsInt(),
+                        costMultiplier)));
         }
         if (inputs.size() > 9) throw new IllegalArgumentException("Too many single workstation inputs: " + id);
         var fluid = fluidInput(value.getAsJsonObject("inputFluid"));
+        if (value.has("inputFluid"))
+            fluid = new SizedFluidIngredient(fluid.ingredient(), Math.multiplyExact(fluid.amount(), costMultiplier));
         ItemStack output = value.has("itemOutput") ? SourceRecipes.output(value.getAsJsonObject("itemOutput"), false)
             : null;
         FluidStack fluidOutput = SourceFluids.output(value.getAsJsonObject("fluidOutput"));
@@ -45,8 +57,10 @@ public final class WorkstationRecipes {
             fluid,
             output,
             fluidOutput,
-            value.get("energy")
-                .getAsInt(),
+            Math.multiplyExact(
+                value.get("energy")
+                    .getAsInt(),
+                costMultiplier),
             value.has("processingTicks") ? value.get("processingTicks")
                 .getAsInt() : 100);
         if (RECIPES.putIfAbsent(id, recipe) != null)
