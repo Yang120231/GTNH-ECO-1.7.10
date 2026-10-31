@@ -18,6 +18,7 @@ import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelpe
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOFastPathStacks;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeProviderAdapters;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
 
@@ -52,10 +53,12 @@ final class ECOCraftingProviderDispatcher {
         processing.reset();
     }
 
-    boolean isEligible(ICraftingProvider provider, ECOCraftingDispatchBudget budget) {
+    boolean isEligible(ICraftingProvider provider, IPatternDetails pattern, ECOCraftingDispatchBudget budget) {
         if (NativeProviderAdapters.isEnabled(provider)) return budget.canAttemptOrdinary();
+        // The ordinary one-copy budget must not hide a target whose batch lane still has submissions left.
         return budget.canAttemptOrdinary() || fastPath.supportsBatch(provider)
-            || ECOParallelCraftingProviders.find(provider) != null;
+            || ECOParallelCraftingProviders.find(provider) != null
+            || processing.mayAttemptScaled(provider, pattern);
     }
 
     /** Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384). */
@@ -101,7 +104,11 @@ final class ECOCraftingProviderDispatcher {
             }
             boolean scaledProvider = !blocking && processing.supportsScaledDispatchCached(request, provider);
             if (scaledProvider) {
-                if (processing.isScaledAttemptBudgetExhausted()) continue;
+                if (processing.isScaledAttemptBudgetExhausted(request.pattern())) {
+                    // Exhausted submissions pause this pattern until the next tick; the provider did not fail.
+                    diagnostics.budget();
+                    continue;
+                }
                 if (processing.isScaledFallbackDeferred(request, provider)) continue;
                 if (!processing.isScaledDispatchDeferred(request, provider)) {
                     var scaledProcessingResult = processing.tryScaledDispatch(
@@ -155,7 +162,10 @@ final class ECOCraftingProviderDispatcher {
                 .plan(request, provider, 1, 1, singlePower, energyService, ECOBatchMode.SINGLE);
             if (plan == null) continue;
 
-            if (scaledProvider && !processing.claimFallbackAttempt()) continue;
+            if (scaledProvider && !processing.claimFallbackAttempt(request.pattern())) {
+                diagnostics.budget();
+                continue;
+            }
             ECOBatchAdmission admission;
             try {
                 admission = ECOBatchExecutor.execute(

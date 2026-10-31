@@ -111,6 +111,29 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             && ((appeng.helpers.DualityInterface) medium).isFakeCraftingMode();
     }
 
+    /**
+     * GT's hatch stores any long amount by splitting it into Integer.MAX_VALUE-sized stacks (GT 5.09.54.264
+     * {@code PatternSlot.insertItem/insertFluid}), so its real bound is the saved stack list, not a copy count.
+     * One push may add at most this many split stacks per resource.
+     */
+    public static final long UNBOUNDED_HATCH_STACKS_PER_PUSH = 16L;
+
+    /** Copies one hatch push may carry for these one-copy inputs; never below one copy. */
+    public static long unboundedHatchCopyLimit(KeyCounter[] perCraftInputs) {
+        var totals = new java.util.HashMap<AEKey, Long>();
+        try {
+            for (var counter : perCraftInputs) for (var entry : counter) {
+                if (entry.getLongValue() > 0) totals.merge(entry.getKey(), entry.getLongValue(), Math::addExact);
+            }
+        } catch (ArithmeticException overflow) {
+            return 1L;
+        }
+        long perResource = UNBOUNDED_HATCH_STACKS_PER_PUSH * Integer.MAX_VALUE;
+        long limit = Long.MAX_VALUE;
+        for (long amount : totals.values()) limit = Math.min(limit, perResource / amount);
+        return Math.max(1L, limit);
+    }
+
     public boolean isScaledProcessingFullyInserted() {
         if (unboundedPatternHatch) return true;
         return medium.getClass() == appeng.helpers.DualityInterface.class

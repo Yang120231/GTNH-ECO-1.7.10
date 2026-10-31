@@ -268,7 +268,7 @@ final class ECOCraftingTaskScheduler {
                 boolean[] providerEligibility = new boolean[2];
                 var providers = providerCursor
                     .availableProviders(pattern, () -> providerSupplier.apply(pattern), providerCandidate -> {
-                        boolean eligible = providerDispatcher.isEligible(providerCandidate, budget);
+                        boolean eligible = providerDispatcher.isEligible(providerCandidate, pattern, budget);
                         providerEligibility[eligible ? 0 : 1] = true;
                         stallDiagnostics.providerConsidered(eligible);
                         return eligible;

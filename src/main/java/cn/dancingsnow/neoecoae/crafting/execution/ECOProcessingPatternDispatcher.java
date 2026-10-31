@@ -19,22 +19,31 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.AEProcessingPattern;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeProviderAdapters;
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
-/** ECO owns processing batch growth; optional adapters only transport the selected batch. */
+/**
+ * ECO owns processing batch growth; optional adapters only transport the selected batch.
+ *
+ * <p>
+ * The per-tick budget counts provider submissions, never crafts: one push carrying a billion copies costs one
+ * attempt. Batch size comes from the task, materials, energy, cycle seeds, the target's capacity and numeric bounds.
+ */
 final class ECOProcessingPatternDispatcher {
 
-    private static final long TICK_BUDGET = 1_000_000L;
     private static final long ELIGIBILITY_CACHE_TICKS = 10L;
     private static final long SCALE_PROBE_INTERVAL_TICKS = 5L;
     static final int MAX_ATTEMPTS_PER_TICK = 64;
+    /** One continuously accepting pattern may use half of a tick; other ready tasks keep the rest. */
+    static final int MAX_ATTEMPTS_PER_PATTERN_PER_TICK = MAX_ATTEMPTS_PER_TICK / 2;
     static final int MAX_ATTEMPTS_PER_VISIT = 32;
     private final ECOCraftingCPULogic owner;
     private final ECOCraftingEnergyTransaction energy;
     private final ECOCraftingDispatchAccounting accounting;
     private final Map<ICraftingProvider, Reference2ObjectOpenHashMap<IPatternDetails, ProbeState>> states = new Reference2ObjectOpenHashMap<>();
     private final Map<ICraftingProvider, Reference2ObjectOpenHashMap<IPatternDetails, Eligibility>> eligibility = new Reference2ObjectOpenHashMap<>();
-    private long tick = Long.MIN_VALUE, used;
+    private final Reference2IntOpenHashMap<IPatternDetails> patternAttempts = new Reference2IntOpenHashMap<>();
+    private long tick = Long.MIN_VALUE;
     private int attempts;
 
     ECOProcessingPatternDispatcher(ECOCraftingCPULogic owner, ECOCraftingEnergyTransaction energy,
@@ -47,27 +56,45 @@ final class ECOProcessingPatternDispatcher {
     void beginTick(long gameTick) {
         if (tick != gameTick) {
             tick = gameTick;
-            used = 0;
             attempts = 0;
+            patternAttempts.clear();
         }
     }
 
     void reset() {
         states.clear();
         eligibility.clear();
+        patternAttempts.clear();
         tick = Long.MIN_VALUE;
-        used = 0;
         attempts = 0;
     }
 
     boolean isScaledAttemptBudgetExhausted() {
-        return attempts >= MAX_ATTEMPTS_PER_TICK || used >= TICK_BUDGET;
+        return attempts >= MAX_ATTEMPTS_PER_TICK;
     }
 
-    boolean claimFallbackAttempt() {
-        if (isScaledAttemptBudgetExhausted()) return false;
-        attempts++;
+    /** A pattern that used its share pauses until the next tick; this is not a provider failure. */
+    boolean isScaledAttemptBudgetExhausted(IPatternDetails pattern) {
+        return isScaledAttemptBudgetExhausted() || patternAttempts.getInt(pattern) >= MAX_ATTEMPTS_PER_PATTERN_PER_TICK;
+    }
+
+    /** Whether a scaled provider may still receive a submission for this pattern this tick. */
+    boolean mayAttemptScaled(ICraftingProvider provider, IPatternDetails pattern) {
+        return !isScaledAttemptBudgetExhausted(pattern) && !NativeProviderAdapters.isEnabled(provider)
+            && provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
+                .supportsScaledProcessing();
+    }
+
+    boolean claimFallbackAttempt(IPatternDetails pattern) {
+        if (isScaledAttemptBudgetExhausted(pattern)) return false;
+        claimAttempt(pattern);
         return true;
+    }
+
+    private void claimAttempt(IPatternDetails pattern) {
+        attempts++;
+        patternAttempts.addTo(pattern, 1);
     }
 
     boolean isScaledDispatchDeferred(ECOCraftingDispatchRequest request, ICraftingProvider provider) {
@@ -97,32 +124,34 @@ final class ECOProcessingPatternDispatcher {
     ECOCraftingDispatchResult tryScaledDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
         double onePower, IEnergyGrid service, Consumer<ICraftingProvider> mark,
         ECOCraftingProviderDispatcher.ECOCraftingNormalPush normalPush) {
-        if (NativeProviderAdapters.isEnabled(provider) || isScaledAttemptBudgetExhausted()
+        if (NativeProviderAdapters.isEnabled(provider) || isScaledAttemptBudgetExhausted(request.pattern())
             || isScaledDispatchDeferred(request, provider)
             || !supportsScaledDispatchCached(request, provider)) return null;
         Object logic = providerLogic(provider);
-        long transportLimit = Long.MAX_VALUE;
+        // Unbounded pattern hatches store any push whole: offer everything material and energy allow at once,
+        // bounded only by the hatch's own int-stack representation. The first rejection hands control back to
+        // the normal probing ramp.
+        boolean offerAll = isUnboundedTarget(provider);
+        long transportLimit = offerAll
+            ? cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+                .unboundedHatchCopyLimit(request.inputs())
+            : Long.MAX_VALUE;
 
-        long budget = TICK_BUDGET - used;
-        if (budget <= 0) return null;
         ProbeState state = states.computeIfAbsent(provider, x -> new Reference2ObjectOpenHashMap<>())
             .computeIfAbsent(request.pattern(), x -> new ProbeState());
-        long limit = Math.min(request.allowedCrafts(), budget);
+        long limit = request.allowedCrafts();
         var ramp = state.beginRun(tick, SCALE_PROBE_INTERVAL_TICKS);
         var planning = ECOBatchDispatchPlanning.prepare(request, provider);
         IPatternDetails cachedExecutionPattern = null;
         long cachedCopies = 0;
         int visitAttempts = 0;
-        // Unbounded pattern hatches store any push whole: offer everything material and energy allow at once.
-        // The first rejection hands control back to the normal probing ramp.
-        boolean offerAll = isUnboundedTarget(provider);
-        while (ramp.owned < limit && attempts < MAX_ATTEMPTS_PER_TICK
+        while (ramp.owned < limit && !isScaledAttemptBudgetExhausted(request.pattern())
             && visitAttempts < MAX_ATTEMPTS_PER_VISIT
             && !provider.isBusy()
             && !NativeProviderAdapters.isEnabled(provider)) {
-            attempts++;
+            claimAttempt(request.pattern());
             visitAttempts++;
-            long offer = offerAll ? limit - ramp.owned : Math.min(ramp.offer(limit - ramp.owned), transportLimit);
+            long offer = Math.min(offerAll ? limit - ramp.owned : ramp.offer(limit - ramp.owned), transportLimit);
             var plan = planning.plan(offer, limit - ramp.owned, onePower, service, ECOBatchMode.LINEAR);
             if (plan == null) {
                 state.nextDispatchTick = tick + 1;
@@ -180,7 +209,6 @@ final class ECOProcessingPatternDispatcher {
                 if (ramp.record(offer, 0, false, tick)) continue;
                 break;
             }
-            used += admission.acceptedCrafts();
             try {
 
                 accounting.apply(request, scaledResult(request, admission.acceptedCrafts()), () -> {}, provider);
@@ -190,6 +218,11 @@ final class ECOProcessingPatternDispatcher {
                 throw failure;
             }
             if (!ramp.record(offer, admission.acceptedCrafts(), admission.canContinue(), tick)) break;
+            if (offerAll && offer == transportLimit) {
+                // The hatch's stack-list growth, not a craft budget, bounds one tick for this target.
+                state.nextDispatchTick = state.nextFallbackTick = tick + 1;
+                break;
+            }
         }
         return ramp.owned > 0 ? scaledResult(request, ramp.owned) : null;
     }
@@ -264,8 +297,9 @@ final class ECOProcessingPatternDispatcher {
             return new Run(target, probe && (probed || remembered == 1), probeInterval);
         }
 
+        /** Probing views stop growing at Integer.MAX_VALUE; larger counted batches are never shrunk by it. */
         private static long doubled(long count) {
-            return Math.min(Integer.MAX_VALUE, count * 2L);
+            return count >= Integer.MAX_VALUE ? count : Math.min(Integer.MAX_VALUE, count * 2L);
         }
 
         final class Run {
