@@ -112,15 +112,8 @@ public final class MultiBlockBuildController {
             serverPlayer.closeScreen();
             return;
         }
-        if (serverPlayer.capabilities.isCreativeMode) {
-            if (!MultiBlockPlacementService.buildInstant(serverLevel, plan, serverPlayer)) {
-                return;
-            }
-            host.rebuildAfterBuild();
-            serverPlayer.closeScreen();
-            return;
-        }
-
+        // Creative placement also triggers synchronous neighbor updates and Forge events. Yield between
+        // blocks in both modes so an entire structure cannot monopolize one server tick.
         buildSession = MultiBlockPlacementService.createBuildSession(serverLevel, plan);
         buildPlayerId = serverPlayer.getUniqueID();
         host.setBuildInProgress(true);
