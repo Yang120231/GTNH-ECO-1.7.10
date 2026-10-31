@@ -389,7 +389,7 @@ public final class ECOCraftConfirmTracker {
         return 0;
     }
 
-    private static int tier(@Nullable ICraftingCPU cpu) {
+    static int tier(@Nullable ICraftingCPU cpu) {
         if (!(cpu instanceof NativeECOCpu eco) || !(eco.runtime() instanceof ECOCraftingNativeRuntime runtime))
             return 0;
         var tier = runtime.cpu()

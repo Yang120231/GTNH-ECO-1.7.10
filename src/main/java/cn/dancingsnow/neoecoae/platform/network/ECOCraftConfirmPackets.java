@@ -2,10 +2,16 @@ package cn.dancingsnow.neoecoae.platform.network;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 
+import org.jetbrains.annotations.Nullable;
+
+import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmReport;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmState;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingStatusTracker;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
@@ -32,11 +38,29 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.registerMessage(StartHandler.class, Start.class, 1, Side.SERVER);
         CHANNEL.registerMessage(ClearErrorHandler.class, ClearError.class, 2, Side.SERVER);
         CHANNEL.registerMessage(BigOrderStartHandler.class, BigOrderStart.class, 3, Side.SERVER);
+        CHANNEL.registerMessage(StatusSyncHandler.class, StatusSync.class, 4, Side.CLIENT);
+        CHANNEL.registerMessage(StatusProcessingHandler.class, StatusProcessing.class, 5, Side.CLIENT);
+        CHANNEL.registerMessage(ProcessingDetailHandler.class, ProcessingDetail.class, 6, Side.SERVER);
     }
 
     public static void sync(EntityPlayerMP player, int windowId, ECOCraftConfirmState state,
         ECOCraftConfirmReport report) {
         CHANNEL.sendTo(new Sync(windowId, state, report), player);
+    }
+
+    /** {@code cycles} is {@code null} when the client already holds the cycle list of the running plan. */
+    public static void syncStatus(EntityPlayerMP player, int windowId, boolean eco, int cpuTier,
+        @Nullable ECOCycleItemList cycles) {
+        CHANNEL.sendTo(new StatusSync(windowId, eco, cpuTier, cycles), player);
+    }
+
+    public static void syncStatusProcessing(EntityPlayerMP player, int windowId, CompoundTag processing) {
+        CHANNEL.sendTo(new StatusProcessing(windowId, processing), player);
+    }
+
+    /** Asks for the machine details of the hovered output; {@code null} stops the detail sampling. */
+    public static void requestProcessingDetail(int windowId, @Nullable AEKey key, int page) {
+        CHANNEL.sendToServer(new ProcessingDetail(windowId, key, page));
     }
 
     public static void start(int windowId, boolean forced, boolean follow) {
@@ -206,6 +230,139 @@ public final class ECOCraftConfirmPackets {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
                 .execute(() -> ECOCraftConfirmTracker.startBigOrder(player, message.windowId, message.forced));
+            return null;
+        }
+    }
+
+    /** Server to client: whether the open crafting status page is ECO's, plus the running plan's cycle members. */
+    public static final class StatusSync implements IMessage {
+
+        public int windowId;
+        public boolean eco;
+        public int cpuTier;
+        @Nullable
+        public ECOCycleItemList cycles;
+
+        public StatusSync() {}
+
+        StatusSync(int windowId, boolean eco, int cpuTier, @Nullable ECOCycleItemList cycles) {
+            this.windowId = windowId;
+            this.eco = eco;
+            this.cpuTier = cpuTier;
+            this.cycles = cycles;
+        }
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            windowId = data.readVarInt();
+            eco = data.readBoolean();
+            cpuTier = data.readVarInt();
+            cycles = data.readBoolean() ? new ECOCycleItemList(data) : null;
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            data.writeVarInt(windowId);
+            data.writeBoolean(eco);
+            data.writeVarInt(cpuTier);
+            data.writeBoolean(cycles != null);
+            if (cycles != null) cycles.writeToPacket(data);
+        }
+    }
+
+    public static final class StatusSyncHandler implements IMessageHandler<StatusSync, IMessage> {
+
+        @Override
+        public IMessage onMessage(StatusSync message, MessageContext context) {
+            cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftingStatusClient
+                .accept(message.windowId, message.eco, message.cpuTier, message.cycles);
+            return null;
+        }
+    }
+
+    /** Server to client: live machine status of the outputs the selected ECO CPU is waiting for. */
+    public static final class StatusProcessing implements IMessage {
+
+        public int windowId;
+        public CompoundTag processing = new CompoundTag();
+
+        public StatusProcessing() {}
+
+        StatusProcessing(int windowId, CompoundTag processing) {
+            this.windowId = windowId;
+            this.processing = processing;
+        }
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            windowId = data.readVarInt();
+            CompoundTag tag = data.readNbt();
+            processing = tag == null ? new CompoundTag() : tag;
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            data.writeVarInt(windowId);
+            data.writeNbt(processing);
+        }
+    }
+
+    public static final class StatusProcessingHandler implements IMessageHandler<StatusProcessing, IMessage> {
+
+        @Override
+        public IMessage onMessage(StatusProcessing message, MessageContext context) {
+            cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftingStatusClient
+                .acceptProcessing(message.windowId, message.processing);
+            return null;
+        }
+    }
+
+    /** Client to server: the output whose machine details the status tooltip shows, and its detail page. */
+    public static final class ProcessingDetail implements IMessage {
+
+        int windowId;
+        @Nullable
+        AEKey key;
+        int page;
+
+        public ProcessingDetail() {}
+
+        ProcessingDetail(int windowId, @Nullable AEKey key, int page) {
+            this.windowId = windowId;
+            this.key = key;
+            this.page = page;
+        }
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            windowId = data.readVarInt();
+            key = data.readBoolean() ? AEKey.readKey(data) : null;
+            page = data.readVarInt();
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            var data = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            data.writeVarInt(windowId);
+            data.writeBoolean(key != null);
+            if (key != null) AEKey.writeKey(data, key);
+            data.writeVarInt(page);
+        }
+    }
+
+    public static final class ProcessingDetailHandler implements IMessageHandler<ProcessingDetail, IMessage> {
+
+        @Override
+        public IMessage onMessage(ProcessingDetail message, MessageContext context) {
+            EntityPlayerMP player = context.getServerHandler().playerEntity;
+            ServerTasks.captureSession()
+                .execute(
+                    () -> ECOCraftingStatusTracker.requestDetail(player, message.windowId, message.key, message.page));
             return null;
         }
     }
