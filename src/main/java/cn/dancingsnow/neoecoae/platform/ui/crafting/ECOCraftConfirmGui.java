@@ -58,6 +58,7 @@ import cn.dancingsnow.neoecoae.crafting.display.format.DisplayNumbers;
 import cn.dancingsnow.neoecoae.crafting.display.format.NEByteFormatter;
 import cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus;
 import cn.dancingsnow.neoecoae.gui.common.HostText;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmError;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmReport;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmRules;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmState;
@@ -156,6 +157,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private GuiButton selectCpu;
     private GuiButton cancel;
     private GuiButton retry;
+    /** Error page: submit again, waiting for the inputs the network lost since planning. */
+    private GuiButton forceRetry;
     private GuiButton back;
     private GuiButton graph;
     private GuiImgButton sortByButton;
@@ -307,6 +310,13 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             62,
             20,
             I18n.format("gui.neoecoae.crafting_report.error.retry"));
+        forceRetry = new GuiButton(
+            10,
+            guiLeft + 79,
+            guiTop + 160,
+            62,
+            20,
+            I18n.format("gui.neoecoae.force_start"));
         back = new GuiButton(
             4,
             guiLeft + 120,
@@ -333,6 +343,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         buttonList.add(start);
         buttonList.add(startWithFollow);
         buttonList.add(retry);
+        buttonList.add(forceRetry);
         buttonList.add(back);
         buttonList.add(sortByButton);
         buttonList.add(sortDirButton);
@@ -391,6 +402,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         start.visible = startWithFollow.visible = !error;
         selectCpu.visible = !error && list;
         retry.visible = back.visible = error;
+        forceRetry.visible = canForceRetry();
+        // Three buttons share the error panel when force start is offered, otherwise the original two.
+        retry.xPosition = guiLeft + (forceRetry.visible ? 13 : 40);
+        back.xPosition = guiLeft + (forceRetry.visible ? 145 : 120);
         for (GuiButton button : cpuSortButtons) button.visible = list;
         sortByButton.visible = sortDirButton.visible = list;
         int materials = visibleMaterials().size();
@@ -641,7 +656,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             planTree.draw(localX, localY);
             GL11.glColor4f(1, 1, 1, 1);
         }
-        if (state.error != null) drawError();
+        if (state.error != null) drawError(mouseX, mouseY);
         if (!treeMode) {
             // Last, so the CPU card tooltip is not painted over by the report.
             GL11.glPushMatrix();
@@ -799,7 +814,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             if (lines.isEmpty())
                 add(lines, colors, I18n.format("gui.neoecoae.crafting_report.quantity_unknown"), TEXT_LIGHT);
             drawCell(row.key, lines, colors, cellX, cellY);
-            if (localX >= cellX && localX < cellX + CELL_WIDTH && localY >= cellY && localY < cellY + CELL_HEIGHT) {
+            if (state.error == null && localX >= cellX
+                && localX < cellX + CELL_WIDTH
+                && localY >= cellY
+                && localY < cellY + CELL_HEIGHT) {
                 hover(row.key);
                 tooltip = materialTooltip(row);
             }
@@ -1037,12 +1055,66 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         return lines.isEmpty() ? null : lines;
     }
 
-    private void drawError() {
+    /** The start failed on inputs the network lost since planning; an acyclic plan can wait for them instead. */
+    private boolean canForceRetry() {
+        return state.error == ECOCraftConfirmError.MISSING_INGREDIENT && !state.shortages.isEmpty()
+            && !state.cycleDetected;
+    }
+
+    private void drawError(int mouseX, int mouseY) {
         Gui.drawRect(TABLE_X, TABLE_Y, TABLE_X + 3 * (CELL_WIDTH + 1) - 1, 188 + extra(), 0xF0202028);
         int y = TABLE_Y + 10;
         y = drawWrapped(EnumChatFormatting.BOLD + I18n.format("gui.neoecoae.crafting_report.error.title"), y, 0xFF6A75);
         y = drawWrapped(I18n.format(state.error.translationKey()), y + 6, TEXT_LIGHT);
-        if (!state.errorDetail.isEmpty()) drawWrapped(state.errorDetail, y + 6, 0xAAA4B2);
+        if (!state.errorDetail.isEmpty()) y = drawWrapped(state.errorDetail, y + 6, 0xAAA4B2);
+        if (!state.shortages.isEmpty()) drawShortages(y + 4, mouseX - guiLeft, mouseY - guiTop);
+        // GuiContainer draws registered buttons before this foreground mask. Repaint its controls above it,
+        // undoing the panel translation because GuiButton uses screen coordinates for rendering and hovering.
+        GL11.glPushMatrix();
+        GL11.glTranslatef(-guiLeft, -guiTop, 0);
+        retry.drawButton(mc, mouseX, mouseY);
+        forceRetry.drawButton(mc, mouseX, mouseY);
+        back.drawButton(mc, mouseX, mouseY);
+        GL11.glPopMatrix();
+    }
+
+    /** One centered row per input the network lacks: its icon, then the missing amount. */
+    private void drawShortages(int y, int localX, int localY) {
+        int panelWidth = 3 * (CELL_WIDTH + 1) - 1;
+        int bottom = 157;
+        int index = 0;
+        for (; index < state.shortages.size(); index++) {
+            boolean last = index == state.shortages.size() - 1;
+            // Keep one line for the overflow count when more rows follow than fit.
+            if (y + 17 > bottom || !last && y + 17 + fontRendererObj.FONT_HEIGHT > bottom) break;
+            var shortage = state.shortages.get(index);
+            String amount = shortageAmount(shortage);
+            int rowWidth = 16 + 4 + fontRendererObj.getStringWidth(amount);
+            int x = TABLE_X + (panelWidth - rowWidth) / 2;
+            drawStack(shortage.what(), x, y);
+            fontRendererObj.drawString(amount, x + 20, y + 4, 0xFF8A8A);
+            if (localX >= x && localX < x + rowWidth && localY >= y && localY < y + 16) {
+                hover(shortage.what());
+                tooltip = keyTooltip(shortage.what());
+            }
+            y += 17;
+        }
+        int hidden = state.shortages.size() - index;
+        if (hidden > 0) {
+            String more = I18n.format("gui.neoecoae.crafting_report.error.more_shortages", hidden);
+            fontRendererObj.drawString(
+                more,
+                TABLE_X + (panelWidth - fontRendererObj.getStringWidth(more)) / 2,
+                y,
+                0xAAA4B2);
+        }
+    }
+
+    private static String shortageAmount(cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack shortage) {
+        String amount = cn.dancingsnow.neoecoae.crafting.display.format.DisplayNumbers
+            .grouped(Long.toString(shortage.amount()));
+        return shortage.what() instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey ? amount + " mB"
+            : amount;
     }
 
     private int drawWrapped(String text, int y, int color) {
@@ -1104,6 +1176,11 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             addMissingToBookmarks();
             goBack();
         } else if (button == retry) submit(lastSubmissionForced, lastSubmissionFollow);
+        else if (button == forceRetry) {
+            // Always the ordinary start packet: the server turns the shortfall into awaited inputs.
+            lastSubmissionForced = true;
+            ECOCraftConfirmPackets.start(container.windowId, true, lastSubmissionFollow);
+        }
         else if (button == back) ECOCraftConfirmPackets.clearError(container.windowId);
         else if (button == graph || button == viewButton) toggleView();
         else if (button == saveButton) saveAsImage();

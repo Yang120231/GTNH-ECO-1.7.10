@@ -55,9 +55,17 @@ public final class NativeECOCraftingJob implements ICraftingJob {
      * A complete plan, or a failed planning attempt, is returned unchanged.
      */
     public NativeECOCraftingJob forced() {
-        if (plan == null || !plan.simulation()) return this;
+        return forced(new KeyCounter());
+    }
+
+    /**
+     * Force start that also accepts a stock shortfall found at submission: those inputs are awaited like missing
+     * ones instead of failing the initial extraction. Unchanged when there is nothing to wait for.
+     */
+    public NativeECOCraftingJob forced(KeyCounter stockShortfall) {
+        if (plan == null || !plan.simulation() && stockShortfall.isEmpty()) return this;
         return new NativeECOCraftingJob(
-            new cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOForcedCraftingPlan(plan),
+            new cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOForcedCraftingPlan(plan, stockShortfall),
             output,
             snapshot,
             error,

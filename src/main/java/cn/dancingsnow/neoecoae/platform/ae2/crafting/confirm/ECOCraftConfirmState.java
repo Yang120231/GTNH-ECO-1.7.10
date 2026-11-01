@@ -1,11 +1,16 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.network.RegistryFriendlyByteBuf;
 
 /**
@@ -15,6 +20,8 @@ import cn.dancingsnow.neoecoae.platform.network.RegistryFriendlyByteBuf;
 public final class ECOCraftConfirmState {
 
     public static final int MAX_DIAGNOSTIC_LENGTH = 4096;
+    /** Most shortage rows a failed start carries to the client. */
+    public static final int MAX_SHORTAGES = 64;
 
     /** Not an ECO confirmation; the native AE2 screen stays in charge. */
     public static final ECOCraftConfirmState NONE = new ECOCraftConfirmState(
@@ -55,6 +62,8 @@ public final class ECOCraftConfirmState {
     public final String errorDetail;
     /** An idle, online ECO CPU can take this plan as a big order (1.21's neoecoae$bigOrderCpu). */
     public final boolean bigOrderCpuAvailable;
+    /** Inputs the network could no longer supply when the start was rejected; empty unless one was. */
+    public final List<GenericStack> shortages;
 
     public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
         boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
@@ -82,6 +91,30 @@ public final class ECOCraftConfirmState {
         boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
         String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
         @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable) {
+        this(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            bigOrderCpuAvailable,
+            Collections.emptyList());
+    }
+
+    public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
+        boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
+        String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
+        @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable,
+        @Nullable List<GenericStack> shortages) {
         this.plannerAvailable = plannerAvailable;
         this.reportReady = reportReady;
         this.cyclePlanningEnabled = cyclePlanningEnabled;
@@ -98,6 +131,9 @@ public final class ECOCraftConfirmState {
         this.error = error;
         this.errorDetail = truncate(errorDetail);
         this.bigOrderCpuAvailable = bigOrderCpuAvailable;
+        this.shortages = error == null || shortages == null || shortages.isEmpty() ? Collections.emptyList()
+            : Collections.unmodifiableList(
+                new ArrayList<>(shortages.subList(0, Math.min(MAX_SHORTAGES, shortages.size()))));
     }
 
     public ECOCraftConfirmState withCpuTier(int tier) {
@@ -117,7 +153,8 @@ public final class ECOCraftConfirmState {
             reportVersion,
             error,
             errorDetail,
-            bigOrderCpuAvailable);
+            bigOrderCpuAvailable,
+            shortages);
     }
 
     public ECOCraftConfirmState withBigOrderCpu(boolean available) {
@@ -137,10 +174,16 @@ public final class ECOCraftConfirmState {
             reportVersion,
             error,
             errorDetail,
-            available);
+            available,
+            shortages);
     }
 
     public ECOCraftConfirmState withError(@Nullable ECOCraftConfirmError error, String detail) {
+        return withError(error, detail, Collections.emptyList());
+    }
+
+    public ECOCraftConfirmState withError(@Nullable ECOCraftConfirmError error, String detail,
+        @Nullable List<GenericStack> shortages) {
         return new ECOCraftConfirmState(
             plannerAvailable,
             reportReady,
@@ -156,7 +199,8 @@ public final class ECOCraftConfirmState {
             reportVersion,
             error,
             error == null ? "" : detail,
-            bigOrderCpuAvailable);
+            bigOrderCpuAvailable,
+            shortages);
     }
 
     /** Bytes shown in the header: the exact planner estimate when present, otherwise AE2's long total. */
@@ -180,6 +224,11 @@ public final class ECOCraftConfirmState {
         data.writeVarInt(error == null ? 0 : error.ordinal() + 1);
         data.writeUtf(errorDetail);
         data.writeBoolean(bigOrderCpuAvailable);
+        data.writeVarInt(shortages.size());
+        for (GenericStack shortage : shortages) {
+            AEKey.writeKey(data, shortage.what());
+            data.writeVarLong(shortage.amount());
+        }
     }
 
     public static ECOCraftConfirmState read(RegistryFriendlyByteBuf data) {
@@ -199,6 +248,13 @@ public final class ECOCraftConfirmState {
         ECOCraftConfirmError error = byOrdinal(ECOCraftConfirmError.values(), data.readVarInt());
         String errorDetail = data.readUtf();
         boolean bigOrderCpuAvailable = data.readBoolean();
+        int count = Math.min(MAX_SHORTAGES, Math.max(0, data.readVarInt()));
+        List<GenericStack> shortages = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            AEKey key = AEKey.readKey(data);
+            long amount = data.readVarLong();
+            if (key != null && amount > 0) shortages.add(new GenericStack(key, amount));
+        }
         return new ECOCraftConfirmState(
             plannerAvailable,
             reportReady,
@@ -214,7 +270,8 @@ public final class ECOCraftConfirmState {
             reportVersion,
             error,
             errorDetail,
-            bigOrderCpuAvailable);
+            bigOrderCpuAvailable,
+            shortages);
     }
 
     private static <T> @Nullable T byOrdinal(T[] values, int code) {
@@ -244,7 +301,8 @@ public final class ECOCraftConfirmState {
             && diagnostic.equals(state.diagnostic)
             && error == state.error
             && errorDetail.equals(state.errorDetail)
-            && bigOrderCpuAvailable == state.bigOrderCpuAvailable;
+            && bigOrderCpuAvailable == state.bigOrderCpuAvailable
+            && shortages.equals(state.shortages);
     }
 
     @Override
@@ -264,6 +322,7 @@ public final class ECOCraftConfirmState {
             reportVersion,
             error,
             errorDetail,
-            bigOrderCpuAvailable);
+            bigOrderCpuAvailable,
+            shortages);
     }
 }

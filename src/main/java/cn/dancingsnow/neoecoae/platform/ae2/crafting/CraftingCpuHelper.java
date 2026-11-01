@@ -68,6 +68,26 @@ public class CraftingCpuHelper {
         return null;
     }
 
+    /**
+     * Every initial input the network can no longer supply, by simulated extraction. {@link #tryExtractInitialItems}
+     * stops at the first shortage; this reports all of them without touching storage.
+     */
+    public static KeyCounter initialShortfall(ICraftingPlan plan,
+        cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid,
+        cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource source) {
+        var storage = grid.getStorageService()
+            .getInventory();
+        var shortfall = new KeyCounter();
+        for (var entry : plan.usedItems()) {
+            long wanted = entry.getLongValue();
+            if (wanted <= 0) continue;
+            long available = storage.extract(entry.getKey(), wanted, Actionable.SIMULATE, source);
+            available = Math.max(0L, Math.min(wanted, available));
+            if (available < wanted) shortfall.set(entry.getKey(), wanted - available);
+        }
+        return shortfall;
+    }
+
     public static void reinjectPatternInputs(ICraftingInventory sourceInv, KeyCounter[] inputHolder) {
         for (var list : inputHolder) {
             // List may be null if we failed to extract some of the pattern's inputs.

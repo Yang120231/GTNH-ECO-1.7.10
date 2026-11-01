@@ -30,11 +30,14 @@ import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingNativeRuntime;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.mixin.ContainerCraftConfirmAccessor;
 import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
 
@@ -211,7 +214,18 @@ public final class ECOCraftConfirmTracker {
             return;
         }
         // A natively planned request is submitted as AE2 planned it; rejectStart never lets one be forced.
-        ICraftingJob submitted = job == null ? result : forced ? job.forced() : job;
+        ICraftingJob submitted = result;
+        if (job != null && forced) {
+            // A forced start also waits for stock that left the network since planning, like GTNH's force start.
+            KeyCounter shortfall = CraftingCpuHelper
+                .initialShortfall(job.sourcePlan(), GridView.of(grid), IActionSource.of(actionSource(container)));
+            if (!shortfall.isEmpty() && session.state().cycleDetected) {
+                // A cyclic plan's phase schedule is bound to its exact stock; it cannot be forced this way.
+                reject(player, tracked, ECOCraftConfirmError.FORCE_REJECTED, "", shortages(shortfall));
+                return;
+            }
+            submitted = job.forced(shortfall);
+        } else if (job != null) submitted = job;
         // 1.21 freezes the displayed plan on every start attempt.
         session.closeImprovements();
         ICraftingLink link;
@@ -236,6 +250,21 @@ public final class ECOCraftConfirmTracker {
                 job == null ? result.getOutput()
                     : job.sourcePlan()
                         .finalOutput());
+            // AE2's submitJob only returns null; an ECO CPU that passed every admission check and then failed its
+            // initial extraction reports MISSING_INGREDIENT below it. Name every input the network lacks now.
+            KeyCounter shortfall = submitted instanceof NativeECOCraftingJob eco && eco.sourcePlan() != null
+                ? CraftingCpuHelper
+                    .initialShortfall(eco.sourcePlan(), GridView.of(grid), IActionSource.of(actionSource(container)))
+                : new KeyCounter();
+            if (!shortfall.isEmpty()) {
+                LOGGER.info(
+                    "[craft-confirm] ECO start failed on changed storage: container={}, forced={}, shortages={}",
+                    windowId,
+                    forced,
+                    shortfall.size());
+                reject(player, tracked, ECOCraftConfirmError.MISSING_INGREDIENT, "", shortages(shortfall));
+                return;
+            }
             reject(player, tracked, ECOCraftConfirmError.NO_CPU_ACCEPTED, "");
             return;
         }
@@ -351,9 +380,23 @@ public final class ECOCraftConfirmTracker {
     }
 
     private static void reject(EntityPlayerMP player, Tracked tracked, ECOCraftConfirmError error, String detail) {
+        reject(player, tracked, error, detail, java.util.Collections.emptyList());
+    }
+
+    private static void reject(EntityPlayerMP player, Tracked tracked, ECOCraftConfirmError error, String detail,
+        List<GenericStack> shortages) {
         tracked.container.setAutoStart(false);
-        tracked.session.fail(error, detail);
+        tracked.session.fail(error, detail, shortages);
         push(player, tracked.container, tracked.session);
+    }
+
+    /** Largest shortage first, so the page's limited rows show what matters most. */
+    private static List<GenericStack> shortages(KeyCounter shortfall) {
+        List<GenericStack> list = new java.util.ArrayList<>(shortfall.size());
+        for (var entry : shortfall)
+            if (entry.getLongValue() > 0) list.add(new GenericStack(entry.getKey(), entry.getLongValue()));
+        list.sort((a, b) -> Long.compare(b.amount(), a.amount()));
+        return list;
     }
 
     /** The same source AE2's confirmation uses for submission: the player acting through the terminal host. */

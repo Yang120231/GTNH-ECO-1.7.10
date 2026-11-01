@@ -43,6 +43,8 @@ public final class ECOCraftConfirmSession {
     @Nullable
     private ECOCraftConfirmError error;
     private String errorDetail = "";
+    private java.util.List<cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack> shortages = java.util.Collections
+        .emptyList();
     @Nullable
     private ECOCraftConfirmState sentState;
     private long sentReportVersion = -1L;
@@ -79,6 +81,7 @@ public final class ECOCraftConfirmSession {
         report = built.report;
         error = null;
         errorDetail = "";
+        shortages = java.util.Collections.emptyList();
     }
 
     /** Planning ended without a result (AE2 closes the container on a planner exception). */
@@ -136,13 +139,21 @@ public final class ECOCraftConfirmSession {
     }
 
     public void fail(ECOCraftConfirmError error, @Nullable String detail) {
+        fail(error, detail, java.util.Collections.emptyList());
+    }
+
+    /** A failed start whose initial extraction found these inputs gone from the network. */
+    public void fail(ECOCraftConfirmError error, @Nullable String detail,
+        java.util.List<cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack> shortages) {
         this.error = error;
         this.errorDetail = detail == null ? "" : detail;
+        this.shortages = shortages == null ? java.util.Collections.emptyList() : shortages;
     }
 
     public void clearError() {
         error = null;
         errorDetail = "";
+        shortages = java.util.Collections.emptyList();
     }
 
     /** The header as the client should currently see it. */
@@ -150,7 +161,7 @@ public final class ECOCraftConfirmSession {
         if (!eco) return ECOCraftConfirmState.NONE;
         return base.withCpuTier(cpuTier)
             .withBigOrderCpu(bigOrderCpu)
-            .withError(error, errorDetail);
+            .withError(error, errorDetail, shortages);
     }
 
     public ECOCraftConfirmReport report() {
