@@ -37,7 +37,7 @@ public class NativeSlotButton<W extends NativeSlotButton<W>> extends ButtonWidge
         // An item display child owns the hover while the enclosing slot still owns its outline.
         if ((isHovering() || getChildren().stream()
             .anyMatch(widget -> widget.isHovering())) && highlight.getAsBoolean())
-            NativeSlotHighlight.draw(inset, inset, getArea().width - 2 * inset, getArea().height - 2 * inset);
+            NativeSlotHighlight.draw(context, inset, inset, getArea().width - 2 * inset, getArea().height - 2 * inset);
         super.drawForeground(context);
     }
 }

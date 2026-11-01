@@ -18,7 +18,7 @@ public class NativeFluidSlot extends FluidSlot {
     @Override
     @SideOnly(Side.CLIENT)
     public void drawForeground(ModularGuiContext context) {
-        if (isHovering()) NativeSlotHighlight.draw(1, 1, getArea().width - 2, getArea().height - 2);
+        if (isHovering()) NativeSlotHighlight.draw(context, 1, 1, getArea().width - 2, getArea().height - 2);
         super.drawForeground(context);
     }
 }

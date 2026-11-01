@@ -16,7 +16,7 @@ public class NativeItemSlot extends ItemSlot {
     @Override
     @SideOnly(Side.CLIENT)
     public void drawForeground(ModularGuiContext context) {
-        if (isHovering()) NativeSlotHighlight.draw(1, 1, 16, 16);
+        if (isHovering()) NativeSlotHighlight.draw(context, 1, 1, 16, 16);
         super.drawForeground(context);
     }
 }
