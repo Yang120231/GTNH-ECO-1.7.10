@@ -140,11 +140,25 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
     @Override
     public boolean onBlockActivated(World world, int x, int y, int z, net.minecraft.entity.player.EntityPlayer player,
         int side, float hitX, float hitY, float hitZ) {
+        claimUnownedStructure(world, x, y, z, player);
         if (player.isSneaking() || !(world.getTileEntity(x, y, z) instanceof com.cleanroommc.modularui.api.IGuiHolder))
             return false;
         if (!world.isRemote) com.cleanroommc.modularui.factory.GuiFactories.tileEntity()
             .open(player, x, y, z);
         return true;
+    }
+
+    /**
+     * Parts placed before 7.3.7 never recorded an AE2 owner. The first player to use one becomes its owner and the
+     * structure is recalculated, which hands that owner to the remaining unowned members before they connect.
+     */
+    private static void claimUnownedStructure(World world, int x, int y, int z,
+        net.minecraft.entity.player.EntityPlayer player) {
+        if (world.isRemote || player == null) return;
+        TileEntity tile = world.getTileEntity(x, y, z);
+        if (!(tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity)) return;
+        if (!((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile).claimOwner(player)) return;
+        if (tile instanceof IAEMultiBlock) ((IAEMultiBlock<?>) tile).rebuildMultiblock();
     }
 
     @Override
@@ -155,6 +169,12 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
         WorldView.of(world)
             .setBlockAndUpdate(new BlockPos(x, y, z), defaultState.setValue(FACING, facing));
         TileEntity tile = world.getTileEntity(x, y, z);
+        // AE2 records the owner in AEBaseItemBlock, which our blocks do not use. Without one the node fails the
+        // security check against any secured network and AE2 breaks the block when the structure connects.
+        if (!world.isRemote && entity instanceof net.minecraft.entity.player.EntityPlayer
+            && tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity)
+            ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile)
+                .claimOwner((net.minecraft.entity.player.EntityPlayer) entity);
         if (tile instanceof appeng.tile.AEBaseTile) ((appeng.tile.AEBaseTile) tile)
             .setOrientation(facing.nativeSide(), net.minecraftforge.common.util.ForgeDirection.UP);
     }

@@ -1101,10 +1101,29 @@ public final class ComponentPlanner {
     public Outcome planWithCycleFallback(CompiledNetwork network, CondensationGraph universe,
         ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
         long amount, boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
+        return planWithRouteFallback(
+            network,
+            universe,
+            activeSelection,
+            inventory,
+            snapshot,
+            amount,
+            true,
+            ignorePatternSubstitutions,
+            cancellation);
+    }
+
+    /** Preserve supplied producer choices; recover unavailable combinations independently of cycle support. */
+    public Outcome planWithRouteFallback(CompiledNetwork network, CondensationGraph universe,
+        ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
+        long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
         if (!(cancellation instanceof ECOPlanningBudget)) cancellation = new ECOPlanningBudget(cancellation);
         // Large structural universes can exhaust the session before reaching recovery. This is
-        // an ordering heuristic, not a model-size rejection; small routes retain their report first.
-        if (maxRouteAttempts == 0 && network.reachablePatternCount() > 64) {
+        // a cycle recovery heuristic. A selected DAG always gets its preferred route first.
+        if (cyclePlanningEnabled && !activeSelection.acyclic()
+            && maxRouteAttempts == 0
+            && network.reachablePatternCount() > 64) {
             Outcome joint = new JointRouteOptimizer().optimize(network, snapshot, amount, null, true, cancellation);
             if (joint != null && joint.status() == PlanningStatus.SUCCESS) return joint;
         }
@@ -1116,7 +1135,7 @@ public final class ComponentPlanner {
             inventory,
             snapshot,
             amount,
-            true,
+            cyclePlanningEnabled,
             ignorePatternSubstitutions,
             cancellation,
             failures,
@@ -1156,7 +1175,7 @@ public final class ComponentPlanner {
                 }
             }
             if (maxRouteAttempts == 0) preferred = new JointRouteOptimizer()
-                .optimize(network, snapshot, amount, preferred, true, cancellation);
+                .optimize(network, snapshot, amount, preferred, cyclePlanningEnabled, cancellation);
             if (preferred.status() == PlanningStatus.SUCCESS) return preferred;
             return searchAlternativeRoutes(
                 network,
@@ -1165,6 +1184,7 @@ public final class ComponentPlanner {
                 inventory,
                 snapshot,
                 amount,
+                cyclePlanningEnabled,
                 ignorePatternSubstitutions,
                 cancellation,
                 failures,
@@ -1186,9 +1206,9 @@ public final class ComponentPlanner {
 
     private Outcome searchAlternativeRoutes(CompiledNetwork network, CondensationGraph universe,
         ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
-        long amount, boolean ignorePatternSubstitutions, ECOCancellation cancellation, CycleFailureCache failures,
-        Outcome preferred, ExternalDemandPlanner externalDemandPlanner, RouteQuantityProof.Prepared supply)
-        throws InterruptedException {
+        long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
+        CycleFailureCache failures, Outcome preferred, ExternalDemandPlanner externalDemandPlanner,
+        RouteQuantityProof.Prepared supply) throws InterruptedException {
         Map<AEKey, Integer> baseline = new Object2ObjectLinkedOpenHashMap<>();
         // The numeric pass can retry an acyclic producer, while cycle-owned keys are deliberately
         // absent from SolveState.selected because their work is deferred to the cycle transaction.
@@ -1241,7 +1261,7 @@ public final class ComponentPlanner {
                     inventory,
                     snapshot,
                     amount,
-                    true,
+                    cyclePlanningEnabled,
                     ignorePatternSubstitutions,
                     cancellation,
                     failures,

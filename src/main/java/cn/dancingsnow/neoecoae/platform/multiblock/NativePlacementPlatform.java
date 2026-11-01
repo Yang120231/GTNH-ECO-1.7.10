@@ -53,6 +53,12 @@ public final class NativePlacementPlatform {
             snapshot.restore(true);
             return false;
         }
+        // setBlock skips onBlockPlacedBy, so record the AE2 owner here like a hand placement does.
+        if (world.getTileEntity(
+            pos.getX(),
+            pos.getY(),
+            pos.getZ()) instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity tile)
+            tile.claimOwner(player);
         return true;
     }
 

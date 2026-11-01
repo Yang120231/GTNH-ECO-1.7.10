@@ -190,13 +190,19 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
     @Override
     public ItemStack onItemRightClick(ItemStack stack, net.minecraft.world.World world,
         net.minecraft.entity.player.EntityPlayer player) {
-        return disassemble(stack, world, player) ? null : stack;
+        // Never return null: 1.7.10 tryUseItem/sendUseItem dereference the result. A consumed stack is
+        // signalled with stackSize 0, and vanilla clears the held slot itself.
+        disassemble(stack, world, player);
+        return stack;
     }
 
     @Override
     public boolean onItemUseFirst(ItemStack stack, net.minecraft.entity.player.EntityPlayer player,
         net.minecraft.world.World world, int x, int y, int z, int side, float hitX, float hitY, float hitZ) {
-        return disassemble(stack, world, player);
+        if (!disassemble(stack, world, player)) return false;
+        if (stack.stackSize <= 0 && player.inventory.getCurrentItem() == stack)
+            player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
+        return true;
     }
 
     /** Native inventory/drop operations implementing the locked item's alternate-use disassembly contract. */
@@ -221,7 +227,9 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
             ItemStack upgrade = upgrades.getStackInSlot(slot);
             if (upgrade != null) outputs.add(upgrade.copy());
         }
-        player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
+        // Keep the consumed stack in the held slot while adding outputs so none of them land there and
+        // get overwritten when the caller clears the slot.
+        stack.stackSize = 0;
         for (ItemStack output : outputs)
             if (!player.inventory.addItemStackToInventory(output)) player.dropPlayerItemWithRandomChoice(output, false);
         player.inventory.markDirty();

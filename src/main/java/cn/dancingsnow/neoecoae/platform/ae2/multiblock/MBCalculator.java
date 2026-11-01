@@ -75,6 +75,9 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
                 disconnect();
                 return;
             }
+            // Must run before members expose their sides: an unowned part fails AE2's security check against a
+            // secured neighbor network (or a member that already joined it).
+            shareOwner(level, min, max);
             C cluster = target.getCluster();
             if (cluster != null && (!cluster.getBoundsMin()
                 .equals(min)
@@ -107,6 +110,30 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
             faults.report("discovery", location + ": " + failure, level.getGameTime(), failure);
         } finally {
             setModificationInProgress(null);
+        }
+    }
+
+    /**
+     * Gives unowned members the owner of the structure. Parts placed before owners were recorded (or placed by
+     * creative StructureLib builds) have no AE2 player id; the first owned member found decides, so one owned part
+     * - e.g. a part re-placed or right-clicked by a player - is enough to repair an old structure.
+     */
+    private static void shareOwner(ServerWorldView level, BlockPos min, BlockPos max) {
+        int owner = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity.UNOWNED;
+        boolean anyUnowned = false;
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            TileEntity tile = level.getBlockEntity(pos);
+            if (!(tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity)) continue;
+            int id = ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile).getOwnerPlayerId();
+            if (id < 0) anyUnowned = true;
+            else if (owner < 0) owner = id;
+            if (owner >= 0 && anyUnowned) break;
+        }
+        if (owner < 0 || !anyUnowned) return;
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            TileEntity tile = level.getBlockEntity(pos);
+            if (tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity)
+                ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile).adoptOwner(owner);
         }
     }
 

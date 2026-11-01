@@ -151,7 +151,77 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
             state = mergeFacing(state, ((NativeStateBlock) state.getBlock()).fromMetadata(getBlockMetadata()));
         getProxy().setVisualRepresentation(getItemFromBlockEntity());
         super.onReady();
+        if (pendingOwnerId >= 0) {
+            adoptOwner(pendingOwnerId);
+            pendingOwnerId = UNOWNED;
+        }
         mainNode.ready(true);
+    }
+
+    /** AE2's "no owner" player id. */
+    public static final int UNOWNED = -1;
+    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
+        .getLogger("neoecoae");
+    /** Owner requested before AE2 created the node (placement happens one tick before onReady). */
+    private int pendingOwnerId = UNOWNED;
+    private long lastSecurityBreakLog = Long.MIN_VALUE;
+
+    /**
+     * AE2 player id that owns this node, or {@link #UNOWNED}. AE2's own blocks record it through
+     * {@code AEBaseItemBlock}; without it a node fails {@code Platform.securityCheck} against every powered network
+     * that has a Security Terminal, because {@code SecurityCache.hasPermission(-1, BUILD)} is false.
+     */
+    public int getOwnerPlayerId() {
+        if (worldObj == null || worldObj.isRemote) return UNOWNED;
+        IGridNode node = getProxy().getNode();
+        return node != null ? node.getPlayerID() : pendingOwnerId;
+    }
+
+    /** Records {@code player} as owner if this node has none yet. Server side only. */
+    public boolean claimOwner(net.minecraft.entity.player.EntityPlayer player) {
+        if (player == null || worldObj == null || worldObj.isRemote) return false;
+        return adoptOwner(
+            appeng.core.worlddata.WorldData.instance()
+                .playerData()
+                .getPlayerID(player.getGameProfile()));
+    }
+
+    /** Sets the AE2 owner id unless one is already recorded; persisted with the node NBT. */
+    public boolean adoptOwner(int playerId) {
+        if (playerId < 0 || worldObj == null || worldObj.isRemote) return false;
+        IGridNode node = getProxy().getNode();
+        if (node == null) {
+            if (pendingOwnerId >= 0) return false;
+            pendingOwnerId = playerId;
+            return true;
+        }
+        if (node.getPlayerID() >= 0) return false;
+        node.setPlayerID(playerId);
+        markDirty();
+        return true;
+    }
+
+    /**
+     * AE2 calls this for every failed connection (security mismatch or an already existing connection) and its
+     * default destroys the block. For a multiblock part that tears the whole structure apart the moment it forms
+     * next to a secured network. The rejected connection is simply not made, so keeping the block is safe.
+     */
+    @Override
+    public void securityBreak() {
+        if (worldObj == null) return;
+        long now = worldObj.getTotalWorldTime();
+        if (now - lastSecurityBreakLog >= 200) {
+            lastSecurityBreakLog = now;
+            LOGGER.warn(
+                "AE2 refused a grid connection for {} at {} {} {} (dim {}, owner id {}); the block is kept but stays "
+                    + "disconnected on that side. Check Security Terminal BUILD permission for the owner.",
+                getClass().getSimpleName(),
+                xCoord,
+                yCoord,
+                zCoord,
+                worldObj.provider.dimensionId,
+                getOwnerPlayerId());
+        }
     }
 
     private static BlockState mergeFacing(BlockState stored, BlockState metadata) {

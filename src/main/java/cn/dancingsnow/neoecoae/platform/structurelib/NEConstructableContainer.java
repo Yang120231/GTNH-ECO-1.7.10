@@ -63,6 +63,10 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
         if (world == null || world.isRemote || !(env.getActor() instanceof EntityPlayerMP)) return -2;
         NEStructureShape shape = shape(trigger, host);
         if (shape == null) return -1;
+        // An old, unowned controller would otherwise stay unowned; members inherit it in MBCalculator.
+        if (host instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity)
+            ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) host)
+                .claimOwner((EntityPlayerMP) env.getActor());
         int built = shape.survivalBuild(host, trigger, budget, env);
         if (built != 0) rebuild(host);
         return built;

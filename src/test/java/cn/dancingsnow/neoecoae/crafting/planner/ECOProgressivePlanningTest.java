@@ -144,7 +144,7 @@ class ECOProgressivePlanningTest {
     }
 
     @Test
-    void realSessionPublishesACompleteRouteThenImprovesItWithAnIndependentSession() throws Exception {
+    void realSessionPreservesProducerOrderInConfirmationAndRemainingWorkSearches() throws Exception {
         AEKey raw = AEItemKey.of(TestItems.RAW_IRON), ingot = AEItemKey.of(TestItems.IRON_INGOT);
         AEKey copper = AEItemKey.of(TestItems.COPPER_INGOT), goal = AEItemKey.of(TestItems.GOLD_INGOT);
         var smelt = pattern(raw, ingot);
@@ -181,12 +181,12 @@ class ECOProgressivePlanningTest {
                 .diagnostics()
                 .toString());
         assertEquals(
-            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(direct, 10L),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(smelt, 10L, finish, 10L),
             improved.plan()
                 .patternTimes());
         var handle = new ECOPlanningImprovements(session, first);
-        assertTrue(handle.offer(improved));
-        assertSame(improved, handle.latest(first));
+        assertFalse(handle.offer(improved));
+        assertNull(handle.latest(first));
         assertEquals(
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(smelt, 10L, finish, 10L),
             first.plan()
@@ -207,7 +207,7 @@ class ECOProgressivePlanningTest {
             remaining.plan()
                 .finalOutput());
         assertEquals(
-            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(direct, 8L),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(smelt, 8L, finish, 8L),
             remaining.plan()
                 .patternTimes());
         assertEquals(

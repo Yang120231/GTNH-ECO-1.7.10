@@ -68,13 +68,13 @@ class JointRouteOptimizationTest {
     }
 
     @Test
-    void minimizesWholeSupplyChainInsteadOfFirstSuccessfulProducer() throws Exception {
+    void retainsTheFirstSuccessfulProducerInsteadOfRepricingTheWholeSupplyChain() throws Exception {
         var expensive = pattern(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(stack(ingot, 1)), stack(goal, 1));
         var smelt = pattern(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(stack(iron, 1)), stack(ingot, 1));
         var direct = pattern(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(stack(copper, 1)), stack(goal, 1));
         assertTasks(
             plan(service(false, expensive, smelt, direct), stock(iron, 5, copper, 5), 5, false),
-            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(direct, 5L));
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(expensive, 5L, smelt, 5L));
     }
 
     @Test
@@ -88,7 +88,7 @@ class JointRouteOptimizationTest {
         var finish = pattern(
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(stack(ingot, 1), stack(slag, 1)),
             stack(goal, 1));
-        var result = plan(service(true, a, b, joint, finish), stock(iron, 10), 5, false);
+        var result = plan(service(true, a, b, joint, finish), stock(iron, 5), 5, false);
         assertTasks(result, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(joint, 5L, finish, 5L));
         result.provenance()
             .requireComplete();
@@ -185,7 +185,7 @@ class JointRouteOptimizationTest {
     }
 
     @Test
-    void exhaustedOptimizationKeepsTheCompletedAnswerAndCancellationPropagates() throws Exception {
+    void completedRouteSkipsSearchAndExhaustedRecoveryRetainsItsReport() throws Exception {
         var a = pattern(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(stack(iron, 1)), stack(goal, 1));
         var b = pattern(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(stack(copper, 1)), stack(goal, 2));
         var inventory = stock(iron, 10, copper, 10);
@@ -205,6 +205,22 @@ class JointRouteOptimizationTest {
             new JointRouteOptimizer().optimize(network, PlannerInventorySnapshot.of(inventory), 5, preferred, limit));
         assertTrue(
             preferred.trace()
+                .diagnostics()
+                .isEmpty());
+        var incomplete = new ComponentPlanner.Outcome(
+            PlanningStatus.MISSING_ITEMS,
+            new SolveState(inventory),
+            new cn.dancingsnow.neoecoae.crafting.planner.trace.ECOPlanTrace(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
+        var recoveryLimit = new ECOPlanningBudget(ECOCancellation.NONE, 1, Long.MAX_VALUE, () -> 0);
+        assertSame(
+            incomplete,
+            new JointRouteOptimizer()
+                .optimize(network, PlannerInventorySnapshot.of(inventory), 5, incomplete, recoveryLimit));
+        assertTrue(
+            incomplete.trace()
                 .diagnostics()
                 .stream()
                 .anyMatch(d -> d.code() == PlannerDiagnostic.Code.ROUTE_OPTIMIZATION_BUDGET));
