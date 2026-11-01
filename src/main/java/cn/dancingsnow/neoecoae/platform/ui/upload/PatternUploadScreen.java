@@ -170,7 +170,7 @@ final class PatternUploadScreen extends GuiScreen {
     private boolean matches(Row row, String[] terms) {
         String haystack = haystacks.get(row);
         if (haystack == null) return true;
-        for (String term : terms) if (!term.isEmpty() && !haystack.contains(term)) return false;
+        for (String term : terms) if (!term.isEmpty() && !UploadSearch.contains(haystack, term)) return false;
         return true;
     }
 
