@@ -316,10 +316,8 @@ public final class PatternUploadService {
                     match.circuit,
                     match.programmingCover,
                     "");
-                if (match.routeName == null) {
-                    if (target.nameSuffix() != null) message.nameSuffix = target.nameSuffix();
-                    message.icon = copy(target.icon());
-                }
+                if (match.routeName == null && target.nameSuffix() != null) message.nameSuffix = target.nameSuffix();
+                message.icon = copy(match.routeIcon != null ? match.routeIcon : target.icon());
             }
         }
         String key = message.key();

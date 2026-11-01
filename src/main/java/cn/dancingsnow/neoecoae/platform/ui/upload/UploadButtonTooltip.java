@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.platform.ui.upload;
 
-import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.BACKGROUND;
-import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.BORDER;
 import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.CHECK;
 import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.DIVIDER;
 import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.GOOD;
@@ -12,10 +10,15 @@ import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.WARN;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.renderer.entity.RenderItem;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
 import cn.dancingsnow.neoecoae.platform.network.PatternUploadPackets;
@@ -23,15 +26,17 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 /**
- * Card-style tooltip for the two upload buttons beside AE2's encode button: title, the mouse actions, the current
- * auto-upload target or why there is none, and a note that the right-click belongs to AE2's encode button.
+ * Card-style tooltip for the two upload buttons beside AE2's encode button. The menu button shows the mouse actions
+ * and a note that the right-click belongs to AE2's encode button; the auto-upload button shows only its current target
+ * (with the machine's icon on the right) or that a manual upload is needed.
  */
 @SideOnly(Side.CLIENT)
 final class UploadButtonTooltip {
 
     private static final int LEFT_KEY = 0xFF7EE29A, RIGHT_KEY = 0xFF6FD3E8;
     private static final float SMALL = 0.75F;
-    private static final int PAD = 7, MIN_WIDTH = 150, MAX_WIDTH = 260;
+    private static final int PAD = 7, MIN_WIDTH = 150, MAX_WIDTH = 260, ICON = 16, ICON_GAP = 6;
+    private static final RenderItem ITEM_RENDER = new RenderItem();
 
     private static final String[] WARNING = { "....o....", "...o.o...", "...o.o...", "..o.o.o..", "..o.o.o..",
         ".o.....o.", ".o..o..o.", "ooooooooo" };
@@ -44,24 +49,30 @@ final class UploadButtonTooltip {
     private final List<String> status = new ArrayList<>();
     private boolean statusWarning;
     private final List<String> statusDetails = new ArrayList<>();
+    /** Detail lines in normal size, e.g. why a manual upload is needed. */
+    private final List<String> statusLines = new ArrayList<>();
+    /** Note under everything; null for the auto-upload button. */
     private final String note;
+    /** Target machine drawn on the right; null when unknown. */
+    private ItemStack icon;
 
     private UploadButtonTooltip(FontRenderer font, boolean automatic) {
         this.font = font;
         title = tr(
             automatic ? "gui.neoecoae.pattern_upload.button.auto.tooltip.title"
                 : "gui.neoecoae.pattern_upload.button.open.tooltip.title");
+        if (automatic) {
+            note = null;
+            describeTarget(PatternUploadClient.currentAutoTarget());
+            return;
+        }
         actions.add(
             new Object[] { tr("gui.neoecoae.pattern_upload.tooltip.key.left"), LEFT_KEY,
-                tr(
-                    automatic ? "gui.neoecoae.pattern_upload.button.auto.tooltip.left"
-                        : "gui.neoecoae.pattern_upload.button.open.tooltip.left"),
-                automatic ? tr("gui.neoecoae.pattern_upload.button.auto.tooltip.left_fallback") : null });
+                tr("gui.neoecoae.pattern_upload.button.open.tooltip.left"), null });
         actions.add(
             new Object[] { tr("gui.neoecoae.pattern_upload.tooltip.key.right"), RIGHT_KEY,
                 tr("gui.neoecoae.pattern_upload.button.tooltip.right"), null });
         note = tr("gui.neoecoae.pattern_upload.button.tooltip.right_note");
-        if (automatic) describeTarget(PatternUploadClient.currentAutoTarget());
     }
 
     private void describeTarget(PatternUploadPackets.AutoTarget target) {
@@ -69,9 +80,11 @@ final class UploadButtonTooltip {
         if (target.name.isEmpty()) {
             if (target.reason.isEmpty()) return;
             statusWarning = true;
-            status.add(PatternUploadScreen.text(target.reason));
+            status.add(tr("gui.neoecoae.pattern_upload.button.auto.tooltip.manual"));
+            statusLines.add(tr("gui.neoecoae.pattern_upload.button.auto.tooltip.no_match"));
             return;
         }
+        if (target.icon != null && target.icon.getItem() != null) icon = target.icon;
         PatternUploadTarget.Kind[] kinds = PatternUploadTarget.Kind.values();
         String kind = target.kind >= 0 && target.kind < kinds.length ? tr(kinds[target.kind].translationKey()) : "";
         status.add(
@@ -101,8 +114,7 @@ final class UploadButtonTooltip {
         GL11.glTranslatef(0, 0, 400);
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
-        UploadDraw.rect(x - 1, y - 1, x + width + 1, y + height + 1, BORDER);
-        UploadDraw.rect(x, y, x + width, y + height, BACKGROUND);
+        UploadDraw.vanillaTooltipFrame(x - 1, y - 1, x + width + 1, y + height + 1);
         layout(x, y, width, true);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glPopMatrix();
@@ -123,14 +135,16 @@ final class UploadButtonTooltip {
             if (action[3] != null) needed = Math.max(needed, column + font.getStringWidth((String) action[3]));
         }
         for (String line : status) needed = Math.max(needed, 13 + font.getStringWidth(line));
+        for (String line : statusLines) needed = Math.max(needed, 13 + font.getStringWidth(line));
         for (String line : statusDetails) needed = Math.max(needed, 13 + smallWidth(line));
-        needed = Math.max(needed, smallWidth(note));
-        return Math.max(MIN_WIDTH, needed + 2 * PAD);
+        if (note != null) needed = Math.max(needed, smallWidth(note));
+        if (icon != null) needed += ICON + ICON_GAP;
+        return Math.max(note == null ? 0 : MIN_WIDTH, needed + 2 * PAD);
     }
 
     /** Draws when {@code paint}, and returns the height either way. */
     private int layout(int left, int top, int width, boolean paint) {
-        int x = left + PAD, right = left + width - PAD, y = top + PAD;
+        int x = left + PAD, right = left + width - PAD - (icon != null ? ICON + ICON_GAP : 0), y = top + PAD;
         if (paint) text(font.trimStringToWidth(title, right - x), x, y, TEXT);
         y += 14;
 
@@ -152,7 +166,7 @@ final class UploadButtonTooltip {
         }
 
         if (!status.isEmpty()) {
-            y = divider(x, right, y + 2, paint) + 6;
+            if (note != null) y = divider(x, right, y + 2, paint) + 6;
             int color = statusWarning ? WARN : GOOD;
             boolean first = true;
             for (String line : status) for (String wrapped : wrap(line, right - x - 13)) {
@@ -163,6 +177,10 @@ final class UploadButtonTooltip {
                 first = false;
                 y += 10;
             }
+            for (String line : statusLines) for (String wrapped : wrap(line, right - x - 13)) {
+                if (paint) text(wrapped, x + 13, y, TEXT);
+                y += 10;
+            }
             for (String line : statusDetails) {
                 if (paint) small(line, x + 13, y, MUTED);
                 y += 8;
@@ -170,9 +188,39 @@ final class UploadButtonTooltip {
             y += 2;
         }
 
-        if (paint) small(trimSmall(note, right - x), x, y, MUTED);
-        y += 7;
-        return y + PAD - top;
+        if (note != null) {
+            if (paint) small(trimSmall(note, right - x), x, y, MUTED);
+            y += 7;
+        } else y -= 2;
+        int height = y + PAD - top;
+        if (paint && icon != null) item(icon, left + width - PAD - ICON, top + (height - ICON) / 2);
+        return height;
+    }
+
+    private void item(ItemStack stack, int x, int y) {
+        GL11.glPushMatrix();
+        try {
+            RenderHelper.enableGUIStandardItemLighting();
+            GL11.glEnable(GL12.GL_RESCALE_NORMAL);
+            GL11.glColor4f(1, 1, 1, 1);
+            ITEM_RENDER.renderItemAndEffectIntoGUI(
+                font,
+                Minecraft.getMinecraft()
+                    .getTextureManager(),
+                stack,
+                x,
+                y);
+        } catch (RuntimeException ignored) {
+            // A broken item renderer must not take the tooltip down.
+        } finally {
+            RenderHelper.disableStandardItemLighting();
+            GL11.glDisable(GL12.GL_RESCALE_NORMAL);
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glColor4f(1, 1, 1, 1);
+            GL11.glPopMatrix();
+        }
     }
 
     private List<String> wrap(String text, int width) {

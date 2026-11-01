@@ -122,7 +122,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static String haystack(Row row) {
-        return strip(hostName(row)) + "\n" + strip(text(row.route)) + "\n" + strip(kindName(row));
+        return strip(hostName(row)) + "\n" + strip(hostText(row.route, row.icon)) + "\n" + strip(kindName(row));
     }
 
     private static String strip(String value) {
@@ -170,7 +170,7 @@ final class PatternUploadScreen extends GuiScreen {
     private boolean matches(Row row, String[] terms) {
         String haystack = haystacks.get(row);
         if (haystack == null) return true;
-        for (String term : terms) if (!term.isEmpty() && !haystack.contains(term)) return false;
+        for (String term : terms) if (!term.isEmpty() && !UploadSearch.contains(haystack, term)) return false;
         return true;
     }
 
@@ -718,7 +718,7 @@ final class PatternUploadScreen extends GuiScreen {
         } else {
             // A route reads "machine<MODE_SEPARATOR>recipe map"; the mode is shown apart from the machine.
             int separator = row.route.indexOf(MODE_SEPARATOR);
-            tip.title = text(separator < 0 ? row.route : row.route.substring(0, separator));
+            tip.title = hostText(separator < 0 ? row.route : row.route.substring(0, separator), row.icon);
             tip.mode = separator < 0 ? "" : text(row.route.substring(separator + 1));
             tip.subtitle = host.equals(tip.title) || host.isEmpty() ? kind
                 : kind.isEmpty() ? host : host + " · " + kind;
@@ -833,21 +833,30 @@ final class PatternUploadScreen extends GuiScreen {
 
     /** Translated host name followed by its literal suffix (e.g. GT's ghost circuit " [1]"). */
     static String hostName(Row row) {
-        // With a route the icon is the route's machine, not the host, so it cannot name the host.
-        return hostText(row.name, row.route.isEmpty() ? row.icon : null) + row.nameSuffix;
+        // With a route the icon is the route's machine; hostText only uses it when the host is that same machine.
+        return hostText(row.name, row.icon) + row.nameSuffix;
     }
 
     /**
-     * Host name; when it is an untranslatable key (AE2 reports the adjacent block's raw unlocalized name, which some
-     * mods never translate because their ItemBlock names itself), falls back to the host icon's display name.
+     * Host or route machine name; when it is an untranslatable key (AE2 reports the adjacent block's raw unlocalized
+     * name, GT routes report "unlocalized name.name", and some machines, e.g. BartWorks' bio lab, never register that
+     * key because their item names itself), falls back to the icon's display name.
      */
     static String hostText(String name, ItemStack icon) {
+        if (name == null || name.isEmpty()) return "";
+        int mode = name.indexOf(MODE_SEPARATOR);
+        if (mode >= 0) {
+            String machine = hostText(name.substring(0, mode), icon);
+            String recipeMap = text(name.substring(mode + 1));
+            return recipeMap.isEmpty() ? machine : machine + " (" + recipeMap + ")";
+        }
         String text = text(name);
         if (icon == null || !text.equals(name)) return text;
         try {
-            // AE2's raw name is exactly the adjacent item's unlocalized name; anything else (custom names, a
-            // different icon) is left as is.
-            if (!name.equals(icon.getUnlocalizedName())) return text;
+            // The raw name is exactly the icon's unlocalized name (optionally with ".name"); anything else (custom
+            // names, a different icon) is left as is.
+            String key = icon.getUnlocalizedName();
+            if (key == null || !(name.equals(key) || name.equals(key + ".name"))) return text;
             String display = icon.getDisplayName();
             return display == null || display.isEmpty() ? text : display;
         } catch (RuntimeException broken) {
@@ -857,7 +866,7 @@ final class PatternUploadScreen extends GuiScreen {
 
     static String title(Row row) {
         String name = hostName(row);
-        return row.route.isEmpty() ? name : name + " → " + text(row.route);
+        return row.route.isEmpty() ? name : name + " → " + hostText(row.route, row.icon);
     }
 
     static String kindName(Row row) {

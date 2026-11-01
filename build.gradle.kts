@@ -35,6 +35,10 @@ repositories {
             includeGroup("org.objenesis")
         }
     }
+    exclusiveContent {
+        forRepository { maven("https://jitpack.io") }
+        filter { includeModule("com.github.Towdium", "PinIn") }
+    }
 }
 
 dependencies {
@@ -42,6 +46,10 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.12.0")
     testCompileOnly("com.github.GTNewHorizons:jabel-javac-plugin:1.0.2-GTNH")
     implementation("it.unimi.dsi:fastutil:8.5.18")
+    // Pinyin matching for the pattern-upload search box; shaded and relocated (GTNH ships no pinyin library).
+    // Its fastutil dependency is GTNH's own at runtime, like the mod's: shading it would also relocate the mod's own
+    // fastutil references away from the shared copy.
+    shadowImplementation("com.github.Towdium:PinIn:1.6.0") { isTransitive = false }
     compileOnly("org.jetbrains:annotations:24.1.0")
     testImplementation("org.jetbrains:annotations:24.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")

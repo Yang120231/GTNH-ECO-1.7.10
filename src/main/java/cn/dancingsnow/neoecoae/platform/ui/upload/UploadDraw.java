@@ -77,6 +77,46 @@ final class UploadDraw {
         tessellator.addVertexWithUV(x0, y0, 0, u0, v0);
     }
 
+    /**
+     * The vanilla / GTNH hovering-text frame ({@code GuiScreen#drawHoveringText}): notched dark background with the
+     * purple gradient border. {@code x0..x1, y0..y1} is the frame's outer box.
+     */
+    static void vanillaTooltipFrame(int x0, int y0, int x1, int y1) {
+        final int background = 0xF0100010, borderTop = 0x505000FF, borderBottom = 0x5028007F;
+        Gui.drawRect(x0 + 1, y0, x1 - 1, y0 + 1, background);
+        Gui.drawRect(x0 + 1, y1 - 1, x1 - 1, y1, background);
+        Gui.drawRect(x0 + 1, y0 + 1, x1 - 1, y1 - 1, background);
+        Gui.drawRect(x0, y0 + 1, x0 + 1, y1 - 1, background);
+        Gui.drawRect(x1 - 1, y0 + 1, x1, y1 - 1, background);
+        gradientRect(x0 + 1, y0 + 2, x0 + 2, y1 - 2, borderTop, borderBottom);
+        gradientRect(x1 - 2, y0 + 2, x1 - 1, y1 - 2, borderTop, borderBottom);
+        gradientRect(x0 + 1, y0 + 1, x1 - 1, y0 + 2, borderTop, borderTop);
+        gradientRect(x0 + 1, y1 - 2, x1 - 1, y1 - 1, borderBottom, borderBottom);
+        GL11.glColor4f(1, 1, 1, 1);
+    }
+
+    /** Vertical gradient rectangle, as {@code Gui#drawGradientRect} (which is not static). */
+    private static void gradientRect(int x0, int y0, int x1, int y1, int top, int bottom) {
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glShadeModel(GL11.GL_SMOOTH);
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawingQuads();
+        tessellator.setColorRGBA(top >> 16 & 255, top >> 8 & 255, top & 255, top >>> 24);
+        tessellator.addVertex(x1, y0, 0);
+        tessellator.addVertex(x0, y0, 0);
+        tessellator.setColorRGBA(bottom >> 16 & 255, bottom >> 8 & 255, bottom & 255, bottom >>> 24);
+        tessellator.addVertex(x0, y1, 0);
+        tessellator.addVertex(x1, y1, 0);
+        tessellator.draw();
+        GL11.glShadeModel(GL11.GL_FLAT);
+        GL11.glDisable(GL11.GL_BLEND);
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+    }
+
     /** Solid rectangle that leaves the GL colour white afterwards ({@link Gui#drawRect} leaves it tinted). */
     static void rect(int x0, int y0, int x1, int y1, int argb) {
         Gui.drawRect(x0, y0, x1, y1, argb);
