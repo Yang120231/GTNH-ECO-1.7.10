@@ -39,6 +39,11 @@ import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
 public final class GtPatternRoutes implements PatternRouteProbe {
 
     private static final long OWNER_INDEX_TICKS = 100;
+    /**
+     * Separates a route name's machine key from the key of the mode it runs in; {@code PatternUploadScreen#text}
+     * translates each part.
+     */
+    public static final char MODE_SEPARATOR = '';
 
     private final Map<World, OwnerIndex> owners = new WeakHashMap<>();
     /** Recipe-lookup verdicts shared by the targets of one pass; never holds machine state. */
@@ -204,15 +209,17 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             if (host instanceof IMetaTileEntity) {
                 IMetaTileEntity machine = (IMetaTileEntity) host;
                 ItemStack circuit = circuit(machine);
-                RecipeMap<?> map = recipeMap(machine);
-                ItemStack icon = icon(machine);
-                if (map != null) add(routes, map, circuit, icon, name(icon, machine), false);
-                if (machine instanceof IDualInputHatch) {
-                    MTEMultiBlockBase owner = owner(machine);
-                    if (owner != null && owner.getRecipeMap() != null) {
-                        ItemStack ownerIcon = icon(owner);
-                        add(routes, owner.getRecipeMap(), circuit, ownerIcon, name(ownerIcon, owner), false);
-                    }
+                MTEMultiBlockBase owner = machine instanceof IDualInputHatch ? owner(machine) : null;
+                RecipeMap<?> ownerMap = owner == null ? null : owner.getRecipeMap();
+                if (ownerMap != null) {
+                    // The controller's live mode. A hatch's own map is only refreshed by a structure check, so after
+                    // a screwdriver mode switch it still names the previous mode.
+                    ItemStack ownerIcon = icon(owner);
+                    add(routes, ownerMap, circuit, ownerIcon, name(ownerIcon, owner, ownerMap), false);
+                } else {
+                    RecipeMap<?> map = recipeMap(machine);
+                    ItemStack icon = icon(machine);
+                    if (map != null) add(routes, map, circuit, icon, name(icon, machine, map), false);
                 }
             }
             if (host instanceof IInterfaceHost) {
@@ -229,9 +236,13 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                     IMetaTileEntity machine = ((IGregTechTileEntity) adjacent).getMetaTileEntity();
                     if (!(machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus
                         || machine instanceof RecipeMapWorkable)) continue;
-                    RecipeMap<?> map = recipeMap(machine);
-                    MTEMultiBlockBase owner = map == null ? owner(machine) : null;
-                    if (owner != null) map = owner.getRecipeMap();
+                    // An input part follows its formed controller's current mode, not the map cached at formation.
+                    MTEMultiBlockBase owner = machine instanceof RecipeMapWorkable ? null : owner(machine);
+                    RecipeMap<?> map = owner != null ? owner.getRecipeMap() : null;
+                    if (map == null) {
+                        owner = null;
+                        map = recipeMap(machine);
+                    }
                     if (map == null) continue;
                     ItemStack icon = icon(owner != null ? owner : machine);
                     add(
@@ -239,7 +250,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                         map,
                         circuit(machine),
                         icon,
-                        name(icon, owner != null ? owner : machine),
+                        name(icon, owner != null ? owner : machine, map),
                         hasProgrammingCover((IGregTechTileEntity) adjacent));
                 }
             }
@@ -288,6 +299,21 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         } catch (RuntimeException unavailable) {
             return null;
         }
+    }
+
+    /**
+     * The machine's name, followed by its current recipe map when it switches between modes, so the same machine in
+     * two modes shows as two distinct routes.
+     */
+    private static String name(ItemStack icon, IMetaTileEntity machine, RecipeMap<?> map) {
+        String name = name(icon, machine);
+        if (!(machine instanceof MTEMultiBlockBase) || map == null || map.unlocalizedName == null) return name;
+        try {
+            if (!((MTEMultiBlockBase) machine).supportsMachineModeSwitch()) return name;
+        } catch (RuntimeException | LinkageError unknown) {
+            return name;
+        }
+        return name + MODE_SEPARATOR + map.unlocalizedName;
     }
 
     private static String name(ItemStack icon, IMetaTileEntity machine) {

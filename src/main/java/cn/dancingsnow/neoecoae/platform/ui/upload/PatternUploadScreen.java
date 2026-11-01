@@ -830,6 +830,13 @@ final class PatternUploadScreen extends GuiScreen {
     /** Translation key, block/item key without ".name", or a literal. */
     static String text(String key) {
         if (key == null || key.isEmpty()) return "";
+        // Machine name plus the recipe map of the mode it runs in (GtPatternRoutes.MODE_SEPARATOR).
+        int mode = key.indexOf('');
+        if (mode >= 0) {
+            String machine = text(key.substring(0, mode));
+            String recipeMap = text(key.substring(mode + 1));
+            return recipeMap.isEmpty() ? machine : machine + " (" + recipeMap + ")";
+        }
         if (StatCollector.canTranslate(key)) return StatCollector.translateToLocal(key);
         if (StatCollector.canTranslate(key + ".name")) return StatCollector.translateToLocal(key + ".name");
         return key;
