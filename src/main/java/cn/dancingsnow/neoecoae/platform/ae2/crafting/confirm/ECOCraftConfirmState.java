@@ -132,8 +132,8 @@ public final class ECOCraftConfirmState {
         this.errorDetail = truncate(errorDetail);
         this.bigOrderCpuAvailable = bigOrderCpuAvailable;
         this.shortages = error == null || shortages == null || shortages.isEmpty() ? Collections.emptyList()
-            : Collections.unmodifiableList(
-                new ArrayList<>(shortages.subList(0, Math.min(MAX_SHORTAGES, shortages.size()))));
+            : Collections
+                .unmodifiableList(new ArrayList<>(shortages.subList(0, Math.min(MAX_SHORTAGES, shortages.size()))));
     }
 
     public ECOCraftConfirmState withCpuTier(int tier) {

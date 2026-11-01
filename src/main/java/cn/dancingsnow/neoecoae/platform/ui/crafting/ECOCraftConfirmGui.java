@@ -310,13 +310,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             62,
             20,
             I18n.format("gui.neoecoae.crafting_report.error.retry"));
-        forceRetry = new GuiButton(
-            10,
-            guiLeft + 79,
-            guiTop + 160,
-            62,
-            20,
-            I18n.format("gui.neoecoae.force_start"));
+        forceRetry = new GuiButton(10, guiLeft + 79, guiTop + 160, 62, 20, I18n.format("gui.neoecoae.force_start"));
         back = new GuiButton(
             4,
             guiLeft + 120,
@@ -1102,19 +1096,15 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         int hidden = state.shortages.size() - index;
         if (hidden > 0) {
             String more = I18n.format("gui.neoecoae.crafting_report.error.more_shortages", hidden);
-            fontRendererObj.drawString(
-                more,
-                TABLE_X + (panelWidth - fontRendererObj.getStringWidth(more)) / 2,
-                y,
-                0xAAA4B2);
+            fontRendererObj
+                .drawString(more, TABLE_X + (panelWidth - fontRendererObj.getStringWidth(more)) / 2, y, 0xAAA4B2);
         }
     }
 
     private static String shortageAmount(cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack shortage) {
         String amount = cn.dancingsnow.neoecoae.crafting.display.format.DisplayNumbers
             .grouped(Long.toString(shortage.amount()));
-        return shortage.what() instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey ? amount + " mB"
-            : amount;
+        return shortage.what() instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey ? amount + " mB" : amount;
     }
 
     private int drawWrapped(String text, int y, int color) {
@@ -1180,8 +1170,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             // Always the ordinary start packet: the server turns the shortfall into awaited inputs.
             lastSubmissionForced = true;
             ECOCraftConfirmPackets.start(container.windowId, true, lastSubmissionFollow);
-        }
-        else if (button == back) ECOCraftConfirmPackets.clearError(container.windowId);
+        } else if (button == back) ECOCraftConfirmPackets.clearError(container.windowId);
         else if (button == graph || button == viewButton) toggleView();
         else if (button == saveButton) saveAsImage();
         else if (button == treeFitButton) planTree.fit();
