@@ -316,7 +316,10 @@ public final class PatternUploadService {
                     match.circuit,
                     match.programmingCover,
                     "");
-                if (match.routeName == null && target.nameSuffix() != null) message.nameSuffix = target.nameSuffix();
+                if (match.routeName == null) {
+                    if (target.nameSuffix() != null) message.nameSuffix = target.nameSuffix();
+                    message.icon = copy(target.icon());
+                }
             }
         }
         String key = message.key();
@@ -344,6 +347,14 @@ public final class PatternUploadService {
         else if (name.indexOf('.') <= 0 || name.indexOf(' ') >= 0) component = new ChatComponentText(name);
         else if (!StatCollector.canTranslate(name) && StatCollector.canTranslate(name + ".name"))
             component = new ChatComponentTranslation(name + ".name");
+        else if (!StatCollector.canTranslate(name) && target.icon() != null
+            && name.equals(
+                target.icon()
+                    .getUnlocalizedName()))
+            // Untranslatable raw block name (the mod's ItemBlock names itself): use the host item's own name.
+            component = new ChatComponentText(
+                target.icon()
+                    .getDisplayName());
         else component = new ChatComponentTranslation(name);
         String suffix = target.nameSuffix();
         if (suffix != null && !suffix.isEmpty()) component.appendText(suffix);

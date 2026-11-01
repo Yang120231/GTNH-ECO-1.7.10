@@ -41,6 +41,7 @@ public final class PatternUploadClient {
     private static long highlightUntil;
 
     private GuiImgButton encodeButton;
+    private PatternUploadButton openButton, autoButton;
     private boolean rightDown;
 
     /** Called from the network thread; one immutable message replaces the previous one. */
@@ -142,6 +143,7 @@ public final class PatternUploadClient {
     @SideOnly(Side.CLIENT)
     public void initGui(GuiScreenEvent.InitGuiEvent.Post event) {
         encodeButton = null;
+        openButton = autoButton = null;
         if (!(event.gui instanceof GuiPatternTerm)) return;
         for (Object button : event.buttonList)
             if (button instanceof GuiImgButton && !(button instanceof PatternUploadButton)
@@ -152,8 +154,10 @@ public final class PatternUploadClient {
         // Remove the legacy 20px gap so existing configs (offset 51) align with AE2's pin button at guiLeft + 178.
         int x = encodeButton.xPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetX - 20;
         int y = encodeButton.yPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetY;
-        event.buttonList.add(new PatternUploadButton(x, y, false));
-        event.buttonList.add(new PatternUploadButton(x, y + 20, true));
+        openButton = new PatternUploadButton(x, y, false);
+        autoButton = new PatternUploadButton(x, y + 20, true);
+        event.buttonList.add(openButton);
+        event.buttonList.add(autoButton);
     }
 
     @SubscribeEvent
@@ -167,6 +171,23 @@ public final class PatternUploadClient {
             windowId,
             ((PatternUploadButton) button).automatic ? PatternUploadPackets.AUTO : PatternUploadPackets.OPEN);
         event.setCanceled(true);
+    }
+
+    /** Card tooltips for the upload buttons, drawn over the terminal after AE2's own tooltips. */
+    @SubscribeEvent
+    @SideOnly(Side.CLIENT)
+    public void drawTooltips(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (!(event.gui instanceof GuiPatternTerm)) return;
+        PatternUploadButton hovered = openButton != null && openButton.hovered(event.mouseX, event.mouseY) ? openButton
+            : autoButton != null && autoButton.hovered(event.mouseX, event.mouseY) ? autoButton : null;
+        if (hovered == null) return;
+        UploadButtonTooltip.draw(
+            Minecraft.getMinecraft().fontRenderer,
+            hovered.automatic,
+            event.mouseX,
+            event.mouseY,
+            event.gui.width,
+            event.gui.height);
     }
 
     /** Forge 1.7.10 has no GUI mouse event; detect a right-click edge over AE2's encode button instead. */

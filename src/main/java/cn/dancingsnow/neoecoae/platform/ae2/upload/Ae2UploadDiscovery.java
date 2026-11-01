@@ -22,6 +22,9 @@ import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
 /** Enumerates upload targets from the grid's own node index; no world tile scan is involved. */
 public final class Ae2UploadDiscovery {
 
+    /** AE2's raw interface name when neither a custom name nor an adjacent machine exists. */
+    static final String NO_ADJACENT_MACHINE = "Nothing";
+
     private static volatile PatternRouteProbe probe;
 
     private Ae2UploadDiscovery() {}
@@ -76,6 +79,9 @@ public final class Ae2UploadDiscovery {
             if (!(machine instanceof IInterfaceViewable)) return;
             IInterfaceViewable viewable = (IInterfaceViewable) machine;
             if (viewable.getPatterns() == null) return;
+            // AE2 names an unnamed interface "Nothing" when no machine is next to it (DualityInterface
+            // #getRawTermName): it is used as storage or I/O, not as a pattern provider, so it is not a target.
+            if (NO_ADJACENT_MACHINE.equals(viewable.getRawName())) return;
             // GT pattern hatches hide themselves from crafting lists but remain valid upload inventories.
             if (!viewable.shouldDisplay() && routes.kind(viewable) == null
                 && !ProgrammableHatchUpload.isHatch(viewable)) return;

@@ -44,7 +44,9 @@ final class PatternUploadScreen extends GuiScreen {
     private static final int TEXT = 0x343548, MUTED = 0x6e6c80, DISABLED_TEXT = 0x9a98a8;
     /** Body text is drawn at 7/9 of the vanilla font, like DataEnergistics' upload window. */
     private static final float SMALL = 0.75F;
-    private static final int PANEL_WIDTH = 220, TITLE_HEIGHT = 14, ROW_HEIGHT = 20, CARD_HEIGHT = 19;
+    /** Same character as {@code GtPatternRoutes.MODE_SEPARATOR}, kept here so the screen never loads GT classes. */
+    private static final char MODE_SEPARATOR = '';
+    private static final int PANEL_WIDTH = 220, TITLE_HEIGHT = 14, ROW_HEIGHT = 24, CARD_HEIGHT = 23;
     private static final int MAX_VISIBLE_ROWS = 10, HEADER = 60, FOOTER = 32, SCROLLBAR_WIDTH = 4;
     private static final int CLOSE_SIZE = 10, TOGGLE_WIDTH = 46, BUTTON_HEIGHT = 14;
     private static final long BUSY_TIMEOUT = 5_000L;
@@ -503,6 +505,9 @@ final class PatternUploadScreen extends GuiScreen {
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL12.GL_RESCALE_NORMAL);
             GL11.glColor4f(1, 1, 1, 1);
+        } else {
+            UploadRowTooltip rowTooltip = rowTooltip(mouseX, mouseY);
+            if (rowTooltip != null) rowTooltip.draw(fontRendererObj, mouseX, mouseY, width, height);
         }
     }
 
@@ -610,15 +615,15 @@ final class PatternUploadScreen extends GuiScreen {
             UploadDraw.button(x, y, w, h, hover && enabled && !busy);
             if (!enabled) UploadDraw.rect(x, y, x + w, y + h, 0x40000000);
             UploadDraw.rect(x + 2, y + 2, x + 4, y + h - 3, accent(row));
-            item(row.icon, x + 6, y + 1);
+            item(row.icon, x + 6, y + 3);
             String count = slotCount(row);
             float countWidth = fontRendererObj.getStringWidth(count) * SMALL;
             float countX = x + w - 5 - countWidth;
-            small(count, countX, y + 6, enabled ? slotColor(row) : DISABLED_TEXT);
+            small(count, countX, y + 8, enabled ? slotColor(row) : DISABLED_TEXT);
             String name = hostName(row);
             if (row.token == list.autoToken && list.autoToken != 0) name = "§6★§r " + name;
             int nameX = x + 25;
-            small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 6, enabled ? TEXT : DISABLED_TEXT);
+            small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 8, enabled ? TEXT : DISABLED_TEXT);
         }
     }
 
@@ -696,41 +701,57 @@ final class PatternUploadScreen extends GuiScreen {
             lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search.tooltip"));
             return lines;
         }
+        return lines;
+    }
+
+    /** Card tooltip for the hovered target row, or null. */
+    private UploadRowTooltip rowTooltip(int mouseX, int mouseY) {
+        if (draggingWindow) return null;
         int index = rowAt(mouseX, mouseY);
-        if (index < 0) return lines;
+        if (index < 0) return null;
         Row row = visible.get(index);
-        lines.add(title(row));
-        String kind = kindName(row);
-        if (!kind.isEmpty()) lines.add("§7" + kind);
-        lines.add(
-            levelColor(row) + text(
-                MatchResult.Level.values()[safe(row.level, MatchResult.Level.values().length)].translationKey()));
-        if (!row.reason.isEmpty()) lines.add("§7" + text(row.reason));
-        lines.add(text(stateKey(row)));
-        lines.add(
-            StatCollector
-                .translateToLocalFormatted("gui.neoecoae.pattern_upload.empty_slots", row.emptySlots, row.totalSlots));
-        lines.add(
-            StatCollector
-                .translateToLocalFormatted("gui.neoecoae.pattern_upload.free_members", row.freeMembers, row.members));
-        if (row.duplicates > 0) lines
-            .add(StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.duplicates", row.duplicates));
-        if (row.circuit >= 0) lines.add(
+        UploadRowTooltip tip = new UploadRowTooltip();
+        String host = hostName(row), kind = kindName(row);
+        if (row.route.isEmpty()) {
+            tip.title = host;
+            tip.subtitle = kind;
+        } else {
+            // A route reads "machine<MODE_SEPARATOR>recipe map"; the mode is shown apart from the machine.
+            int separator = row.route.indexOf(MODE_SEPARATOR);
+            tip.title = text(separator < 0 ? row.route : row.route.substring(0, separator));
+            tip.mode = separator < 0 ? "" : text(row.route.substring(separator + 1));
+            tip.subtitle = host.equals(tip.title) || host.isEmpty() ? kind
+                : kind.isEmpty() ? host : host + " · " + kind;
+        }
+        tip.star = row.token == list.autoToken && list.autoToken != 0;
+        tip.level = text(
+            MatchResult.Level.values()[safe(row.level, MatchResult.Level.values().length)].translationKey());
+        tip.levelColor = row.level == EXACT || row.level == ACCEPTED ? UploadRowTooltip.GOOD
+            : row.level == INCOMPATIBLE ? UploadRowTooltip.BAD : UploadRowTooltip.WARN;
+        tip.state = text(stateKey(row));
+        tip.stateGood = row.state == FREE;
+        tip.free = row.freeMembers;
+        tip.members = row.members;
+        tip.duplicates = row.duplicates;
+        tip.emptySlots = row.emptySlots;
+        tip.totalSlots = row.totalSlots;
+        if (!row.reason.isEmpty()) tip.notes.add(text(row.reason));
+        if (row.circuit >= 0) tip.notes.add(
             StatCollector
                 .translateToLocalFormatted("gui.neoecoae.pattern_upload.button.auto.tooltip.circuit", row.circuit));
         if (row.programmingCover)
-            lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programming_cover"));
-        lines.add(
-            "§7" + StatCollector
-                .translateToLocalFormatted("gui.neoecoae.pattern_upload.location", row.dimension, row.x, row.y, row.z));
-        if (row.token == list.autoToken && list.autoToken != 0)
-            lines.add("§6★ " + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.auto_choice"));
-        if (uploadable(row)) {
-            lines.add("§a" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.click"));
-            lines.add("§a" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.stay"));
-        } else lines.add("§c" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.disabled"));
-        lines.add("§b" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.locate"));
-        return lines;
+            tip.notes.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programming_cover"));
+        if (tip.star)
+            tip.notes.add("§6★ §r" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.auto_choice"));
+        tip.location = StatCollector.translateToLocalFormatted(
+            "gui.neoecoae.pattern_upload.tooltip.location",
+            row.dimension,
+            row.x,
+            row.y,
+            row.z);
+        tip.uploadable = uploadable(row);
+        tip.disabledReason = StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.disabled");
+        return tip;
     }
 
     /** Trims to {@code width} screen pixels of small text. */
@@ -812,7 +833,26 @@ final class PatternUploadScreen extends GuiScreen {
 
     /** Translated host name followed by its literal suffix (e.g. GT's ghost circuit " [1]"). */
     static String hostName(Row row) {
-        return text(row.name) + row.nameSuffix;
+        // With a route the icon is the route's machine, not the host, so it cannot name the host.
+        return hostText(row.name, row.route.isEmpty() ? row.icon : null) + row.nameSuffix;
+    }
+
+    /**
+     * Host name; when it is an untranslatable key (AE2 reports the adjacent block's raw unlocalized name, which some
+     * mods never translate because their ItemBlock names itself), falls back to the host icon's display name.
+     */
+    static String hostText(String name, ItemStack icon) {
+        String text = text(name);
+        if (icon == null || !text.equals(name)) return text;
+        try {
+            // AE2's raw name is exactly the adjacent item's unlocalized name; anything else (custom names, a
+            // different icon) is left as is.
+            if (!name.equals(icon.getUnlocalizedName())) return text;
+            String display = icon.getDisplayName();
+            return display == null || display.isEmpty() ? text : display;
+        } catch (RuntimeException broken) {
+            return text;
+        }
     }
 
     static String title(Row row) {
@@ -831,7 +871,7 @@ final class PatternUploadScreen extends GuiScreen {
     static String text(String key) {
         if (key == null || key.isEmpty()) return "";
         // Machine name plus the recipe map of the mode it runs in (GtPatternRoutes.MODE_SEPARATOR).
-        int mode = key.indexOf('');
+        int mode = key.indexOf(MODE_SEPARATOR);
         if (mode >= 0) {
             String machine = text(key.substring(0, mode));
             String recipeMap = text(key.substring(mode + 1));

@@ -185,6 +185,8 @@ public final class PatternUploadPackets {
         public String name = "", reason = "";
         /** Literal text after the translated name; see {@code PatternUploadTarget#nameSuffix()}. */
         public String nameSuffix = "";
+        /** Host item, used client-side to name hosts whose raw name has no translation; may be null. */
+        public ItemStack icon;
         public ItemStack circuit;
         public boolean programmingCover;
 
@@ -218,6 +220,7 @@ public final class PatternUploadPackets {
             name = readString(buf, 256);
             nameSuffix = readString(buf, 256);
             kind = buf.readByte();
+            icon = ByteBufUtils.readItemStack(buf);
             circuit = ByteBufUtils.readItemStack(buf);
             programmingCover = buf.readBoolean();
             reason = readString(buf, 256);
@@ -229,6 +232,7 @@ public final class PatternUploadPackets {
             ByteBufUtils.writeUTF8String(buf, name);
             ByteBufUtils.writeUTF8String(buf, nameSuffix);
             buf.writeByte(kind);
+            ByteBufUtils.writeItemStack(buf, icon);
             ByteBufUtils.writeItemStack(buf, circuit);
             buf.writeBoolean(programmingCover);
             ByteBufUtils.writeUTF8String(buf, reason);
