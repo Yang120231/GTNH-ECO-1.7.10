@@ -95,6 +95,47 @@ class PatternTargetGroupsTest {
     }
 
     @Test
+    void hatchesOfOneMachineInOneModeShareARowDespiteDifferentNamesOrCircuits() {
+        Evaluation first = evaluation(
+            target("a", "Hatch [1]"),
+            machine(1, "0:1:2:3@gt.recipe.cutter", "gt.recipe.cutter"),
+            SlotState.FREE,
+            30,
+            36);
+        Evaluation second = evaluation(
+            target("b", "Hatch [2]"),
+            machine(2, "0:1:2:3@gt.recipe.cutter", "gt.recipe.cutter"),
+            SlotState.FREE,
+            17,
+            36);
+        // A parallel twin with the same key as the first hatch joins through it.
+        Evaluation twin = evaluation(
+            target("c", "Hatch [1]"),
+            machine(1, "0:9:9:9@gt.recipe.cutter", "gt.recipe.cutter"),
+            SlotState.FULL,
+            0,
+            36);
+        // The same machine in another mode never merges.
+        Evaluation otherMode = evaluation(
+            target("d", "Hatch [1]"),
+            machine(1, "0:1:2:3@gt.recipe.lathe", "gt.recipe.lathe"),
+            SlotState.FREE,
+            5,
+            36);
+
+        List<PatternTargetGroups.Group> groups = PatternTargetGroups
+            .group(Arrays.asList(first, second, twin, otherMode));
+
+        assertEquals(2, groups.size());
+        PatternTargetGroups.Group merged = groups.get(0);
+        assertEquals(3, merged.members.size());
+        assertEquals(47, merged.emptySlots);
+        assertEquals(108, merged.totalSlots);
+        assertSame(first, merged.position());
+        assertEquals(1, groups.get(1).members.size());
+    }
+
+    @Test
     void groupsAreOrderedByTheirBestMemberWithOfflineLast() {
         Evaluation offline = evaluation(target("a", "Offline"), exact(1), SlotState.OFFLINE, 0, 0);
         Evaluation unverified = evaluation(
@@ -220,6 +261,18 @@ class PatternTargetGroupsTest {
 
     private static MatchResult exact(int circuit) {
         return new MatchResult(MatchResult.Level.EXACT, null, circuit(circuit), "route", null, "map#" + circuit, false);
+    }
+
+    private static MatchResult machine(int circuit, String machine, String map) {
+        return new MatchResult(
+            MatchResult.Level.EXACT,
+            null,
+            circuit(circuit),
+            "Machine" + map,
+            null,
+            map + "#" + circuit,
+            false,
+            machine);
     }
 
     private static ItemStack circuit(int number) {

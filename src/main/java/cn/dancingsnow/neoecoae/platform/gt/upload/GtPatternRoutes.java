@@ -76,13 +76,17 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         final ItemStack icon;
         final String name;
         final boolean programmingCover;
+        /** Position of the machine this route feeds plus its current mode; null when unknown. */
+        final String machine;
 
-        Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, boolean programmingCover) {
+        Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, boolean programmingCover,
+            String machine) {
             this.map = map;
             this.circuit = circuit;
             this.icon = icon;
             this.name = name;
             this.programmingCover = programmingCover;
+            this.machine = machine;
         }
     }
 
@@ -131,7 +135,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             best.route.name,
             best.route.icon,
             signature,
-            best.route.programmingCover || programmable && programmingCircuit);
+            best.route.programmingCover || programmable && programmingCircuit,
+            best.route.machine);
     }
 
     private static Candidate evaluate(GtRecipeVerifier.Cache verdicts, Route route, PatternContext context,
@@ -215,11 +220,25 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                     // The controller's live mode. A hatch's own map is only refreshed by a structure check, so after
                     // a screwdriver mode switch it still names the previous mode.
                     ItemStack ownerIcon = icon(owner);
-                    add(routes, ownerMap, circuit, ownerIcon, name(ownerIcon, owner, ownerMap), false);
+                    add(
+                        routes,
+                        ownerMap,
+                        circuit,
+                        ownerIcon,
+                        name(ownerIcon, owner, ownerMap),
+                        false,
+                        machineKey(owner, ownerMap));
                 } else {
                     RecipeMap<?> map = recipeMap(machine);
                     ItemStack icon = icon(machine);
-                    if (map != null) add(routes, map, circuit, icon, name(icon, machine, map), false);
+                    if (map != null) add(
+                        routes,
+                        map,
+                        circuit,
+                        icon,
+                        name(icon, machine, map),
+                        false,
+                        machine instanceof RecipeMapWorkable ? machineKey(machine, map) : null);
                 }
             }
             if (host instanceof IInterfaceHost) {
@@ -251,7 +270,9 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                         circuit(machine),
                         icon,
                         name(icon, owner != null ? owner : machine, map),
-                        hasProgrammingCover((IGregTechTileEntity) adjacent));
+                        hasProgrammingCover((IGregTechTileEntity) adjacent),
+                        owner != null ? machineKey(owner, map)
+                            : machine instanceof RecipeMapWorkable ? machineKey(machine, map) : null);
                 }
             }
         } catch (RuntimeException rebuilding) {
@@ -261,11 +282,25 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     private static void add(List<Route> routes, RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name,
-        boolean cover) {
+        boolean cover, String machine) {
         for (Route route : routes)
             if (route.map == map && (route.circuit == null ? circuit == null : GtCircuits.same(route.circuit, circuit)))
                 return;
-        routes.add(new Route(map, circuit, icon, name, cover));
+        routes.add(new Route(map, circuit, icon, name, cover, machine));
+    }
+
+    /** The machine's world position plus the mode it runs in, so one machine in two modes never shares a row. */
+    private static String machineKey(IMetaTileEntity machine, RecipeMap<?> map) {
+        IGregTechTileEntity base = machine.getBaseMetaTileEntity();
+        if (base == null || base.getWorld() == null || map == null) return null;
+        return base.getWorld().provider.dimensionId + ":"
+            + base.getXCoord()
+            + ":"
+            + base.getYCoord()
+            + ":"
+            + base.getZCoord()
+            + "@"
+            + map.unlocalizedName;
     }
 
     private static RecipeMap<?> recipeMap(IMetaTileEntity machine) {

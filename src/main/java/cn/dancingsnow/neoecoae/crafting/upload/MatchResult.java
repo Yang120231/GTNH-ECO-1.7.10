@@ -38,9 +38,19 @@ public final class MatchResult {
     /** Recipe map and circuit of the selected route; different signatures among auto candidates are ambiguous. */
     public final String routeSignature;
     public final boolean programmingCover;
+    /**
+     * The formed machine and mode the route feeds (e.g. a GT controller position plus its recipe map), or null. Pattern
+     * hosts of the same machine in the same mode fold into one list row even when their own names or circuits differ.
+     */
+    public final String machine;
 
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover) {
+        this(level, reason, circuit, routeName, routeIcon, routeSignature, programmingCover, null);
+    }
+
+    public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
+        String routeSignature, boolean programmingCover, String machine) {
         this.level = level;
         this.reason = reason;
         this.circuit = circuit == null ? null : circuit.copy();
@@ -48,6 +58,7 @@ public final class MatchResult {
         this.routeIcon = routeIcon == null ? null : routeIcon.copy();
         this.routeSignature = routeSignature == null ? "" : routeSignature;
         this.programmingCover = programmingCover;
+        this.machine = machine == null || machine.isEmpty() ? null : machine;
     }
 
     public static MatchResult of(Level level) {

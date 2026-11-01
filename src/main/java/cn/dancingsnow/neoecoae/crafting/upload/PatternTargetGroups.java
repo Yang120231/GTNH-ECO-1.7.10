@@ -13,8 +13,9 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetSelector.SlotState;
 
 /**
  * Folds target evaluations into list rows. Hosts of the same kind, name, route, match level, route signature, circuit
- * and programming cover are interchangeable for the player (typically parallel machines), so they share one row and
- * one server-issued token; the server picks the member to write at submit time.
+ * and programming cover are interchangeable for the player (typically parallel machines), and pattern hosts of one
+ * machine in one mode feed the same machine, so each set shares one row and one server-issued token; the server picks
+ * the member to write at submit time.
  *
  * <p>
  * Tokens are kept for a group key that is still present after a refresh, so a click sent against the previous list
@@ -144,19 +145,71 @@ public final class PatternTargetGroups {
         groups = Collections.emptyList();
     }
 
-    /** Pure grouping, sorted best group first. */
+    /**
+     * Pure grouping, sorted best group first. Hosts join one group when they share a {@link #key} (interchangeable
+     * parallel machines) or feed the same machine in the same mode ({@link #machineKey}), e.g. several pattern hatches
+     * of one multiblock whose own names or ghost circuits differ.
+     */
     public static List<Group> group(List<Evaluation> evaluations) {
-        Map<String, List<Evaluation>> byKey = new LinkedHashMap<>();
-        for (Evaluation evaluation : evaluations) byKey.computeIfAbsent(key(evaluation), ignored -> new ArrayList<>())
-            .add(evaluation);
-        List<Group> result = new ArrayList<>(byKey.size());
-        for (Map.Entry<String, List<Evaluation>> entry : byKey.entrySet()) {
+        int size = evaluations.size();
+        int[] parent = new int[size];
+        for (int index = 0; index < size; index++) parent[index] = index;
+        Map<String, Integer> firstByKey = new HashMap<>();
+        Map<String, Integer> firstByMachine = new HashMap<>();
+        String[] keys = new String[size];
+        for (int index = 0; index < size; index++) {
+            Evaluation evaluation = evaluations.get(index);
+            keys[index] = key(evaluation);
+            Integer same = firstByKey.putIfAbsent(keys[index], index);
+            if (same != null) union(parent, same, index);
+            String machine = machineKey(evaluation);
+            if (machine == null) continue;
+            same = firstByMachine.putIfAbsent(machine, index);
+            if (same != null) union(parent, same, index);
+        }
+        Map<Integer, List<Evaluation>> byRoot = new LinkedHashMap<>();
+        Map<Integer, String> keyByRoot = new HashMap<>();
+        for (int index = 0; index < size; index++) {
+            int root = find(parent, index);
+            byRoot.computeIfAbsent(root, ignored -> new ArrayList<>())
+                .add(evaluations.get(index));
+            // The smallest member key names the group, so its token survives a refresh in any discovery order.
+            String current = keyByRoot.get(root);
+            if (current == null || keys[index].compareTo(current) < 0) keyByRoot.put(root, keys[index]);
+        }
+        List<Group> result = new ArrayList<>(byRoot.size());
+        for (Map.Entry<Integer, List<Evaluation>> entry : byRoot.entrySet()) {
             List<Evaluation> members = entry.getValue();
             members.sort(PatternTargetSelector.ORDER);
-            result.add(new Group(entry.getKey(), members));
+            result.add(new Group(keyByRoot.get(entry.getKey()), members));
         }
         result.sort(GROUP_ORDER);
         return result;
+    }
+
+    private static int find(int[] parent, int index) {
+        while (parent[index] != index) {
+            parent[index] = parent[parent[index]];
+            index = parent[index];
+        }
+        return index;
+    }
+
+    private static void union(int[] parent, int left, int right) {
+        int a = find(parent, left), b = find(parent, right);
+        if (a != b) parent[Math.max(a, b)] = Math.min(a, b);
+    }
+
+    /**
+     * Same machine and mode, host kind, match level and programming cover; null when the route names no machine. The
+     * host's own name and circuit are left out on purpose: a match level that stays equal already proves each hatch
+     * can run the pattern.
+     */
+    public static String machineKey(Evaluation evaluation) {
+        MatchResult match = evaluation.match;
+        if (match.machine == null) return null;
+        return evaluation.target.kind()
+            .name() + '' + match.machine + '' + match.level.name() + '' + match.programmingCover;
     }
 
     public static String key(Evaluation evaluation) {
