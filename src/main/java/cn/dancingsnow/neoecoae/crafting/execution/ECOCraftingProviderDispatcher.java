@@ -54,14 +54,19 @@ final class ECOCraftingProviderDispatcher {
     }
 
     boolean isEligible(ICraftingProvider provider, IPatternDetails pattern, ECOCraftingDispatchBudget budget) {
-        if (NativeProviderAdapters.isEnabled(provider)) return budget.canAttemptOrdinary();
+        if (NativeProviderAdapters.isEnabled(provider))
+            return budget.canAttemptOrdinary() || processing.mayAttemptScaled(provider, pattern);
         // The ordinary one-copy budget must not hide a target whose batch lane still has submissions left.
         return budget.canAttemptOrdinary() || fastPath.supportsBatch(provider)
             || ECOParallelCraftingProviders.find(provider) != null
             || processing.mayAttemptScaled(provider, pattern);
     }
 
-    /** Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384). */
+    /**
+     * Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384). GT's ME
+     * crafting input hatches are exempt: they are never busy and store every push whole, so they always receive
+     * everything.
+     */
     private long dispatchLimit() {
         if (owner == null || owner.cpu == null) return Long.MAX_VALUE;
         var host = owner.cpu.getCluster();
@@ -76,8 +81,8 @@ final class ECOCraftingProviderDispatcher {
     Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, List<ICraftingProvider> providers,
         ECOCraftingDispatchBudget budget, IEnergyGrid energyService, ECODispatchStallDiagnostics diagnostics,
         Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
-        long limit = dispatchLimit();
-        var request = originalRequest.allowedCrafts() <= limit ? originalRequest
+        long cappedLimit = dispatchLimit();
+        var cappedRequest = originalRequest.allowedCrafts() <= cappedLimit ? originalRequest
             : new ECOCraftingDispatchRequest(
                 originalRequest.job(),
                 originalRequest.candidate(),
@@ -85,12 +90,15 @@ final class ECOCraftingProviderDispatcher {
                 originalRequest.inputs(),
                 originalRequest.outputs(),
                 originalRequest.remainders(),
-                limit,
+                cappedLimit,
                 originalRequest.inventory(),
                 originalRequest.level());
-        double singlePower = CraftingCpuHelper.calculatePatternPower(request.inputs());
+        double singlePower = CraftingCpuHelper.calculatePatternPower(originalRequest.inputs());
 
         for (var provider : providers) {
+            boolean uncapped = isUnboundedHatch(provider);
+            long limit = uncapped ? Long.MAX_VALUE : cappedLimit;
+            var request = uncapped ? originalRequest : cappedRequest;
 
             boolean blocking = NativeProviderAdapters.isEnabled(provider);
             if (!blocking && request.job().exactOrder) {
@@ -102,7 +110,8 @@ final class ECOCraftingProviderDispatcher {
                     .accepted(cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(exact), true);
                 if (request.job().suspended) return Result.none();
             }
-            boolean scaledProvider = !blocking && processing.supportsScaledDispatchCached(request, provider);
+            // Blocking interfaces join the scaled lane too (smart doubling); eligibility excludes crafting locks.
+            boolean scaledProvider = processing.supportsScaledDispatchCached(request, provider);
             if (scaledProvider) {
                 if (processing.isScaledAttemptBudgetExhausted(request.pattern())) {
                     // Exhausted submissions pause this pattern until the next tick; the provider did not fail.
@@ -122,6 +131,8 @@ final class ECOCraftingProviderDispatcher {
                         return Result.accepted(scaledProcessingResult.acceptedCrafts(), true);
                     }
                     if (request.job().suspended) return Result.none();
+                    // Refused because the target is occupied or locked: a one-copy push would be refused too.
+                    if (blocking && processing.isScaledFallbackDeferred(request, provider)) continue;
                 }
                 // A scaled adapter is an optimization boundary. Its eligibility can be
                 // valid while the live target rejects the current offer (stale target,
@@ -301,6 +312,12 @@ final class ECOCraftingProviderDispatcher {
         }
         diagnostics.progress(TickClock.currentTick());
         return Result.accepted(accepted, false);
+    }
+
+    private static boolean isUnboundedHatch(ICraftingProvider provider) {
+        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
+                .isUnboundedPatternHatch();
     }
 
     private static void failAmbiguousDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,

@@ -80,7 +80,7 @@ final class ECOProcessingPatternDispatcher {
 
     /** Whether a scaled provider may still receive a submission for this pattern this tick. */
     boolean mayAttemptScaled(ICraftingProvider provider, IPatternDetails pattern) {
-        return !isScaledAttemptBudgetExhausted(pattern) && !NativeProviderAdapters.isEnabled(provider)
+        return !isScaledAttemptBudgetExhausted(pattern) && scaledTransportAllowed(provider)
             && provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
             && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
                 .supportsScaledProcessing();
@@ -124,7 +124,7 @@ final class ECOProcessingPatternDispatcher {
     ECOCraftingDispatchResult tryScaledDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
         double onePower, IEnergyGrid service, Consumer<ICraftingProvider> mark,
         ECOCraftingProviderDispatcher.ECOCraftingNormalPush normalPush) {
-        if (NativeProviderAdapters.isEnabled(provider) || isScaledAttemptBudgetExhausted(request.pattern())
+        if (!scaledTransportAllowed(provider) || isScaledAttemptBudgetExhausted(request.pattern())
             || isScaledDispatchDeferred(request, provider)
             || !supportsScaledDispatchCached(request, provider)) return null;
         Object logic = providerLogic(provider);
@@ -132,6 +132,8 @@ final class ECOProcessingPatternDispatcher {
         // bounded only by the hatch's own int-stack representation. The first rejection hands control back to
         // the normal probing ramp.
         boolean offerAll = isUnboundedTarget(provider);
+        // A plain-blocking interface takes exactly one push per empty target: that push carries the learned size.
+        boolean singlePush = isSinglePushTarget(provider);
         long transportLimit = offerAll
             ? cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
                 .unboundedHatchCopyLimit(request.inputs())
@@ -148,7 +150,7 @@ final class ECOProcessingPatternDispatcher {
         while (ramp.owned < limit && !isScaledAttemptBudgetExhausted(request.pattern())
             && visitAttempts < MAX_ATTEMPTS_PER_VISIT
             && !provider.isBusy()
-            && !NativeProviderAdapters.isEnabled(provider)) {
+            && scaledTransportAllowed(provider)) {
             claimAttempt(request.pattern());
             visitAttempts++;
             long offer = Math.min(offerAll ? limit - ramp.owned : ramp.offer(limit - ramp.owned), transportLimit);
@@ -164,6 +166,7 @@ final class ECOProcessingPatternDispatcher {
                 cachedCopies = offer;
             }
             IPatternDetails executionPattern = cachedExecutionPattern;
+            boolean[] pushed = new boolean[1];
             ECOBatchAdmission admission;
             try {
                 admission = ECOBatchExecutor.execute(
@@ -191,6 +194,7 @@ final class ECOProcessingPatternDispatcher {
                             batch.craftCount(),
                             request.inventory(),
                             request.level());
+                        pushed[0] = true;
                         return normalPush.push(scaledRequest, provider)
                             ? ECOBatchAdmission.accepted(batch.craftCount(), fullyInserted(logic))
                             : ECOBatchAdmission.rejected();
@@ -205,6 +209,12 @@ final class ECOProcessingPatternDispatcher {
                 throw failure;
             }
             if (admission.status() != ECOBatchAdmission.Status.ACCEPTED) {
+                if (pushed[0] && wasRejectedByBlocking(provider)) {
+                    // Occupied or locked target: retry next tick with the same size; the one-copy fallback would
+                    // be refused for the same reason.
+                    state.nextDispatchTick = state.nextFallbackTick = tick + 1;
+                    break;
+                }
                 offerAll = false;
                 if (ramp.record(offer, 0, false, tick)) continue;
                 break;
@@ -218,6 +228,7 @@ final class ECOProcessingPatternDispatcher {
                 throw failure;
             }
             if (!ramp.record(offer, admission.acceptedCrafts(), admission.canContinue(), tick)) break;
+            if (singlePush) break;
             if (offerAll && offer == transportLimit) {
                 // The hatch's stack-list growth, not a craft budget, bounds one tick for this target.
                 state.nextDispatchTick = state.nextFallbackTick = tick + 1;
@@ -246,6 +257,25 @@ final class ECOProcessingPatternDispatcher {
                 .isUnboundedPatternHatch();
     }
 
+    /** Non-blocking providers, plus blocking interfaces that ECO may size with smart doubling. */
+    static boolean scaledTransportAllowed(ICraftingProvider provider) {
+        if (!NativeProviderAdapters.isEnabled(provider)) return true;
+        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
+                .allowsScaledWhileBlocking();
+    }
+
+    private static boolean isSinglePushTarget(ICraftingProvider provider) {
+        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider).isSinglePushPerVisit();
+    }
+
+    private static boolean wasRejectedByBlocking(ICraftingProvider provider) {
+        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
+            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
+                .wasRejectedByBlocking();
+    }
+
     private static boolean isProcessingPattern(Object pattern) {
         return pattern instanceof AEProcessingPattern;
     }
@@ -260,7 +290,7 @@ final class ECOProcessingPatternDispatcher {
      * Acceptance transfers the entire chunk; the send buffer separately determines capacity proof.
      */
     static boolean supportsScaledDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider) {
-        if (NativeProviderAdapters.isEnabled(provider)
+        if (!scaledTransportAllowed(provider)
             || !(provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider))
             return false;
         if (provider instanceof ECOParallelCraftingProvider) return false;

@@ -107,8 +107,48 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return medium.getBlockingMode() != ICraftingMedium.BlockingMode.NONE;
     }
 
+    /**
+     * GT's ME crafting input hatches, and AE2 interfaces of every host (block, part, AE2FC dual interface, P2P
+     * interface tunnel). An interface with any crafting-lock mode keeps one copy per push: pulse/redstone locks meter
+     * pushes on purpose, and LOCK_UNTIL_RESULT unlocks on one copy's outputs.
+     */
     public boolean supportsScaledProcessing() {
-        return medium.getClass() == appeng.helpers.DualityInterface.class || isUnboundedPatternHatch();
+        if (isUnboundedPatternHatch()) return true;
+        return medium instanceof appeng.helpers.DualityInterface
+            && !hasCraftingLock((appeng.helpers.DualityInterface) medium);
+    }
+
+    static boolean hasCraftingLock(appeng.helpers.DualityInterface medium) {
+        return isCraftingLocked(medium.getConfigManager());
+    }
+
+    /** Any configured LOCK_CRAFTING_MODE other than NONE, whether or not it is currently holding the interface. */
+    public static boolean isCraftingLocked(appeng.api.util.IConfigManager config) {
+        if (config == null) return false;
+        var mode = config.getSetting(appeng.api.config.Settings.LOCK_CRAFTING_MODE);
+        return mode != null && mode != appeng.api.config.LockCraftingMode.NONE;
+    }
+
+    /**
+     * Smart doubling for blocking interfaces: AE2's own pushPattern still decides whether the target counts as empty
+     * (advanced blocking card, GT ignored items, smart-blocking hash), ECO only sizes the single push.
+     */
+    public boolean allowsScaledWhileBlocking() {
+        return medium instanceof appeng.helpers.DualityInterface && supportsScaledProcessing();
+    }
+
+    /** Plain blocking accepts one push per empty target; smart blocking keeps accepting the same pattern. */
+    public boolean isSinglePushPerVisit() {
+        return medium.getBlockingMode() == ICraftingMedium.BlockingMode.BLOCKING;
+    }
+
+    /**
+     * Whether the last rejected push was refused because the target was occupied or locked. Such a rejection says
+     * nothing about how many copies fit, so it must not shrink the learned batch size.
+     */
+    public boolean wasRejectedByBlocking() {
+        var reason = medium.getScheduledReason();
+        return reason == appeng.util.ScheduledReason.BLOCKING_MODE || reason == appeng.util.ScheduledReason.LOCK_MODE;
     }
 
     /**
@@ -150,7 +190,7 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
 
     public boolean isScaledProcessingFullyInserted() {
         if (unboundedPatternHatch) return true;
-        return medium.getClass() == appeng.helpers.DualityInterface.class
+        return medium instanceof appeng.helpers.DualityInterface
             && NativeProcessingAccess.isSendBufferEmpty((appeng.helpers.DualityInterface) medium);
     }
 
