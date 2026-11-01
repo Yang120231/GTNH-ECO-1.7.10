@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.platform.ui.upload;
 
-import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.BACKGROUND;
-import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.BORDER;
 import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.CHECK;
 import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.DIVIDER;
 import static cn.dancingsnow.neoecoae.platform.ui.upload.UploadRowTooltip.GOOD;
@@ -101,8 +99,7 @@ final class UploadButtonTooltip {
         GL11.glTranslatef(0, 0, 400);
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
-        UploadDraw.rect(x - 1, y - 1, x + width + 1, y + height + 1, BORDER);
-        UploadDraw.rect(x, y, x + width, y + height, BACKGROUND);
+        UploadDraw.vanillaTooltipFrame(x - 1, y - 1, x + width + 1, y + height + 1);
         layout(x, y, width, true);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glPopMatrix();

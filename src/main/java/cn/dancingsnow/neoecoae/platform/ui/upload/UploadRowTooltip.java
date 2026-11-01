@@ -18,7 +18,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 final class UploadRowTooltip {
 
-    static final int BACKGROUND = 0xF4140F1E, BORDER = 0xFF33284A, CARD = 0xFF261C36, DIVIDER = 0x30FFFFFF;
+    static final int CARD = 0xFF261C36, DIVIDER = 0x30FFFFFF;
     static final int TEXT = 0xFFF0ECF8, MUTED = 0xFFA79FB8, MODE = 0xFFB89CE6, BADGE = 0xFF3D2F57;
     static final int GOOD = 0xFF6EDB8F, WARN = 0xFFE6B84A, BAD = 0xFFE36A6A;
     private static final float SMALL = 0.75F;
@@ -58,8 +58,7 @@ final class UploadRowTooltip {
         GL11.glPushMatrix();
         GL11.glTranslatef(0, 0, 400);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
-        UploadDraw.rect(x - 1, y - 1, x + width + 1, y + height + 1, BORDER);
-        UploadDraw.rect(x, y, x + width, y + height, BACKGROUND);
+        UploadDraw.vanillaTooltipFrame(x - 1, y - 1, x + width + 1, y + height + 1);
         layout(x, y, width, true);
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glPopMatrix();
