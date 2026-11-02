@@ -31,20 +31,36 @@ class ECOProcessingExecutionPatternTest {
 
     /** A provider's value-based recipe contract, independently decoded for the task and catalog. */
     private static final class ContentPattern implements IPatternDetails {
+
         private final String recipe;
 
         private ContentPattern(String recipe) {
             this.recipe = recipe;
         }
 
-        @Override public AEItemKey getDefinition() { return null; }
-        @Override public IInput[] getInputs() { return new IInput[0]; }
-        @Override public List<GenericStack> getOutputs() { return Collections.emptyList(); }
+        @Override
+        public AEItemKey getDefinition() {
+            return null;
+        }
 
-        @Override public boolean equals(Object other) {
+        @Override
+        public IInput[] getInputs() {
+            return new IInput[0];
+        }
+
+        @Override
+        public List<GenericStack> getOutputs() {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public boolean equals(Object other) {
             return other instanceof ContentPattern && recipe.equals(((ContentPattern) other).recipe);
         }
 
-        @Override public int hashCode() { return recipe.hashCode(); }
+        @Override
+        public int hashCode() {
+            return recipe.hashCode();
+        }
     }
 }

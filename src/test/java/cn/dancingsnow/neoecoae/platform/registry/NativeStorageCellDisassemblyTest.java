@@ -44,8 +44,10 @@ class NativeStorageCellDisassemblyTest {
         var world = mock(World.class);
 
         try (var recipes = mockStatic(StorageRecipes.class)) {
-            recipes.when(() -> StorageRecipes.disassemble(item)).thenAnswer(ignored -> new ArrayList<>(
-                Arrays.asList(new ItemStack(TestItems.IRON_INGOT, 3), new ItemStack(TestItems.DIAMOND, 1))));
+            recipes.when(() -> StorageRecipes.disassemble(item))
+                .thenAnswer(
+                    ignored -> new ArrayList<>(
+                        Arrays.asList(new ItemStack(TestItems.IRON_INGOT, 3), new ItemStack(TestItems.DIAMOND, 1))));
             assertSame(disk, item.onItemRightClick(disk, world, player));
             assertNull(player.inventory.getCurrentItem());
             // Vanilla can restore the returned stack's creative count without restoring its inventory slot.
