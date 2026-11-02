@@ -15,6 +15,7 @@ import cn.dancingsnow.neoecoae.crafting.planner.graph.CondensationGraph;
 import cn.dancingsnow.neoecoae.crafting.planner.graph.CraftingDependencyGraph;
 import cn.dancingsnow.neoecoae.crafting.planner.graph.CraftingGraphEdge;
 import cn.dancingsnow.neoecoae.crafting.planner.graph.CraftingGraphNode;
+import cn.dancingsnow.neoecoae.crafting.planner.graph.CycleStructure;
 import cn.dancingsnow.neoecoae.crafting.planner.graph.SccComponent;
 import cn.dancingsnow.neoecoae.crafting.planner.graph.TarjanSccAnalyzer;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
@@ -73,9 +74,8 @@ public final class ActiveRouteSelector {
             candidatesByKey.put(key, fastCandidates(universe, key));
         }
         if (!avoidCycles) {
-            CraftingDependencyGraph active = activeGraph(universe, choices, candidatesByKey, cancellation);
-            List<SccComponent> sccs = tarjan.analyze(active, cancellation);
-            CondensationGraph condensation = CondensationGraph.build(active, sccs, cancellation);
+            Analysis analysis = analyze(activeGraph(universe, choices, candidatesByKey, cancellation), cancellation);
+            CondensationGraph condensation = CondensationGraph.build(analysis.graph(), analysis.sccs(), cancellation);
             List<CycleComponent> cycles = condensation.cycles();
             return new Selection(
                 cycles.isEmpty(),
@@ -89,19 +89,19 @@ public final class ActiveRouteSelector {
         RouteWorkBudget budget = RouteWorkBudget.create(universe, candidatesByKey);
         CraftingDependencyGraph initialActive = activeGraph(universe, choices, candidatesByKey, cancellation);
         if (!budget.consume(budget.analysisWork())) {
-            List<SccComponent> sccs = tarjan.analyze(initialActive, cancellation);
-            return finish(choices, sccs, initialActive, deferred, true, cancellation);
+            Analysis exhausted = analyze(initialActive, cancellation);
+            return finish(choices, exhausted.sccs(), exhausted.graph(), deferred, true, cancellation);
         }
-        List<SccComponent> initialSccs = tarjan.analyze(initialActive, cancellation);
-        List<SccComponent> cyclic = cyclicComponents(initialSccs);
+        Analysis initial = analyze(initialActive, cancellation);
+        List<SccComponent> cyclic = cyclicComponents(initial.sccs());
         if (cyclic.isEmpty()) {
-            return finish(choices, initialSccs, initialActive, deferred, false, cancellation);
+            return finish(choices, initial.sccs(), initial.graph(), deferred, false, cancellation);
         }
 
         Set<List<Integer>> visited = new HashSet<>();
         visited.add(choiceVector(universe, choices));
         ArrayDeque<SearchFrame> frames = new ArrayDeque<>();
-        Analysis current = new Analysis(initialActive, initialSccs);
+        Analysis current = initial;
         while (true) {
             cancellation.checkpoint();
             cyclic = cyclicComponents(current.sccs());
@@ -126,7 +126,7 @@ public final class ActiveRouteSelector {
             }
             if (!advanceSearch(frames, choices, candidatesByKey, deferred, universe, visited)) {
                 // All bounded combinations were exhausted. The root state is restored by advanceSearch.
-                return finish(choices, initialSccs, initialActive, deferred, false, cancellation);
+                return finish(choices, initial.sccs(), initial.graph(), deferred, false, cancellation);
             }
 
             if (!budget.consume(budget.analysisWork())) {
@@ -137,9 +137,7 @@ public final class ActiveRouteSelector {
                 }
                 return finish(choices, current.sccs(), current.graph(), deferred, true, cancellation);
             }
-            CraftingDependencyGraph active = activeGraph(universe, choices, candidatesByKey, cancellation);
-            List<SccComponent> sccs = tarjan.analyze(active, cancellation);
-            current = new Analysis(active, sccs);
+            current = analyze(activeGraph(universe, choices, candidatesByKey, cancellation), cancellation);
         }
     }
 
@@ -157,11 +155,11 @@ public final class ActiveRouteSelector {
             .indexOf(pattern);
         if (index < 0) throw new IllegalArgumentException("Pattern is not a supported producer of " + key);
         choices.put(key, index);
-        CraftingDependencyGraph active = activeGraph(universe, choices, candidatesByKey, cancellation);
+        Analysis analysis = analyze(activeGraph(universe, choices, candidatesByKey, cancellation), cancellation);
         return finish(
             choices,
-            tarjan.analyze(active, cancellation),
-            active,
+            analysis.sccs(),
+            analysis.graph(),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
             false,
             cancellation);
@@ -172,14 +170,43 @@ public final class ActiveRouteSelector {
         Map<AEKey, List<CompiledPattern>> candidates = new LinkedHashMap<>();
         for (AEKey key : universe.nodes()
             .keySet()) candidates.put(key, fastCandidates(universe, key));
-        CraftingDependencyGraph active = activeGraph(universe, choices, candidates, cancellation);
+        Analysis analysis = analyze(activeGraph(universe, choices, candidates, cancellation), cancellation);
         return finish(
             choices,
-            tarjan.analyze(active, cancellation),
-            active,
+            analysis.sccs(),
+            analysis.graph(),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
             false,
             cancellation);
+    }
+
+    /**
+     * Tarjan over the active route, without byproduct-ordering edges that close no material loop.
+     *
+     * <p>
+     * {@link cn.dancingsnow.neoecoae.crafting.planner.graph.PatternDependencyEdges} links every byproduct to its
+     * pattern's primary output so a byproduct consumer is scheduled after the pattern. Byproducts that cross-link
+     * chains (A's pattern also yields B, B's pattern also yields A) therefore close rings that move no material.
+     * Such a ring needs no seed and no cycle solver: the DAG pass still credits byproducts through its joint-output
+     * demand queue and rejects a credit that would form a real supplier cycle. An ordering edge whose byproduct is
+     * made from inputs inside the same material core is kept, so real feedback (a byproduct converted back into
+     * its own pattern's input, seeds, catalysts, returned containers) still forms its cycle component.
+     * </p>
+     */
+    private Analysis analyze(CraftingDependencyGraph active, ECOCancellation cancellation) throws InterruptedException {
+        List<SccComponent> sccs = tarjan.analyze(active, cancellation);
+        Set<CraftingGraphEdge> dropped = new HashSet<>();
+        for (SccComponent scc : sccs) {
+            cancellation.checkpoint();
+            if (scc.cyclic()) dropped.addAll(CycleStructure.redundantOrderingEdges(scc.members(), scc.internalEdges()));
+        }
+        if (dropped.isEmpty()) return new Analysis(active, sccs);
+        List<CraftingGraphEdge> kept = new ArrayList<>(
+            active.edges()
+                .size() - dropped.size());
+        for (CraftingGraphEdge edge : active.edges()) if (!dropped.contains(edge)) kept.add(edge);
+        CraftingDependencyGraph pruned = new CraftingDependencyGraph(active.goal(), active.nodes(), kept);
+        return new Analysis(pruned, tarjan.analyze(pruned, cancellation));
     }
 
     private static Selection finish(Map<AEKey, Integer> choices, List<SccComponent> sccs,

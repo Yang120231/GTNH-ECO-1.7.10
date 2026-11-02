@@ -40,6 +40,7 @@ import cn.dancingsnow.neoecoae.crafting.planner.trace.PlannerDiagnostic;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
+import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
@@ -58,6 +59,8 @@ public final class ComponentPlanner {
     private final CycleSolver cycleSolver;
     private final ActiveRouteSelector activeRouteSelector;
     private final int maxRouteAttempts;
+    /** Alternative producer routes get at most 1/N of the session's configured work and time. */
+    private static final long ALTERNATIVE_ROUTE_SHARE = 5L;
 
     public ComponentPlanner(AcyclicCraftingSolver acyclicSolver, CycleSolver cycleSolver) {
         this(acyclicSolver, cycleSolver, 0);
@@ -74,18 +77,25 @@ public final class ComponentPlanner {
 
     public Outcome plan(CompiledNetwork network, CondensationGraph condensation, KeyCounter inventory, long amount,
         boolean cyclePlanningEnabled, ECOCancellation cancellation) throws InterruptedException {
-        ActiveRouteSelector.Selection activeSelection = selectRoutes(condensation, cyclePlanningEnabled, cancellation);
-        return plan(network, activeSelection, inventory, amount, cyclePlanningEnabled, false, cancellation);
+        return plan(
+            network,
+            condensation,
+            inventory,
+            PlannerInventorySnapshot.of(inventory),
+            amount,
+            cyclePlanningEnabled,
+            false,
+            cancellation);
     }
 
     public Outcome plan(CompiledNetwork network, CondensationGraph condensation, KeyCounter inventory, long amount,
         boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
         throws InterruptedException {
-        ActiveRouteSelector.Selection activeSelection = selectRoutes(condensation, cyclePlanningEnabled, cancellation);
         return plan(
             network,
-            activeSelection,
+            condensation,
             inventory,
+            PlannerInventorySnapshot.of(inventory),
             amount,
             cyclePlanningEnabled,
             ignorePatternSubstitutions,
@@ -96,9 +106,10 @@ public final class ComponentPlanner {
         PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
         boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
         ActiveRouteSelector.Selection activeSelection = selectRoutes(condensation, cyclePlanningEnabled, cancellation);
-        return plan(
+        return planWithSeedScope(
             network,
             activeSelection,
+            condensation.cycles(),
             inventory,
             snapshot,
             amount,
@@ -152,27 +163,60 @@ public final class ComponentPlanner {
     public Outcome plan(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection, KeyCounter inventory,
         PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
         boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
-        if (!(cancellation instanceof ECOPlanningBudget)) cancellation = new ECOPlanningBudget(cancellation);
-        ExternalDemandPlanner externalDemandPlanner = new ExternalDemandPlanner(acyclicSolver);
-        return plan(
+        return planWithSeedScope(
             network,
             activeSelection,
+            activeSelection.cyclicComponents(),
             inventory,
             snapshot,
+            amount,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            cancellation);
+    }
+
+    private Outcome planWithSeedScope(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection,
+        List<CycleComponent> seedScope, KeyCounter inventory, PlannerInventorySnapshot snapshot, long amount,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
+        if (!(cancellation instanceof ECOPlanningBudget)) cancellation = new ECOPlanningBudget(cancellation);
+        ExternalDemandPlanner externalDemandPlanner = new ExternalDemandPlanner(acyclicSolver);
+        SeedFloors seeds = seedFloors(network, seedScope, snapshot, cyclePlanningEnabled, cancellation);
+        Outcome outcome = plan(
+            network,
+            activeSelection,
+            seeds.reduce(inventory),
+            seeds.reduce(snapshot),
             amount,
             cyclePlanningEnabled,
             ignorePatternSubstitutions,
             cancellation,
             new CycleFailureCache(cycleSolver),
             externalDemandPlanner,
+            seeds,
             false);
+        seeds.report(outcome.trace());
+        return outcome;
     }
 
+    /** Strict seed retention applies only when the planner may run cycles at all. */
+    private SeedFloors seedFloors(CompiledNetwork network, List<CycleComponent> scope,
+        PlannerInventorySnapshot snapshot, boolean cyclePlanningEnabled, ECOCancellation cancellation)
+        throws InterruptedException {
+        return cyclePlanningEnabled ? SeedFloors.compute(network, scope, snapshot, cycleSolver, cancellation)
+            : SeedFloors.NONE;
+    }
+
+    /**
+     * {@code inventory} and {@code snapshot} already exclude the seeds reserved by {@code seeds}. Retention is not an
+     * optional improvement: the first published plan keeps every reserved seed, or reports what is missing.
+     */
     private Outcome plan(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection, KeyCounter inventory,
         PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
         boolean ignorePatternSubstitutions, ECOCancellation cancellation, CycleFailureCache failures,
-        ExternalDemandPlanner externalDemandPlanner, boolean stopAtFirstFailure) throws InterruptedException {
-        Outcome plain = planRoute(
+        ExternalDemandPlanner externalDemandPlanner, SeedFloors seeds, boolean stopAtFirstFailure)
+        throws InterruptedException {
+        return planRoute(
             network,
             activeSelection,
             inventory,
@@ -183,62 +227,14 @@ public final class ComponentPlanner {
             cancellation,
             failures,
             externalDemandPlanner,
-            false,
+            seeds,
             stopAtFirstFailure);
-        if (!cancellation.improveCompletedPlans() || plain.status() != PlanningStatus.SUCCESS
-            || plain.components()
-                .stream()
-                .noneMatch(component -> mayRetainSeed(component, inventory, plain.state())))
-            return plain;
-        // Only improve after the entire original order, including shared upstream supply, has succeeded.
-        // Per-component retention can spend stock needed later. Keep this completed transaction as the fallback
-        // even when the optional re-plan exhausts its allowance before reaching that later component.
-        ECOCancellation optional = cancellation instanceof ECOPlanningBudget budget
-            ? budget.slice(1_000_000L, 3_000_000_000L)
-            : new ECOPlanningBudget(cancellation, 1_000_000L, 3_000_000_000L, System::nanoTime);
-        String reason;
-        try {
-            Outcome retaining = planRoute(
-                network,
-                activeSelection,
-                inventory,
-                snapshot,
-                amount,
-                cyclePlanningEnabled,
-                ignorePatternSubstitutions,
-                optional,
-                failures,
-                externalDemandPlanner,
-                true,
-                stopAtFirstFailure);
-            if (retaining.status() == PlanningStatus.SUCCESS && doesNotAddWork(retaining, plain)) return retaining;
-            reason = retaining.status() == PlanningStatus.SUCCESS
-                ? "seed retention would add crafting work to replenish consumable stock"
-                : "seed-retaining whole-order plan ended " + retaining.status();
-        } catch (ECOPlanningBudget.Exhausted exhausted) {
-            reason = "seed-retaining budget slice exhausted";
-        }
-        plain.trace()
-            .addDiagnostic(
-                new PlannerDiagnostic(
-                    PlannerDiagnostic.Code.CYCLE_SEED_NOT_RETAINED,
-                    reason + "; retaining the previously verified complete plan"));
-        return plain;
-    }
-
-    /** Startup reservations are required for execution, not a promise to replenish consumed inventory. */
-    private static boolean doesNotAddWork(Outcome candidate, Outcome original) {
-        return candidate.state().patternTimes.entrySet()
-            .stream()
-            .allMatch(
-                entry -> entry.getValue()
-                    .compareTo(original.state().patternTimes.getOrDefault(entry.getKey(), PlannerAmount.ZERO)) <= 0);
     }
 
     private Outcome planRoute(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection,
         KeyCounter inventory, PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
         boolean ignorePatternSubstitutions, ECOCancellation cancellation, CycleFailureCache failures,
-        ExternalDemandPlanner externalDemandPlanner, boolean retainSeeds, boolean stopAtFirstFailure)
+        ExternalDemandPlanner externalDemandPlanner, SeedFloors seeds, boolean stopAtFirstFailure)
         throws InterruptedException {
         cancellation.checkpoint();
         CondensationGraph activeCondensation;
@@ -363,6 +359,9 @@ public final class ComponentPlanner {
         Set<AEKey> structuralKeys = activeCondensation.source()
             .nodes()
             .keySet();
+        // Reserved seeds that committed cycles actually borrowed. Their use is already in the shared ledger, so every
+        // later inventory view must include them, but never the untouched seed of another cycle.
+        Map<AEKey, Long> borrowedSeeds = new LinkedHashMap<>();
 
         for (var component : activeCondensation.topologicalOrder()) {
             cancellation.checkpoint();
@@ -454,6 +453,16 @@ public final class ComponentPlanner {
                         requiredOutputs.remove(key);
                         return true;
                     });
+                // Strict seed retention: a cycle that has to work for this order must also end with its minimal seed.
+                // The DAG pass never saw the reserved copies. This component may borrow them as working stock (the
+                // solver, its external supply and the transaction see them), and every solver target below asks the
+                // witness to end with the seed again. The seed is not a delivered output: when the order does not need
+                // to borrow it, the transaction reserves none of it and it simply stays in the network.
+                List<SeedFloors.Floor> floors = cyclePlanningEnabled && !exactRequiredOutputs.isEmpty()
+                    ? seeds.within(cycle)
+                    : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf();
+                KeyCounter cycleInventory = floors.isEmpty() && borrowedSeeds.isEmpty() ? inventory
+                    : withReservedSeeds(inventory, floors, borrowedSeeds);
                 CyclePlanningStatus cycleStatus = CyclePlanningStatus.UNKNOWN_BUDGET;
                 String diagnostic = null;
                 CycleSolveResult cycleResult = null;
@@ -494,14 +503,13 @@ public final class ComponentPlanner {
                     Map<AEKey, Long> stock = relevantStock(
                         cycle,
                         exactRequiredOutputs.keySet(),
-                        inventory,
+                        cycleInventory,
                         acyclic.state(),
                         stockReservations);
                     Map<AEKey, Long> solveStock = stock;
-                    Map<AEKey, PlannerAmount> solveTargets = additionalOutputTargets(
-                        exactRequiredOutputs,
-                        stock,
-                        network.goal());
+                    Map<AEKey, PlannerAmount> solveTargets = withSeedTargets(
+                        additionalOutputTargets(exactRequiredOutputs, stock, network.goal()),
+                        floors);
                     if (!solveTargets.isEmpty()) {
                         cycleResult = failures.solve(
                             new CycleSolveRequest(
@@ -608,7 +616,7 @@ public final class ComponentPlanner {
                                     network,
                                     cycle,
                                     seedDemands,
-                                    inventory,
+                                    cycleInventory,
                                     acyclic.state(),
                                     reservationRemainder(heldSeed, stockReservations),
                                     seedDelegates,
@@ -625,10 +633,9 @@ public final class ComponentPlanner {
                                 // An alternative seed names concrete AE keys. First verify its actual circuit;
                                 // then ask the external DAG to supply this witness's inputs, not the old route's.
                                 Map<AEKey, Long> projectedStock = mergeReservations(stock, candidate);
-                                var candidateTargets = additionalOutputTargets(
-                                    exactRequiredOutputs,
-                                    projectedStock,
-                                    network.goal());
+                                var candidateTargets = withSeedTargets(
+                                    additionalOutputTargets(exactRequiredOutputs, projectedStock, network.goal()),
+                                    floors);
                                 CycleSolveResult recovered = failures.solve(
                                     new CycleSolveRequest(
                                         cycle,
@@ -661,7 +668,7 @@ public final class ComponentPlanner {
                                     network,
                                     cycle,
                                     recoveryDemands,
-                                    inventory,
+                                    cycleInventory,
                                     acyclic.state(),
                                     recoveryAdditionalReservations,
                                     delegatedInputs,
@@ -736,27 +743,14 @@ public final class ComponentPlanner {
                             solveStock,
                             stockReservations,
                             plannedCycleInputs,
-                            inventory,
+                            cycleInventory,
                             acyclic.state(),
                             ignorePatternSubstitutions,
                             failures,
                             externalDemandPlanner,
                             cancellation);
                         var original = new CycleCandidateSearch.Candidate(cycleResult, solveTargets);
-                        var retention = retainSeeds ? search.retainSeed(original)
-                            : new CycleCandidateSearch.Retention(
-                                null,
-                                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
-                                null);
-                        CycleCandidateSearch.Supplied supplied = retention.candidate() == null ? null
-                            : search.supply(retention.candidate());
-                        boolean retainingSupplied = supplied != null && supplied.external()
-                            .solved();
-                        String retainingFailure = supplied == null
-                            ? retention.reason() == null ? "the plan's boundary supply failed" : retention.reason()
-                            : "seed-retaining plan's boundary supply failed: " + supplied.external()
-                                .status();
-                        if (!retainingSupplied) supplied = search.supply(original);
+                        CycleCandidateSearch.Supplied supplied = search.supply(original);
                         cycleResult = supplied.result();
                         solveTargets = supplied.targets();
                         Map<AEKey, Long> initialReservations = supplied.initialReservations();
@@ -764,18 +758,18 @@ public final class ComponentPlanner {
                         external = supplied.external();
                         externalDemandStatus = external.status();
                         externalMissingItems = external.missingLeaves();
-                        if (!retention.seed()
-                            .isEmpty()) {
-                            trace.addDiagnostic(
-                                retainingSupplied
-                                    ? new PlannerDiagnostic(
-                                        PlannerDiagnostic.Code.CYCLE_SEED_RETAINED,
-                                        "Reusable cycle seed " + retention.seed() + " remains after delivery")
-                                    : new PlannerDiagnostic(
-                                        PlannerDiagnostic.Code.CYCLE_SEED_NOT_RETAINED,
-                                        "Reusable cycle seed " + retention.seed()
-                                            + " is consumed: "
-                                            + retainingFailure));
+                        if (!floors.isEmpty()) {
+                            trace
+                                .addDiagnostic(
+                                    external.solved()
+                                        ? new PlannerDiagnostic(
+                                            PlannerDiagnostic.Code.CYCLE_SEED_RETAINED,
+                                            "Cycle seed " + describeFloors(floors)
+                                                + " stays in the network after delivery")
+                                        : new PlannerDiagnostic(
+                                            PlannerDiagnostic.Code.CYCLE_SEED_REQUIRED,
+                                            "Strict seed retention: the order must leave " + describeFloors(floors)
+                                                + "; growing it needs the missing materials"));
                         }
                         if (supplied.searched()) {
                             trace.addDiagnostic(
@@ -861,13 +855,14 @@ public final class ComponentPlanner {
                                     initialReservations,
                                     plannedCycleInputs,
                                     additionalReservations,
-                                    inventory,
+                                    cycleInventory,
                                     external.directReservations(),
                                     external.states())) {
                                         cycleStatus = CyclePlanningStatus.UNKNOWN_BUDGET;
                                         diagnostic = "Cycle/external-DAG transaction validation failed";
                                         unresolvedCycle = true;
                                     } else {
+                                        recordBorrowedSeeds(floors, inventory, borrowedSeeds, acyclic.state());
                                         external.delegatedCycleDemands()
                                             .forEach((key, demand) -> {
                                                 CycleComponent supplier = cyclicSupplier(
@@ -1032,7 +1027,7 @@ public final class ComponentPlanner {
                         requiredOutputs,
                         stockReservations);
                 }
-                cycleDiagnostics.add(diagnostic(cycle, inventory, cycleResult, trace));
+                cycleDiagnostics.add(diagnostic(cycle, cycleInventory, cycleResult, trace));
                 ECOPlanningStageLogger.finish(
                     "cycle_calculation[" + cycle.componentId() + "]",
                     cycleStartedNanos,
@@ -1119,6 +1114,34 @@ public final class ComponentPlanner {
         long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
         throws InterruptedException {
         if (!(cancellation instanceof ECOPlanningBudget)) cancellation = new ECOPlanningBudget(cancellation);
+        // Seeds of self-growing cycles are structural: route choice must not decide whether they survive. Every
+        // route and joint model below plans with the stock without them; planned cycles borrow them back.
+        SeedFloors seeds = seedFloors(network, universe.cycles(), snapshot, cyclePlanningEnabled, cancellation);
+        Outcome outcome = planWithRouteFallback(
+            network,
+            universe,
+            activeSelection,
+            seeds.reduce(inventory),
+            seeds.reduce(snapshot),
+            snapshot,
+            amount,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            cancellation,
+            seeds);
+        seeds.report(outcome.trace());
+        return outcome;
+    }
+
+    /**
+     * {@code snapshot} excludes reserved seeds and drives every plan. {@code owned} is the full stock: startup and
+     * optimistic-quantity proofs must see the seeds, because a planned cycle may borrow them as working stock, and
+     * a proof over less stock than the planner may use would declare feasible orders impossible.
+     */
+    private Outcome planWithRouteFallback(CompiledNetwork network, CondensationGraph universe,
+        ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
+        PlannerInventorySnapshot owned, long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions,
+        ECOCancellation cancellation, SeedFloors seeds) throws InterruptedException {
         // Large structural universes can exhaust the session before reaching recovery. This is
         // a cycle recovery heuristic. A selected DAG always gets its preferred route first.
         if (cyclePlanningEnabled && !activeSelection.acyclic()
@@ -1140,12 +1163,13 @@ public final class ComponentPlanner {
             cancellation,
             failures,
             externalDemandPlanner,
+            seeds,
             false);
         try {
             // Preserve the completed route's material report if this proof itself exhausts the session.
             // It runs before the heavyweight joint model and whole-route alternatives.
             if (preferred.status() != PlanningStatus.SUCCESS
-                && RouteAvailabilityProof.goalUnreachable(network, snapshot, cancellation)) {
+                && RouteAvailabilityProof.goalUnreachable(network, owned, cancellation)) {
                 preferred.trace()
                     .addDiagnostic(
                         new PlannerDiagnostic(
@@ -1155,7 +1179,7 @@ public final class ComponentPlanner {
             }
             RouteQuantityProof.Prepared supply = null;
             if (preferred.status() != PlanningStatus.SUCCESS) {
-                supply = RouteQuantityProof.prepare(network, snapshot, cancellation);
+                supply = RouteQuantityProof.prepare(network, owned, cancellation);
                 var bound = supply == null ? null
                     : supply.insufficientOutput(
                         amount,
@@ -1173,10 +1197,34 @@ public final class ComponentPlanner {
                                     + "; retaining the completed route's material report"));
                     return preferred;
                 }
+                // The per-key bound above counts every output of a byproduct-rich firing separately. One column per
+                // physical pattern does not, and its infeasibility covers every route, cycle and seed choice.
+                if (MaterialBalanceProof.infeasible(
+                    network,
+                    snapshot,
+                    amount,
+                    seeds.shortfallTargets(),
+                    ignorePatternSubstitutions,
+                    cancellation)) {
+                    preferred.trace()
+                        .addDiagnostic(
+                            new PlannerDiagnostic(
+                                PlannerDiagnostic.Code.MATERIAL_BALANCE_INFEASIBLE,
+                                "Exact material balance over every compiled pattern cannot cover " + amount
+                                    + " of the goal from current stock"
+                                    + (seeds.isEmpty() ? "" : " while keeping cycle seeds " + seeds)
+                                    + "; alternative routes are not searched"));
+                    return preferred;
+                }
             }
             if (maxRouteAttempts == 0) preferred = new JointRouteOptimizer()
                 .optimize(network, snapshot, amount, preferred, cyclePlanningEnabled, cancellation);
             if (preferred.status() == PlanningStatus.SUCCESS) return preferred;
+            // Alternatives are speculative. Give them a bounded share of the session so a failing order reports its
+            // material shortage instead of trying producer combinations until the whole allowance is gone.
+            ECOCancellation alternatives = ((ECOPlanningBudget) cancellation).slice(
+                Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxWork / ALTERNATIVE_ROUTE_SHARE),
+                Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxMillis) * 1_000_000L / ALTERNATIVE_ROUTE_SHARE);
             return searchAlternativeRoutes(
                 network,
                 universe,
@@ -1186,11 +1234,12 @@ public final class ComponentPlanner {
                 amount,
                 cyclePlanningEnabled,
                 ignorePatternSubstitutions,
-                cancellation,
+                alternatives,
                 failures,
                 preferred,
                 externalDemandPlanner,
-                supply);
+                supply,
+                seeds);
         } catch (cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudget.Exhausted exhausted) {
             // The interrupted alternative is speculative. The completed route still owns a valid
             // material report and cycle diagnostics; never replace those with an empty shell.
@@ -1208,7 +1257,7 @@ public final class ComponentPlanner {
         ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
         long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
         CycleFailureCache failures, Outcome preferred, ExternalDemandPlanner externalDemandPlanner,
-        RouteQuantityProof.Prepared supply) throws InterruptedException {
+        RouteQuantityProof.Prepared supply, SeedFloors seeds) throws InterruptedException {
         Map<AEKey, Integer> baseline = new Object2ObjectLinkedOpenHashMap<>();
         // The numeric pass can retry an acyclic producer, while cycle-owned keys are deliberately
         // absent from SolveState.selected because their work is deferred to the cycle transaction.
@@ -1266,6 +1315,7 @@ public final class ComponentPlanner {
                     cancellation,
                     failures,
                     externalDemandPlanner,
+                    seeds,
                     true);
                 if (alternative.status() == PlanningStatus.SUCCESS) {
                     success = true;
@@ -1586,23 +1636,56 @@ public final class ComponentPlanner {
                     && reservations.getOrDefault(entry.getKey(), 0L) >= entry.getValue());
     }
 
-    /** Worth the optional retaining re-plan: the cycle borrowed a stocked seed, or met its demand by draining stock. */
-    private static boolean mayRetainSeed(ComponentPlanningResult component, KeyCounter inventory, SolveState state) {
-        CycleSolveResult result = component.cycleResult();
-        if (result == null) return false;
-        if (result.requiredSeed()
-            .entrySet()
-            .stream()
-            .anyMatch(seed -> seed.getValue() > 0 && inventory.get(seed.getKey()) > 0)) return true;
-        // A demand met entirely from stock fires nothing and names no seed, yet may hand over the last copies.
-        return !hasPositiveFirings(result) && component.requiredOutputs()
-            .keySet()
-            .stream()
-            .anyMatch(key -> {
-                long held = inventory.get(key);
-                return held > 0 && state.used.get(key)
-                    .compareTo(PlannerAmount.of(held)) >= 0;
-            });
+    /** The witness must end with the order's outputs and, on top of any demand for the same key, the kept seed. */
+    private static Map<AEKey, PlannerAmount> withSeedTargets(Map<AEKey, PlannerAmount> targets,
+        List<SeedFloors.Floor> floors) {
+        if (floors.isEmpty()) return targets;
+        Map<AEKey, PlannerAmount> result = new LinkedHashMap<>(targets);
+        for (SeedFloors.Floor floor : floors) result.merge(floor.key(), floor.minimum(), PlannerAmount::add);
+        return result;
+    }
+
+    private static KeyCounter withReservedSeeds(KeyCounter inventory, List<SeedFloors.Floor> floors,
+        Map<AEKey, Long> borrowedSeeds) {
+        KeyCounter result = new KeyCounter();
+        for (var entry : inventory) result.add(entry.getKey(), entry.getLongValue());
+        borrowedSeeds.forEach(result::add);
+        for (SeedFloors.Floor floor : floors) {
+            if (floor.reserved()
+                .signum() > 0)
+                result.add(
+                    floor.key(),
+                    floor.reserved()
+                        .longValueExact());
+        }
+        return result;
+    }
+
+    /** After a committed cycle transaction, remember how much of its reserved seed the ledger now uses. */
+    private static void recordBorrowedSeeds(List<SeedFloors.Floor> floors, KeyCounter inventory,
+        Map<AEKey, Long> borrowedSeeds, SolveState state) {
+        for (SeedFloors.Floor floor : floors) {
+            AEKey key = floor.key();
+            PlannerAmount visible = PlannerAmount.of(inventory.get(key))
+                .add(PlannerAmount.of(borrowedSeeds.getOrDefault(key, 0L)));
+            PlannerAmount borrowed = state.used.get(key)
+                .subtract(visible)
+                .max(PlannerAmount.ZERO)
+                .min(floor.reserved());
+            if (borrowed.signum() > 0) borrowedSeeds.merge(key, borrowed.longValueExact(), Math::addExact);
+        }
+    }
+
+    private static String describeFloors(List<SeedFloors.Floor> floors) {
+        StringBuilder sb = new StringBuilder("{");
+        for (SeedFloors.Floor floor : floors) {
+            if (sb.length() > 1) sb.append(", ");
+            sb.append(floor.key())
+                .append('=')
+                .append(floor.minimum());
+        }
+        return sb.append('}')
+            .toString();
     }
 
     static boolean hasPositiveFirings(CycleSolveResult result) {

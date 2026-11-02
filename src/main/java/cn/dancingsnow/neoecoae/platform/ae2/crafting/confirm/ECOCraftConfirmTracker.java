@@ -28,9 +28,11 @@ import appeng.container.implementations.ContainerCraftConfirm;
 import appeng.container.implementations.CraftingCPUStatus;
 import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
+import cn.dancingsnow.neoecoae.command.CraftingPlanExport;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingNativeRuntime;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
@@ -63,6 +65,9 @@ public final class ECOCraftConfirmTracker {
         /** Planner options of the ECO request, kept for a big order's later segment planning. */
         @Nullable
         ECOPlannerOptions options;
+        /** The last result an armed plan export looked at, so each calculated plan is offered once. */
+        @Nullable
+        Object exportObserved;
 
         Tracked(ContainerCraftConfirm container) {
             this.container = container;
@@ -116,10 +121,14 @@ public final class ECOCraftConfirmTracker {
             ECOComputationSystemBlockEntity host = planningHost(container);
             // With the fast planner on, the ECO page owns every confirmation of the network, including requests
             // routed to AE2's planner (NativePlannerRouting); those show AE2's plan in the ECO report.
-            if (!ecoPlanned && (host == null || !host.isFastPlannerEnabled())) return;
+            if (!ecoPlanned && (host == null || !host.isFastPlannerEnabled())) {
+                exportPlanIfArmed(player, tracked, result);
+                return;
+            }
             tracked.options = host == null ? null : ECOPlannerOptions.from(host);
             session.begin(host != null && host.isCyclePlanningEnabled());
         }
+        exportPlanIfArmed(player, tracked, result);
         if (result instanceof NativeECOCraftingJob ecoJob) {
             session.observeResult(result, version -> {
                 session.display(ECOCraftConfirmReports.resolve(ecoJob.sourcePlan()));
@@ -140,6 +149,38 @@ public final class ECOCraftConfirmTracker {
             ECOBigOrderSubmission.resolveCpu(container.getGrid(), selectedCpu(container), actionSource(container))
                 != null);
         push(player, container, session);
+    }
+
+    /**
+     * 1.21's hook on the confirmation's plan summary: when this container receives a calculated plan and its player
+     * armed {@code /neoecoae export_plan}, the plan is exported once. Ordinary confirmations only compare the result
+     * identity; diagnostics are resolved for an armed export alone, so their behavior is unchanged.
+     */
+    private static void exportPlanIfArmed(EntityPlayerMP player, Tracked tracked, @Nullable ICraftingJob result) {
+        if (result == tracked.exportObserved) return;
+        tracked.exportObserved = result;
+        if (result == null || !CraftingPlanExport.isArmed(player)) return;
+        ContainerCraftConfirm container = tracked.container;
+        IGrid grid = container.getGrid();
+        if (grid == null) return;
+        GridView view = GridView.of(grid);
+        if (result instanceof NativeECOCraftingJob ecoJob) {
+            // A failed ECO calculation has no plan; the export stays armed for the next one.
+            ICraftingPlan plan = ecoJob.sourcePlan();
+            if (plan != null) CraftingPlanExport
+                .onPlanReady(player, view, plan, ECOCraftConfirmReports.resolve(plan), tracked.options);
+            return;
+        }
+        NativePlanExport exported;
+        try {
+            exported = NativePlanExport
+                .of(result, actionSource(container), view.getCraftingService(), container.getWorld());
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("[craft-confirm] Reading AE2's plan for the plan export failed", failure);
+            CraftingPlanExport.onPlanUnreadable(player, failure);
+            return;
+        }
+        if (exported != null) CraftingPlanExport.onNativePlanReady(player, view, exported.plan, exported.tasksKnown);
     }
 
     /**

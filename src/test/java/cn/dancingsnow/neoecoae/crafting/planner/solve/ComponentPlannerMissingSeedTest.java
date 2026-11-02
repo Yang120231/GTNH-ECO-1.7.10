@@ -340,7 +340,8 @@ class ComponentPlannerMissingSeedTest {
             .build(graph, new TarjanSccAnalyzer().analyze(graph, ECOCancellation.NONE), ECOCancellation.NONE);
         var stock = new KeyCounter();
         stock.add(seed, 23L);
-        stock.add(fuel, 28L);
+        // Strict seed retention: 22 of the 23 serve the consumer, the kept seed grows the other 29 and survives.
+        stock.add(fuel, 29L);
 
         var outcome = new ComponentPlanner(new AcyclicCraftingSolver(), new BoundedCycleSolver())
             .plan(network, condensation, stock, 1L, true, ECOCancellation.NONE);
@@ -356,7 +357,7 @@ class ComponentPlannerMissingSeedTest {
                 .missingItems()
                 .isEmpty());
         assertEquals(
-            28L,
+            29L,
             outcome.state()
                 .patternTimes()
                 .get(growth.details()));
@@ -663,8 +664,9 @@ class ComponentPlannerMissingSeedTest {
         var outcome = new ComponentPlanner(new AcyclicCraftingSolver(), new BoundedCycleSolver())
             .plan(network, condensation, stock, Long.MAX_VALUE, true, ECOCancellation.NONE);
 
+        // All stock except the cycle's kept seed (one copy) is spent on the unrepresentable order.
         assertEquals(
-            PlannerAmount.of(221_670L),
+            PlannerAmount.of(221_669L),
             outcome.state()
                 .usedAmounts()
                 .get(seed));
@@ -761,8 +763,8 @@ class ComponentPlannerMissingSeedTest {
         var finalInputs = new java.util.ArrayList<GenericStack>();
         finalInputs.add(new GenericStack(crystal, 400_000L));
         var inventory = new KeyCounter();
-        // Four seeds each grow from one to four: 12 crystals, exactly three extra blocks.
-        inventory.add(block, 100_003L);
+        // Four seeds each grow from one to five (four delivered, one kept): 16 crystals, exactly four extra blocks.
+        inventory.add(block, 100_004L);
         for (int i = 0; i < seeds.size(); i++) {
             AEKey seed = seeds.get(i);
             inventory.add(seed, 1L);
@@ -804,7 +806,7 @@ class ComponentPlannerMissingSeedTest {
                 .missingItems()
                 .isEmpty());
         assertEquals(
-            100_003L,
+            100_004L,
             outcome.state()
                 .usedItems()
                 .get(block));
@@ -814,13 +816,13 @@ class ComponentPlannerMissingSeedTest {
                 .usedItems()
                 .get(crystal));
         assertEquals(
-            100_003L,
+            100_004L,
             outcome.state()
                 .patternTimes()
                 .get(unpack.details()));
         for (AEKey seed : seeds) {
             assertEquals(
-                3L,
+                4L,
                 outcome.state()
                     .patternTimes()
                     .get(
@@ -1157,8 +1159,9 @@ class ComponentPlannerMissingSeedTest {
             outcome.trace()
                 .diagnostics()
                 .toString());
+        // B must deliver two and keep its single seed: two laps, two fuel.
         assertEquals(
-            1L,
+            2L,
             outcome.state()
                 .missingItems()
                 .get(fuel));

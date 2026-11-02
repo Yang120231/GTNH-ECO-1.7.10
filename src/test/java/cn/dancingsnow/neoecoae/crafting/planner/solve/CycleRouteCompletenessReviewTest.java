@@ -62,9 +62,10 @@ class CycleRouteCompletenessReviewTest {
                 cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
                 fuel,
                 cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+        // Strict seed retention: two A for the goal plus the kept seed need two laps of the fuelled producer.
         var stock = new KeyCounter();
         stock.add(a, 1L);
-        stock.add(fuel, 1L);
+        stock.add(fuel, 2L);
         var graph = graph(network);
         var planner = new ComponentPlanner(new AcyclicCraftingSolver(), new BoundedCycleSolver());
         var initial = new ActiveRouteSelector().selectWithChoices(
@@ -88,7 +89,7 @@ class CycleRouteCompletenessReviewTest {
                 .toString());
         assertTrue(result.state().patternTimes.containsKey(available.details()));
         assertEquals(1L, stock.get(a));
-        assertEquals(1L, stock.get(fuel));
+        assertEquals(2L, stock.get(fuel));
     }
 
     @ParameterizedTest
@@ -393,7 +394,8 @@ class CycleRouteCompletenessReviewTest {
         var stock = new KeyCounter();
         stock.add(a, 1L);
         stock.add(c, 1L);
-        stock.add(fuel, 2L);
+        // Each loop delivers two and keeps its single seed: two laps, two fuel per loop.
+        stock.add(fuel, 4L);
         var graph = graph(network);
         var planner = new ComponentPlanner(new AcyclicCraftingSolver(), new BoundedCycleSolver(), budget);
         var both = new ActiveRouteSelector().selectWithChoices(
@@ -431,7 +433,7 @@ class CycleRouteCompletenessReviewTest {
                 .anyMatch(d -> d.code() == PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED));
         assertEquals(1L, stock.get(a));
         assertEquals(1L, stock.get(c));
-        assertEquals(2L, stock.get(fuel), "Speculative routes must not mutate the caller's inventory");
+        assertEquals(4L, stock.get(fuel), "Speculative routes must not mutate the caller's inventory");
     }
 
     @Test

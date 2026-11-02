@@ -53,6 +53,7 @@ public class NeoECOAE {
 
     @Mod.EventHandler
     public void starting(cpw.mods.fml.common.event.FMLServerStartingEvent event) {
+        cn.dancingsnow.neoecoae.command.NECommands.register(event);
         cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
             .serverStarting(event);
     }
