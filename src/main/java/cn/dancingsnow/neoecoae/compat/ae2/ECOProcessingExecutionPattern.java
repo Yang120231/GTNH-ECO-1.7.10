@@ -83,8 +83,11 @@ public final class ECOProcessingExecutionPattern implements IPatternDetails, ECO
 
     @Override
     public boolean equals(Object other) {
-        return other == original
-            || other instanceof ECOProcessingExecutionPattern p && original.equals(p.original) && copies == p.copies;
+        if (other instanceof ECOProcessingExecutionPattern p) {
+            return original.equals(p.original) && copies == p.copies;
+        }
+        // Provider catalogs may decode an equal physical pattern into a different object.
+        return original.equals(other);
     }
 
     @Override
