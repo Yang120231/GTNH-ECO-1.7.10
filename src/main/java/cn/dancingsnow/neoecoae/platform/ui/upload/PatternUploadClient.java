@@ -145,19 +145,52 @@ public final class PatternUploadClient {
         encodeButton = null;
         openButton = autoButton = null;
         if (!(event.gui instanceof GuiPatternTerm)) return;
+        GuiImgButton pinButton = null;
         for (Object button : event.buttonList)
             if (button instanceof GuiImgButton && !(button instanceof PatternUploadButton)
-                && ((GuiImgButton) button).getSetting() == Settings.ACTIONS
-                && ((GuiImgButton) button).getCurrentValue() == ActionItems.ENCODE)
-                encodeButton = (GuiImgButton) button;
+                && ((GuiImgButton) button).getSetting() == Settings.ACTIONS) {
+                Object value = ((GuiImgButton) button).getCurrentValue();
+                if (value == ActionItems.ENCODE) encodeButton = (GuiImgButton) button;
+                else if (value == ActionItems.PINS) pinButton = (GuiImgButton) button;
+            }
         if (encodeButton == null) return;
         // Remove the legacy 20px gap so existing configs (offset 51) align with AE2's pin button at guiLeft + 178.
         int x = encodeButton.xPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetX - 20;
         int y = encodeButton.yPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetY;
+        // GTNH 2.9.0 moved the pin button from above the pair (RC2) into it; keep the pair together just above it.
+        if (pinButton != null && x < pinButton.xPosition + pinButton.width
+            && pinButton.xPosition < x + 16
+            && y < pinButton.yPosition + pinButton.height
+            && pinButton.yPosition < y + 36) y = pinButton.yPosition - 40;
         openButton = new PatternUploadButton(x, y, false);
-        autoButton = new PatternUploadButton(x, y + 20, true);
         event.buttonList.add(openButton);
+        place(openButton, event.buttonList);
+        autoButton = new PatternUploadButton(x, openButton.yPosition + 20, true);
         event.buttonList.add(autoButton);
+        place(autoButton, event.buttonList);
+    }
+
+    /**
+     * Fallback for buttons other mods add to this column: step down past any terminal button that would overlap,
+     * instead of hiding under it.
+     */
+    private static void place(GuiButton own, java.util.List<?> buttons) {
+        for (int guard = 0; guard < 16; guard++) {
+            GuiButton hit = null;
+            for (Object value : buttons)
+                if (value != own && value instanceof GuiButton && overlaps(own, (GuiButton) value)) {
+                    hit = (GuiButton) value;
+                    break;
+                }
+            if (hit == null) return;
+            own.yPosition = hit.yPosition + hit.height + 2;
+        }
+    }
+
+    private static boolean overlaps(GuiButton a, GuiButton b) {
+        return a.xPosition < b.xPosition + b.width && b.xPosition < a.xPosition + a.width
+            && a.yPosition < b.yPosition + b.height
+            && b.yPosition < a.yPosition + a.height;
     }
 
     @SubscribeEvent
