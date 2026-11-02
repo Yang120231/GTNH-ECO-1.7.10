@@ -187,22 +187,20 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
             .getStateColor();
     }
 
+    /**
+     * Sneak-use disassembly. Clicking a block also ends here: an item with no {@code onItemUse} falls through to the
+     * air-use packet. {@code onItemUseFirst} is deliberately not used, because on 1.7.10 a {@code true} from the
+     * client suppresses the block-placement packet, so the server never runs it.
+     * <p>
+     * The returned stack must stay identical and unchanged. {@code ItemInWorldManager.tryUseItem} writes any changed
+     * result back into the held slot (and {@code null} throws there), and in creative mode it restores the original
+     * stack size, which would leave the disk in place after its parts were handed out.
+     */
     @Override
     public ItemStack onItemRightClick(ItemStack stack, net.minecraft.world.World world,
         net.minecraft.entity.player.EntityPlayer player) {
-        // Never return null: 1.7.10 tryUseItem/sendUseItem dereference the result. A consumed stack is
-        // signalled with stackSize 0, and vanilla clears the held slot itself.
         disassemble(stack, world, player);
         return stack;
-    }
-
-    @Override
-    public boolean onItemUseFirst(ItemStack stack, net.minecraft.entity.player.EntityPlayer player,
-        net.minecraft.world.World world, int x, int y, int z, int side, float hitX, float hitY, float hitZ) {
-        if (!disassemble(stack, world, player)) return false;
-        if (stack.stackSize <= 0 && player.inventory.getCurrentItem() == stack)
-            player.inventory.setInventorySlotContents(player.inventory.currentItem, null);
-        return true;
     }
 
     /** Native inventory/drop operations implementing the locked item's alternate-use disassembly contract. */
@@ -227,12 +225,15 @@ public class NativeStorageCellItem extends Item implements IBasicECOCellItem {
             ItemStack upgrade = upgrades.getStackInSlot(slot);
             if (upgrade != null) outputs.add(upgrade.copy());
         }
-        // Keep the consumed stack in the held slot while adding outputs so none of them land there and
-        // get overwritten when the caller clears the slot.
-        stack.stackSize = 0;
+        // The disk keeps the held slot while outputs are added so none of them lands there; the slot is then
+        // cleared directly. The stack object itself is left untouched (see onItemRightClick).
+        int held = player.inventory.currentItem;
         for (ItemStack output : outputs)
             if (!player.inventory.addItemStackToInventory(output)) player.dropPlayerItemWithRandomChoice(output, false);
+        player.inventory.setInventorySlotContents(held, null);
         player.inventory.markDirty();
+        // The packet handler syncs the inventory with isChangingQuantityOnly set, which drops the output slots.
+        player.inventoryContainer.detectAndSendChanges();
         return true;
     }
 }
