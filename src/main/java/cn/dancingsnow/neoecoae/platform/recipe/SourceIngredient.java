@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoae.platform.recipe;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
@@ -12,9 +13,22 @@ import com.google.gson.JsonElement;
 public final class SourceIngredient {
 
     private final List<ItemStack> examples;
+    private final Predicate<ItemStack> matcher;
 
     private SourceIngredient(List<ItemStack> examples) {
+        this(examples, null);
+    }
+
+    private SourceIngredient(List<ItemStack> examples, Predicate<ItemStack> matcher) {
         this.examples = examples;
+        this.matcher = matcher;
+    }
+
+    /** Keeps an external ingredient's matching rules separate from its NEI examples. */
+    public static SourceIngredient matching(List<ItemStack> examples, Predicate<ItemStack> matcher) {
+        List<ItemStack> copies = new ArrayList<>();
+        for (ItemStack stack : examples) copies.add(stack.copy());
+        return new SourceIngredient(copies, java.util.Objects.requireNonNull(matcher));
     }
 
     public static SourceIngredient alternatives(ItemStack... stacks) {
@@ -55,6 +69,7 @@ public final class SourceIngredient {
 
     public boolean matches(ItemStack stack) {
         if (stack == null || stack.stackSize <= 0) return false;
+        if (matcher != null) return matcher.test(stack);
         for (var candidate : examples)
             if (candidate.getItem() == stack.getItem() && (candidate.getItemDamage() == OreDictionary.WILDCARD_VALUE
                 || candidate.getItemDamage() == stack.getItemDamage()

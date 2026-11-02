@@ -4,7 +4,12 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import net.minecraft.world.World;
 
@@ -20,6 +25,8 @@ public final class LargeWorkstationRecipes {
 
     private static List<LargeWorkstationRecipe> cache = Collections.emptyList();
     private static int cachedCount = -1;
+    private static final Map<ResourceLocation, LargeWorkstationRecipe> SCRIPT_RECIPES = new LinkedHashMap<>();
+    private static final Set<ResourceLocation> HIDDEN_RECIPES = new HashSet<>();
 
     private LargeWorkstationRecipes() {}
 
@@ -27,17 +34,57 @@ public final class LargeWorkstationRecipes {
         var nativeRecipes = WorkstationRecipes.getAll();
         if (cachedCount != nativeRecipes.size()) {
             List<LargeWorkstationRecipe> result = new ArrayList<>();
-            for (var entry : nativeRecipes.entrySet()) result.add(
-                new LargeWorkstationRecipe(
-                    entry.getKey(),
-                    entry.getValue(),
-                    entry.getValue()
-                        .energy(),
-                    Collections.emptyList()));
+            for (var entry : nativeRecipes.entrySet()) {
+                if (HIDDEN_RECIPES.contains(entry.getKey())) continue;
+                result.add(
+                    new LargeWorkstationRecipe(
+                        entry.getKey(),
+                        entry.getValue(),
+                        entry.getValue()
+                            .energy(),
+                        Collections.emptyList()));
+            }
+            result.addAll(SCRIPT_RECIPES.values());
             cache = Collections.unmodifiableList(result);
             cachedCount = nativeRecipes.size();
         }
         return cache;
+    }
+
+    /** Script edits affect this catalog only; the returned undo is used during CraftTweaker reload. */
+    public static synchronized Runnable addScriptRecipe(LargeWorkstationRecipe recipe) {
+        if (getById(null, recipe.id()) != null)
+            throw new IllegalArgumentException("Duplicate large workstation recipe " + recipe.id());
+        Runnable undo = checkpoint();
+        SCRIPT_RECIPES.put(recipe.id(), recipe);
+        cachedCount = -1;
+        return undo;
+    }
+
+    public static synchronized Runnable removeScriptRecipes(Predicate<LargeWorkstationRecipe> filter) {
+        List<ResourceLocation> ids = new ArrayList<>();
+        for (var recipe : getAll(null)) if (filter.test(recipe)) ids.add(recipe.id());
+        Runnable undo = checkpoint();
+        for (ResourceLocation id : ids) {
+            SCRIPT_RECIPES.remove(id);
+            HIDDEN_RECIPES.add(id);
+        }
+        cachedCount = -1;
+        return undo;
+    }
+
+    private static Runnable checkpoint() {
+        Map<ResourceLocation, LargeWorkstationRecipe> recipes = new LinkedHashMap<>(SCRIPT_RECIPES);
+        Set<ResourceLocation> hidden = new HashSet<>(HIDDEN_RECIPES);
+        return () -> {
+            synchronized (LargeWorkstationRecipes.class) {
+                SCRIPT_RECIPES.clear();
+                SCRIPT_RECIPES.putAll(recipes);
+                HIDDEN_RECIPES.clear();
+                HIDDEN_RECIPES.addAll(hidden);
+                cachedCount = -1;
+            }
+        };
     }
 
     public static LargeWorkstationRecipe getById(World level, ResourceLocation id) {

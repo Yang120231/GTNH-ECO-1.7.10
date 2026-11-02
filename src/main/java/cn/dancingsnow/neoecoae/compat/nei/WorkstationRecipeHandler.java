@@ -112,6 +112,9 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
         if (kind == Kind.COOLING) {
             for (var recipe : WorkstationRecipes.cooling()
                 .values()) result.add(new WorkstationNEIRecipe(recipe));
+        } else if (kind == Kind.LARGE) {
+            for (var recipe : cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getAll(null))
+                result.add(new WorkstationNEIRecipe(recipe.display()));
         } else {
             for (var recipe : WorkstationRecipes.getAll()
                 .values()) result.add(new WorkstationNEIRecipe(recipe));

@@ -215,18 +215,19 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
 
     private IntegratedWorkingStationRecipe resolveRecipe(PendingBatch batch) {
         if (batch.recipe != null) return batch.recipe;
-        if (batch.recipeId != null)
-            batch.recipe = cn.dancingsnow.neoecoae.platform.recipe.WorkstationRecipes.getById(batch.recipeId);
+        if (batch.recipeId != null) {
+            var adapted = LargeWorkstationRecipes.getById(worldObj, batch.recipeId);
+            if (adapted != null) batch.recipe = adapted.display();
+        }
         if (batch.recipe != null) return batch.recipe;
         KeyCounter perCraft = divideCounter(batch.inputTotal, batch.craftCount);
         var input = perCraft == null ? null : createRecipeInput(perCraft);
-        for (var entry : cn.dancingsnow.neoecoae.platform.recipe.WorkstationRecipes.getAll()
-            .entrySet()) {
-            var recipe = entry.getValue();
+        for (var entry : LargeWorkstationRecipes.getAll(worldObj)) {
+            var recipe = entry.display();
             if (input != null && recipe.matches(input, null)
                 || batch.unlockStack != null && recipe.energy() == batch.energyPerCraft
                     && recipeOutputMatches(recipe, batch.unlockStack)) {
-                batch.recipeId = entry.getKey();
+                batch.recipeId = entry.id();
                 batch.recipe = recipe;
                 setChanged();
                 return recipe;

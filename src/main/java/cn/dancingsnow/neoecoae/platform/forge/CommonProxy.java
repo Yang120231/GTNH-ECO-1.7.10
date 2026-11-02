@@ -64,5 +64,7 @@ public class CommonProxy {
     public void postInit(FMLPostInitializationEvent event) {
         cn.dancingsnow.neoecoae.platform.recipe.SourceRecipes.register();
         cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.initialize();
+        if (cpw.mods.fml.common.Loader.isModLoaded("MineTweaker3"))
+            cn.dancingsnow.neoecoae.compat.crafttweaker.LargeWorkstationTweaker.register();
     }
 }

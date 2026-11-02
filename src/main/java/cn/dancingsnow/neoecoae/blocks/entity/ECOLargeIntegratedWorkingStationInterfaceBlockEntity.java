@@ -230,7 +230,10 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
 
     @appeng.tile.TileEvent(appeng.tile.events.TileEventType.TICK)
     public void tickProviderRedstone() {
-        if (worldObj != null && !worldObj.isRemote) workstationProvider.updateRedstoneState();
+        if (worldObj != null && !worldObj.isRemote) {
+            workstationProvider.refreshRecipes();
+            workstationProvider.updateRedstoneState();
+        }
     }
 
     @Override

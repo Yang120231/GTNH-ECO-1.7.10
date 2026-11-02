@@ -26,6 +26,8 @@ Provides expandable storage, crafting, and computation multiblocks for ME networ
 
 Required dependencies include Applied Energistics 2, AE2 Fluid Crafting (AE2FC, 1.5.64-gtnh or later), ModularUI2, and StructureLib.
 
+Large Integrated Working Stations support adding and removing processing recipes with CraftTweaker 1.7.10 scripts. See the [API documentation and examples (Chinese)](docs/CRAFTTWEAKER_ZH_CN.md).
+
 ## Features
 
 ### Real-Time Monitoring

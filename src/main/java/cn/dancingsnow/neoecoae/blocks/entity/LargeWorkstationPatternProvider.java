@@ -78,6 +78,7 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     private final ConfigManager config = new ConfigManager(this);
     private List<IPatternDetails> compatiblePatterns = Collections.emptyList();
     private Object lastController, lastRecipes;
+    private Object advertisedRecipes;
     private boolean dirty = true, waitingForPulse, redstone;
     private GenericStack unlockStack;
     private int revision;
@@ -171,6 +172,16 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
         dirty = true;
         revision++;
         requestProviderUpdate();
+    }
+
+    /** Re-advertise installed patterns when a script reload changes the machine catalog. */
+    public void refreshRecipes() {
+        if (host.getWorldObj() == null) return;
+        Object recipes = cn.dancingsnow.neoecoae.recipe.LargeWorkstationRecipes.getAll(host.getWorldObj());
+        if (advertisedRecipes != recipes) {
+            advertisedRecipes = recipes;
+            updatePatterns();
+        }
     }
 
     @Override

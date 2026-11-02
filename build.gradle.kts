@@ -51,6 +51,9 @@ dependencies {
     // fastutil references away from the shared copy.
     shadowImplementation("com.github.Towdium:PinIn:1.6.0") { isTransitive = false }
     compileOnly("org.jetbrains:annotations:24.1.0")
+    // Optional integration; use the MineTweaker 3 API shared by legacy CraftTweaker and GTNH.
+    compileOnly(gtnhDevJar("CraftTweaker", "3.4.8")) { isTransitive = false }
+    testImplementation(gtnhDevJar("CraftTweaker", "3.4.8")) { isTransitive = false }
     testImplementation("org.jetbrains:annotations:24.1.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     // Native adapters compile against the investigation's pinned APIs.

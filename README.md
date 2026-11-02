@@ -26,6 +26,8 @@
 
 必需前置包括 Applied Energistics 2、AE2 Fluid Crafting（AE2FC，1.5.64-gtnh 及以上）、ModularUI2 和 StructureLib。
 
+大型集成工作站可通过 CraftTweaker 1.7.10 脚本添加、删除和清空加工配方，参见 [中文接口说明与示例](docs/CRAFTTWEAKER_ZH_CN.md)。
+
 ## 功能展示
 
 ### 实时监控
