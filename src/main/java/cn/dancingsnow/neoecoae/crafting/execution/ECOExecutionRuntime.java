@@ -20,6 +20,7 @@ import cn.dancingsnow.neoecoae.crafting.planner.result.ECOExecutionPlan;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOExecutionSchedule;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPhaseScheduler;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingPattern;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
@@ -294,7 +295,7 @@ public final class ECOExecutionRuntime {
      * Returns all currently legal candidates in deterministic phase/task order.
      *
      * <p>
-     * An ordered phase contributes its current step, including future copies in a fixed processing circuit.
+     * An ordered phase contributes its current step, including future copies in a circuit with fixed consumed inputs.
      * Physical stock and competing consumers bound the batch at input resolution. Other ready phases remain
      * eligible when this provider is busy. Dynamic phases rotate after an accepted firing.
      * </p>
@@ -956,18 +957,20 @@ public final class ECOExecutionRuntime {
                 int taskId = phase.steps()
                     .get(i)
                     .taskId();
-                safe &= tasks.add(taskId) && fixedProcessingInputs(pattern(taskId));
+                safe &= tasks.add(taskId) && fixedCycleInputs(pattern(taskId));
             }
             if (safe) Arrays.fill(ends, start, end + 1, end);
         }
         return ends;
     }
 
-    // Reordering fixed processing copies is safe only while competing consumers retain their inputs.
-    // Unknown substitutions and crafting/tool mutations continue to follow the original ordered witness.
-    private static boolean fixedProcessingInputs(IPatternDetails pattern) {
+    // A seed-crafting step with fixed consumed inputs does not make its whole circuit unbatchable.
+    // Substitutions and container/tool returns still follow the original ordered witness; competing
+    // consumers retain their inputs through limitCycleBatch.
+    private static boolean fixedCycleInputs(IPatternDetails pattern) {
         try {
-            if (!pattern.supportsPushInputsToExternalInventory() || pattern.getInputs() == null) return false;
+            if ((!pattern.supportsPushInputsToExternalInventory() && !(pattern instanceof NativeCraftingPattern))
+                || pattern.getInputs() == null) return false;
             for (var input : pattern.getInputs()) {
                 if (input == null) return false;
                 var possible = input.getPossibleInputs();
@@ -975,6 +978,7 @@ public final class ECOExecutionRuntime {
                     || possible[0] == null
                     || possible[0].amount() <= 0L
                     || input.getMultiplier() <= 0L) return false;
+                if (input.getRemainingKey(possible[0].what()) != null) return false;
             }
         } catch (RuntimeException unavailable) {
             return false;
@@ -1048,7 +1052,7 @@ public final class ECOExecutionRuntime {
             for (AEKey key : totals.keySet()) {
                 if (!inputKeysByTaskId.get(otherId)
                     .contains(key)) continue;
-                if (!fixedProcessingInputs(other)) return Math.min(upper, witnessed);
+                if (!fixedCycleInputs(other)) return Math.min(upper, witnessed);
                 for (var input : other.getInputs()) {
                     var selected = input.getPossibleInputs()[0];
                     if (key.equals(selected.what())) {
