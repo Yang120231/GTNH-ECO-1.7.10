@@ -87,13 +87,9 @@ final class ECOCraftingOutputDelivery {
         }
         boolean tasksDone = !host.taskSchedulerForOutput()
             .hasPendingTasks(current);
-        // GTNH completes a fake-crafting job once every task is dispatched, without waiting for other returns.
-        // A vanilla-executed job completes like a native CPU (completeJob): never waiting for byproducts or
-        // containers, which may legitimately never return (e.g. chanced outputs).
-        boolean physicallyComplete = current.remainingAmount <= 0L
-            && (current.fakeCrafting || current.vanillaExecution || current.waitingFor.list.isEmpty())
-            && tasksDone
-            && pendingFinalOutputs.isEmpty();
+        // Like GTNH's completeJob, finish after all tasks and the requested output are delivered. Optional
+        // byproducts (including chanced outputs) need not return, and surplus dynamic outputs stay in inventory.
+        boolean physicallyComplete = current.remainingAmount <= 0L && tasksDone;
         if (physicallyComplete) {
             if (current.executionRuntime != null && !current.executionRuntime.isComplete()) {
                 LOGGER.warn(
@@ -443,11 +439,8 @@ final class ECOCraftingOutputDelivery {
         if (host.getJob() != expected) {
             return !host.hasJob();
         }
-        if (expected.remainingAmount > 0L || !expected.waitingFor.list.isEmpty()
-            || host.taskSchedulerForOutput()
-                .hasPendingTasks(expected)
-            || !pendingFinalOutputs.isEmpty()
-            || (expected.executionRuntime != null && !expected.executionRuntime.isComplete())) {
+        if (expected.remainingAmount > 0L || host.taskSchedulerForOutput()
+            .hasPendingTasks(expected)) {
             return false;
         }
         host.finishJob(true);

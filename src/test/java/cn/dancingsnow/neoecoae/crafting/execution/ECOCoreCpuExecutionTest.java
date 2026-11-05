@@ -14,6 +14,8 @@ import net.minecraft.world.World;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.crafting.CraftingItemList;
@@ -47,8 +49,10 @@ class ECOCoreCpuExecutionTest {
         InventoryTestBootstrap.initialize();
     }
 
-    @Test
-    void machineRequestReceivesOutputThroughItsNativeLinkAndFinishesAfterPartialDelivery() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void machineRequestReceivesOutputThroughItsNativeLinkAndFinishesAfterPartialDelivery(boolean absentByproduct)
+        throws Exception {
         var fixture = new Fixture();
         // Keep FML's LaunchClassLoader-only stack factory outside this standalone JVM test.
         var template = AEItemKey.class.getDeclaredField("nativeTemplate");
@@ -85,13 +89,18 @@ class ECOCoreCpuExecutionTest {
                 requester);
         assertTrue(result.successful());
         assertNotNull(result.link());
+        if (absentByproduct) fixture.cpu.getLogic()
+            .getJob().waitingFor.insert(AEItemKey.of(TestItems.DIRT), 1, Actionable.MODULATE);
         requestLink.set(
             result.link()
                 .nativeLink());
         assertFalse(
             result.link()
                 .isStandalone());
-        for (int tick = 0; tick < 20 && fixture.cpu.isBusy(); tick++) fixture.tickAndReturnOutputs();
+        for (int tick = 0; tick < 20 && fixture.cpu.isBusy(); tick++) {
+            fixture.tickAndReturnOutputs();
+            if (received.get() < 5) assertTrue(fixture.cpu.isBusy(), "Partial delivery must keep the job alive");
+        }
         assertEquals(5L, received.get());
         assertFalse(fixture.cpu.isBusy());
         assertFalse(fixture.cpu.hasRemainingItems());
