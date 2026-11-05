@@ -57,6 +57,7 @@ final class GregTechMachineRecipes {
             throw new IllegalStateException("Incomplete authorized 1.20.1 GT machine source catalog");
         variants += registerEnergizedCrystalSeed();
         variants += registerEnergizedCrystalGrinding();
+        variants += registerSuperconductingCircuitPressing();
         registered = true;
         NeoECOAE.LOG.info(
             "NEOECOAE_NATIVE_GT_RECIPES_REGISTERED definitions={} variants={} source=024b73da",
@@ -173,13 +174,34 @@ final class GregTechMachineRecipes {
                 .itemInputs(input)
                 .itemOutputs(output)
                 .duration(100)
-                .eut(2)
+                .eut(TierEU.RECIPE_LV)
                 .setNEIDesc("NeoECOAE")
                 .addTo(RecipeMaps.maceratorRecipes)
                 .size();
             if (installed == 0) throw new IllegalStateException("Native GT map rejected crystal grinding: " + crystal);
             count += installed;
         }
+        return count;
+    }
+
+    /** Match GTNH's AE2 printed-circuit recipes, including the reusable inscriber press. */
+    private static int registerSuperconductingCircuitPressing() {
+        ItemStack input = SourceItems.stack("neoecoae:energized_superconductive_ingot", 1);
+        ItemStack press = SourceItems.stack("neoecoae:superconducting_processor_press", 1);
+        ItemStack output = SourceItems.stack("neoecoae:superconducting_processor_print", 1);
+        if (input == null || press == null || output == null)
+            throw new IllegalStateException("Missing superconducting circuit forming press material");
+        // SourceItems requires positive counts; GT uses a zero-sized recipe input for a non-consumed tool.
+        press.stackSize = 0;
+        int count = GTValues.RA.stdBuilder()
+            .itemInputs(input, press)
+            .itemOutputs(output)
+            .duration(200)
+            .eut(TierEU.RECIPE_LV / 2)
+            .setNEIDesc("NeoECOAE")
+            .addTo(RecipeMaps.formingPressRecipes)
+            .size();
+        if (count == 0) throw new IllegalStateException("Native GT map rejected superconducting circuit forming press");
         return count;
     }
 
