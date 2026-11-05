@@ -1201,7 +1201,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         List<ItemStack> missing = new ArrayList<>();
         for (ECOCraftConfirmReport.Row row : report.materials) {
             if (row.missing.signum() <= 0) continue;
-            IAEStack<?> stack = row.key.toNative(1);
+            IAEStack<?> stack = row.key.toNative(clamp(row.missing));
             ItemStack display = stack == null ? null : stack.getItemStackForNEI();
             if (display != null) missing.add(display);
         }
