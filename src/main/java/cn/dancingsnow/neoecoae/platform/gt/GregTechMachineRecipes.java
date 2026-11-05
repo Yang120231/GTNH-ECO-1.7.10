@@ -56,6 +56,7 @@ final class GregTechMachineRecipes {
         if (definitions != 19)
             throw new IllegalStateException("Incomplete authorized 1.20.1 GT machine source catalog");
         variants += registerEnergizedCrystalSeed();
+        variants += registerEnergizedCrystalGrinding();
         registered = true;
         NeoECOAE.LOG.info(
             "NEOECOAE_NATIVE_GT_RECIPES_REGISTERED definitions={} variants={} source=024b73da",
@@ -157,6 +158,28 @@ final class GregTechMachineRecipes {
             .addTo(UniversalArcFurnace)
             .size();
         if (count == 0) throw new IllegalStateException("Native GT map rejected energized crystal seed");
+        return count;
+    }
+
+    /** The inscriber remains available; GTNH also needs its native crystal-to-dust macerator routes. */
+    private static int registerEnergizedCrystalGrinding() {
+        int count = 0;
+        for (String crystal : new String[] { "energized_crystal", "energized_fluix_crystal" }) {
+            ItemStack input = SourceItems.stack("neoecoae:" + crystal, 1);
+            ItemStack output = SourceItems.stack("neoecoae:" + crystal + "_dust", 1);
+            if (input == null || output == null)
+                throw new IllegalStateException("Missing energized crystal grinding material: " + crystal);
+            int installed = GTValues.RA.stdBuilder()
+                .itemInputs(input)
+                .itemOutputs(output)
+                .duration(100)
+                .eut(2)
+                .setNEIDesc("NeoECOAE")
+                .addTo(RecipeMaps.maceratorRecipes)
+                .size();
+            if (installed == 0) throw new IllegalStateException("Native GT map rejected crystal grinding: " + crystal);
+            count += installed;
+        }
         return count;
     }
 
