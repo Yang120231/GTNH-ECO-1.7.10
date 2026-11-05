@@ -33,10 +33,13 @@ public final class NativeRecipeAcceptance {
     private NativeRecipeAcceptance() {}
 
     public static void checkRegistered() {
+        var catalog = SourceRecipes.read("neoecoae/recipe-catalog.json");
         require(
             SourceRecipes.status()
-                .size() == 164,
-            "164 core recipe definitions");
+                .size()
+                == catalog.getAsJsonArray("recipes")
+                    .size(),
+            "All core recipe definitions");
         for (var entry : SourceRecipes.status()
             .entrySet())
             require(
@@ -61,9 +64,8 @@ public final class NativeRecipeAcceptance {
             "8 distinct blasting recipes");
         require(
             WorldTransformRecipes.getAll()
-                .size() == 6,
-            "6 live world transformations");
-        var catalog = SourceRecipes.read("neoecoae/recipe-catalog.json");
+                .size() == 3,
+            "3 live world transformations");
         for (var element : catalog.getAsJsonArray("recipes")) {
             String path = element.getAsJsonObject()
                 .get("path")
@@ -211,7 +213,11 @@ public final class NativeRecipeAcceptance {
         require(RecipeMaterials.BLUE_ICE.getExplosionResistance(null) == 2.8F, "Blue ice native explosion resistance");
         require(RecipeMaterials.BLUE_ICE.slipperiness == .989F, "Blue ice friction");
         NeoECOAE.LOG.info(
-            "NEOECOAE_NATIVE_RECIPES_OK definitions=164 installed=164 pending=0 crafting=91 smelting=8 inscriber=10 disassembly=9 workstation=30 cooling=2 blasting=8 transform=6 blue_ice=true");
+            "NEOECOAE_NATIVE_RECIPES_OK definitions={} installed={} pending=0 crafting=91 smelting=8 inscriber=10 disassembly=9 workstation=30 cooling=2 blasting=8 transform=3 blue_ice=true",
+            SourceRecipes.status()
+                .size(),
+            SourceRecipes.status()
+                .size());
     }
 
     private static void checkCrafting(String id, JsonObject value) {
@@ -330,7 +336,7 @@ public final class NativeRecipeAcceptance {
             FINISHED.add(world);
             pending = null;
             NeoECOAE.LOG.info(
-                "NEOECOAE_NATIVE_WORLD_RECIPES_OK transformations=6 water=4 explosion=2 water_delay=61 exact_consumption=true anchor_survives=true");
+                "NEOECOAE_NATIVE_WORLD_RECIPES_OK transformations=3 water=1 explosion=2 water_delay=61 exact_consumption=true anchor_survives=true");
             if (Boolean.getBoolean("neoecoae.recipeAcceptance.stopAfter"))
                 net.minecraft.server.MinecraftServer.getServer()
                     .initiateShutdown();

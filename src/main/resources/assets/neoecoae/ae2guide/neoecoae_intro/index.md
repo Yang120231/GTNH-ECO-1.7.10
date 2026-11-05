@@ -35,9 +35,9 @@ The [ECO Crafting System](crafting_system.md) is an advanced pattern provider wi
 ### Building with StructureLib
 [Building with StructureLib](multiblock_builder.md) explains how the hologram projector previews and places ECO structures, including length and mirror settings.
 
-## Energized Budding Crystal
+## Energized Crystal
 
-The [Energized Budding Crystal](energized_crystal.md) is a key material for crafting many components in this mod. Learn how to obtain it through lightning strikes or the Crystal Fixer.
+[Energized Crystals](energized_crystal.md) are a key material for ECO components. Start with the GregTech Arc Furnace recipe, then produce more through crystal processing.
 
 ## Integrated Working Station
 

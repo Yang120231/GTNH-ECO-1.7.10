@@ -7,7 +7,7 @@ import net.minecraft.item.ItemStack;
 import cn.dancingsnow.neoecoae.platform.recipe.SourceFluids;
 import cpw.mods.fml.common.registry.GameRegistry;
 
-/** Missing vanilla material backports are platform additions, separate from the 70 locked core blocks. */
+/** Missing vanilla material backports are platform additions, separate from the core block catalog. */
 public final class RecipeMaterials {
 
     public static final Block BLUE_ICE = new Block(Material.packedIce) {};

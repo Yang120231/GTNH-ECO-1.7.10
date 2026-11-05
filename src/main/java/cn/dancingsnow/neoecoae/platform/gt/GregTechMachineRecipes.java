@@ -142,8 +142,8 @@ final class GregTechMachineRecipes {
     }
 
     /**
-     * 1.7.10-only seed: the source's first energized crystal comes from lightning striking budding certus, which GTNH
-     * lacks. The arc furnace stands in for that lightning at MV; the source autoclave loop multiplies it afterwards.
+     * 1.7.10-only seed: the MV arc furnace produces the first energized crystal; the autoclave loop multiplies it
+     * afterwards.
      */
     private static int registerEnergizedCrystalSeed() {
         ItemStack input = SourceItems.stack("ae2:charged_certus_quartz_crystal", 4);

@@ -558,16 +558,8 @@
       "sha256": "bdf3d13c4d5ed63358cfd2aebe0b2aa111fedbf89d017e192b9be5080a4cbf7f"
     },
     {
-      "path": "data/neoecoae/recipe/transform/chipped_budding_energized_crystal.json",
-      "sha256": "1bc40e32e5f50cabdfc286f8d6f5ccdbdae3ddce39d9fd64d0560cc37bf61b70"
-    },
-    {
       "path": "data/neoecoae/recipe/transform/crystal_ingot.json",
       "sha256": "5b10a55d9830fd7cd4a80caa3a03c4f38c470cb1e485d43d44a4052704b65423"
-    },
-    {
-      "path": "data/neoecoae/recipe/transform/damaged_budding_energized_crystal.json",
-      "sha256": "f00f5c72058127cfa68e4311eee53fd812597f49b256e687e516a7cdbc642641"
     },
     {
       "path": "data/neoecoae/recipe/transform/energized_fluix_crystal.json",
@@ -576,10 +568,6 @@
     {
       "path": "data/neoecoae/recipe/transform/energized_superconductive_ingot.json",
       "sha256": "616504b5eee9c0db11dd00c1a171af1e2871f660b2577d9cc74e8e343b30253c"
-    },
-    {
-      "path": "data/neoecoae/recipe/transform/flawed_budding_energized_crystal.json",
-      "sha256": "4b0ec0434839087e480a26d9d9b814961df427f4e4cba5a12a28a0dbdc83adcb"
     },
     {
       "path": "data/neoecoae/recipe/tungsten_axe.json",
@@ -642,14 +630,6 @@
     {
       "path": "data/ae2/tags/item/metal_ingots.json",
       "sha256": "29e3e82ef48a9e5fff8adf044385bcb362c6899fc22d571a46d46a17ab663fee"
-    },
-    {
-      "path": "data/c/tags/item/budding_blocks.json",
-      "sha256": "cc827f27f07550df6d47b6f2a60acd00df3a3fcf1dbf92b143167d8f4e39acc1"
-    },
-    {
-      "path": "data/c/tags/item/clusters.json",
-      "sha256": "9065fa1a9f1210aacde58ac57262e7d945add21aa4b9b21bc1b444c987d3eb7e"
     },
     {
       "path": "data/c/tags/item/dusts/aluminum.json",

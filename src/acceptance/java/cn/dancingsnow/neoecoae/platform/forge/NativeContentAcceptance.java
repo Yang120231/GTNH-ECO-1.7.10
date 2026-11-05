@@ -107,8 +107,8 @@ public final class NativeContentAcceptance {
                         throw new IllegalStateException(
                             "Block display name differs from source translation: " + stack.getUnlocalizedName());
                 }
-                if (visible.size() != 131)
-                    throw new IllegalStateException("Expected 131 visible core items: " + visible.size());
+                if (visible.size() != 123)
+                    throw new IllegalStateException("Expected 123 visible core items: " + visible.size());
                 checkOrder(stacks);
                 NeoECOAE.LOG.info(
                     "NEOECOAE_CONTENT_CREATIVE_OK visible={} blocks={} standalone=61 excluded_cards=7",
@@ -130,7 +130,7 @@ public final class NativeContentAcceptance {
                 page++;
                 if (page == 4) {
                     NeoECOAE.LOG.info(
-                        "NEOECOAE_CONTENT_ACCEPTANCE_OK total_blocks=70 new_blocks=47 visible_items=131 creative_pages=4 save={}",
+                        "NEOECOAE_CONTENT_ACCEPTANCE_OK total_blocks=62 new_blocks=39 visible_items=123 creative_pages=4 save={}",
                         worldName);
                     client.theWorld.sendQuittingDisconnectingPacket();
                     client.loadWorld(null);
