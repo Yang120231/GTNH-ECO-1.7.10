@@ -323,12 +323,14 @@ public final class NativeECOCpu extends CraftingCPUCluster
         static CraftingPlan capture(IGrid grid, ICraftingJob job, BaseActionSource source,
             net.minecraft.world.World world) {
             NativeJobPlan collector = new NativeJobPlan(world);
+            collector.isMissingMode = job.getCraftingMode() == appeng.api.config.CraftingMode.IGNORE_MISSING;
             appeng.crafting.MECraftingInventory staged = new appeng.crafting.MECraftingInventory(
                 (appeng.api.networking.storage.IStorageGrid) grid
                     .getCache(appeng.api.networking.storage.IStorageGrid.class),
                 true,
                 false,
                 false);
+            staged.setMissingMode(collector.isMissingMode);
             job.startCrafting(staged, collector, source);
             var out = job.getOutput();
             return new CraftingPlan(

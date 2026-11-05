@@ -129,7 +129,9 @@ public final class NativeECOCraftingJob implements ICraftingJob {
 
     @Override
     public CraftingMode getCraftingMode() {
-        return CraftingMode.STANDARD;
+        return plan instanceof cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOForcedCraftingPlan
+            ? CraftingMode.IGNORE_MISSING
+            : CraftingMode.STANDARD;
     }
 
     @Override
