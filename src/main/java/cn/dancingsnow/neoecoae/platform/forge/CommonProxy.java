@@ -22,6 +22,10 @@ public class CommonProxy {
         cn.dancingsnow.neoecoae.platform.registry.CraftingMachines.register();
         cn.dancingsnow.neoecoae.platform.registry.CoreBlocks.register();
         cn.dancingsnow.neoecoae.platform.registry.RecipeMaterials.register();
+        if (Boolean.getBoolean("neoecoae.devGenerator")
+            && Boolean.TRUE.equals(net.minecraft.launchwrapper.Launch.blackboard.get("fml.deobfuscatedEnvironment"))) {
+            cn.dancingsnow.neoecoae.dev.DevResourceGenerator.register();
+        }
         DevAcceptance.load();
         DevAcceptance.hooks()
             .preInit();

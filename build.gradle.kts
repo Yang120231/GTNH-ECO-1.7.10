@@ -152,6 +152,7 @@ tasks.processResources {
 // The pinned GT++ bundle reads Thermal fluids in preInit, but omits this load-order edge.
 // Use Forge's development config instead of patching either external mod or registering fake fluids.
 tasks.withType<JavaExec>().matching { it.name.matches(Regex("run(Client|Server)(17|21|25)?")) }.configureEach {
+    if (name.startsWith("runClient")) systemProperty("neoecoae.devGenerator", "true")
     if (providers.gradleProperty("keyReuseAcceptance").map(String::toBoolean).getOrElse(false)) {
         systemProperty("neoecoae.keyReuseAcceptance", "true")
         workingDir = file("run/key-reuse-" + if (name.startsWith("runClient")) "client" else "server")

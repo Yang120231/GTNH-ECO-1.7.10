@@ -54,6 +54,10 @@ public class NeoECOAE {
     @Mod.EventHandler
     public void starting(cpw.mods.fml.common.event.FMLServerStartingEvent event) {
         cn.dancingsnow.neoecoae.command.NECommands.register(event);
+        if (Boolean.getBoolean("neoecoae.devGenerator")
+            && Boolean.TRUE.equals(net.minecraft.launchwrapper.Launch.blackboard.get("fml.deobfuscatedEnvironment"))) {
+            event.registerServerCommand(new cn.dancingsnow.neoecoae.dev.DevResourceGenerator.GeneratorCommand());
+        }
         cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
             .serverStarting(event);
     }
