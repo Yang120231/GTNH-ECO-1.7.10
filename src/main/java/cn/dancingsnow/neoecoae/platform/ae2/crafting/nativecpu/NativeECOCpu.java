@@ -251,8 +251,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
             || !job.supportsCPUCluster(this)) return null;
         if (job instanceof NativeECOCraftingJob) {
             var ecoJob = (NativeECOCraftingJob) job;
-            return ecoJob.belongsTo(runtime.world(), grid) ? runtime.submit(ecoJob.sourcePlan(), source, requester)
-                : null;
+            return ecoJob.belongsToGrid(grid) ? runtime.submit(ecoJob.sourcePlan(), source, requester) : null;
         }
         try {
             return runtime.submit(NativeJobPlan.capture(grid, job, source, runtime.world()), source, requester);
@@ -324,12 +323,14 @@ public final class NativeECOCpu extends CraftingCPUCluster
         static CraftingPlan capture(IGrid grid, ICraftingJob job, BaseActionSource source,
             net.minecraft.world.World world) {
             NativeJobPlan collector = new NativeJobPlan(world);
+            collector.isMissingMode = job.getCraftingMode() == appeng.api.config.CraftingMode.IGNORE_MISSING;
             appeng.crafting.MECraftingInventory staged = new appeng.crafting.MECraftingInventory(
                 (appeng.api.networking.storage.IStorageGrid) grid
                     .getCache(appeng.api.networking.storage.IStorageGrid.class),
                 true,
                 false,
                 false);
+            staged.setMissingMode(collector.isMissingMode);
             job.startCrafting(staged, collector, source);
             var out = job.getOutput();
             return new CraftingPlan(

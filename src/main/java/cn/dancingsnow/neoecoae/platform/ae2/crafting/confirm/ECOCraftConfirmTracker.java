@@ -254,7 +254,6 @@ public final class ECOCraftConfirmTracker {
             reject(player, tracked, ECOCraftConfirmError.NO_CPU_ACCEPTED, "");
             return;
         }
-        // A natively planned request is submitted as AE2 planned it; rejectStart never lets one be forced.
         ICraftingJob submitted = result;
         if (job != null && forced) {
             // A forced start also waits for stock that left the network since planning, like GTNH's force start.
@@ -266,7 +265,13 @@ public final class ECOCraftConfirmTracker {
                 return;
             }
             submitted = job.forced(shortfall);
-        } else if (job != null) submitted = job;
+        } else if (job == null && forced && result.isSimulation()) {
+            if (!NativeForcedCraftingJob.supports(result)) {
+                reject(player, tracked, ECOCraftConfirmError.FORCE_REJECTED, "");
+                return;
+            }
+            submitted = new NativeForcedCraftingJob(result);
+        }
         // 1.21 freezes the displayed plan on every start attempt.
         session.closeImprovements();
         ICraftingLink link;

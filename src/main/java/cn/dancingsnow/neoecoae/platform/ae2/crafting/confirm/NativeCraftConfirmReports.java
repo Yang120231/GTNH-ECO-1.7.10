@@ -32,17 +32,24 @@ public final class NativeCraftConfirmReports {
 
     public static ECOCraftConfirmReports.Built build(ICraftingJob job, BaseActionSource source,
         boolean cyclePlanningEnabled, long version) {
+        return new ECOCraftConfirmReports.Built(
+            state(job, cyclePlanningEnabled, version),
+            new ECOCraftConfirmReport(version, rows(job, source), ECOCycleItemList.EMPTY));
+    }
+
+    /** Admission metadata is independent of the native inventory and its client-only item definitions. */
+    static ECOCraftConfirmState state(ICraftingJob job, boolean cyclePlanningEnabled, long version) {
         boolean simulation = job.isSimulation();
-        List<ECOCraftConfirmReport.Row> rows = rows(job, source);
-        ECOCraftConfirmState state = new ECOCraftConfirmState(
+        return new ECOCraftConfirmState(
             true,
             true,
             cyclePlanningEnabled,
             false,
             0L,
             BigInteger.ZERO,
-            // AE2 cannot run an incomplete native plan; UNSUPPORTED keeps the force start closed for it.
-            simulation ? PlanningStatus.UNSUPPORTED : null,
+            simulation
+                ? NativeForcedCraftingJob.supports(job) ? PlanningStatus.MISSING_ITEMS : PlanningStatus.UNSUPPORTED
+                : null,
             "",
             0,
             simulation,
@@ -50,9 +57,6 @@ public final class NativeCraftConfirmReports {
             version,
             null,
             "");
-        return new ECOCraftConfirmReports.Built(
-            state,
-            new ECOCraftConfirmReport(version, rows, ECOCycleItemList.EMPTY));
     }
 
     /** One row per planned stack, with the amounts GTNH's own page shows. */
