@@ -155,6 +155,8 @@ public final class ECOCraftingStatusTracker {
         tracked.nextProcessingTick = tick + PROCESSING_INTERVAL;
         KeyCounter active = new KeyCounter();
         runtime.getItems(active, CraftingItemList.ACTIVE);
+        // Admission-blocked tasks belong in the right column before their first successful dispatch.
+        runtime.getItems(active, CraftingItemList.PENDING);
         ListTag entries = new ListTag();
         for (var entry : active) {
             if (entries.size() >= MAX_PROCESSING_ENTRIES) break;
@@ -171,6 +173,9 @@ public final class ECOCraftingStatusTracker {
         }
         CompoundTag payload = new CompoundTag();
         payload.putBoolean("eco", true);
+        payload.putInt("cpuSerial", tracked.container.getCPUTable().selectedCpuSerial);
+        var job = logic.getProcessingJobId();
+        payload.putString("job", job == null ? "" : job.toString());
         payload.put("entries", entries);
         if (payload.nativeTag()
             .equals(tracked.processing.nativeTag())) return;

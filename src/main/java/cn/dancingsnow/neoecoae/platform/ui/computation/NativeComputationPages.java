@@ -187,7 +187,8 @@ public final class NativeComputationPages {
             panel.getChildren()
                 .get(0)
                 .setEnabled(!status);
-            panel.size(status ? 326 : list ? 362 : 295, status ? 254 : 231);
+            panel.size(status ? NativeCpuPages.STATUS_WIDTH : list ? 362 : 295,
+                status ? NativeCpuPages.STATUS_HEIGHT : 231);
             panel.scheduleResize();
         }
     }

@@ -33,6 +33,19 @@ class DedicatedServerUiTest {
     private static final String MUI = "com.cleanroommc.modularui.";
 
     @Test
+    void computationStatusBuildsWithSharedCardsAfterClientRenderersAreStripped() throws Exception {
+        try (var loader = new ServerLoader()) {
+            Class<?> session = loader.loadClass(UI + "computation.NativeComputationSession");
+            var host = mock(cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity.class);
+            Object state = session.getConstructor(
+                cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity.class)
+                .newInstance(host);
+            assertNotNull(loader.loadClass(UI + "computation.NativeCpuPages")
+                .getMethod("status", session, Runnable.class).invoke(null, state, (Runnable) () -> {}));
+        }
+    }
+
+    @Test
     void priorityPopupBuildsAfterFmlDeletesItsClientActions() throws Exception {
         try (var loader = new ServerLoader()) {
             Class<?> session = loader.loadClass(UI + "storage.NativeStoragePrioritySession");

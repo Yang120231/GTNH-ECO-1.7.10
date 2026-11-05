@@ -1503,3 +1503,13 @@ neoecoae.configuration.keyReuse=AE key reuse
 neoecoae.configuration.keyReuse.tooltip=Local cache settings. Value equality and saved inventories remain compatible.
 neoecoae.configuration.keyReuse.enabled=Reuse keys without extra data
 neoecoae.configuration.keyReuse.enabled.tooltip=Reuse immutable keys for resources without extra components or NBT. Resources with additional data keep their original factory behavior.
+
+gui.neoecoae.computation.ui.card.co_processors=Co-Processors
+gui.neoecoae.computation.ui.card.crafting=Crafting
+gui.neoecoae.computation.ui.card.crafting_status=Crafting Status
+gui.neoecoae.computation.ui.card.scheduled=Scheduled
+gui.neoecoae.computation.ui.card.state.crafting=Crafting
+gui.neoecoae.computation.ui.card.state.scheduled=Scheduled
+gui.neoecoae.computation.ui.card.state.stored=In Storage
+gui.neoecoae.computation.ui.card.storage_capacity=Storage Capacity
+gui.neoecoae.computation.ui.card.stored=Available

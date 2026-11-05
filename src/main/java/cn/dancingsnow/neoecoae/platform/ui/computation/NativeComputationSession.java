@@ -113,6 +113,7 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                     .orElse(active.isEmpty() ? null : active.get(0));
                 selected = fallback == null ? 0 : identities.get(fallback);
                 itemOffset = 0;
+                taskOffset = 0;
             }
             offset = Math.min(Math.max(0, active.size() - visibleRows), offset);
             tag.putInt("cpuCount", active.size());
@@ -136,6 +137,9 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 detail.put("items", statusItems(chosen));
                 detail.putInt("itemOffset", itemOffset);
                 detail.putInt("itemCount", statusItemCount);
+                detail.put("tasks", statusTasks);
+                detail.putInt("taskOffset", taskOffset);
+                detail.putInt("taskCount", statusTaskCount);
                 tag.put("selected", detail);
             }
             var hardware = cluster.getDrives();
@@ -251,7 +255,10 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 .getValue(cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.MIRRORED));
     }
 
-    private int statusItemCount;
+    private int statusItemCount, statusTaskCount, taskOffset;
+    private ListTag statusTasks = new ListTag();
+    private final cn.dancingsnow.neoecoae.platform.ui.crafting.CraftingStatusTaskOrder<AEKey> taskOrder =
+        new cn.dancingsnow.neoecoae.platform.ui.crafting.CraftingStatusTaskOrder<>();
 
     private ListTag statusItems(ECOCraftingCPU cpu) {
         var logic = cpu.getLogic();
@@ -266,39 +273,61 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         sorted.sort(java.util.Comparator.comparing(names::get));
         statusItemCount = sorted.size();
         itemOffset = Math.min(itemOffset, Math.max(0, (sorted.size() + 2) / 3 - 9) * 3);
-        String[] kinds = { "stored", "pending", "active" };
+        var running = new ArrayList<AEKey>();
+        for (AEKey key : sorted) {
+            var amounts = resources.get(key);
+            if (positive(amounts[2])) running.add(key);
+            else if (positive(amounts[1])) {
+                var progress = logic.getProcessingProgress(key);
+                if (progress.machineCount() > 0
+                    && progress.state() == cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.WAITING)
+                    running.add(key);
+            }
+        }
+        var tasks = taskOrder.update(selected, jobId == null ? "" : jobId.toString(), running);
+        statusTaskCount = tasks.size();
+        taskOffset = Math.min(taskOffset, Math.max(0, tasks.size() - 9));
+        statusTasks = new ListTag();
+        for (int i = taskOffset; i < Math.min(tasks.size(), taskOffset + 9); i++) {
+            AEKey key = tasks.get(i);
+            statusTasks.add(statusRow(cpu, key, resources.get(key), names.get(key)));
+        }
         ListTag page = new ListTag();
         for (int index = itemOffset; index < Math.min(sorted.size(), itemOffset + 27); index++) {
             AEKey key = sorted.get(index);
-            CompoundTag row = new CompoundTag();
-            row.put("key", key.toTagGeneric(RegistryAccess.EMPTY));
-            row.putString("name", names.get(key));
-            java.math.BigInteger[] amounts = resources.get(key);
-            for (int kind = 0; kind < 3; kind++)
-                if (amounts[kind] != null) row.putString(kinds[kind], amounts[kind].toString());
-            ResourceTarget target = resourceTargets.values()
-                .stream()
-                .filter(value -> value.key.equals(key))
-                .findFirst()
-                .orElse(null);
-            if (target == null && jobId != null) {
-                target = new ResourceTarget(++resourceSerial, cpu, jobId, key);
-                resourceTargets.put(target.token, target);
-            }
-            if (target != null) {
-                row.putInt("controlToken", target.token);
-                row.putBoolean("canControl", logic.canControlProcessingStep(key));
-                row.putBoolean("stepStopped", logic.isProcessingStepStopped(key));
-                var progress = logic.getProcessingProgress(key);
-                target.detailPage = Math.min(target.detailPage, progress.pages() - 1);
-                row.put(
-                    "processing",
-                    progress.page(target.detailPage)
-                        .write());
-            }
-            page.add(row);
+            page.add(statusRow(cpu, key, resources.get(key), names.get(key)));
         }
         return page;
+    }
+
+    private static boolean positive(java.math.BigInteger value) {
+        return value != null && value.signum() > 0;
+    }
+
+    private CompoundTag statusRow(ECOCraftingCPU cpu, AEKey key, java.math.BigInteger[] amounts, String name) {
+        var logic = cpu.getLogic();
+        var jobId = logic.getProcessingJobId();
+        CompoundTag row = new CompoundTag();
+        row.put("key", key.toTagGeneric(RegistryAccess.EMPTY));
+        row.putString("name", name);
+        String[] kinds = { "stored", "pending", "active" };
+        for (int kind = 0; kind < 3; kind++)
+            if (amounts[kind] != null) row.putString(kinds[kind], amounts[kind].toString());
+        ResourceTarget target = resourceTargets.values().stream()
+            .filter(value -> value.key.equals(key)).findFirst().orElse(null);
+        if (target == null && jobId != null) {
+            target = new ResourceTarget(++resourceSerial, cpu, jobId, key);
+            resourceTargets.put(target.token, target);
+        }
+        if (target != null) {
+            row.putInt("controlToken", target.token);
+            row.putBoolean("canControl", logic.canControlProcessingStep(key));
+            row.putBoolean("stepStopped", logic.isProcessingStepStopped(key));
+            var progress = logic.getProcessingProgress(key);
+            target.detailPage = Math.min(target.detailPage, progress.pages() - 1);
+            row.put("processing", progress.page(target.detailPage).write());
+        }
+        return row;
     }
 
     /**
@@ -436,6 +465,7 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             case 5:
                 selected = argument;
                 itemOffset = 0;
+                taskOffset = 0;
                 break;
             case 6:
             case 7:
@@ -473,6 +503,9 @@ public final class NativeComputationSession extends NativeSnapshotSession {
                 break;
             case 14:
                 itemOffset = Math.max(0, Math.min(65520, argument));
+                break;
+            case 20:
+                taskOffset = Math.max(0, Math.min(65528, argument));
                 break;
             case 15:
                 host.toggleNetworkSmartDoubling();

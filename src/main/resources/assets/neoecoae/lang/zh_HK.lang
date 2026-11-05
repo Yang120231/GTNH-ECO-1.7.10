@@ -1498,3 +1498,13 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.no_match=沒有找到匹配機�
 gui.neoecoae.pattern_upload.button.open.tooltip.left=打開目標列表，手動選擇上傳位置
 gui.neoecoae.pattern_upload.button.tooltip.right=編碼樣板並打開目標列表
 gui.neoecoae.pattern_upload.button.tooltip.right_note=在 AE2 編碼按鈕上操作
+
+gui.neoecoae.computation.ui.card.co_processors=協同處理器
+gui.neoecoae.computation.ui.card.crafting=合成中
+gui.neoecoae.computation.ui.card.crafting_status=合成狀態
+gui.neoecoae.computation.ui.card.scheduled=已排程
+gui.neoecoae.computation.ui.card.state.crafting=合成中
+gui.neoecoae.computation.ui.card.state.scheduled=已排程
+gui.neoecoae.computation.ui.card.state.stored=庫存中
+gui.neoecoae.computation.ui.card.storage_capacity=儲存容量
+gui.neoecoae.computation.ui.card.stored=可用
