@@ -45,12 +45,15 @@ class LanguageResourcesTest {
 
     @Test
     void everyLanguageHasValidUtf8UniqueKeysAndMatchingNativeAliases() throws Exception {
+        Set<String> supportedKeys = json(LANG.resolve("en_us.json")).keySet();
         try (var paths = Files.walk(LANG)) {
             for (Path json : paths.filter(
                 path -> path.toString()
                     .endsWith(".json"))
                 .collect(Collectors.toList())) {
                 Map<String, String> strings = json(json);
+                if (json.getParent()
+                    .equals(LANG)) assertEquals(supportedKeys, strings.keySet(), json + ": supported locale keys");
                 String locale = json.getFileName()
                     .toString()
                     .replace(".json", "");

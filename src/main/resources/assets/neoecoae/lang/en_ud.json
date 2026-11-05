@@ -1345,5 +1345,18 @@
   "neoecoae.structure.desc.length": "ɥʇbuǝן ǝɹnʇɔnɹʇs ǝɥʇ sʇǝs (ןǝuuɐɥɔ „ɥʇbuǝן„ ǝɥʇ ɹo) ǝzıs ʞɔɐʇs ɹoʇɔǝظoɹԀ",
   "neoecoae.structure.desc.mirror": "ʇnoʎɐן pǝɹoɹɹıɯ ǝɥʇ pןınq oʇ Ɩ oʇ ןǝuuɐɥɔ „ɹoɹɹıɯ„ ǝɥʇ ʇǝS",
   "neoecoae.structure.channel.length": "ɥʇbuǝן ǝɹnʇɔnɹʇs OƆƎ",
-  "neoecoae.structure.channel.mirror": "(uo = Ɩ 'ɟɟo = 0) ʇnoʎɐן pǝɹoɹɹıɯ OƆƎ"
+  "neoecoae.structure.channel.mirror": "(uo = Ɩ 'ɟɟo = 0) ʇnoʎɐן pǝɹoɹɹıɯ OƆƎ",
+  "neoecoae.configuration.keyReuse": "ǝsnǝɹ ʎǝʞ ƎⱯ",
+  "neoecoae.configuration.keyReuse.tooltip": "˙ǝןqıʇɐdɯoɔ uıɐɯǝɹ sǝıɹoʇuǝʌuı pǝʌɐs puɐ ʎʇıןɐnbǝ ǝnןɐΛ ˙sƃuıʇʇǝs ǝɥɔɐɔ ןɐɔoꓶ",
+  "neoecoae.configuration.keyReuse.enabled": "ɐʇɐp ɐɹʇxǝ ʇnoɥʇıʍ sʎǝʞ ǝsnǝꓤ",
+  "neoecoae.configuration.keyReuse.enabled.tooltip": "˙ɹoıʌɐɥǝq ʎɹoʇɔɐɟ ןɐuıƃıɹo ɹıǝɥʇ dǝǝʞ ɐʇɐp ןɐuoıʇıppɐ ɥʇıʍ sǝɔɹnosǝꓤ ˙ꓕꓭN ɹo sʇuǝuodɯoɔ ɐɹʇxǝ ʇnoɥʇıʍ sǝɔɹnosǝɹ ɹoɟ sʎǝʞ ǝןqɐʇnɯɯı ǝsnǝꓤ",
+  "gui.neoecoae.computation.ui.card.co_processors": "sɹossǝɔoɹԀ-oƆ",
+  "gui.neoecoae.computation.ui.card.crafting": "ƃuıʇɟɐɹƆ",
+  "gui.neoecoae.computation.ui.card.crafting_status": "snʇɐʇS ƃuıʇɟɐɹƆ",
+  "gui.neoecoae.computation.ui.card.scheduled": "pǝןnpǝɥɔS",
+  "gui.neoecoae.computation.ui.card.state.crafting": "ƃuıʇɟɐɹƆ",
+  "gui.neoecoae.computation.ui.card.state.scheduled": "pǝןnpǝɥɔS",
+  "gui.neoecoae.computation.ui.card.state.stored": "ǝƃɐɹoʇS uI",
+  "gui.neoecoae.computation.ui.card.storage_capacity": "ʎʇıɔɐdɐƆ ǝƃɐɹoʇS",
+  "gui.neoecoae.computation.ui.card.stored": "ǝןqɐןıɐʌⱯ"
 }
