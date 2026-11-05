@@ -17,6 +17,8 @@ import net.minecraftforge.client.event.RenderWorldLastEvent;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 
+import com.gtnewhorizon.gtnhlib.client.event.RenderTooltipEvent;
+
 import appeng.api.config.ActionItems;
 import appeng.api.config.Settings;
 import appeng.client.gui.implementations.GuiPatternTerm;
@@ -204,6 +206,15 @@ public final class PatternUploadClient {
             windowId,
             ((PatternUploadButton) button).automatic ? PatternUploadPackets.AUTO : PatternUploadPackets.OPEN);
         event.setCanceled(true);
+    }
+
+    /** NEI looks up hovered inventory items using the real mouse position, even when drawing the parent off-screen. */
+    @SubscribeEvent
+    @SideOnly(Side.CLIENT)
+    public void hideParentTooltip(RenderTooltipEvent event) {
+        GuiScreen screen = Minecraft.getMinecraft().currentScreen;
+        if (screen instanceof PatternUploadScreen && event.gui == ((PatternUploadScreen) screen).parent)
+            event.setCanceled(true);
     }
 
     /** Card tooltips for the upload buttons, drawn over the terminal after AE2's own tooltips. */
