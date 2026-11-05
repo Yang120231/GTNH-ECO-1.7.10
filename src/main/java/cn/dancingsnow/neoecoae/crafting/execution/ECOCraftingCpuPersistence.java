@@ -17,6 +17,11 @@ final class ECOCraftingCpuPersistence {
 
     void read(CompoundTag data, HolderLookup.Provider registries) {
 
+        if (host.nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+            bridge.readTracking(
+                data.getCompound("nativeTracking")
+                    .nativeTag());
+
         host.taskSchedulerForPersistence()
             .reset();
         host.dispatchStrategyForPersistence()
@@ -65,6 +70,11 @@ final class ECOCraftingCpuPersistence {
     }
 
     void write(CompoundTag data, HolderLookup.Provider registries) {
+        if (host.nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge) {
+            var tracking = new CompoundTag();
+            bridge.writeTracking(tracking.nativeTag());
+            data.put("nativeTracking", tracking);
+        }
         host.bigOrder.write(data, registries);
         data.putBoolean(
             "ecoExactInventory",

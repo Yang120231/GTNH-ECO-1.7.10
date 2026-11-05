@@ -23,6 +23,7 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
     private final ECOCraftingCPU cpu;
     private World lastWorld;
     private long lastTick = Long.MIN_VALUE;
+    private CraftingCPUCluster submittedCpu;
 
     public ECOCraftingNativeRuntime(ECOCraftingCPU cpu) {
         this.cpu = java.util.Objects.requireNonNull(cpu);
@@ -259,9 +260,15 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         if (!result.successful()) return null;
         ECOCraftingCPU assigned = cpu.getCluster()
             .findCPU(plan);
+        submittedCpu = assigned != null && assigned.nativeCPU() instanceof CraftingCPUCluster bridge ? bridge : null;
         var link = result.link() == null && assigned != null ? assigned.getLogic()
             .getLastLink() : result.link();
         return link == null ? null : link.nativeLink();
+    }
+
+    @Override
+    public CraftingCPUCluster submittedCpu() {
+        return submittedCpu;
     }
 
     @Override
@@ -269,6 +276,7 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         BaseActionSource source) {
         var link = cpu.getLogic()
             .tryMergeVanillaJob(grid(), plan, IActionSource.of(source));
+        if (link != null && cpu.nativeCPU() instanceof CraftingCPUCluster bridge) submittedCpu = bridge;
         return link == null ? null : link.nativeLink();
     }
 

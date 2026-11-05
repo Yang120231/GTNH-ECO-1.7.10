@@ -108,6 +108,7 @@ class ECOCoreCpuExecutionTest {
             requestLink.get()
                 .isDone());
         verify(requester).jobStateChange(same(requestLink.get()));
+        verify(fixture.nativeCpu).finishTracking(eq(true), eq(fixture.plan.finalOutput()), anyLong());
         assertEquals(0L, fixture.stock.getOrDefault(fixture.goal, 0L));
     }
 
@@ -165,6 +166,7 @@ class ECOCoreCpuExecutionTest {
         fixture.cpu.cancelJob();
         assertEquals(5L, fixture.stock.get(fixture.raw));
         assertEquals(0, fixture.pushes);
+        verify(fixture.nativeCpu).finishTracking(eq(false), eq(fixture.plan.finalOutput()), anyLong());
     }
 
     @Test
@@ -360,8 +362,8 @@ class ECOCoreCpuExecutionTest {
         final MEStorage network = mock(MEStorage.class);
         final ECOCraftingCPUHost host = mock(ECOCraftingCPUHost.class);
         final ECOCraftingCPUOwner owner = mock(ECOCraftingCPUOwner.class);
-        final appeng.api.networking.crafting.ICraftingCPU nativeCpu = mock(
-            appeng.api.networking.crafting.ICraftingCPU.class);
+        final cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu nativeCpu = mock(
+            cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu.class);
         final ICraftingPlan plan;
         ECOCraftingCPU cpu;
         int pushes;

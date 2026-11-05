@@ -124,6 +124,16 @@ public final class NativeECOCpuSelection {
 
     private static void follow(CraftingCPUCluster cpu, BaseActionSource source, boolean follow) {
         if (follow && source instanceof PlayerSource)
-            cpu.togglePlayerFollowStatus(((PlayerSource) source).player.getCommandSenderName());
+            followSubmitted(cpu, ((PlayerSource) source).player.getCommandSenderName());
+    }
+
+    /** Also used by AE2's native planner submission path, whose selected CPU can be an ECO placeholder. */
+    public static void followSubmitted(CraftingCPUCluster cpu, String player) {
+        if (cpu instanceof NativeECOCpu eco && eco.runtime()
+            .submittedCpu() != null)
+            cpu = eco.runtime()
+                .submittedCpu();
+        if (!cpu.getPlayersFollowingCurrentCraft()
+            .contains(player)) cpu.togglePlayerFollowStatus(player);
     }
 }

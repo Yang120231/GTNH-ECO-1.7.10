@@ -152,6 +152,9 @@ final class ECOCraftingJobLifecycleController {
             finishingJob.link.cancel();
         }
 
+        if (host.nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+            bridge.finishTracking(success, finishingJob.finalOutput, finishingJob.timeTracker.getElapsedTime());
+
         finishingJob.waitingFor.clear();
         for (var entry : finishingJob.tasks.entrySet()) {
             for (var output : entry.getKey()

@@ -33,6 +33,23 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeCpuTargets;
 class NativeCpuTargetsContractTest {
 
     @Test
+    void nativeSubmissionHasOneFollowCallForTheAllocatedCpuRedirect() throws IOException {
+        ClassNode cache = new ClassNode();
+        try (InputStream stream = getClass().getResourceAsStream("/appeng/me/cache/CraftingGridCache.class")) {
+            assertNotNull(stream);
+            new ClassReader(stream).accept(cache, 0);
+        }
+        int calls = 0;
+        for (MethodNode method : cache.methods) if ((method.name + method.desc).equals(NativeCpuTargets.SUBMIT)) {
+            for (var instruction : method.instructions.toArray()) if (instruction instanceof MethodInsnNode call
+                && call.owner.equals("appeng/me/cluster/implementations/CraftingCPUCluster")
+                && call.name.equals("togglePlayerFollowStatus")
+                && call.desc.equals("(Ljava/lang/String;)V")) calls++;
+        }
+        assertEquals(1, calls, "The allocated-CPU follow redirect must match the pinned native submission path");
+    }
+
+    @Test
     void requiredNativeHooksExistInPinnedJar() throws IOException {
         Set<String> methods = readMethods("/appeng/me/cache/CraftingGridCache.class");
         assertRequiredHooks(methods);

@@ -61,6 +61,82 @@ public final class NativeECOCpu extends CraftingCPUCluster
         return runtime;
     }
 
+    /** Execute GTNH's registered listeners, including its toast, chat, sound and offline notification queue. */
+    public void finishTracking(boolean success, GenericStack output, long elapsed) {
+        try {
+            if (success && output != null) {
+                var nativeOutput = output.what()
+                    .toNative(output.amount());
+                for (var listener : new java.util.ArrayList<>(craftCompleteListeners)) {
+                    try {
+                        listener.apply(nativeOutput, output.amount(), elapsed);
+                    } catch (RuntimeException failure) {
+                        appeng.core.AELog.error(failure, "ECO crafting completion listener failed");
+                    }
+                }
+            } else if (!success) {
+                for (var listener : new java.util.ArrayList<>(craftCancelListeners)) {
+                    try {
+                        listener.run();
+                    } catch (RuntimeException failure) {
+                        appeng.core.AELog.error(failure, "ECO crafting cancellation listener failed");
+                    }
+                }
+            }
+        } finally {
+            playersFollowingCurrentCraft.clear();
+            craftCompleteListeners = initializeDefaultOnCompleteListener();
+            craftCancelListeners.clear();
+            craftUpdateListeners.clear();
+            markDirty();
+        }
+    }
+
+    @Override
+    public void togglePlayerFollowStatus(String player) {
+        super.togglePlayerFollowStatus(player);
+        markDirty();
+    }
+
+    public void writeTracking(net.minecraft.nbt.NBTTagCompound tag) {
+        var names = new net.minecraft.nbt.NBTTagList();
+        for (String name : playersFollowingCurrentCraft) names.appendTag(new net.minecraft.nbt.NBTTagString(name));
+        tag.setTag("playerNameList", names);
+        var unread = new net.minecraft.nbt.NBTTagList();
+        for (var entry : unreadNotifications.entrySet()) {
+            var player = new net.minecraft.nbt.NBTTagCompound();
+            player.setString("playerName", entry.getKey());
+            var notifications = new net.minecraft.nbt.NBTTagList();
+            for (var notification : entry.getValue()) {
+                var data = new net.minecraft.nbt.NBTTagCompound();
+                notification.writeToNBT(data);
+                notifications.appendTag(data);
+            }
+            player.setTag("notifications", notifications);
+            unread.appendTag(player);
+        }
+        tag.setTag("unreadNotifications", unread);
+    }
+
+    public void readTracking(net.minecraft.nbt.NBTTagCompound tag) {
+        playersFollowingCurrentCraft.clear();
+        var names = tag.getTagList("playerNameList", 8);
+        for (int i = 0; i < names.tagCount(); i++) playersFollowingCurrentCraft.add(names.getStringTagAt(i));
+        unreadNotifications.clear();
+        var unread = tag.getTagList("unreadNotifications", 10);
+        for (int i = 0; i < unread.tagCount(); i++) {
+            var player = unread.getCompoundTagAt(i);
+            var notifications = player.getTagList("notifications", 10);
+            var decoded = new java.util.ArrayList<CraftNotification>();
+            for (int j = 0; j < notifications.tagCount(); j++) {
+                var notification = new CraftNotification();
+                notification.readFromNBT(notifications.getCompoundTagAt(j));
+                decoded.add(notification);
+            }
+            unreadNotifications.put(player.getString("playerName"), decoded);
+        }
+    }
+
     @Override
     public appeng.api.config.CraftingAllow getCraftingAllowMode() {
         return runtime.selectionMode();

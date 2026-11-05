@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Desc;
 import org.spongepowered.asm.mixin.injection.Group;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import appeng.api.networking.IGrid;
@@ -25,6 +26,18 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCrafting
 /** Include live ECO CPU identities in the exact set used for scheduling, link recovery and output routing. */
 @Mixin(value = CraftingGridCache.class, remap = false)
 public abstract class CraftingCpuPublicationMixin {
+
+    @Redirect(
+        method = NativeCpuTargets.SUBMIT,
+        at = @At(
+            value = "INVOKE",
+            target = "Lappeng/me/cluster/implementations/CraftingCPUCluster;togglePlayerFollowStatus(Ljava/lang/String;)V"),
+        require = 1)
+    private void neoecoae$followAssignedCpu(CraftingCPUCluster cpu, String player) {
+        if (cpu instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu)
+            NativeECOCpuSelection.followSubmitted(cpu, player);
+        else cpu.togglePlayerFollowStatus(player);
+    }
 
     @Shadow
     @Final
