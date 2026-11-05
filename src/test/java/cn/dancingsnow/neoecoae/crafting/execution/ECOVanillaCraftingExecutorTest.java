@@ -46,7 +46,7 @@ class ECOVanillaCraftingExecutorTest {
 
     private final AEItemKey stone = AEItemKey.of(TestItems.STONE);
     private final AEItemKey cobble = AEItemKey.of(TestItems.COBBLESTONE);
-    private final ICraftingPatternDetails details = mock(ICraftingPatternDetails.class);
+    private ICraftingPatternDetails details = mock(ICraftingPatternDetails.class);
     private final NativePatternDetails pattern = mock(NativePatternDetails.class);
     private final ListCraftingInventory inventory = new ListCraftingInventory(key -> {});
     private final ECOCraftingCPULogic host = mock(ECOCraftingCPULogic.class);
@@ -153,6 +153,31 @@ class ECOVanillaCraftingExecutorTest {
         when(medium.pushPattern(any(), any())).thenReturn(true);
         when(medium.getBlockingMode()).thenReturn(ICraftingMedium.BlockingMode.NONE);
         return medium;
+    }
+
+    @Test
+    void programmableCircuitProviderDispatchesWithAnEmptyGridWithoutExtractingItsPlaceholder() {
+        details = mock(
+            ICraftingPatternDetails.class,
+            withSettings().extraInterfaces(reobf.proghatches.eucrafting.IInputMightBeEmptyPattern.class));
+        ICraftingMedium medium = accepting();
+        setUp(1, medium);
+        IAEStack<?>[] marker = { nativeStack(TestItems.STONE, 0) };
+        when(details.getAEInputs()).thenReturn(marker);
+        when(details.getCondensedAEInputs()).thenReturn(marker);
+
+        executor.tick(job, energy, this::mediumsOf, null, world, 0);
+
+        var grid = org.mockito.ArgumentCaptor.forClass(net.minecraft.inventory.InventoryCrafting.class);
+        verify(medium).pushPattern(same(details), grid.capture());
+        assertEquals(
+            9,
+            grid.getValue()
+                .getSizeInventory());
+        for (int slot = 0; slot < 9; slot++) assertNull(((MEInventoryCrafting) grid.getValue()).getAEStackInSlot(slot));
+        assertTrue(inventory.list.isEmpty());
+        assertEquals(1, job.waitingFor.list.get(cobble));
+        assertEquals(0, job.tasks.get(pattern).value);
     }
 
     @Test

@@ -264,12 +264,16 @@ final class ECOVanillaCraftingExecutor {
                         // check if there is enough power
                         if (eg.extractAEPower(sum, Actionable.SIMULATE, PowerMultiplier.CONFIG) < sum - 0.01) continue;
 
-                        craftingInventory = craftable ? traits.newTable(3, 3)
+                        boolean inputExempt = NativePatternDetails.mightHaveEmptyInputs(details);
+                        craftingInventory = craftable || inputExempt ? traits.newTable(3, 3)
                             : traits.newTable(expandedInputs.size(), 1);
 
                         // Check if all items can be used for crafting.
-                        boolean found = false;
+                        boolean found = inputExempt;
                         for (int x = 0; x < expandedInputs.size(); x++) {
+                            // Programmable Hatches' MixinCanCraftExempt supplies an empty MEInvDummy for these
+                            // provider-owned recipes. Its zero-sized apple is a marker, never a real ingredient.
+                            if (inputExempt) break;
                             final IAEStack<?> slotInput = expandedInputs.get(x);
                             if (slotInput != null) {
                                 found = false;
@@ -399,6 +403,7 @@ final class ECOVanillaCraftingExecutor {
     }
 
     private boolean canCraft(ICraftingPatternDetails details, List<IAEStack<?>> condensedInputs, World world) {
+        if (NativePatternDetails.mightHaveEmptyInputs(details)) return true;
         for (IAEStack<?> g : condensedInputs) {
             if (getExtractItems(g, details, world).isEmpty()) {
                 return false;

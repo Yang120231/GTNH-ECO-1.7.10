@@ -130,7 +130,7 @@ public class NativePatternDetails implements IPatternDetails {
     };
 
     /** Mirrors Programmable Hatches' CraftFromPatternTask patch, which drops zero-sized inputs of marked patterns. */
-    static boolean mightHaveEmptyInputs(ICraftingPatternDetails pattern) {
+    public static boolean mightHaveEmptyInputs(ICraftingPatternDetails pattern) {
         return EMPTY_INPUT_TYPES.get(pattern.getClass());
     }
 
