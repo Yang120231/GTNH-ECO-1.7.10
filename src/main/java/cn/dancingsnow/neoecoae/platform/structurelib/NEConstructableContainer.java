@@ -10,6 +10,7 @@ import net.minecraft.world.World;
 
 import com.gtnewhorizon.structurelib.alignment.constructable.ChannelDataAccessor;
 import com.gtnewhorizon.structurelib.alignment.constructable.IMultiblockInfoContainer;
+import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 
@@ -34,6 +35,13 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
         Function<TileEntity, MultiBlockDefinition> definitions) {
         this.controller = controller;
         this.definitions = definitions;
+    }
+
+    @Override
+    public ISurvivalConstructable toConstructable(TileEntity host, ExtendedFacing facing) {
+        return new NEPreviewConstructable(
+            IMultiblockInfoContainer.super.toConstructable(host, facing),
+            definitions.apply(host));
     }
 
     @Override
