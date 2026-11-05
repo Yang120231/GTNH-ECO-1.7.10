@@ -21,17 +21,22 @@ public final class AEItemKey extends AEKey {
     private final ItemStack identity;
     private final int hash;
     // Lazily built native view; {@link #toNative} copies it instead of re-interning the tag per call.
-    private IAEItemStack nativeTemplate;
+    private volatile IAEItemStack nativeTemplate;
 
     private AEItemKey(ItemStack identity, int tagHash, IAEItemStack nativeTemplate) {
         this.identity = identity;
-        this.nativeTemplate = nativeTemplate;
+        // New keys already have a null template; avoid a volatile null store on every tagged ingress.
+        if (nativeTemplate != null) this.nativeTemplate = nativeTemplate;
         hash = (31 * identity.getItem()
             .hashCode() + identity.getItemDamage()) * 31 + tagHash;
     }
 
     public static AEItemKey of(ItemStack stack) {
         if (stack == null || stack.getItem() == null) return null;
+        if (stack.getTagCompound() == null) {
+            AEItemKey plain = plain(stack.getItem(), stack.getItemDamage());
+            if (plain != null) return plain;
+        }
         ItemStack identity = stack.copy();
         identity.stackSize = 1;
         NBTTagCompound tag = identity.getTagCompound();
@@ -41,6 +46,10 @@ public final class AEItemKey extends AEKey {
     /** Network ingress: rv3 stacks carry an interned tag, so neither the stack nor its NBT is copied. */
     static AEItemKey ofNative(IAEItemStack stack) {
         Object raw = stack.getTagCompound();
+        if (raw == null && stack.getItem() != null) {
+            AEItemKey plain = plain(stack.getItem(), stack.getItemDamage());
+            if (plain != null) return plain;
+        }
         if (stack.getItem() == null
             || raw != null && !(raw instanceof NBTTagCompound && AESharedNBT.isShared((NBTTagCompound) raw)))
             return of(stack.getItemStack());
@@ -54,7 +63,29 @@ public final class AEItemKey extends AEKey {
     }
 
     public static AEItemKey of(Item item) {
+        if (item != null) {
+            AEItemKey plain = plain(item, 0);
+            if (plain != null) return plain;
+        }
         return item == null ? null : of(new ItemStack(item));
+    }
+
+    private static AEItemKey plain(Item item, int metadata) {
+        Object epoch = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.epoch();
+        if (epoch == null) return null;
+        var slot = PlainKeySlots.item(item, metadata, epoch);
+        if (slot == null) return null;
+        AEItemKey key = (AEItemKey) slot.get(epoch);
+        if (key != null) return key;
+        synchronized (slot) {
+            key = (AEItemKey) slot.get(epoch);
+            if (key == null) {
+                // Keys contain identity only; source-native crafting/request flags are not shared.
+                key = new AEItemKey(new ItemStack(item, 1, metadata), 0, null);
+                slot.set(epoch, key);
+            }
+            return key;
+        }
     }
 
     public Item getItem() {
@@ -123,7 +154,12 @@ public final class AEItemKey extends AEKey {
     @Override
     public IAEItemStack toNative(long amount) {
         IAEItemStack template = nativeTemplate;
-        if (template == null) nativeTemplate = template = AEItemStack.create(toStack());
+        if (template == null) {
+            synchronized (this) {
+                template = nativeTemplate;
+                if (template == null) nativeTemplate = template = AEItemStack.create(toStack());
+            }
+        }
         return template.copy()
             .setStackSize(amount);
     }
@@ -154,6 +190,10 @@ public final class AEItemKey extends AEKey {
         Object item = registries
             .item(cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse(tag.getString("id")));
         if (!(item instanceof Item)) return null;
+        if (!tag.contains("tag", 10)) {
+            AEItemKey plain = plain((Item) item, tag.getInt("damage"));
+            if (plain != null) return plain;
+        }
         ItemStack stack = new ItemStack((Item) item, 1, tag.getInt("damage"));
         if (tag.contains("tag", 10)) stack.setTagCompound(
             tag.getCompound("tag")

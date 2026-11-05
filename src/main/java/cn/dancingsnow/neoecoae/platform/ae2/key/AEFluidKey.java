@@ -27,15 +27,37 @@ public final class AEFluidKey extends AEKey {
     }
 
     public static AEFluidKey of(FluidStack stack) {
-        return stack == null || stack.getFluid() == null ? null : new AEFluidKey(stack);
+        if (stack == null || stack.getFluid() == null) return null;
+        return stack.tag == null ? of(stack.getFluid()) : new AEFluidKey(stack);
     }
 
     public static AEFluidKey of(Fluid fluid) {
-        return fluid == null ? null : new AEFluidKey(fluid, null);
+        if (fluid == null) return null;
+        Object epoch = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.epoch();
+        var slot = epoch == null ? null : PlainKeySlots.fluid(fluid);
+        if (slot == null) return new AEFluidKey(fluid, null);
+        AEFluidKey key = (AEFluidKey) slot.get(epoch);
+        if (key != null) return key;
+        synchronized (slot) {
+            key = (AEFluidKey) slot.get(epoch);
+            if (key == null) {
+                key = new AEFluidKey(fluid, null);
+                slot.set(epoch, key);
+            }
+            return key;
+        }
+    }
+
+    static AEFluidKey ofNative(IAEFluidStack stack) {
+        if (cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.epoch() != null && stack.getTagCompound() == null)
+            return of(stack.getFluid());
+        return of(stack.getFluidStack());
     }
 
     public static AEFluidKey of(cn.dancingsnow.neoecoae.platform.fluid.FluidStack stack) {
-        return stack == null || stack.isEmpty() ? null : new AEFluidKey(stack.getFluid(), stack.copyTag());
+        if (stack == null || stack.isEmpty()) return null;
+        net.minecraft.nbt.NBTTagCompound tag = stack.copyTag();
+        return tag == null ? of(stack.getFluid()) : new AEFluidKey(stack.getFluid(), tag);
     }
 
     public Fluid getFluid() {
@@ -91,7 +113,7 @@ public final class AEFluidKey extends AEKey {
 
     static AEFluidKey read(HolderLookup.Provider registries, CompoundTag tag) {
         Fluid fluid = registries.fluid(tag.getString("FluidName"));
-        return fluid == null ? null
+        return fluid == null ? null : !tag.contains("Tag", 10) ? of(fluid)
             : new AEFluidKey(
                 fluid,
                 tag.contains("Tag", 10) ? tag.getCompound("Tag")
@@ -100,6 +122,7 @@ public final class AEFluidKey extends AEKey {
 
     @Override
     public boolean equals(Object other) {
+        if (this == other) return true;
         return other instanceof AEFluidKey && fluid == ((AEFluidKey) other).fluid
             && Objects.equals(data, ((AEFluidKey) other).data);
     }

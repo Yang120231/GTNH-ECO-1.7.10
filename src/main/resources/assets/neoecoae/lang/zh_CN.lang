@@ -1498,3 +1498,8 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.no_match=没有找到匹配机�
 gui.neoecoae.pattern_upload.button.open.tooltip.left=打开目标列表，手动选择上传位置
 gui.neoecoae.pattern_upload.button.tooltip.right=编码样板并打开目标列表
 gui.neoecoae.pattern_upload.button.tooltip.right_note=在 AE2 编码按钮上操作
+
+neoecoae.configuration.keyReuse=AE 资源 key 复用
+neoecoae.configuration.keyReuse.tooltip=本地缓存选项。保留值相等语义与旧存档格式。
+neoecoae.configuration.keyReuse.enabled=复用无额外数据的 key
+neoecoae.configuration.keyReuse.enabled.tooltip=复用无额外组件或 NBT 的不可变 key；带额外数据的资源保留原有创建行为。

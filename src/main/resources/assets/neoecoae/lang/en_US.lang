@@ -1498,3 +1498,8 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.no_match=No matching machine fou
 gui.neoecoae.pattern_upload.button.open.tooltip.left=Open the target list and choose where to upload
 gui.neoecoae.pattern_upload.button.tooltip.right=Encode the pattern and open the target list
 gui.neoecoae.pattern_upload.button.tooltip.right_note=Done on AE2's Encode button
+
+neoecoae.configuration.keyReuse=AE key reuse
+neoecoae.configuration.keyReuse.tooltip=Local cache settings. Value equality and saved inventories remain compatible.
+neoecoae.configuration.keyReuse.enabled=Reuse keys without extra data
+neoecoae.configuration.keyReuse.enabled.tooltip=Reuse immutable keys for resources without extra components or NBT. Resources with additional data keep their original factory behavior.

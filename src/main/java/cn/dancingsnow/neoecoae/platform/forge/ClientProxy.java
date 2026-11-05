@@ -8,6 +8,9 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(cpw.mods.fml.common.event.FMLPreInitializationEvent event) {
         super.preInit(event);
+        ((net.minecraft.client.resources.IReloadableResourceManager) net.minecraft.client.Minecraft.getMinecraft()
+            .getResourceManager()).registerReloadListener(manager ->
+                cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.invalidate());
         ModelRenderBridge.reset();
         cn.dancingsnow.neoecoae.platform.render.NativeMachineRendering.install();
         cn.dancingsnow.neoecoae.platform.render.NativeMaterialBlockRendering.install();

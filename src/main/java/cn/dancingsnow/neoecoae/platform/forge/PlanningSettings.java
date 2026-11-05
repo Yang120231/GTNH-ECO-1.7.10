@@ -16,12 +16,21 @@ public final class PlanningSettings {
     public static final int MAX_ECO_CPU_PUSH_TICK_LIMIT = 393_216;
 
     static final Class<?>[] CATEGORIES = { Multiblock.class, Storage.class, Crafting.class, Workstation.class,
-        PatternUpload.class };
+        PatternUpload.class, KeyReuse.class };
 
     private PlanningSettings() {}
 
     public static void register() throws ConfigException {
         for (Class<?> category : CATEGORIES) ConfigurationManager.registerConfig(category);
+        cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.configure(KeyReuse.enabled);
+    }
+
+    @Config(modid = NeoECOAE.MODID, category = "keyReuse")
+    public static final class KeyReuse {
+        @Config.Comment("Reuse immutable ECO keys for resources without NBT; retain raw metadata and value equality. / 复用无 NBT 资源的不可变 key，保留原始 metadata、值相等和旧存档格式。")
+        @Config.DefaultBoolean(true)
+        @Config.LangKey("neoecoae.configuration.keyReuse.enabled")
+        public static boolean enabled = true;
     }
 
     @Config(modid = NeoECOAE.MODID, category = "multiblock")
