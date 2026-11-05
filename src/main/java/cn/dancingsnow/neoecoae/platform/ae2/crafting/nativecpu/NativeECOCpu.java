@@ -251,8 +251,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
             || !job.supportsCPUCluster(this)) return null;
         if (job instanceof NativeECOCraftingJob) {
             var ecoJob = (NativeECOCraftingJob) job;
-            return ecoJob.belongsTo(runtime.world(), grid) ? runtime.submit(ecoJob.sourcePlan(), source, requester)
-                : null;
+            return ecoJob.belongsToGrid(grid) ? runtime.submit(ecoJob.sourcePlan(), source, requester) : null;
         }
         try {
             return runtime.submit(NativeJobPlan.capture(grid, job, source, runtime.world()), source, requester);

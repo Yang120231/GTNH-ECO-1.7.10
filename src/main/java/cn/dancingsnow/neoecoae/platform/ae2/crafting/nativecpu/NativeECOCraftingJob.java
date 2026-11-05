@@ -37,11 +37,7 @@ public final class NativeECOCraftingJob implements ICraftingJob {
         this.error = error;
     }
 
-    public boolean belongsTo(net.minecraft.world.World world, appeng.api.networking.IGrid grid) {
-        return this.world == world && this.grid == grid && session.isRunning();
-    }
-
-    /** Planned against this grid in the running server session; required before any native CPU stages it. */
+    /** Planned against this grid in the running server session, including CPUs in other loaded dimensions. */
     public boolean belongsToGrid(appeng.api.networking.IGrid grid) {
         return this.grid == grid && session.isRunning();
     }
