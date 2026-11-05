@@ -5,6 +5,8 @@ import java.util.Optional;
 
 import net.minecraft.item.ItemStack;
 
+import cpw.mods.fml.common.Loader;
+
 /**
  * Programmable Hatches support, accessed reflectively so the mod stays optional. Its programming circuit wraps the
  * circuit a cover writes; an empty wrapper is a reset marker, not an ingredient.
@@ -12,6 +14,7 @@ import net.minecraft.item.ItemStack;
 public final class ProgrammableHatchUpload {
 
     private static final String HATCH_CLASS = "reobf.proghatches.gt.metatileentity.PatternDualInputHatch";
+    private static final String INPUT_CLASS = "reobf.proghatches.gt.metatileentity.DualInputHatch";
     private static final String COVER_CLASS = "reobf.proghatches.gt.cover.ProgrammingCover";
     private static final String CIRCUIT_CLASS = "reobf.proghatches.item.ItemProgrammingCircuit";
     private static volatile boolean lookedUp;
@@ -21,15 +24,24 @@ public final class ProgrammableHatchUpload {
     private ProgrammableHatchUpload() {}
 
     public static boolean isHatch(Object host) {
-        return extendsClass(host, HATCH_CLASS);
+        return isAvailable() && extendsClass(host, HATCH_CLASS);
+    }
+
+    /** Ordinary and buffered programming input hatches also program circuits delivered by an ME interface. */
+    public static boolean isProgrammingInput(Object host) {
+        return isAvailable() && extendsClass(host, INPUT_CLASS);
     }
 
     public static boolean isCover(Object cover) {
-        return extendsClass(cover, COVER_CLASS);
+        return isAvailable() && extendsClass(cover, COVER_CLASS);
+    }
+
+    public static boolean isAvailable() {
+        return Loader.isModLoaded("programmablehatches");
     }
 
     public static boolean isProgrammingCircuit(ItemStack stack) {
-        if (stack == null || stack.getItem() == null) return false;
+        if (stack == null || stack.getItem() == null || !isAvailable()) return false;
         lookup();
         return circuitType != null && circuitType.isInstance(stack.getItem());
     }

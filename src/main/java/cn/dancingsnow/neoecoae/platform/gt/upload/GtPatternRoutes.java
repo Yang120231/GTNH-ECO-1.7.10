@@ -76,13 +76,16 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         final ItemStack icon;
         final String name;
         final boolean programmingCover;
+        final boolean programmable;
 
-        Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, boolean programmingCover) {
+        Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, boolean programmingCover,
+            boolean programmable) {
             this.map = map;
             this.circuit = circuit;
             this.icon = icon;
             this.name = name;
             this.programmingCover = programmingCover;
+            this.programmable = programmable;
         }
     }
 
@@ -120,7 +123,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                 hintCircuit,
                 patternCircuit,
                 programmingCircuit,
-                programmable || route.programmingCover);
+                programmable || route.programmingCover || route.programmable);
             if (best == null || candidate.level.ordinal() < best.level.ordinal()) best = candidate;
         }
         String signature = best.route.map.unlocalizedName + "#" + GtCircuits.number(best.circuit);
@@ -131,7 +134,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             best.route.name,
             best.route.icon,
             signature,
-            best.route.programmingCover || programmable && programmingCircuit);
+            best.route.programmingCover || (programmable || best.route.programmable) && programmingCircuit);
     }
 
     private static Candidate evaluate(GtRecipeVerifier.Cache verdicts, Route route, PatternContext context,
@@ -209,17 +212,32 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             if (host instanceof IMetaTileEntity) {
                 IMetaTileEntity machine = (IMetaTileEntity) host;
                 ItemStack circuit = circuit(machine);
+                boolean cover = hasProgrammingCover(machine.getBaseMetaTileEntity());
                 MTEMultiBlockBase owner = machine instanceof IDualInputHatch ? owner(machine) : null;
                 RecipeMap<?> ownerMap = owner == null ? null : owner.getRecipeMap();
                 if (ownerMap != null) {
                     // The controller's live mode. A hatch's own map is only refreshed by a structure check, so after
                     // a screwdriver mode switch it still names the previous mode.
                     ItemStack ownerIcon = icon(owner);
-                    add(routes, ownerMap, circuit, ownerIcon, name(ownerIcon, owner, ownerMap), false);
+                    add(
+                        routes,
+                        ownerMap,
+                        circuit,
+                        ownerIcon,
+                        name(ownerIcon, owner, ownerMap),
+                        cover,
+                        ProgrammableHatchUpload.isProgrammingInput(machine));
                 } else {
                     RecipeMap<?> map = recipeMap(machine);
                     ItemStack icon = icon(machine);
-                    if (map != null) add(routes, map, circuit, icon, name(icon, machine, map), false);
+                    if (map != null) add(
+                        routes,
+                        map,
+                        circuit,
+                        icon,
+                        name(icon, machine, map),
+                        cover,
+                        ProgrammableHatchUpload.isProgrammingInput(machine));
                 }
             }
             if (host instanceof IInterfaceHost) {
@@ -251,7 +269,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                         circuit(machine),
                         icon,
                         name(icon, owner != null ? owner : machine, map),
-                        hasProgrammingCover((IGregTechTileEntity) adjacent));
+                        hasProgrammingCover((IGregTechTileEntity) adjacent),
+                        ProgrammableHatchUpload.isProgrammingInput(machine));
                 }
             }
         } catch (RuntimeException rebuilding) {
@@ -261,11 +280,13 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     private static void add(List<Route> routes, RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name,
-        boolean cover) {
-        for (Route route : routes)
-            if (route.map == map && (route.circuit == null ? circuit == null : GtCircuits.same(route.circuit, circuit)))
-                return;
-        routes.add(new Route(map, circuit, icon, name, cover));
+        boolean cover, boolean programmable) {
+        // The same map and circuit can be reached through different input parts. Keep programming capability:
+        // an earlier unprogrammed bus (or fluid hatch) must not hide a later bus carrying a programming cover.
+        for (Route route : routes) if (route.map == map && route.programmingCover == cover
+            && route.programmable == programmable
+            && (route.circuit == null ? circuit == null : GtCircuits.same(route.circuit, circuit))) return;
+        routes.add(new Route(map, circuit, icon, name, cover, programmable));
     }
 
     private static RecipeMap<?> recipeMap(IMetaTileEntity machine) {
@@ -284,6 +305,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     private static boolean hasProgrammingCover(IGregTechTileEntity tile) {
+        if (tile == null || !ProgrammableHatchUpload.isAvailable()) return false;
         for (ForgeDirection side : ForgeDirection.VALID_DIRECTIONS)
             if (ProgrammableHatchUpload.isCover(tile.getCoverAtSide(side))) return true;
         return false;
