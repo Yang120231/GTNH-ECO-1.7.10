@@ -1,5 +1,10 @@
 package cn.dancingsnow.neoecoae.dev;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+
 import appeng.api.config.Actionable;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
@@ -9,12 +14,8 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
 import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Random;
-
 final class GeneratorState {
+
     GeneratorSettings settings = GeneratorSettings.DEFAULT;
     final List<AEKey> selected = new ArrayList<>();
     private final Random random = new Random();
@@ -23,7 +24,8 @@ final class GeneratorState {
 
     void reroll() {
         var pool = new ArrayList<>(GeneratorPool.keys());
-        if (settings.types() > pool.size()) throw new IllegalArgumentException("Only " + pool.size() + " plain resources are available");
+        if (settings.types() > pool.size())
+            throw new IllegalArgumentException("Only " + pool.size() + " plain resources are available");
         Collections.shuffle(pool, random);
         selected.clear();
         selected.addAll(pool.subList(0, settings.types()));
@@ -31,7 +33,8 @@ final class GeneratorState {
     }
 
     void configure(GeneratorSettings replacement) {
-        if (replacement.types() > GeneratorPool.keys().size()) throw new IllegalArgumentException("Too many resource types");
+        if (replacement.types() > GeneratorPool.keys()
+            .size()) throw new IllegalArgumentException("Too many resource types");
         boolean changeTypes = replacement.types() != settings.types() || selected.isEmpty();
         settings = replacement;
         if (changeTypes) reroll();
@@ -47,7 +50,9 @@ final class GeneratorState {
         }
         accepted = 0;
         for (AEKey key : selected) {
-            long inserted = grid.getStorageService().getInventory().insert(key, settings.nextAmount(random), Actionable.MODULATE, source);
+            long inserted = grid.getStorageService()
+                .getInventory()
+                .insert(key, settings.nextAmount(random), Actionable.MODULATE, source);
             accepted = inserted > Long.MAX_VALUE - accepted ? Long.MAX_VALUE : accepted + inserted;
         }
         // Rejected output is discarded. There is no virtual stock, retry backlog or refund.
@@ -68,18 +73,31 @@ final class GeneratorState {
     static GeneratorState read(CompoundTag tag, HolderLookup.Provider registries) {
         var state = new GeneratorState();
         if (!tag.contains("types")) return state;
-        state.settings = new GeneratorSettings(tag.getInt("types"), tag.getLong("minimum"), tag.getLong("maximum"), tag.getInt("interval"));
+        state.settings = new GeneratorSettings(
+            tag.getInt("types"),
+            tag.getLong("minimum"),
+            tag.getLong("maximum"),
+            tag.getInt("interval"));
         for (Tag entry : tag.getList("keys", Tag.TAG_COMPOUND)) {
             AEKey key = AEKey.fromTagGeneric(registries, (CompoundTag) entry);
-            if (key == null) throw new IllegalStateException("Dev generator resource is no longer registered: " + entry);
+            if (key == null)
+                throw new IllegalStateException("Dev generator resource is no longer registered: " + entry);
             state.selected.add(key);
         }
         return state;
     }
 
     String describe() {
-        return "X=" + settings.types() + ", amount=" + settings.minimum() + ".." + settings.maximum()
-            + ", interval=" + settings.interval() + " ticks, selected=" + selected.size()
-            + ", last accepted=" + accepted;
+        return "X=" + settings.types()
+            + ", amount="
+            + settings.minimum()
+            + ".."
+            + settings.maximum()
+            + ", interval="
+            + settings.interval()
+            + " ticks, selected="
+            + selected.size()
+            + ", last accepted="
+            + accepted;
     }
 }

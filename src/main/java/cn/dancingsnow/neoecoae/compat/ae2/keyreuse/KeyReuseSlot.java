@@ -2,8 +2,9 @@ package cn.dancingsnow.neoecoae.compat.ae2.keyreuse;
 
 /** One immutable key per registered resource. Reads allocate nothing and do not acquire a lock. */
 public final class KeyReuseSlot {
-    private static final java.util.concurrent.atomic.AtomicReferenceFieldUpdater<KeyReuseSlot, Entry> ENTRY =
-        java.util.concurrent.atomic.AtomicReferenceFieldUpdater.newUpdater(KeyReuseSlot.class, Entry.class, "entry");
+
+    private static final java.util.concurrent.atomic.AtomicReferenceFieldUpdater<KeyReuseSlot, Entry> ENTRY = java.util.concurrent.atomic.AtomicReferenceFieldUpdater
+        .newUpdater(KeyReuseSlot.class, Entry.class, "entry");
     private volatile Entry entry;
 
     public KeyReuseSlot() {
@@ -31,6 +32,7 @@ public final class KeyReuseSlot {
     }
 
     private static final class Entry {
+
         final Object epoch;
         final Object key;
 

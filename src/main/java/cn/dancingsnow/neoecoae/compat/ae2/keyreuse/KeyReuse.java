@@ -6,6 +6,7 @@ import java.util.List;
 
 /** Runtime-only generations. Keys and storage formats always retain their original value semantics. */
 public final class KeyReuse {
+
     private static final List<WeakReference<KeyReuseSlot>> SLOTS = new ArrayList<>();
     // Null until the local common config has loaded, or while reuse is disabled/being invalidated.
     private static volatile Object epoch;

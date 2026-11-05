@@ -1,7 +1,6 @@
 package cn.dancingsnow.neoecoae.platform.ui.crafting;
 
 import java.lang.reflect.Field;
-import java.math.BigInteger;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,7 +21,6 @@ import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.ResourceLocation;
 
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -490,12 +488,10 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         for (int i = 0; i < rows - 2; i++, y += ROW_PITCH) blit(left, y, 50, ROW_PITCH, width);
         blit(left, y, 165, 35, width);
         // Keep the existing status line and four controls; extend only the new artwork's footer.
-        Gui.func_146110_a(left + 95, offsetY + 200 + extra(), 95, 200, 237, 22,
-            TEXTURE_WIDTH, TEXTURE_HEIGHT);
-        for (int i = 0; i < 11; i++) Gui.func_146110_a(left + 95, offsetY + 222 + extra() + i,
-            95, 221, 237, 1, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-        Gui.func_146110_a(left + 95, offsetY + 233 + extra(), 95, 222, 237, 4,
-            TEXTURE_WIDTH, TEXTURE_HEIGHT);
+        Gui.func_146110_a(left + 95, offsetY + 200 + extra(), 95, 200, 237, 22, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+        for (int i = 0; i < 11; i++)
+            Gui.func_146110_a(left + 95, offsetY + 222 + extra() + i, 95, 221, 237, 1, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+        Gui.func_146110_a(left + 95, offsetY + 233 + extra(), 95, 222, 237, 4, TEXTURE_WIDTH, TEXTURE_HEIGHT);
         searchField.drawTextBox();
         GL11.glColor4f(1, 1, 1, 1);
     }
@@ -734,23 +730,35 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         if (visual == null) return null;
         List<ProcessingTooltip.Row> rows = new ArrayList<>();
         String mod = visual.getModId();
-        var container = cpw.mods.fml.common.Loader.instance().getIndexedModList().get(mod);
-        rows.add(ProcessingTooltip.Row.iconHeader(visual, Platform.getItemDisplayName(visual),
-            container == null ? mod : container.getName()));
+        var container = cpw.mods.fml.common.Loader.instance()
+            .getIndexedModList()
+            .get(mod);
+        rows.add(
+            ProcessingTooltip.Row.iconHeader(
+                visual,
+                Platform.getItemDisplayName(visual),
+                container == null ? mod : container.getName()));
         rows.add(ProcessingTooltip.Row.separator());
         String state = entry.hasActiveAmount() ? "crafting" : entry.hasPendingAmount() ? "scheduled" : "stored";
         int color = entry.hasActiveAmount() ? ProcessingTooltip.OK
             : entry.hasPendingAmount() ? ProcessingTooltip.CYAN : ProcessingTooltip.MUTED;
         rows.add(ProcessingTooltip.Row.section(card("crafting_status"), card("state." + state), color));
-        if (entry.hasStoredAmount()) rows.add(ProcessingTooltip.Row.value(card("stored"),
-            tooltipAmount(entry.getStoredAmount()), ProcessingTooltip.PRIMARY));
-        if (entry.hasActiveAmount()) rows.add(ProcessingTooltip.Row.value(card("crafting"),
-            tooltipAmount(entry.getActiveAmount()), ProcessingTooltip.PRIMARY));
-        if (entry.hasPendingAmount()) rows.add(ProcessingTooltip.Row.value(card("scheduled"),
-            tooltipAmount(entry.getPendingAmount()), 0xFFC9A6FF));
+        if (entry.hasStoredAmount()) rows.add(
+            ProcessingTooltip.Row
+                .value(card("stored"), tooltipAmount(entry.getStoredAmount()), ProcessingTooltip.PRIMARY));
+        if (entry.hasActiveAmount()) rows.add(
+            ProcessingTooltip.Row
+                .value(card("crafting"), tooltipAmount(entry.getActiveAmount()), ProcessingTooltip.PRIMARY));
+        if (entry.hasPendingAmount()) rows
+            .add(ProcessingTooltip.Row.value(card("scheduled"), tooltipAmount(entry.getPendingAmount()), 0xFFC9A6FF));
         rows.add(ProcessingTooltip.Row.separator());
-        rows.addAll(ProcessingTooltip.rows(entry.hasActiveAmount() || (entry.hasPendingAmount() && progress.machineCount() > 0
-                && progress.state() == ECOProcessingProgress.State.WAITING), entry.hasPendingAmount(), processingMonitored, progress));
+        rows.addAll(
+            ProcessingTooltip.rows(
+                entry.hasActiveAmount() || (entry.hasPendingAmount() && progress.machineCount() > 0
+                    && progress.state() == ECOProcessingProgress.State.WAITING),
+                entry.hasPendingAmount(),
+                processingMonitored,
+                progress));
         for (String line : nativeTooltip(visual)) rows.add(ProcessingTooltip.Row.hint(line));
         rows.add(ProcessingTooltip.Row.separator());
         rows.add(ProcessingTooltip.Row.hint(I18n.format("gui.neoecoae.processing.context_hint")));
@@ -762,8 +770,8 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     }
 
     private static String tooltipAmount(long amount) {
-        return isShiftKeyDown() ? NumberFormat.getInstance().format(amount)
-            : ReadableNumberConverter.INSTANCE.toWideReadableForm(amount);
+        return isShiftKeyDown() ? NumberFormat.getInstance()
+            .format(amount) : ReadableNumberConverter.INSTANCE.toWideReadableForm(amount);
     }
 
     /** AE2's own tooltip lines: the scheduling reason, and with Shift the item tooltip and pattern interfaces. */
@@ -828,8 +836,8 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         Map<AEKey, CraftingCpuEntry> active = new LinkedHashMap<>();
         for (CraftingCpuEntry entry : entries.values()) {
             ECOProcessingProgress progress = progressOf(entry);
-            if (!entry.hasActiveAmount() && !(entry.hasPendingAmount()
-                && progress.machineCount() > 0 && progress.state() == ECOProcessingProgress.State.WAITING)) continue;
+            if (!entry.hasActiveAmount() && !(entry.hasPendingAmount() && progress.machineCount() > 0
+                && progress.state() == ECOProcessingProgress.State.WAITING)) continue;
             AEKey key = AEKey.fromNative(entry.getStack());
             if (key != null) active.put(key, entry);
         }
@@ -857,13 +865,21 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             IAEStack<?> visual = entry.getVisualStack();
             if (visual != null) drawStack(visual, TASK_X + CELL_WIDTH - 19, y + 3);
             drawTaskText(Platform.getItemDisplayName(entry.getStack()), TASK_X + 3, y + 3);
-            drawTaskText((entry.hasActiveAmount() ? GuiText.Crafting : GuiText.Scheduled).getLocal() + ": "
-                + ReadableNumberConverter.INSTANCE.toWideReadableForm(entry.hasActiveAmount()
-                    ? entry.getActiveAmount() : entry.getPendingAmount()), TASK_X + 3, y + 9);
-            drawTaskText(progress.hasProgress() && progress.state() != ECOProcessingProgress.State.WAITING
-                ? Math.round(progress.progress() * 100) + "%"
-                : I18n.format("gui.neoecoae.crafting_status.processing.state."
-                    + progress.state().name().toLowerCase(Locale.ROOT)), TASK_X + 3, y + 15);
+            drawTaskText(
+                (entry.hasActiveAmount() ? GuiText.Crafting : GuiText.Scheduled).getLocal() + ": "
+                    + ReadableNumberConverter.INSTANCE.toWideReadableForm(
+                        entry.hasActiveAmount() ? entry.getActiveAmount() : entry.getPendingAmount()),
+                TASK_X + 3,
+                y + 9);
+            drawTaskText(
+                progress.hasProgress() && progress.state() != ECOProcessingProgress.State.WAITING
+                    ? Math.round(progress.progress() * 100) + "%"
+                    : I18n.format(
+                        "gui.neoecoae.crafting_status.processing.state." + progress.state()
+                            .name()
+                            .toLowerCase(Locale.ROOT)),
+                TASK_X + 3,
+                y + 15);
             if (localX >= TASK_X && localX < TASK_X + CELL_WIDTH && localY >= y && localY < y + CELL_HEIGHT) {
                 hoveredEntry = entry;
                 hoveredItem = visual == null ? null : visual.getItemStackForNEI();
@@ -960,13 +976,21 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         String name = cpu.getName();
         if (name == null || name.isEmpty()) name = GuiText.CPUs.getLocal() + " #" + cpu.getSerial();
         String status = !cpu.isBusy() ? "idle" : cpu.isSuspended() ? "suspended" : "running";
-        int color = !cpu.isBusy() ? ProcessingTooltip.OK : cpu.isSuspended() ? ProcessingTooltip.WARN : ProcessingTooltip.CYAN;
+        int color = !cpu.isBusy() ? ProcessingTooltip.OK
+            : cpu.isSuspended() ? ProcessingTooltip.WARN : ProcessingTooltip.CYAN;
         card.add(ProcessingTooltip.Row.header(name, I18n.format("gui.neoecoae.cpu.status." + status), color));
         card.add(ProcessingTooltip.Row.separator());
-        card.add(ProcessingTooltip.Row.text(card("storage_capacity"), isShiftKeyDown()
-            ? NumberFormat.getInstance().format(cpu.getStorage()) + " B" : NEByteFormatter.formatCpuStorage(cpu.getStorage())));
-        card.add(ProcessingTooltip.Row.text(card("co_processors"), isShiftKeyDown()
-            ? NumberFormat.getInstance().format(cpu.getCoprocessors()) : NEByteFormatter.formatCpuCoProcessors(cpu.getCoprocessors()), ProcessingTooltip.ACCENT));
+        card.add(
+            ProcessingTooltip.Row.text(
+                card("storage_capacity"),
+                isShiftKeyDown() ? NumberFormat.getInstance()
+                    .format(cpu.getStorage()) + " B" : NEByteFormatter.formatCpuStorage(cpu.getStorage())));
+        card.add(
+            ProcessingTooltip.Row.text(
+                card("co_processors"),
+                isShiftKeyDown() ? NumberFormat.getInstance()
+                    .format(cpu.getCoprocessors()) : NEByteFormatter.formatCpuCoProcessors(cpu.getCoprocessors()),
+                ProcessingTooltip.ACCENT));
         IAEStack<?> output = cpu.getCrafting();
         if (output != null) {
             float progress = cpu.getTotalItems() <= 0 ? 0
@@ -975,10 +999,17 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             card.add(ProcessingTooltip.Row.text(Platform.getItemDisplayName(output), Math.round(progress * 100) + "%"));
             card.add(ProcessingTooltip.Row.progress(progress, ProcessingTooltip.CYAN, 0xFF332E3B));
             card.add(ProcessingTooltip.Row.text(GuiText.Remains.getLocal(), tooltipAmount(cpu.getRemainingItems())));
-            card.add(ProcessingTooltip.Row.text(GuiText.Progress.getLocal(),
-                tooltipAmount(Math.max(0, cpu.getTotalItems() - cpu.getRemainingItems())) + " / " + tooltipAmount(cpu.getTotalItems())));
-            card.add(ProcessingTooltip.Row.text(GuiText.TimeUsed.getLocal(), DurationFormatUtils.formatDuration(
-                TimeUnit.NANOSECONDS.toMillis(cpu.getCraftingElapsedTime()), GuiText.ETAFormat.getLocal())));
+            card.add(
+                ProcessingTooltip.Row.text(
+                    GuiText.Progress.getLocal(),
+                    tooltipAmount(Math.max(0, cpu.getTotalItems() - cpu.getRemainingItems())) + " / "
+                        + tooltipAmount(cpu.getTotalItems())));
+            card.add(
+                ProcessingTooltip.Row.text(
+                    GuiText.TimeUsed.getLocal(),
+                    DurationFormatUtils.formatDuration(
+                        TimeUnit.NANOSECONDS.toMillis(cpu.getCraftingElapsedTime()),
+                        GuiText.ETAFormat.getLocal())));
         }
         // Preserve native details such as request source and allow mode below the card's statistics.
         for (String line : lines) {

@@ -30,7 +30,12 @@ public final class NativeStatusCardTooltip extends RichTooltip {
     @Override
     @SideOnly(Side.CLIENT)
     public void draw(GuiContext context, ItemStack stack) {
-        ProcessingTooltip.draw(Minecraft.getMinecraft().fontRenderer, rows.get(), context.getAbsMouseX(),
-            context.getAbsMouseY(), context.getScreenArea().width, context.getScreenArea().height);
+        ProcessingTooltip.draw(
+            Minecraft.getMinecraft().fontRenderer,
+            rows.get(),
+            context.getAbsMouseX(),
+            context.getAbsMouseY(),
+            context.getScreenArea().width,
+            context.getScreenArea().height);
     }
 }

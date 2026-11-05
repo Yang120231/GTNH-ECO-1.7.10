@@ -27,6 +27,7 @@ public final class PlanningSettings {
 
     @Config(modid = NeoECOAE.MODID, category = "keyReuse")
     public static final class KeyReuse {
+
         @Config.Comment("Reuse immutable ECO keys for resources without NBT; retain raw metadata and value equality. / 复用无 NBT 资源的不可变 key，保留原始 metadata、值相等和旧存档格式。")
         @Config.DefaultBoolean(true)
         @Config.LangKey("neoecoae.configuration.keyReuse.enabled")

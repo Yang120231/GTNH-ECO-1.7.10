@@ -149,10 +149,10 @@ public final class PatternUploadClient {
         for (Object button : event.buttonList)
             if (button instanceof GuiImgButton && !(button instanceof PatternUploadButton)
                 && ((GuiImgButton) button).getSetting() == Settings.ACTIONS) {
-                Object value = ((GuiImgButton) button).getCurrentValue();
-                if (value == ActionItems.ENCODE) encodeButton = (GuiImgButton) button;
-                else if (value == ActionItems.PINS) pinButton = (GuiImgButton) button;
-            }
+                    Object value = ((GuiImgButton) button).getCurrentValue();
+                    if (value == ActionItems.ENCODE) encodeButton = (GuiImgButton) button;
+                    else if (value == ActionItems.PINS) pinButton = (GuiImgButton) button;
+                }
         if (encodeButton == null) return;
         // Remove the legacy 20px gap so existing configs (offset 51) align with AE2's pin button at guiLeft + 178.
         int x = encodeButton.xPosition + PlanningSettings.PatternUpload.patternUploadButtonOffsetX - 20;

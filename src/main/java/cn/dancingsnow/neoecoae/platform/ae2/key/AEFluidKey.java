@@ -123,11 +123,12 @@ public final class AEFluidKey extends AEKey {
 
     static AEFluidKey read(HolderLookup.Provider registries, CompoundTag tag) {
         Fluid fluid = registries.fluid(tag.getString("FluidName"));
-        return fluid == null ? null : !tag.contains("Tag", 10) ? of(fluid)
-            : new AEFluidKey(
-                fluid,
-                tag.contains("Tag", 10) ? tag.getCompound("Tag")
-                    .nativeTag() : null);
+        return fluid == null ? null
+            : !tag.contains("Tag", 10) ? of(fluid)
+                : new AEFluidKey(
+                    fluid,
+                    tag.contains("Tag", 10) ? tag.getCompound("Tag")
+                        .nativeTag() : null);
     }
 
     @Override

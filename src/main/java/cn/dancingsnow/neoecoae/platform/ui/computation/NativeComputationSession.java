@@ -257,8 +257,7 @@ public final class NativeComputationSession extends NativeSnapshotSession {
 
     private int statusItemCount, statusTaskCount, taskOffset;
     private ListTag statusTasks = new ListTag();
-    private final cn.dancingsnow.neoecoae.platform.ui.crafting.CraftingStatusTaskOrder<AEKey> taskOrder =
-        new cn.dancingsnow.neoecoae.platform.ui.crafting.CraftingStatusTaskOrder<>();
+    private final cn.dancingsnow.neoecoae.platform.ui.crafting.CraftingStatusTaskOrder<AEKey> taskOrder = new cn.dancingsnow.neoecoae.platform.ui.crafting.CraftingStatusTaskOrder<>();
 
     private ListTag statusItems(ECOCraftingCPU cpu) {
         var logic = cpu.getLogic();
@@ -279,8 +278,8 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             if (positive(amounts[2])) running.add(key);
             else if (positive(amounts[1])) {
                 var progress = logic.getProcessingProgress(key);
-                if (progress.machineCount() > 0
-                    && progress.state() == cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.WAITING)
+                if (progress.machineCount() > 0 && progress.state()
+                    == cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.WAITING)
                     running.add(key);
             }
         }
@@ -313,8 +312,11 @@ public final class NativeComputationSession extends NativeSnapshotSession {
         String[] kinds = { "stored", "pending", "active" };
         for (int kind = 0; kind < 3; kind++)
             if (amounts[kind] != null) row.putString(kinds[kind], amounts[kind].toString());
-        ResourceTarget target = resourceTargets.values().stream()
-            .filter(value -> value.key.equals(key)).findFirst().orElse(null);
+        ResourceTarget target = resourceTargets.values()
+            .stream()
+            .filter(value -> value.key.equals(key))
+            .findFirst()
+            .orElse(null);
         if (target == null && jobId != null) {
             target = new ResourceTarget(++resourceSerial, cpu, jobId, key);
             resourceTargets.put(target.token, target);
@@ -325,7 +327,10 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             row.putBoolean("stepStopped", logic.isProcessingStepStopped(key));
             var progress = logic.getProcessingProgress(key);
             target.detailPage = Math.min(target.detailPage, progress.pages() - 1);
-            row.put("processing", progress.page(target.detailPage).write());
+            row.put(
+                "processing",
+                progress.page(target.detailPage)
+                    .write());
         }
         return row;
     }

@@ -181,7 +181,8 @@ public final class ProcessingTooltip {
                             ? I18n.format(KEY + "remaining", machine.durationTicks() - machine.progressTicks())
                             : ""));
             }
-            if (!machine.recipe().isEmpty()) rows.add(Row.text(EnumChatFormatting.GRAY + machine.recipe()));
+            if (!machine.recipe()
+                .isEmpty()) rows.add(Row.text(EnumChatFormatting.GRAY + machine.recipe()));
             rows.add(Row.text(EnumChatFormatting.GRAY + location(machine.location())));
         }
         if (progress.pages() > 1) {
@@ -217,7 +218,8 @@ public final class ProcessingTooltip {
     }
 
     /** All card content uses the same .75 scale, palette and spacing as CraftingListCard in 1.21.1. */
-    public static void draw(FontRenderer font, List<Row> rows, int mouseX, int mouseY, int screenWidth, int screenHeight) {
+    public static void draw(FontRenderer font, List<Row> rows, int mouseX, int mouseY, int screenWidth,
+        int screenHeight) {
         if (rows.isEmpty()) return;
         int width = 150;
         for (Row row : rows) {
@@ -238,7 +240,8 @@ public final class ProcessingTooltip {
             int right = font.getStringWidth(row.right);
             int room = Math.max(1, width - indent - (right == 0 ? 0 : GAP + right));
             List<String> lines = row.kind == Kind.TEXT || row.kind == Kind.HINT
-                ? split(font, row.left, Math.min(220, room)) : Collections.singletonList(row.left);
+                ? split(font, row.left, Math.min(220, room))
+                : Collections.singletonList(row.left);
             lefts.add(lines);
             heights[i] = switch (row.kind) {
                 case SEPARATOR -> 9;

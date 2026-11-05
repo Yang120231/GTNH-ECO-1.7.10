@@ -6,6 +6,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 
 /** Local config and connection lifecycle; old keys remain valid after every invalidation. */
 public final class KeyReuseLifecycle {
+
     @SubscribeEvent
     public void configChanged(cpw.mods.fml.client.event.ConfigChangedEvent.OnConfigChangedEvent event) {
         if (NeoECOAE.MODID.equals(event.modID)) KeyReuse.configure(PlanningSettings.KeyReuse.enabled);

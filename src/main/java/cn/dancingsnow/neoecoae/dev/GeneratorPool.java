@@ -3,15 +3,18 @@ package cn.dancingsnow.neoecoae.dev;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidRegistry;
-import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
+
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Legacy chemical materials are exposed through the registered fluid channel. */
 final class GeneratorPool {
+
     private static List<AEKey> cached;
 
     @SuppressWarnings("unchecked")
@@ -28,7 +31,8 @@ final class GeneratorPool {
                 if (stack != null && stack.getItem() != null && !stack.hasTagCompound()) keys.add(AEItemKey.of(stack));
             }
         }
-        for (var fluid : FluidRegistry.getRegisteredFluids().values()) keys.add(AEFluidKey.of(fluid));
+        for (var fluid : FluidRegistry.getRegisteredFluids()
+            .values()) keys.add(AEFluidKey.of(fluid));
         cached = new ArrayList<>(keys);
         return cached;
     }

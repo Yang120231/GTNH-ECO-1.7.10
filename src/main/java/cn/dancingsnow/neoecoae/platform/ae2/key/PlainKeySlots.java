@@ -1,12 +1,15 @@
 package cn.dancingsnow.neoecoae.platform.ae2.key;
 
 import java.util.concurrent.atomic.AtomicReferenceArray;
+
 import net.minecraft.item.Item;
 import net.minecraftforge.fluids.Fluid;
+
 import cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuseSlot;
 
 /** Bounded identity routing, registered-ID fallback and unboxed metadata slots. */
 final class PlainKeySlots {
+
     private static volatile AtomicReferenceArray<ItemSlots> items = new AtomicReferenceArray<>(4096);
     private static volatile AtomicReferenceArray<FluidSlot> fluids = new AtomicReferenceArray<>(1024);
     private static volatile ItemRoutes itemRoutes = new ItemRoutes(null);
@@ -42,10 +45,14 @@ final class PlainKeySlots {
     }
 
     private static final class ItemRoutes {
+
         final Object epoch;
         // Bound routing memory independently of item metadata; collisions use the registered-ID table.
         final AtomicReferenceArray<ItemSlots> slots = new AtomicReferenceArray<>(4096);
-        ItemRoutes(Object epoch) { this.epoch = epoch; }
+
+        ItemRoutes(Object epoch) {
+            this.epoch = epoch;
+        }
     }
 
     private static synchronized ItemSlots createItem(Item item, int id) {
@@ -83,17 +90,24 @@ final class PlainKeySlots {
     }
 
     private static final class FluidSlot {
+
         final Fluid fluid;
         final KeyReuseSlot key = new KeyReuseSlot();
-        FluidSlot(Fluid fluid) { this.fluid = fluid; }
+
+        FluidSlot(Fluid fluid) {
+            this.fluid = fluid;
+        }
     }
 
     private static final class ItemSlots {
+
         final Item item;
         final KeyReuseSlot zero = new KeyReuseSlot();
         private volatile AtomicReferenceArray<AtomicReferenceArray<KeyReuseSlot>> groups;
 
-        ItemSlots(Item item) { this.item = item; }
+        ItemSlots(Item item) {
+            this.item = item;
+        }
 
         KeyReuseSlot metadata(int metadata) {
             if (metadata == 0) return zero;

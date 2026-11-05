@@ -845,7 +845,9 @@ public final class ComponentPlanner {
                                 acyclic.state()
                                     .usedAmounts());
                             boolean hasFirings = hasPositiveFirings(cycleResult);
-                            if (!hasFirings && !stockCoversRequiredOutputs(exactRequiredOutputs, exactReservations(initialReservations))) {
+                            if (!hasFirings && !stockCoversRequiredOutputs(
+                                exactRequiredOutputs,
+                                exactReservations(initialReservations))) {
                                 cycleStatus = CyclePlanningStatus.UNKNOWN_BUDGET;
                                 diagnostic = "Zero-firing cycle solve did not reserve its required outputs";
                                 unresolvedCycle = true;
@@ -1005,8 +1007,8 @@ public final class ComponentPlanner {
                         projectReservations(stockReservations)));
                 if (disposition != CycleExecutionDisposition.BLOCKED
                     && disposition != CycleExecutionDisposition.NOT_REQUIRED) {
-                    stockReservations
-                        .forEach((key, reserved) -> attributedCycleReservations.merge(key, reserved, PlannerAmount::add));
+                    stockReservations.forEach(
+                        (key, reserved) -> attributedCycleReservations.merge(key, reserved, PlannerAmount::add));
                 }
                 if (cycleStatus != CyclePlanningStatus.SOLVED && cycleStatus != CyclePlanningStatus.NOT_REQUIRED) {
                     LOGGER.warn(
@@ -1421,7 +1423,11 @@ public final class ComponentPlanner {
         }
         componentReservations.forEach((key, reserved) -> {
             if (state.stored.isUnbounded(key)) result.put(key, Long.MAX_VALUE);
-            else result.put(key, boundedReservation(PlannerAmount.of(result.getOrDefault(key, 0L)).add(reserved)));
+            else result.put(
+                key,
+                boundedReservation(
+                    PlannerAmount.of(result.getOrDefault(key, 0L))
+                        .add(reserved)));
         });
         return result;
     }
@@ -1579,7 +1585,7 @@ public final class ComponentPlanner {
 
     /** Exact committed deltas; these include cumulative creative inputs and may exceed both long and U126. */
     private static Map<AEKey, PlannerAmount> reservationDelta(Map<AEKey, PlannerAmount> before,
-                                                             Map<AEKey, PlannerAmount> after) {
+        Map<AEKey, PlannerAmount> after) {
         Map<AEKey, PlannerAmount> delta = new LinkedHashMap<>();
         after.forEach((key, amount) -> {
             PlannerAmount difference = amount.subtract(before.getOrDefault(key, PlannerAmount.ZERO));
@@ -1590,11 +1596,12 @@ public final class ComponentPlanner {
 
     /** Stock already consumed by the acyclic pass, less the exact amounts owned by previous components. */
     private static Map<AEKey, PlannerAmount> existingComponentReservations(Map<AEKey, PlannerAmount> required,
-            SolveState state, Map<AEKey, PlannerAmount> alreadyAttributed) {
+        SolveState state, Map<AEKey, PlannerAmount> alreadyAttributed) {
         Map<AEKey, PlannerAmount> result = new LinkedHashMap<>();
         required.forEach((key, amount) -> {
             if (amount == null || amount.signum() <= 0) return;
-            PlannerAmount used = state.usedAmounts().getOrDefault(key, PlannerAmount.ZERO);
+            PlannerAmount used = state.usedAmounts()
+                .getOrDefault(key, PlannerAmount.ZERO);
             PlannerAmount available = used.subtract(alreadyAttributed.getOrDefault(key, PlannerAmount.ZERO))
                 .max(PlannerAmount.ZERO);
             PlannerAmount reserved = amount.min(available);
@@ -1603,12 +1610,12 @@ public final class ComponentPlanner {
         return result;
     }
 
-    static Map<AEKey, Long> reservationRemainder(Map<AEKey, Long> required,
-                                                Map<AEKey, PlannerAmount> alreadyOwned) {
+    static Map<AEKey, Long> reservationRemainder(Map<AEKey, Long> required, Map<AEKey, PlannerAmount> alreadyOwned) {
         Map<AEKey, Long> result = new LinkedHashMap<>();
         required.forEach((key, amount) -> {
             PlannerAmount remainder = PlannerAmount.of(amount)
-                .subtract(alreadyOwned.getOrDefault(key, PlannerAmount.ZERO)).max(PlannerAmount.ZERO);
+                .subtract(alreadyOwned.getOrDefault(key, PlannerAmount.ZERO))
+                .max(PlannerAmount.ZERO);
             // A remainder cannot exceed its long-valued requirement.
             if (remainder.signum() > 0) result.put(key, remainder.longValueExact());
         });
@@ -1622,7 +1629,7 @@ public final class ComponentPlanner {
     }
 
     private static Map<AEKey, PlannerAmount> mergeExactReservations(Map<AEKey, PlannerAmount> first,
-                                                                  Map<AEKey, PlannerAmount> second) {
+        Map<AEKey, PlannerAmount> second) {
         Map<AEKey, PlannerAmount> result = new LinkedHashMap<>(first);
         second.forEach((key, amount) -> result.merge(key, amount, PlannerAmount::add));
         return result;
@@ -1636,7 +1643,8 @@ public final class ComponentPlanner {
     }
 
     private static long boundedReservation(PlannerAmount amount) {
-        return amount.min(PlannerAmount.of(Long.MAX_VALUE)).longValueExact();
+        return amount.min(PlannerAmount.of(Long.MAX_VALUE))
+            .longValueExact();
     }
 
     private static Map<AEKey, Long> mergeReservations(Map<AEKey, Long> first, Map<AEKey, Long> second) {
@@ -1644,10 +1652,15 @@ public final class ComponentPlanner {
     }
 
     private static boolean stockCoversRequiredOutputs(Map<AEKey, PlannerAmount> required,
-                                                      Map<AEKey, PlannerAmount> reservations) {
+        Map<AEKey, PlannerAmount> reservations) {
         if (required.isEmpty()) return false;
-        return required.entrySet().stream().allMatch(entry -> entry.getValue().signum() > 0
-            && reservations.getOrDefault(entry.getKey(), PlannerAmount.ZERO).compareTo(entry.getValue()) >= 0);
+        return required.entrySet()
+            .stream()
+            .allMatch(
+                entry -> entry.getValue()
+                    .signum() > 0
+                    && reservations.getOrDefault(entry.getKey(), PlannerAmount.ZERO)
+                        .compareTo(entry.getValue()) >= 0);
     }
 
     /** The witness must end with the order's outputs and, on top of any demand for the same key, the kept seed. */

@@ -30,7 +30,9 @@ public class CommonProxy {
         DevAcceptance.hooks()
             .preInit();
         StorageLifecycle lifecycle = new StorageLifecycle();
-        cpw.mods.fml.common.FMLCommonHandler.instance().bus().register(new KeyReuseLifecycle());
+        cpw.mods.fml.common.FMLCommonHandler.instance()
+            .bus()
+            .register(new KeyReuseLifecycle());
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(lifecycle);
         cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()

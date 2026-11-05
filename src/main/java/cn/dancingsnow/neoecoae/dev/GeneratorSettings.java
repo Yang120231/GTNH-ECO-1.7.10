@@ -5,6 +5,7 @@ import java.util.Random;
 /** Amounts use each AE key's native storage unit (items, mB, etc.). */
 @com.github.bsideup.jabel.Desugar
 public record GeneratorSettings(int types, long minimum, long maximum, int interval) {
+
     public static final GeneratorSettings DEFAULT = new GeneratorSettings(16, 1, 64, 20);
 
     public GeneratorSettings {

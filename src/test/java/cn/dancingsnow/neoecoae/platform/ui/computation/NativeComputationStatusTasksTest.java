@@ -73,15 +73,24 @@ class NativeComputationStatusTasksTest {
     void rightColumnHasItsOwnBoundedPageAndPreservesExactAmounts() {
         BigInteger amount = BigInteger.ONE.shiftLeft(90);
         for (int i = 0; i < 40; i++) active.put(key(String.format("%02d", i)), amount);
-        var selected = session.capture().getCompound("selected");
+        var selected = session.capture()
+            .getCompound("selected");
         assertEquals(40, selected.getInt("taskCount"));
-        assertEquals(9, selected.getList("tasks", 10).size());
-        assertEquals(27, selected.getList("items", 10).size());
+        assertEquals(
+            9,
+            selected.getList("tasks", 10)
+                .size());
+        assertEquals(
+            27,
+            selected.getList("items", 10)
+                .size());
         session.apply(20, 39);
-        selected = session.capture().getCompound("selected");
+        selected = session.capture()
+            .getCompound("selected");
         assertEquals(31, selected.getInt("taskOffset"));
         assertEquals(0, selected.getInt("itemOffset"));
-        var task = selected.getList("tasks", 10).getCompound(8);
+        var task = selected.getList("tasks", 10)
+            .getCompound(8);
         assertEquals("39", task.getString("name"));
         assertEquals(amount.toString(), task.getString("active"));
         assertTrue(task.getInt("controlToken") > 0);
@@ -93,18 +102,39 @@ class NativeComputationStatusTasksTest {
         pending.put(blocked, BigInteger.TEN);
         pending.put(ordinary, BigInteger.TEN);
         active.put(running, BigInteger.ONE);
-        when(logic.getProcessingProgress(blocked)).thenReturn(new ECOProcessingProgress(0, false,
-            ECOProcessingProgress.State.WAITING, 1, -1, false, Collections.emptyList()));
-        var selected = session.capture().getCompound("selected");
+        when(logic.getProcessingProgress(blocked)).thenReturn(
+            new ECOProcessingProgress(
+                0,
+                false,
+                ECOProcessingProgress.State.WAITING,
+                1,
+                -1,
+                false,
+                Collections.emptyList()));
+        var selected = session.capture()
+            .getCompound("selected");
         var tasks = selected.getList("tasks", 10);
         assertEquals(3, selected.getInt("itemCount"));
         assertEquals(2, selected.getInt("taskCount"));
-        assertEquals(Arrays.asList("blocked", "running"), Arrays.asList(
-            tasks.getCompound(0).getString("name"), tasks.getCompound(1).getString("name")));
-        assertEquals(ECOProcessingProgress.State.WAITING,
-            ECOProcessingProgress.read(tasks.getCompound(0).getCompound("processing")).state());
+        assertEquals(
+            Arrays.asList("blocked", "running"),
+            Arrays.asList(
+                tasks.getCompound(0)
+                    .getString("name"),
+                tasks.getCompound(1)
+                    .getString("name")));
+        assertEquals(
+            ECOProcessingProgress.State.WAITING,
+            ECOProcessingProgress.read(
+                tasks.getCompound(0)
+                    .getCompound("processing"))
+                .state());
         active.clear();
         pending.clear();
-        assertEquals(0, session.capture().getCompound("selected").getInt("taskCount"));
+        assertEquals(
+            0,
+            session.capture()
+                .getCompound("selected")
+                .getInt("taskCount"));
     }
 }
