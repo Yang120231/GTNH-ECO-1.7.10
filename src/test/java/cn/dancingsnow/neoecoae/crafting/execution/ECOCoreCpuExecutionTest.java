@@ -48,6 +48,75 @@ class ECOCoreCpuExecutionTest {
     }
 
     @Test
+    void machineRequestReceivesOutputThroughItsNativeLinkAndFinishesAfterPartialDelivery() throws Exception {
+        var fixture = new Fixture();
+        // Keep FML's LaunchClassLoader-only stack factory outside this standalone JVM test.
+        var template = AEItemKey.class.getDeclaredField("nativeTemplate");
+        template.setAccessible(true);
+        template.set(fixture.goal, requestOutput(1));
+        var cache = mock(appeng.me.cache.CraftingGridCache.class, CALLS_REAL_METHODS);
+        var links = appeng.me.cache.CraftingGridCache.class.getDeclaredField("craftingLinks");
+        links.setAccessible(true);
+        links.set(cache, new HashMap<>());
+        doAnswer(call -> {
+            cache.addLink(
+                ((cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingLink) call.getArgument(0)).nativeLink());
+            return null;
+        }).when(fixture.service)
+            .addLink(any());
+        var requester = mock(appeng.api.networking.crafting.ICraftingRequester.class);
+        var received = new java.util.concurrent.atomic.AtomicLong();
+        var requestLink = new java.util.concurrent.atomic.AtomicReference<appeng.api.networking.crafting.ICraftingLink>();
+        when(requester.injectCraftedItems(any(), any(appeng.api.storage.data.IAEStack.class), eq(Actionable.MODULATE)))
+            .thenAnswer(call -> {
+                assertSame(requestLink.get(), call.getArgument(0));
+                appeng.api.storage.data.IAEStack<?> offered = call.getArgument(1);
+                assertEquals(fixture.goal, AEKey.fromNative(offered));
+                received.incrementAndGet();
+                return offered.getStackSize() == 1 ? null
+                    : offered.copy()
+                        .setStackSize(offered.getStackSize() - 1);
+            });
+        var result = fixture.cpu.getLogic()
+            .trySubmitJob(
+                fixture.grid,
+                fixture.plan,
+                IActionSource.ofMachine(mock(appeng.api.networking.security.IActionHost.class)),
+                requester);
+        assertTrue(result.successful());
+        assertNotNull(result.link());
+        requestLink.set(
+            result.link()
+                .nativeLink());
+        assertFalse(
+            result.link()
+                .isStandalone());
+        for (int tick = 0; tick < 20 && fixture.cpu.isBusy(); tick++) fixture.tickAndReturnOutputs();
+        assertEquals(5L, received.get());
+        assertFalse(fixture.cpu.isBusy());
+        assertFalse(fixture.cpu.hasRemainingItems());
+        assertTrue(
+            requestLink.get()
+                .isDone());
+        verify(requester).jobStateChange(same(requestLink.get()));
+        assertEquals(0L, fixture.stock.getOrDefault(fixture.goal, 0L));
+    }
+
+    private static appeng.api.storage.data.IAEItemStack requestOutput(long initialAmount) {
+        var stack = mock(appeng.api.storage.data.IAEItemStack.class);
+        var amount = new java.util.concurrent.atomic.AtomicLong(initialAmount);
+        when(stack.getItem()).thenReturn(TestItems.GOLD_INGOT);
+        when(stack.getItemStack()).thenAnswer(call -> new net.minecraft.item.ItemStack(TestItems.GOLD_INGOT));
+        when(stack.getStackSize()).thenAnswer(call -> amount.get());
+        when(stack.setStackSize(anyLong())).thenAnswer(call -> {
+            amount.set(call.getArgument(0));
+            return stack;
+        });
+        when(stack.copy()).thenAnswer(call -> requestOutput(amount.get()));
+        return stack;
+    }
+
+    @Test
     void actualPlannerAndCpuDispatchTwoStageOrderAndDeliverItsRealOutput() throws Exception {
         var fixture = new Fixture();
         assertTrue(fixture.submit());
