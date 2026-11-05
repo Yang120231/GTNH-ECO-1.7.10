@@ -45,7 +45,7 @@ final class GtRecipeVerifier {
     }
 
     private static Verdict lookup(RecipeMap<?> map, Pattern pattern) {
-        if (pattern == null || pattern.outputs.isEmpty()) return Verdict.NONE;
+        if (pattern == null || pattern.outputs.isEmpty() && pattern.fluidOutputs.isEmpty()) return Verdict.NONE;
         Verdict best = Verdict.NONE;
         Iterator<GTRecipe> candidates;
         try {
