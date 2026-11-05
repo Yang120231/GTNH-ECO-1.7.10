@@ -64,6 +64,7 @@ public final class NativeKeyReuseAcceptance {
         var registries = RegistryAccess.EMPTY;
         ItemStack input = new ItemStack(Items.iron_ingot, 64, 0);
         FluidStack fluid = new FluidStack(FluidRegistry.WATER, 1000);
+        check(AEItemStack.create(input) != AEItemStack.create(input), "native AE2 item stack factory remains independent");
         KeyReuse.configure(false);
         AEItemKey oldItem = AEItemKey.of(input);
         AEFluidKey oldFluid = AEFluidKey.of(fluid);

@@ -60,6 +60,16 @@ public final class AEFluidKey extends AEKey {
         return tag == null ? of(stack.getFluid()) : new AEFluidKey(stack.getFluid(), tag);
     }
 
+    /** Canonicalizes only an ECO identity; never changes native AE2 factories or tagged resources. */
+    public AEFluidKey reusePlain() {
+        Object epoch = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.epoch();
+        if (data != null || epoch == null) return this;
+        var slot = PlainKeySlots.fluid(fluid);
+        if (slot == null) return this;
+        AEFluidKey cached = (AEFluidKey) slot.get(epoch);
+        return cached == null ? of(fluid) : cached;
+    }
+
     public Fluid getFluid() {
         return fluid;
     }

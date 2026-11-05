@@ -88,6 +88,13 @@ public final class AEItemKey extends AEKey {
         }
     }
 
+    /** Canonicalizes only an ECO identity; never changes native AE2 factories or tagged resources. */
+    public AEItemKey reusePlain() {
+        if (identity.getTagCompound() != null) return this;
+        AEItemKey cached = plain(identity.getItem(), identity.getItemDamage());
+        return cached == null ? this : cached;
+    }
+
     public Item getItem() {
         return identity.getItem();
     }

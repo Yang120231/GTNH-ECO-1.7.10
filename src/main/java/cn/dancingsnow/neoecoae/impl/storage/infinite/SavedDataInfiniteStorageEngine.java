@@ -39,6 +39,7 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
 
     @Override
     public long insert(AEKey key, long amount, Actionable mode) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         if (key == null || amount <= 0 || !data.canWrite(key)) return 0;
         if (mode == Actionable.MODULATE) insertAmount(key, data.amounts.visible(key), amount);
         return amount;
@@ -46,6 +47,7 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
 
     @Override
     public BigInteger insert(AEKey key, BigInteger amount, Actionable mode) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         if (key == null || amount == null || amount.signum() <= 0 || !data.canWrite(key)) return BigInteger.ZERO;
         if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) <= 0) {
             return BigInteger.valueOf(insert(key, amount.longValueExact(), mode));
@@ -56,6 +58,7 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
 
     @Override
     public long insertOnce(UUID transaction, AEKey key, long amount) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         if (key == null || amount <= 0 || !data.canMigrate()) return 0;
         if (transaction == null) return insert(key, amount, Actionable.MODULATE);
         if (data.hasMigrationReceipt(transaction)) return amount;
@@ -68,6 +71,7 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
 
     @Override
     public long insertOnce(Set<UUID> transactions, AEKey key, long amount) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         if (key == null || amount <= 0 || !data.canMigrate()) return 0;
         if (transactions == null || transactions.isEmpty()) return insert(key, amount, Actionable.MODULATE);
         if (transactions.stream()
@@ -80,6 +84,7 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
 
     @Override
     public long extract(AEKey key, long amount, Actionable mode) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         if (key == null || amount <= 0 || !data.canRead(key)) return 0;
         long current = data.amounts.visible(key);
         long extracted = Math.min(amount, current);
@@ -135,11 +140,13 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
 
     @Override
     public HugeAmount getAmount(AEKey key) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         return data.canRead(key) ? data.getAmount(key) : HugeAmount.ZERO;
     }
 
     @Override
     public boolean contains(AEKey key) {
+        key = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(key);
         return key != null && data.canRead(key) && data.amounts.visible(key) > 0;
     }
 

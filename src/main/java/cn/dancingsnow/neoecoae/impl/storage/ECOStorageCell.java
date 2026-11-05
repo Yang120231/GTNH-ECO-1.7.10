@@ -305,6 +305,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
 
     @Override
     public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
+        what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
         if (cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack)) return 0L;
         if (amount == 0 || !acceptsKey(what)) {
             return 0;
@@ -331,6 +332,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
 
     /** Inserts for a lossless migration without applying the void upgrade's reported acceptance. */
     public long insertForMigration(AEKey what, long amount, Actionable mode) {
+        what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
         if (amount <= 0 || !acceptsKey(what)) {
             return 0;
         }
@@ -352,6 +354,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
 
     @Override
     public long insertForMigration(AEKey what, long amount, Actionable mode, IActionSource source) {
+        what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
         return insertForMigration(what, amount, mode);
     }
 
@@ -488,6 +491,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell {
 
     @Override
     public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
+        what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
         if (amount <= 0L || cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack))
             return 0L;
         var currentAmount = getCellItems().getLong(what);
