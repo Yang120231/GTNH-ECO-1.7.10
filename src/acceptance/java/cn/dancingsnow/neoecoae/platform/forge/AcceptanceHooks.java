@@ -21,6 +21,8 @@ public final class AcceptanceHooks implements DevAcceptance.Hooks {
 
     @Override
     public void clientInit() {
+        if (Boolean.getBoolean("neoecoae.keyReuseAcceptance")) FMLCommonHandler.instance().bus()
+            .register(new NativeKeyReuseClientAcceptance());
         if (Boolean.getBoolean("neoecoae.transmitterRenderAcceptance")) FMLCommonHandler.instance()
             .bus()
             .register(new NativeTransmitterRenderAcceptance());
@@ -56,6 +58,7 @@ public final class AcceptanceHooks implements DevAcceptance.Hooks {
 
     @Override
     public void serverTick() {
+        NativeKeyReuseAcceptance.tick();
         PortingFoundationFixture.tick();
         PortingStorageHostFixture.tick();
         PortingPlanningFixture.tick();
