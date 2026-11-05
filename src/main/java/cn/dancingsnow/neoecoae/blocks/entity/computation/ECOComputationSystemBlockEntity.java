@@ -119,9 +119,15 @@ public class ECOComputationSystemBlockEntity
 
     @Override
     public void updateState(boolean exposed) {
+        if (level == null || notLoaded() || isRemoved() || isServerStopping()) return;
+        // Forge replaces the block before invalidating its tile. A disconnect during removal must never
+        // place this tile's cached machine state back into the now-empty position.
+        var current = level.getBlockState(getBlockPos());
+        if (!current.is(getBlockState().getBlock())) return;
         super.updateState(exposed);
-        if (level != null && getBlockState().hasProperty(NativeMachineBlock.MIRRORED))
-            level.setBlock(getBlockPos(), getBlockState().setValue(NativeMachineBlock.MIRRORED, formed && mirrored), 2);
+        current = level.getBlockState(getBlockPos());
+        if (current.is(getBlockState().getBlock()) && current.hasProperty(NativeMachineBlock.MIRRORED))
+            level.setBlock(getBlockPos(), current.setValue(NativeMachineBlock.MIRRORED, formed && mirrored), 2);
     }
 
     public boolean isIgnoringPatternSubstitutions() {
