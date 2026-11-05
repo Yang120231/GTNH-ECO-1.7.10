@@ -234,6 +234,8 @@ final class ExternalDemandPlanner {
             states.add(state);
             selected.addAll(one.selectedPatterns());
             for (var used : state.used) {
+                // Unlimited inputs are charged in the exact ledger; no finite stock window can bound their total.
+                if (base.stored.isUnbounded(used.getKey())) continue;
                 if (!used.getValue()
                     .fitsLong()) {
                     return failure(
@@ -324,7 +326,11 @@ final class ExternalDemandPlanner {
             deferredCyclePatterns,
             ignorePatternSubstitutions,
             cancellation);
-        if (solved.status() == PlanningStatus.SUCCESS) {
+        // A complete exact DAG is usable internally even when its cumulative totals do not fit AE2's fields.
+        // Keep genuine shortages/unsupported routes out of the cycle transaction.
+        if (solved.status() == PlanningStatus.SUCCESS
+                || solved.status() == PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE
+                    && solved.state().missingAmounts().isEmpty() && solved.state().unsupported.isEmpty()) {
             return new Outcome(
                 CycleExternalDemandStatus.SOLVED,
                 new KeyCounter(),
