@@ -1210,8 +1210,12 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         NeiBookmarks.add(output.getItemStackForNEI(), missing);
     }
 
-    /** GTNH's "Save as image" over the rows on screen, with the same amounts, rounds and usage shares. */
+    /** Like GTNH, export the active view: the tree or the material list. */
     private void saveAsImage() {
+        if (treeMode) {
+            planTree.saveScreenshot();
+            return;
+        }
         List<IAEStack<?>> visual = new ArrayList<>();
         IAEStackList storage = new IAEStackList();
         IAEStackList pending = new IAEStackList();

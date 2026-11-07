@@ -1,8 +1,15 @@
 package cn.dancingsnow.neoecoae.platform.ui.crafting;
 
+import java.awt.image.BufferedImage;
+import java.io.File;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.IntBuffer;
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,6 +22,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import javax.imageio.ImageIO;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -23,17 +32,24 @@ import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.client.shader.Framebuffer;
+import net.minecraft.event.ClickEvent;
 import net.minecraft.inventory.Container;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.MathHelper;
 
 import org.jetbrains.annotations.Nullable;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL30;
 
 import appeng.api.storage.data.IAEStack;
 import appeng.client.gui.AEBaseGui;
+import appeng.core.AELog;
 import appeng.core.localization.ColorUtils;
 import appeng.core.localization.GuiText;
 import appeng.util.ReadableNumberConverter;
@@ -74,6 +90,8 @@ final class PlanTreeView {
     private static final float ICON_MIN_ZOOM = 0.2F;
     /** Below this zoom the half-size counts are unreadable. */
     private static final float COUNT_MIN_ZOOM = 0.45F;
+    private static final DateTimeFormatter SCREENSHOT_DATE_FORMAT = DateTimeFormatter
+        .ofPattern("yyyy-MM-dd_HH.mm.ss", Locale.ROOT);
 
     private enum Kind {
         REQUEST,
@@ -617,15 +635,8 @@ final class PlanTreeView {
         float right = scrollX + widgetW / zoom + 32;
         float top = scrollY - 32;
         float bottom = scrollY + widgetH / zoom + 32;
-        int from = firstAtOrRightOf(left - 16);
-        int to = from;
-        while (to < visible.size() && visible.get(to).x <= right) to++;
         try {
-            drawLines(left, right, top, bottom);
-            drawFrames(from, to, top, bottom);
-            if (zoom >= ICON_MIN_ZOOM) drawStacks(mc, from, to, top, bottom);
-            drawMarkers(from, to, top, bottom);
-            if (zoom >= COUNT_MIN_ZOOM) drawCounts(from, to, top, bottom);
+            drawContents(mc, left, right, top, bottom, zoom);
         } finally {
             GL11.glPopMatrix();
             GL11.glPopAttrib();
@@ -638,6 +649,125 @@ final class PlanTreeView {
         Gui.drawRect(markX, widgetY + widgetH - 2, markX + 24, widgetY + widgetH - 1, LINE_COLOR);
         Gui.drawRect(widgetX + widgetW - 2, markY, widgetX + widgetW - 1, markY + 24, LINE_COLOR);
         GL11.glColor4f(1, 1, 1, 1);
+    }
+
+    private void drawContents(Minecraft mc, float left, float right, float top, float bottom, float detailZoom) {
+        int from = firstAtOrRightOf(left - 16);
+        int to = from;
+        while (to < visible.size() && visible.get(to).x <= right) to++;
+        drawLines(left, right, top, bottom);
+        drawFrames(from, to, top, bottom);
+        if (detailZoom >= ICON_MIN_ZOOM) drawStacks(mc, from, to, top, bottom);
+        drawMarkers(from, to, top, bottom);
+        if (detailZoom >= COUNT_MIN_ZOOM) drawCounts(from, to, top, bottom);
+    }
+
+    /**
+     * GTNH's full-tree, 2x, tiled FBO export, preserving the current collapsed branches and filters.
+     * GuiCraftingTree's exporter requires its private CraftingRequest/layout, so render the ECO graph with the
+     * same passes used on screen instead of constructing a second, native crafting plan.
+     */
+    void saveScreenshot() {
+        if (root == null) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (!OpenGlHelper.isFramebufferEnabled()) {
+            mc.ingameGUI.getChatGUI()
+                .printChatMessage(new ChatComponentTranslation("chat.appliedenergistics2.FBOUnsupported"));
+            return;
+        }
+        try {
+            final int screenshotZoom = 2;
+            File directory = new File(mc.mcDataDir, "screenshots");
+            Files.createDirectories(directory.toPath());
+            int tileSize = GL11.glGetInteger(GL11.GL_MAX_TEXTURE_SIZE) / 2;
+            int width = screenshotZoom * (treeWidth + 32);
+            int height = screenshotZoom * (treeHeight + 32);
+            // Match GTNH's allocation limit for exceptionally large trees.
+            while ((long) width * height >= Integer.MAX_VALUE / 4L) {
+                if (width > height) width /= 2;
+                else height /= 2;
+            }
+            int fbWidth = Math.min(width, tileSize);
+            int fbHeight = Math.min(height, tileSize);
+            BufferedImage output = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+            IntBuffer pixels = BufferUtils.createIntBuffer(fbWidth * fbHeight);
+            int previousFramebuffer = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
+            int previousMatrixMode = GL11.glGetInteger(GL11.GL_MATRIX_MODE);
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+            GL11.glMatrixMode(GL11.GL_PROJECTION);
+            GL11.glPushMatrix();
+            GL11.glLoadIdentity();
+            GL11.glOrtho(0, fbWidth / (float) screenshotZoom, fbHeight / (float) screenshotZoom, 0, 1000, 3000);
+            GL11.glMatrixMode(GL11.GL_MODELVIEW);
+            GL11.glPushMatrix();
+            GL11.glLoadIdentity();
+            Framebuffer target = null;
+            try {
+                target = new Framebuffer(fbWidth, fbHeight, true);
+                target.bindFramebuffer(true);
+                GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                GL11.glDisable(GL11.GL_DEPTH_TEST);
+                GL11.glDisable(GL11.GL_LIGHTING);
+                GL11.glClearColor(0, 0, 0, 0);
+                for (int x = 0; x < width; x += fbWidth) {
+                    for (int y = 0; y < height; y += fbHeight) {
+                        GL11.glClear(GL11.GL_COLOR_BUFFER_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+                        GL11.glPushMatrix();
+                        try {
+                            GL11.glTranslatef(8 - x / (float) screenshotZoom, 8 - y / (float) screenshotZoom, -2000);
+                            drawContents(
+                                mc,
+                                x / (float) screenshotZoom - 40,
+                                (x + fbWidth) / (float) screenshotZoom + 24,
+                                y / (float) screenshotZoom - 40,
+                                (y + fbHeight) / (float) screenshotZoom + 24,
+                                1F);
+                        } finally {
+                            GL11.glPopMatrix();
+                        }
+                        GL11.glBindTexture(GL11.GL_TEXTURE_2D, target.framebufferTexture);
+                        pixels.clear();
+                        GL11.glGetTexImage(
+                            GL11.GL_TEXTURE_2D,
+                            0,
+                            GL12.GL_BGRA,
+                            GL12.GL_UNSIGNED_INT_8_8_8_8_REV,
+                            pixels);
+                        for (int row = 0; row < Math.min(fbHeight, height - y); row++) {
+                            for (int column = 0; column < Math.min(fbWidth, width - x); column++) {
+                                output.setRGB(x + column, y + row, pixels.get((fbHeight - 1 - row) * fbWidth + column));
+                            }
+                        }
+                    }
+                }
+            } finally {
+                if (target != null) target.deleteFramebuffer();
+                OpenGlHelper.func_153171_g(OpenGlHelper.field_153198_e, previousFramebuffer);
+                GL11.glMatrixMode(GL11.GL_MODELVIEW);
+                GL11.glPopMatrix();
+                GL11.glMatrixMode(GL11.GL_PROJECTION);
+                GL11.glPopMatrix();
+                GL11.glMatrixMode(previousMatrixMode);
+                GL11.glPopAttrib();
+            }
+            String date = SCREENSHOT_DATE_FORMAT.format(LocalDateTime.now());
+            File file = new File(directory, date + "-ae2.png");
+            for (int i = 1; file.exists() && i < 99; i++) file = new File(directory, date + "-ae2-" + i + ".png");
+            if (file.exists()) throw new FileAlreadyExistsException(file.getName());
+            ImageIO.write(output, "png", file);
+            AELog.info("Saved crafting tree screenshot to %s", file.getName());
+            ChatComponentText link = new ChatComponentText(file.getName());
+            link.getChatStyle()
+                .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, file.getAbsolutePath()));
+            link.getChatStyle()
+                .setUnderlined(true);
+            mc.ingameGUI.getChatGUI()
+                .printChatMessage(new ChatComponentTranslation("screenshot.success", link));
+        } catch (Exception e) {
+            AELog.warn(e, "Could not save crafting tree screenshot");
+            mc.ingameGUI.getChatGUI()
+                .printChatMessage(new ChatComponentTranslation("screenshot.failure", e.getMessage()));
+        }
     }
 
     private static boolean outsideRows(Node node, float top, float bottom) {
