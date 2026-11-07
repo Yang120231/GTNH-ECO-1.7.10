@@ -6,10 +6,13 @@ import static org.mockito.Mockito.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 
 import org.junit.jupiter.api.Test;
 
+import appeng.api.networking.security.BaseActionSource;
+import appeng.api.networking.security.PlayerSource;
 import appeng.api.util.CraftCancelListener;
 import appeng.api.util.CraftCompleteListener;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
@@ -35,6 +38,30 @@ class NativeECOCpuTrackingTest {
         var field = owner.getDeclaredField(name);
         field.setAccessible(true);
         field.set(object, value);
+    }
+
+    @Test
+    void requesterUsesNativePlayerNameAndSurvivesReloadWithoutLeakingIntoMachineJobs() throws Exception {
+        var cpu = cpu();
+        var player = mock(EntityPlayer.class);
+        when(player.getCommandSenderName()).thenReturn("Ling_yuNya");
+        cpu.trackRequester(new PlayerSource(player, null));
+        assertEquals("Ling_yuNya", cpu.getSourcePlayer());
+
+        var saved = new NBTTagCompound();
+        cpu.writeTracking(saved);
+        var restored = cpu();
+        restored.readTracking(saved);
+        assertEquals("Ling_yuNya", restored.getSourcePlayer());
+
+        restored.finishTracking(false, null, 0);
+        assertNull(restored.getSourcePlayer());
+        restored.readTracking(saved);
+        restored.trackRequester(new BaseActionSource());
+        assertNull(restored.getSourcePlayer());
+        restored.writeTracking(saved);
+        cpu.readTracking(saved);
+        assertNull(cpu.getSourcePlayer());
     }
 
     @Test

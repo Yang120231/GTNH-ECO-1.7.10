@@ -94,6 +94,8 @@ final class ECOCraftingJobLifecycleController {
         if (plan instanceof cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan exact)
             job.fuzzyPlanningItemIds = exact.fuzzyPlanningItemIds();
         host.setJobFromLifecycle(job);
+        if (host.nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+            bridge.trackRequester(src.nativeSource());
 
         var admission = cn.dancingsnow.neoecoae.api.me.bigorder.ECOBigOrderRequest.forSubmission(plan);
         if (admission != null) {

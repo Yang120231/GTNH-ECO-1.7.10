@@ -14,6 +14,7 @@ import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.security.BaseActionSource;
+import appeng.api.networking.security.PlayerSource;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
@@ -61,6 +62,11 @@ public final class NativeECOCpu extends CraftingCPUCluster
         return runtime;
     }
 
+    /** Populate AE2's existing requester display on the CPU that actually owns the job. */
+    public void trackRequester(BaseActionSource source) {
+        sourcePlayer = source instanceof PlayerSource playerSource ? playerSource.player.getCommandSenderName() : null;
+    }
+
     /** Execute GTNH's registered listeners, including its toast, chat, sound and offline notification queue. */
     public void finishTracking(boolean success, GenericStack output, long elapsed) {
         try {
@@ -84,6 +90,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
                 }
             }
         } finally {
+            sourcePlayer = null;
             playersFollowingCurrentCraft.clear();
             craftCompleteListeners = initializeDefaultOnCompleteListener();
             craftCancelListeners.clear();
@@ -99,6 +106,8 @@ public final class NativeECOCpu extends CraftingCPUCluster
     }
 
     public void writeTracking(net.minecraft.nbt.NBTTagCompound tag) {
+        if (sourcePlayer != null) tag.setString("sourcePlayer", sourcePlayer);
+        else tag.removeTag("sourcePlayer");
         var names = new net.minecraft.nbt.NBTTagList();
         for (String name : playersFollowingCurrentCraft) names.appendTag(new net.minecraft.nbt.NBTTagString(name));
         tag.setTag("playerNameList", names);
@@ -119,6 +128,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
     }
 
     public void readTracking(net.minecraft.nbt.NBTTagCompound tag) {
+        sourcePlayer = tag.hasKey("sourcePlayer", 8) ? tag.getString("sourcePlayer") : null;
         playersFollowingCurrentCraft.clear();
         var names = tag.getTagList("playerNameList", 8);
         for (int i = 0; i < names.tagCount(); i++) playersFollowingCurrentCraft.add(names.getStringTagAt(i));

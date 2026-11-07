@@ -197,6 +197,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         }
         // The vanilla executor re-reads job.tasks every tick and keeps its native three-tick operation window.
         current.mergeVanillaPlan(plan);
+        if (nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+            bridge.trackRequester(src.nativeSource());
         var touched = new KeyCounter();
         getAllItems(touched);
         for (var entry : touched) postChange(entry.getKey());
