@@ -8,7 +8,8 @@ public final class ExactAmountFormatter {
     private ExactAmountFormatter() {}
 
     public static String slot(AEKey key, ExactAmount amount) {
-        return amount.infinite() ? "∞" : BigNumberFormatter.format(amount.value(), key.getAmountPerUnit(), false);
+        return amount.infinite() ? "∞"
+            : BigNumberFormatter.format(amount.value(), key.getAmountPerDisplayUnit(), false);
     }
 
     /** Compatibility overload for callers that already have values in raw units. */
@@ -17,7 +18,8 @@ public final class ExactAmountFormatter {
     }
 
     public static String full(AEKey key, ExactAmount amount) {
-        return amount.infinite() ? "∞" : BigNumberFormatter.formatTooltip(amount.value(), key.getAmountPerUnit());
+        return amount.infinite() ? "∞"
+            : BigNumberFormatter.formatTooltip(amount.value(), key.getAmountPerDisplayUnit());
     }
 
     /** Compatibility overload for callers that already have values in raw units. */

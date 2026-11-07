@@ -7,8 +7,20 @@ import java.math.BigInteger;
 import org.junit.jupiter.api.Test;
 
 import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
+import cn.dancingsnow.neoecoae.platform.TestFluids;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
 
 class ExactAmountFormatterTest {
+
+    @Test
+    void displaysNhFluidLitersWithoutChangingOperationalBucketUnits() {
+        var key = AEFluidKey.of(TestFluids.WATER);
+        var amount = ExactAmount.finite(BigInteger.valueOf(1_000_000));
+        assertEquals("1M", ExactAmountFormatter.slot(key, amount));
+        assertEquals("1,000,000", ExactAmountFormatter.full(key, amount));
+        assertEquals("1", ExactAmountFormatter.slot(key, ExactAmount.finite(BigInteger.ONE)));
+        assertEquals(1000, key.getAmountPerUnit());
+    }
 
     @Test
     void formatsBeyondLongWithoutNarrowing() {

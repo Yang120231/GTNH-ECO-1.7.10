@@ -995,11 +995,11 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     }
 
     private static String compact(AEKey key, BigInteger amount) {
-        return BigNumberFormatter.format(amount, Math.max(1, key.getAmountPerUnit()), false);
+        return BigNumberFormatter.format(amount, Math.max(1, key.getAmountPerDisplayUnit()), false);
     }
 
     private static String full(AEKey key, BigInteger amount) {
-        return BigNumberFormatter.format(amount, Math.max(1, key.getAmountPerUnit()), true);
+        return BigNumberFormatter.format(amount, Math.max(1, key.getAmountPerDisplayUnit()), true);
     }
 
     private boolean unknownBytes() {

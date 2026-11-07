@@ -972,6 +972,6 @@ public final class GraphRenderer implements AutoCloseable {
     }
 
     private static int perUnit(AEKey key) {
-        return Math.max(1, key.getAmountPerUnit());
+        return Math.max(1, key.getAmountPerDisplayUnit());
     }
 }

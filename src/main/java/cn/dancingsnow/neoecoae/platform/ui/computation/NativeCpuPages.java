@@ -685,6 +685,6 @@ public final class NativeCpuPages {
     }
 
     private static String amount(String value, AEKey key) {
-        return BigNumberFormatter.formatSI(number(value), key == null ? 1 : key.getAmountPerUnit());
+        return BigNumberFormatter.formatSI(number(value), key == null ? 1 : key.getAmountPerDisplayUnit());
     }
 }

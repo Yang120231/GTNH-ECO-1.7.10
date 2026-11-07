@@ -42,6 +42,11 @@ public abstract class AEKey {
         return getType().getAmountPerUnit();
     }
 
+    /** NH displays fluids in liters (one raw fluid unit), while operations still use buckets. */
+    public int getAmountPerDisplayUnit() {
+        return getType().nativeChannel() == appeng.api.storage.StorageChannel.FLUIDS ? 1 : getAmountPerUnit();
+    }
+
     public int getAmountPerOperation() {
         return getType().nativeChannel() == appeng.api.storage.StorageChannel.FLUIDS ? 125 : 1;
     }
