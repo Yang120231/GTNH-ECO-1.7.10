@@ -914,19 +914,21 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     }
 
     private void drawStack(IAEStack<?> stack, int x, int y) {
+        // Match AE2's status renderer: NEI draws after this foreground and reuses its lighting/blend state.
+        GL11.glPushAttrib(
+            GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT
+                | GL11.GL_LIGHTING_BIT
+                | GL11.GL_CURRENT_BIT
+                | GL11.GL_DEPTH_BUFFER_BIT);
         GL11.glPushMatrix();
-        GL11.glEnable(GL12.GL_RESCALE_NORMAL);
-        RenderHelper.enableGUIStandardItemLighting();
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
         try {
+            GL11.glEnable(GL12.GL_RESCALE_NORMAL);
+            RenderHelper.enableGUIStandardItemLighting();
+            GL11.glEnable(GL11.GL_DEPTH_TEST);
             stack.drawInGui(mc, x, y);
         } finally {
-            RenderHelper.disableStandardItemLighting();
-            GL11.glDisable(GL12.GL_RESCALE_NORMAL);
-            GL11.glDisable(GL11.GL_LIGHTING);
-            GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GL11.glColor4f(1, 1, 1, 1);
             GL11.glPopMatrix();
+            GL11.glPopAttrib();
         }
     }
 
