@@ -17,6 +17,7 @@ import appeng.api.storage.data.IAEStackType;
 import appeng.api.storage.data.IItemList;
 import appeng.me.cache.NetworkMonitor;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeIncrementalStorageList;
+import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeNetworkReads;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 
 /** Keeps rv3's cached network list current from posted changes; see {@link NativeIncrementalStorageList}. */
@@ -51,6 +52,26 @@ public abstract class NetworkMonitorMixin {
 
     @Shadow
     public abstract IMEInventoryHandler<?> getHandler();
+
+    @Redirect(
+        method = "injectItems",
+        at = @At(
+            value = "INVOKE",
+            target = "Lappeng/api/storage/IMEInventoryHandler;injectItems(Lappeng/api/storage/data/IAEStack;Lappeng/api/config/Actionable;Lappeng/api/networking/security/BaseActionSource;)Lappeng/api/storage/data/IAEStack;"),
+        require = 2,
+        allow = 2)
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private appeng.api.storage.data.IAEStack neoecoae$insertAndInvalidateCrafting(IMEInventoryHandler handler,
+        appeng.api.storage.data.IAEStack input, appeng.api.config.Actionable mode, BaseActionSource source) {
+        NativeNetworkReads reads = handler instanceof NativeNetworkReads ? (NativeNetworkReads) handler : null;
+        long before = reads == null ? 0 : reads.neoecoae$craftingInsertionVersion();
+        appeng.api.storage.data.IAEStack remaining = handler.injectItems(input, mode, source);
+        // AE2's insertion difference includes items consumed by CPUs. Those are not listed as stored stock.
+        // Rebuild before serving the next list instead of adding that difference to the cached stock.
+        if (mode == appeng.api.config.Actionable.MODULATE
+            && (reads == null || before != reads.neoecoae$craftingInsertionVersion())) hasChanged = true;
+        return remaining;
+    }
 
     // notifyListenersOfChange receives removal batches unsigned; those always take AE2's rebuild.
     @Inject(method = "postChange", at = @At("HEAD"), require = 1)

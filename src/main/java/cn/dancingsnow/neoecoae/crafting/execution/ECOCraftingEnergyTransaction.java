@@ -11,6 +11,7 @@ import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.energy.IEnergyGrid;
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 /**
@@ -69,7 +70,7 @@ final class ECOCraftingEnergyTransaction {
     @Nullable
     Reservation reserve(IEnergyGrid service, double perCraft, java.math.BigInteger count) {
         if (!Double.isFinite(perCraft) || perCraft < 0 || count.signum() < 0) return null;
-        var power = new BigDecimal(perCraft).multiply(new BigDecimal(count));
+        var power = ECOBatchCraftingHelper.exactEnergy(perCraft, count);
         var credit = power.min(prepaidEnergyCredit);
         var required = power.subtract(credit);
         double request = required.doubleValue();
@@ -87,7 +88,8 @@ final class ECOCraftingEnergyTransaction {
             // GTNH CraftingCPUCluster accepts power within 0.01 of the sum. AE2 routes CONFIG extraction through
             // (amt * UsageMultiplier) / UsageMultiplier, which is not exact for GTNH's 10.0 multiplier; an exact
             // comparison would reject the same pattern on every attempt. Any sub-tolerance shortfall is forgiven.
-            if (!Double.isFinite(charged) || charged < request - chargeTolerance(request)) {
+            if (!Double.isFinite(charged) || charged <= 0
+                || charged < request - ECOBatchCraftingHelper.energyTolerance(request)) {
                 if (Double.isFinite(charged) && charged > 0) refundEnergyOrRetainCredit(service, decimal(charged));
                 logAccountingFailure("reservation charged " + charged + " of " + request, null);
                 return null;
@@ -113,11 +115,6 @@ final class ECOCraftingEnergyTransaction {
         prepaidEnergyCredit = BigDecimal.ZERO;
         markDirty.run();
         refundEnergyOrRetainCredit(service, refund);
-    }
-
-    /** GTNH's absolute 0.01 tolerance, widened relatively so very large batches survive multiplier rounding. */
-    static double chargeTolerance(double request) {
-        return Math.max(0.01, Math.abs(request) * 1.0e-12);
     }
 
     private static BigDecimal decimal(double value) {

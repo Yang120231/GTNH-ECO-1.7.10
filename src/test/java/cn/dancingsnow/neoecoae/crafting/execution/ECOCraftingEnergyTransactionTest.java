@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.energy.IEnergyGrid;
+import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 class ECOCraftingEnergyTransactionTest {
@@ -125,12 +126,40 @@ class ECOCraftingEnergyTransactionTest {
     }
 
     @Test
+    void quantumClusterCanPassPlanningAndPayWithTheGtnhMultiplier() {
+        double power = 59 + 144.0 / 1000;
+        when(service.extractAEPower(anyDouble(), any(Actionable.class), eq(PowerMultiplier.CONFIG)))
+            .thenAnswer(call -> ((double) call.getArgument(0) * 10.0) / 10.0);
+        long count = ECOBatchCraftingHelper.maxAffordableCrafts(
+            power,
+            1L,
+            amount -> service.extractAEPower(amount, Actionable.SIMULATE, PowerMultiplier.CONFIG));
+        assertEquals(1L, count);
+        var reservation = ledger.reserve(service, power, count);
+        assertNotNull(reservation);
+        reservation.commit();
+        verify(service).extractAEPower(power, Actionable.MODULATE, PowerMultiplier.CONFIG);
+        verify(service, never()).injectPower(anyDouble(), any());
+        assertEquals(0, credit(ledger).signum());
+    }
+
+    @Test
     void realShortfallIsStillRejected() {
         when(service.extractAEPower(anyDouble(), eq(Actionable.MODULATE), eq(PowerMultiplier.CONFIG)))
             .thenAnswer(call -> (double) call.getArgument(0) - 0.5);
         when(service.injectPower(anyDouble(), eq(Actionable.MODULATE))).thenReturn(0.0);
         assertNull(ledger.reserve(service, 4));
         verify(service).injectPower(3.5, Actionable.MODULATE);
+    }
+
+    @Test
+    void tinyPositiveCostStillNeedsAnActualPositiveDebit() {
+        for (double available : new double[] { 0, -0.001, Double.NaN, Double.POSITIVE_INFINITY }) {
+            when(service.extractAEPower(anyDouble(), eq(Actionable.MODULATE), eq(PowerMultiplier.CONFIG)))
+                .thenReturn(available);
+            assertNull(ledger.reserve(service, 0.001));
+        }
+        verify(service, never()).injectPower(anyDouble(), any());
     }
 
     @Test

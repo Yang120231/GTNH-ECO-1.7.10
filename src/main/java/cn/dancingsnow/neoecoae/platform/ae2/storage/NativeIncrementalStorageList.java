@@ -10,9 +10,9 @@ import cn.dancingsnow.neoecoae.platform.network.ServerThread;
 /**
  * rv3's NetworkMonitor marks its cached list stale on every change, so the next {@code getStorageList()} re-lists every
  * handler of the network; with a terminal open and constant traffic that is a full network scan per tick. The changes
- * it posts are exact (MODULATE differences, storage-bus and provider reports), so they are applied to the cached list
- * instead. Anything that cannot be applied exactly falls back to AE2's rebuild, and a periodic rebuild absorbs
- * inaccurate reports from other mods.
+ * it posts can update the cached list instead, except when insertion fed crafting CPUs (handled by the monitor
+ * mixin) or the report carries crafting metadata rather than a stored-stock difference. Anything that cannot be
+ * applied exactly falls back to AE2's rebuild, and a periodic rebuild absorbs inaccurate reports from other mods.
  */
 public final class NativeIncrementalStorageList {
 
@@ -31,12 +31,13 @@ public final class NativeIncrementalStorageList {
             if (posted == null) continue;
             IAEStack<?> change = (IAEStack<?>) posted;
             if (change.getStackType() != type) return false;
+            // Pattern refreshes also post changes, but their stack sizes are not newly stored items.
+            if (change.isCraftable() || change.getCountRequestable() != 0) return false;
             long delta = change.getStackSize();
             if (delta == 0) continue;
             IAEStack existing = list.findPrecise(change);
             if (existing == null) {
                 if (delta < 0) return false;
-                // Changes may carry request flags (craftable, requestable counts); only the stored amount moves.
                 list.add(
                     change.copy()
                         .reset()

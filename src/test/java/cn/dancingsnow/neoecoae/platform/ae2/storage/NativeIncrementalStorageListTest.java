@@ -68,6 +68,17 @@ class NativeIncrementalStorageListTest {
     }
 
     @Test
+    void craftingMetadataIsNotAddedToStoredStock() {
+        IAEStack craftable = stack(1), requestable = stack(1);
+        when(craftable.isCraftable()).thenReturn(true);
+        when(requestable.getCountRequestable()).thenReturn(1L);
+        assertFalse(NativeIncrementalStorageList.apply(list, type, Collections.singletonList(craftable)));
+        assertFalse(NativeIncrementalStorageList.apply(list, type, Collections.singletonList(requestable)));
+        verify(list, never()).findPrecise(any());
+        verify(list, never()).add(any());
+    }
+
+    @Test
     void onlyServerThreadNetworksWithoutSubnetworkReadsAreEligible() {
         NativeNetworkReads local = mock(
             NativeNetworkReads.class,

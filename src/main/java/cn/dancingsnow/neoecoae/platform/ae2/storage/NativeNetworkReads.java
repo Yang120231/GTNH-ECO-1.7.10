@@ -8,4 +8,7 @@ public interface NativeNetworkReads {
      * subnetworks only while listing, so the same subnet change can be reported through several buses.
      */
     boolean neoecoae$readsOtherNetwork();
+
+    /** Changes whenever an insertion is accepted by crafting rather than physical storage. */
+    long neoecoae$craftingInsertionVersion();
 }

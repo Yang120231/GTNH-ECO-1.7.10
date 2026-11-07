@@ -24,6 +24,14 @@ public abstract class NetworkInventoryHandlerMixin
     @org.spongepowered.asm.mixin.Unique
     private boolean neoecoae$readsOtherNetwork;
 
+    @org.spongepowered.asm.mixin.Unique
+    private long neoecoae$craftingInsertionVersion;
+
+    @Override
+    public long neoecoae$craftingInsertionVersion() {
+        return neoecoae$craftingInsertionVersion;
+    }
+
     /** Re-evaluated at most once per server tick: a storage bus can retarget without rebuilding this handler. */
     @Override
     public boolean neoecoae$readsOtherNetwork() {
@@ -62,8 +70,14 @@ public abstract class NetworkInventoryHandlerMixin
         allow = 5)
     private IAEStack neoecoae$insertPhysicalTarget(appeng.api.storage.IMEInventoryHandler inventory, IAEStack offered,
         appeng.api.config.Actionable mode, appeng.api.networking.security.BaseActionSource source) {
-        return cn.dancingsnow.neoecoae.platform.ae2.storage.NativeTransferFilters.excluded(inventory) ? offered
-            : inventory.injectItems(offered, mode, source);
+        if (cn.dancingsnow.neoecoae.platform.ae2.storage.NativeTransferFilters.excluded(inventory)) return offered;
+        long before = offered.getStackSize();
+        IAEStack remaining = inventory.injectItems(offered, mode, source);
+        if (mode == appeng.api.config.Actionable.MODULATE && inventory.isAutoCraftingInventory()
+            && (remaining == null || remaining.getStackSize() < before)) {
+            neoecoae$craftingInsertionVersion++;
+        }
+        return remaining;
     }
 
     @Redirect(
