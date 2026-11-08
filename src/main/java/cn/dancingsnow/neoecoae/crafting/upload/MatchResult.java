@@ -65,4 +65,15 @@ public final class MatchResult {
     public boolean allowsManual() {
         return level != Level.INCOMPATIBLE;
     }
+
+    /** A user mapping supplies a missing route, but cannot resolve a known recipe or circuit problem. */
+    public static boolean allowsMapping(Level level, String reason) {
+        return level == Level.EXACT || level == Level.ACCEPTED
+            || level == Level.UNVERIFIED
+                && (reason == null || reason.isEmpty() || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason));
+    }
+
+    public boolean allowsMapping() {
+        return allowsMapping(level, reason);
+    }
 }

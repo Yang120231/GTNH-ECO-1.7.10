@@ -41,7 +41,29 @@ public abstract class NeiPatternRouteMixin {
                 circuit = null;
             }
         }
-        PatternUploadClient.captureHint(gui, map, circuit, neoecoae$category(handler));
+        PatternUploadClient
+            .captureHint(gui, map, circuit, neoecoae$category(handler), neoecoae$categoryId(handler, map));
+    }
+
+    /** NEI's handler identity and overlay distinguish categories without depending on the display language. */
+    private static String neoecoae$categoryId(IRecipeHandler handler, String map) {
+        if (handler == null || handler instanceof ShapedRecipeHandler) return "";
+        if (map != null && !map.trim()
+            .isEmpty()) return "gt:" + map.trim();
+        String overlay = "";
+        try {
+            String value = handler.getOverlayIdentifier();
+            if (value != null) overlay = value.trim();
+        } catch (RuntimeException | LinkageError unreadable) { /* The handler ID is still usable. */ }
+        if ("crafting".equals(overlay) || "crafting2x2".equals(overlay)) return "";
+        String id = handler.getClass()
+            .getName();
+        try {
+            String value = handler.getHandlerId();
+            if (value != null && !value.trim()
+                .isEmpty()) id = value.trim();
+        } catch (RuntimeException | LinkageError unreadable) { /* Legacy handler: use its class. */ }
+        return "nei:" + id.length() + ":" + id + overlay;
     }
 
     /** NEI's tab name for machine recipes; crafting-table recipes name no machine and would only hide targets. */

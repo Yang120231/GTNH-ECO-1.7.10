@@ -92,6 +92,7 @@ final class UploadButtonTooltip {
                 "gui.neoecoae.pattern_upload.button.auto.tooltip.target",
                 PatternUploadScreen.hostText(target.name, target.icon) + target.nameSuffix,
                 kind));
+        if (target.mapped) statusDetails.add(tr("gui.neoecoae.pattern_upload.mapping.used"));
         if (target.programmingCover) statusDetails.add(tr("gui.neoecoae.pattern_upload.programming_cover"));
         else if (target.circuit != null) statusDetails.add(
             StatCollector.translateToLocalFormatted(

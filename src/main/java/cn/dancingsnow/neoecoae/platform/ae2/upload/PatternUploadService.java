@@ -25,6 +25,7 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternStacks;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetGroups;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetSelector;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternTransfer;
+import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadMappings;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSession;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadSessions;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
@@ -95,10 +96,10 @@ public final class PatternUploadService {
         }
         PatternUploadSession session = session(player, container, source);
         session.message("", false);
-        List<PatternTargetSelector.Evaluation> evaluations = session.refresh();
+        session.refresh();
         if (session.context() == null) session.message("gui.neoecoae.pattern_upload.no_pattern", true);
         else if (mode == PatternUploadPackets.AUTO) {
-            PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(evaluations);
+            PatternTargetSelector.AutoChoice choice = session.autoChoice();
             if (choice.selected != null) {
                 PatternUploadTarget target = choice.selected.target;
                 PatternTransfer.Result result = session.upload(target, true);
@@ -148,7 +149,8 @@ public final class PatternUploadService {
                 break;
             }
             case PatternUploadPackets.ACTION_AUTO: {
-                PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(session.refresh());
+                session.refresh();
+                PatternTargetSelector.AutoChoice choice = session.autoChoice();
                 if (session.context() == null) session.message("gui.neoecoae.pattern_upload.no_pattern", true);
                 else if (choice.selected == null) session.message(choice.reason, true);
                 else {
@@ -175,6 +177,27 @@ public final class PatternUploadService {
             case PatternUploadPackets.ACTION_REFRESH:
                 session.refresh();
                 break;
+            case PatternUploadPackets.ACTION_SAVE_MAPPING: {
+                if (session.saveMapping(argument)) event = PatternUploadPackets.EVENT_MAPPING;
+                TOOLTIPS.remove(player);
+                session.refresh();
+                break;
+            }
+            case PatternUploadPackets.ACTION_TOGGLE_MAPPING:
+            case PatternUploadPackets.ACTION_REMOVE_MAPPING: {
+                RouteHint hint = session.hint();
+                boolean changed = action == PatternUploadPackets.ACTION_TOGGLE_MAPPING
+                    ? PatternUploadMappings.toggle(player, hint)
+                    : PatternUploadMappings.remove(player, hint);
+                session.message(
+                    changed ? "gui.neoecoae.pattern_upload.mapping.updated"
+                        : "gui.neoecoae.pattern_upload.mapping.no_category",
+                    !changed);
+                if (changed) event = PatternUploadPackets.EVENT_MAPPING;
+                TOOLTIPS.remove(player);
+                session.refresh();
+                break;
+            }
             case PatternUploadPackets.ACTION_LOCATE: {
                 // Locating writes nothing; the last list stays valid, so no re-evaluation is needed.
                 if (session.groups()
@@ -216,6 +239,19 @@ public final class PatternUploadService {
         }
         RouteHint hint = session.hint();
         list.category = hint == null ? "" : hint.getCategory();
+        list.categoryId = hint == null ? "" : hint.getCategoryId();
+        list.canMap = context != null && context.processing && !list.categoryId.isEmpty();
+        PatternUploadMappings.Mapping mapping = session.mapping();
+        if (mapping != null) {
+            list.hasMapping = true;
+            list.mappingEnabled = mapping.enabled;
+            list.mappingName = mapping.name;
+            list.mappingNameSuffix = mapping.nameSuffix;
+            for (PatternTargetGroups.Group group : session.groups()) if (mapping.matches(group.position())) {
+                list.mappingToken = group.token();
+                break;
+            }
+        }
         list.message = session.message();
         list.error = session.messageError();
         list.event = event;
@@ -223,7 +259,8 @@ public final class PatternUploadService {
         list.receipt = receipt != null;
         list.receiptName = receipt == null || receipt.targetName == null ? "" : receipt.targetName;
         list.receiptNameSuffix = receipt == null || receipt.targetNameSuffix == null ? "" : receipt.targetNameSuffix;
-        PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(session.evaluations());
+        PatternTargetSelector.AutoChoice choice = session.autoChoice();
+        list.autoMapped = choice.mapped;
         if (choice.selected != null) {
             PatternTargetGroups.Group group = session.groupOf(choice.selected.target);
             list.autoToken = group == null ? 0 : group.token();
@@ -265,10 +302,10 @@ public final class PatternUploadService {
         return row;
     }
 
-    public static void hint(EntityPlayerMP player, int windowId, String recipeMapId, ItemStack circuit,
-        String category) {
+    public static void hint(EntityPlayerMP player, int windowId, String recipeMapId, ItemStack circuit, String category,
+        String categoryId) {
         if (terminal(player, windowId) == null) return;
-        PatternUploadSessions.setHint(player, new RouteHint(recipeMapId, circuit, category, windowId));
+        PatternUploadSessions.setHint(player, new RouteHint(recipeMapId, circuit, category, categoryId, windowId));
     }
 
     public static void onEncoded(ContainerPatternTerm container, EntityPlayer player) {
@@ -301,8 +338,12 @@ public final class PatternUploadService {
                 .of(pattern, PatternUploadSessions.routeHintFor(player, container.windowId, pattern), player.worldObj);
         if (context == null) message = new PatternUploadPackets.AutoTarget(container.windowId, "", -1, null, false, "");
         else {
-            PatternTargetSelector.AutoChoice choice = PatternTargetSelector
-                .choose(PatternTargetSelector.evaluateAll(Ae2UploadDiscovery.discover(grid), context, grid));
+            PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(
+                PatternTargetSelector.evaluateAll(Ae2UploadDiscovery.discover(grid), context, grid),
+                context.processing
+                    ? PatternUploadMappings
+                        .get(player, PatternUploadSessions.hintFor(player, container.windowId, pattern))
+                    : null);
             if (choice.selected == null)
                 message = new PatternUploadPackets.AutoTarget(container.windowId, "", -1, null, false, choice.reason);
             else {
@@ -318,6 +359,7 @@ public final class PatternUploadService {
                     "");
                 if (match.routeName == null && target.nameSuffix() != null) message.nameSuffix = target.nameSuffix();
                 message.icon = copy(match.routeIcon != null ? match.routeIcon : target.icon());
+                message.mapped = choice.mapped;
             }
         }
         String key = message.key();

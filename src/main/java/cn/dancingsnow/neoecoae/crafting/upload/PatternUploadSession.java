@@ -34,6 +34,7 @@ public final class PatternUploadSession {
     private final Function<IGrid, List<PatternUploadTarget>> discovery;
     private final PatternTargetGroups groups = new PatternTargetGroups();
     private List<PatternTargetSelector.Evaluation> evaluations = Collections.emptyList();
+    private ItemStack listedPattern;
     private boolean closed;
     private long touchedAt = System.currentTimeMillis();
     private String message = "";
@@ -106,6 +107,7 @@ public final class PatternUploadSession {
         touch();
         IGrid grid = source.grid();
         PatternContext context = context();
+        listedPattern = context == null ? null : context.pattern.copy();
         if (grid == null || context == null) evaluations = Collections.emptyList();
         else evaluations = PatternTargetSelector.evaluateAll(discovery.apply(grid), context, grid);
         groups.update(evaluations);
@@ -114,6 +116,56 @@ public final class PatternUploadSession {
 
     public List<PatternTargetSelector.Evaluation> evaluations() {
         return evaluations;
+    }
+
+    public PatternUploadMappings.Mapping mapping() {
+        PatternContext context = context();
+        return context == null || !context.processing ? null : PatternUploadMappings.get(player, hint());
+    }
+
+    public PatternTargetSelector.AutoChoice autoChoice() {
+        return PatternTargetSelector.choose(evaluations, mapping());
+    }
+
+    /** Saving a preference moves no pattern and never trusts a client-supplied machine name or group identity. */
+    public boolean saveMapping(int token) {
+        if (!isOpen() || !source.canEdit(player)) {
+            message(REASON_NO_PERMISSION, true);
+            return false;
+        }
+        PatternContext context = context();
+        RouteHint hint = hint();
+        if (context == null || !context.processing
+            || hint == null
+            || hint.getCategoryId()
+                .isEmpty()) {
+            message("gui.neoecoae.pattern_upload.mapping.no_category", true);
+            return false;
+        }
+        if (!PatternStacks.sameItem(context.pattern, listedPattern)) {
+            message(PatternTransfer.REASON_SOURCE_CHANGED, true);
+            return false;
+        }
+        PatternTargetGroups.Group group = groups.group(token);
+        if (group == null) {
+            message(REASON_TARGET_MISSING, true);
+            return false;
+        }
+        IGrid grid = source.grid();
+        for (PatternTargetSelector.Evaluation member : group.members) {
+            PatternTargetSelector.Evaluation current = PatternTargetSelector.evaluate(member.target, context, grid);
+            if (current.state == PatternTargetSelector.SlotState.OFFLINE || !current.match.allowsMapping()
+                || !PatternTargetGroups.mappingKey(current)
+                    .equals(PatternTargetGroups.mappingKey(member)))
+                continue;
+            boolean saved = PatternUploadMappings.put(player, hint, current);
+            message(
+                saved ? "gui.neoecoae.pattern_upload.mapping.saved" : "gui.neoecoae.pattern_upload.mapping.save_failed",
+                !saved);
+            return saved;
+        }
+        message("gui.neoecoae.pattern_upload.mapping.target_changed", true);
+        return false;
     }
 
     /** Groups of the latest refresh, best first. */
@@ -169,7 +221,20 @@ public final class PatternUploadSession {
         IGrid grid = source.grid();
         // Re-read the destination and its machine route at submit time.
         PatternTargetSelector.Evaluation evaluation = PatternTargetSelector.evaluate(target, context, grid);
-        if (automatic ? !evaluation.canUploadAutomatically() : !evaluation.canUploadManually()) {
+        boolean allowed = automatic ? evaluation.canUploadAutomatically() : evaluation.canUploadManually();
+        if (automatic && !allowed && evaluation.canUploadByMapping(mapping())) {
+            // A mapped upload must still be the fallback now: another machine may have become verifiable.
+            refresh();
+            PatternTargetSelector.AutoChoice choice = autoChoice();
+            if (!choice.mapped || choice.selected == null
+                || !choice.selected.target.positionKey()
+                    .equals(target.positionKey()))
+                return fail("gui.neoecoae.pattern_upload.mapping.target_changed");
+            evaluation = choice.selected;
+            target = evaluation.target;
+            allowed = true;
+        }
+        if (!allowed) {
             String reason = evaluation.state != PatternTargetSelector.SlotState.FREE ? evaluation.state.translationKey()
                 : evaluation.match.level.translationKey();
             return fail(reason);

@@ -41,6 +41,7 @@ final class UploadRowTooltip {
     final List<String> notes = new ArrayList<>();
     String location = "";
     boolean uploadable;
+    boolean mappingAction;
     String disabledReason = "";
 
     private FontRenderer font;
@@ -178,7 +179,11 @@ final class UploadRowTooltip {
 
     private List<String[]> hints() {
         List<String[]> hints = new ArrayList<>();
-        if (uploadable) {
+        if (mappingAction) {
+            hints.add(
+                new String[] { tr("gui.neoecoae.pattern_upload.tooltip.key.left"),
+                    tr("gui.neoecoae.pattern_upload.mapping.save_action") });
+        } else if (uploadable) {
             hints.add(
                 new String[] { tr("gui.neoecoae.pattern_upload.tooltip.key.left"),
                     tr("gui.neoecoae.pattern_upload.tooltip.action.return") });

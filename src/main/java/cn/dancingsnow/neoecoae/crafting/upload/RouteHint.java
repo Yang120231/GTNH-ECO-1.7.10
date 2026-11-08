@@ -19,6 +19,7 @@ public final class RouteHint {
     private final String recipeMapId;
     private final ItemStack circuit;
     private final String category;
+    private final String categoryId;
     private final int windowId;
     private final long createdAt;
     private ItemStack boundPattern;
@@ -28,9 +29,22 @@ public final class RouteHint {
     }
 
     public RouteHint(String recipeMapId, ItemStack circuit, String category, int windowId) {
+        this(
+            recipeMapId,
+            circuit,
+            category,
+            recipeMapId == null || recipeMapId.trim()
+                .isEmpty() ? "" : "gt:" + recipeMapId.trim(),
+            windowId);
+    }
+
+    public RouteHint(String recipeMapId, ItemStack circuit, String category, String categoryId, int windowId) {
         this.recipeMapId = clip(recipeMapId);
         this.circuit = circuit == null ? null : PatternStacks.copy(circuit, 1);
         this.category = clip(category);
+        // Identifiers must never be truncated into another category's identifier.
+        String id = categoryId == null ? "" : categoryId.trim();
+        this.categoryId = id.length() <= 512 ? id : "";
         this.windowId = windowId;
         this.createdAt = System.currentTimeMillis();
     }
@@ -53,13 +67,18 @@ public final class RouteHint {
         return category;
     }
 
+    /** Language-independent NEI category identity, used only for player-defined upload mappings. */
+    public String getCategoryId() {
+        return categoryId;
+    }
+
     /** True when the hint names a recipe map and may therefore take part in route matching. */
     public boolean hasRecipeMap() {
         return !recipeMapId.isEmpty();
     }
 
     public boolean isEmpty() {
-        return recipeMapId.isEmpty() && category.isEmpty();
+        return recipeMapId.isEmpty() && category.isEmpty() && categoryId.isEmpty();
     }
 
     public boolean isPending() {

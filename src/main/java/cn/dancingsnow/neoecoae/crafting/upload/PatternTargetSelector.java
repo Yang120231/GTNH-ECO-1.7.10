@@ -58,6 +58,13 @@ public final class PatternTargetSelector {
         public boolean canUploadAutomatically() {
             return state == SlotState.FREE && match.allowsAuto();
         }
+
+        public boolean canUploadByMapping(PatternUploadMappings.Mapping mapping) {
+            return state == SlotState.FREE && mapping != null
+                && mapping.enabled
+                && match.allowsMapping()
+                && mapping.matches(this);
+        }
     }
 
     public static final class AutoChoice {
@@ -65,10 +72,17 @@ public final class PatternTargetSelector {
         public final Evaluation selected;
         /** Translation key explaining why nothing was selected. */
         public final String reason;
+        /** A player-defined fallback was used; the underlying match is still unverified. */
+        public final boolean mapped;
 
         AutoChoice(Evaluation selected, String reason) {
+            this(selected, reason, false);
+        }
+
+        AutoChoice(Evaluation selected, String reason, boolean mapped) {
             this.selected = selected;
             this.reason = reason;
+            this.mapped = mapped;
         }
     }
 
@@ -132,5 +146,27 @@ public final class PatternTargetSelector {
         for (Evaluation evaluation : exact) signatures.add(evaluation.match.routeSignature);
         if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
         return new AutoChoice(exact.get(0), null);
+    }
+
+    /** A saved mapping is a fallback for missing route knowledge, never for a full or ambiguous verified route. */
+    public static AutoChoice choose(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {
+        AutoChoice verified = choose(sorted);
+        if (mapping == null || !mapping.enabled || verified.selected != null) return verified;
+        for (Evaluation evaluation : sorted) if (evaluation.match.allowsAuto()) return verified;
+        Evaluation selected = null, unavailable = null;
+        for (Evaluation evaluation : sorted) {
+            if (!mapping.matches(evaluation)) continue;
+            if (evaluation.canUploadByMapping(mapping)) {
+                if (selected == null || PatternTargetGroups.UPLOAD_ORDER.compare(evaluation, selected) < 0)
+                    selected = evaluation;
+            } else if (unavailable == null) unavailable = evaluation;
+        }
+        if (selected != null) return new AutoChoice(selected, null, true);
+        if (unavailable == null) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_missing");
+        String reason = unavailable.state != SlotState.FREE ? unavailable.state.translationKey()
+            : unavailable.match.reason == null || unavailable.match.reason.isEmpty()
+                ? unavailable.match.level.translationKey()
+                : unavailable.match.reason;
+        return new AutoChoice(null, reason);
     }
 }

@@ -85,7 +85,7 @@ public final class PatternTargetGroups {
         }
     }
 
-    private static final Comparator<Evaluation> UPLOAD_ORDER = Comparator
+    static final Comparator<Evaluation> UPLOAD_ORDER = Comparator
         .<Evaluation>comparingInt(evaluation -> -evaluation.emptySlots)
         .thenComparing(evaluation -> evaluation.target.positionKey());
 
@@ -160,22 +160,26 @@ public final class PatternTargetGroups {
     }
 
     public static String key(Evaluation evaluation) {
+        return mappingKey(evaluation) + '\u0001' + evaluation.match.level.name();
+    }
+
+    /** Persistent group identity: match verdicts and free slots change with the pattern, the route does not. */
+    public static String mappingKey(Evaluation evaluation) {
         MatchResult match = evaluation.match;
         PatternUploadTarget target = evaluation.target;
-        return target.kind()
-            .name() + '\u0001'
-            + nullToEmpty(target.name())
-            + nullToEmpty(target.nameSuffix())
-            + '\u0001'
-            + nullToEmpty(match.routeName)
-            + '\u0001'
-            + match.level.name()
-            + '\u0001'
-            + match.routeSignature
-            + '\u0001'
-            + circuitNumber(match)
-            + '\u0001'
-            + match.programmingCover;
+        StringBuilder key = new StringBuilder("1:");
+        append(
+            key,
+            target.kind()
+                .name());
+        append(key, target.name());
+        append(key, target.nameSuffix());
+        append(key, match.routeName);
+        append(key, match.routeSignature);
+        return key.append(circuitNumber(match))
+            .append(':')
+            .append(match.programmingCover)
+            .toString();
     }
 
     /** Virtual circuit number shown for a route, or -1. */
@@ -183,7 +187,10 @@ public final class PatternTargetGroups {
         return match.circuit == null ? -1 : match.circuit.getItemDamage() & 0xFF;
     }
 
-    private static String nullToEmpty(String value) {
-        return value == null ? "" : value;
+    private static void append(StringBuilder key, String value) {
+        String text = value == null ? "" : value;
+        key.append(text.length())
+            .append(':')
+            .append(text);
     }
 }

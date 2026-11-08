@@ -26,8 +26,10 @@ public final class PatternUploadPackets {
     public static final int OPEN = 0, AUTO = 1, ENCODE_AND_OPEN = 2;
     /** Actions sent from the client-side target screen while the terminal window stays open on the server. */
     public static final int ACTION_UPLOAD = 0, ACTION_AUTO = 1, ACTION_UNDO = 2, ACTION_REFRESH = 3, ACTION_LOCATE = 4;
+    public static final int ACTION_SAVE_MAPPING = 5, ACTION_TOGGLE_MAPPING = 6, ACTION_REMOVE_MAPPING = 7;
     /** What the action behind a {@link TargetList} did; the screen returns to the terminal on UPLOADED. */
     public static final int EVENT_NONE = 0, EVENT_UPLOADED = 1, EVENT_UNDONE = 2;
+    public static final int EVENT_MAPPING = 3;
     /** Rows per network part, so one payload stays far below the 1.7.10 custom payload limit. */
     public static final int ROWS_PER_PART = 64;
     public static final int MAX_ROWS = 4096;
@@ -75,8 +77,8 @@ public final class PatternUploadPackets {
         }
     }
 
-    public static void hint(int windowId, String recipeMapId, ItemStack circuit, String category) {
-        CHANNEL.sendToServer(new Hint(windowId, recipeMapId, circuit, category));
+    public static void hint(int windowId, String recipeMapId, ItemStack circuit, String category, String categoryId) {
+        CHANNEL.sendToServer(new Hint(windowId, recipeMapId, circuit, category, categoryId));
     }
 
     public static void autoTarget(EntityPlayerMP player, AutoTarget message) {
@@ -138,14 +140,16 @@ public final class PatternUploadPackets {
         ItemStack circuit;
         /** Display name of the NEI recipe category; empty for crafting-table recipes. */
         String category = "";
+        String categoryId = "";
 
         public Hint() {}
 
-        Hint(int windowId, String recipeMapId, ItemStack circuit, String category) {
+        Hint(int windowId, String recipeMapId, ItemStack circuit, String category, String categoryId) {
             this.windowId = windowId;
             this.recipeMapId = recipeMapId == null ? "" : recipeMapId;
             this.circuit = circuit == null ? null : circuit.copy();
             this.category = category == null ? "" : category;
+            this.categoryId = categoryId == null ? "" : categoryId;
         }
 
         @Override
@@ -154,6 +158,10 @@ public final class PatternUploadPackets {
             recipeMapId = readString(buf, 128);
             circuit = ByteBufUtils.readItemStack(buf);
             category = readString(buf, 128);
+            if (buf.isReadable()) {
+                String id = ByteBufUtils.readUTF8String(buf);
+                categoryId = id.length() <= 512 ? id : "";
+            }
         }
 
         @Override
@@ -162,6 +170,7 @@ public final class PatternUploadPackets {
             ByteBufUtils.writeUTF8String(buf, recipeMapId);
             ByteBufUtils.writeItemStack(buf, circuit);
             ByteBufUtils.writeUTF8String(buf, category);
+            ByteBufUtils.writeUTF8String(buf, categoryId);
         }
     }
 
@@ -172,8 +181,13 @@ public final class PatternUploadPackets {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
                 .execute(
-                    () -> PatternUploadService
-                        .hint(player, message.windowId, message.recipeMapId, message.circuit, message.category));
+                    () -> PatternUploadService.hint(
+                        player,
+                        message.windowId,
+                        message.recipeMapId,
+                        message.circuit,
+                        message.category,
+                        message.categoryId));
             return null;
         }
     }
@@ -189,6 +203,7 @@ public final class PatternUploadPackets {
         public ItemStack icon;
         public ItemStack circuit;
         public boolean programmingCover;
+        public boolean mapped;
 
         public AutoTarget() {}
 
@@ -211,6 +226,8 @@ public final class PatternUploadPackets {
                 + "|"
                 + programmingCover
                 + "|"
+                + mapped
+                + "|"
                 + reason;
         }
 
@@ -224,6 +241,7 @@ public final class PatternUploadPackets {
             circuit = ByteBufUtils.readItemStack(buf);
             programmingCover = buf.readBoolean();
             reason = readString(buf, 256);
+            mapped = buf.isReadable() && buf.readBoolean();
         }
 
         @Override
@@ -236,6 +254,7 @@ public final class PatternUploadPackets {
             ByteBufUtils.writeItemStack(buf, circuit);
             buf.writeBoolean(programmingCover);
             ByteBufUtils.writeUTF8String(buf, reason);
+            buf.writeBoolean(mapped);
         }
     }
 
@@ -431,6 +450,9 @@ public final class PatternUploadPackets {
         /** Token of the row auto-upload would use, or 0 with {@link #autoReason}. */
         public int autoToken;
         public String autoReason = "";
+        public String categoryId = "", mappingName = "", mappingNameSuffix = "";
+        public boolean canMap, hasMapping, mappingEnabled, autoMapped;
+        public int mappingToken;
         public List<Row> rows = new ArrayList<>();
 
         public TargetList() {}
@@ -449,6 +471,14 @@ public final class PatternUploadPackets {
             copy.receiptNameSuffix = receiptNameSuffix;
             copy.autoToken = autoToken;
             copy.autoReason = autoReason;
+            copy.categoryId = categoryId;
+            copy.canMap = canMap;
+            copy.hasMapping = hasMapping;
+            copy.mappingEnabled = mappingEnabled;
+            copy.mappingName = mappingName;
+            copy.mappingNameSuffix = mappingNameSuffix;
+            copy.mappingToken = mappingToken;
+            copy.autoMapped = autoMapped;
             return copy;
         }
 
@@ -478,6 +508,17 @@ public final class PatternUploadPackets {
             if (count < 0 || count > ROWS_PER_PART) throw new IllegalArgumentException("Invalid row count " + count);
             rows = new ArrayList<>(count);
             for (int index = 0; index < count; index++) rows.add(Row.read(buf));
+            // Extensions follow the complete legacy payload; older peers can still read its original prefix.
+            if (part == 0 && buf.isReadable()) {
+                categoryId = readString(buf, 512);
+                canMap = buf.readBoolean();
+                hasMapping = buf.readBoolean();
+                mappingEnabled = buf.readBoolean();
+                mappingName = readString(buf, 256);
+                mappingNameSuffix = readString(buf, 256);
+                mappingToken = buf.readInt();
+                autoMapped = buf.readBoolean();
+            }
         }
 
         @Override
@@ -502,6 +543,16 @@ public final class PatternUploadPackets {
             }
             buf.writeShort(rows.size());
             for (Row row : rows) row.write(buf);
+            if (part == 0) {
+                ByteBufUtils.writeUTF8String(buf, categoryId);
+                buf.writeBoolean(canMap);
+                buf.writeBoolean(hasMapping);
+                buf.writeBoolean(mappingEnabled);
+                ByteBufUtils.writeUTF8String(buf, mappingName);
+                ByteBufUtils.writeUTF8String(buf, mappingNameSuffix);
+                buf.writeInt(mappingToken);
+                buf.writeBoolean(autoMapped);
+            }
         }
     }
 

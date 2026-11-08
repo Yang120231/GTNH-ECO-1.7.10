@@ -132,13 +132,15 @@ public final class PatternUploadClient {
      * display name of the recipe tab (empty for crafting-table recipes) and prefills the target search.
      */
     @SideOnly(Side.CLIENT)
-    public static void captureHint(GuiContainer gui, String recipeMapId, ItemStack circuit, String category) {
+    public static void captureHint(GuiContainer gui, String recipeMapId, ItemStack circuit, String category,
+        String categoryId) {
         if (!(gui instanceof GuiPatternTerm)) return;
         PatternUploadPackets.hint(
             gui.inventorySlots.windowId,
             recipeMapId == null ? "" : recipeMapId,
             circuit,
-            category == null ? "" : category);
+            category == null ? "" : category,
+            categoryId == null ? "" : categoryId);
     }
 
     @SubscribeEvent

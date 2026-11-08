@@ -47,7 +47,7 @@ final class PatternUploadScreen extends GuiScreen {
     /** Same character as {@code GtPatternRoutes.MODE_SEPARATOR}, kept here so the screen never loads GT classes. */
     private static final char MODE_SEPARATOR = '';
     private static final int PANEL_WIDTH = 220, TITLE_HEIGHT = 14, ROW_HEIGHT = 24, CARD_HEIGHT = 23;
-    private static final int MAX_VISIBLE_ROWS = 10, HEADER = 60, FOOTER = 32, SCROLLBAR_WIDTH = 4;
+    private static final int MAX_VISIBLE_ROWS = 10, HEADER = 60, FOOTER = 62, SCROLLBAR_WIDTH = 4;
     private static final int CLOSE_SIZE = 10, TOGGLE_WIDTH = 46, BUTTON_HEIGHT = 14;
     private static final long BUSY_TIMEOUT = 5_000L;
 
@@ -76,6 +76,7 @@ final class PatternUploadScreen extends GuiScreen {
     private String searchText;
     private GuiTextField search;
     private boolean showAll;
+    private boolean mappingMode;
     private int scroll;
     private boolean draggingScrollbar;
     private int dragOffset;
@@ -93,6 +94,7 @@ final class PatternUploadScreen extends GuiScreen {
     private int left, top, panelWidth, panelHeight, listX, listY, listWidth, visibleRows;
     private int toggleX, toggleY, closeX, closeY;
     private final int[][] footerButtons = new int[3][];
+    private final int[][] mappingButtons = new int[3][];
 
     PatternUploadScreen(GuiContainer parent, TargetList list) {
         this.parent = parent;
@@ -104,18 +106,25 @@ final class PatternUploadScreen extends GuiScreen {
 
     /** A complete list for this window arrived (client thread). */
     void accept(TargetList next) {
-        boolean firstOrNewCategory = list == null || !next.category.equals(prefill);
+        boolean firstOrNewCategory = list == null || !next.categoryId.equals(list.categoryId)
+            || !next.category.equals(list.category);
         list = next;
         busyUntil = 0;
         if (!next.message.isEmpty()) localMessage = null;
         haystacks.clear();
         for (Row row : next.rows) haystacks.put(row, haystack(row));
-        if (firstOrNewCategory) {
+        if (firstOrNewCategory || next.event == PatternUploadPackets.EVENT_MAPPING) {
+            mappingMode = false;
             prefill = next.category;
+            if (next.mappingEnabled) for (Row row : next.rows) if (row.token == next.mappingToken) {
+                prefill = hostName(row);
+                break;
+            }
             searchText = prefill;
             if (search != null) search.setText(prefill);
             scroll = 0;
         }
+        if (!next.canMap) mappingMode = false;
         refilter();
         if (next.event == PatternUploadPackets.EVENT_UPLOADED && !stay && mc != null) back();
         stay = false;
@@ -136,6 +145,11 @@ final class PatternUploadScreen extends GuiScreen {
 
     private static boolean uploadable(Row row) {
         return row.manual && row.state == FREE;
+    }
+
+    private static boolean mappable(Row row) {
+        return row.state != OFFLINE && MatchResult
+            .allowsMapping(MatchResult.Level.values()[safe(row.level, MatchResult.Level.values().length)], row.reason);
     }
 
     private void refilter() {
@@ -161,6 +175,11 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private List<Row> byState(List<Row> rows) {
+        if (mappingMode) {
+            List<Row> result = new ArrayList<>();
+            for (Row row : rows) if (mappable(row)) result.add(row);
+            return result;
+        }
         if (showAll) return rows;
         List<Row> result = new ArrayList<>(rows.size());
         for (Row row : rows) if (available(row)) result.add(row);
@@ -225,6 +244,24 @@ final class PatternUploadScreen extends GuiScreen {
     private void refresh() {
         if (busy()) return;
         send(PatternUploadPackets.ACTION_REFRESH, 0, true);
+    }
+
+    private void mappingAction(int action) {
+        if (!mappingEnabled(action)) return;
+        if (action == 0) {
+            mappingMode = !mappingMode;
+            localMessage = mappingMode ? "gui.neoecoae.pattern_upload.mapping.pick" : null;
+            if (mappingMode && search.getText()
+                .equals(prefill)) search.setText("");
+            scroll = 0;
+            refilter();
+        } else {
+            localMessage = null;
+            send(
+                action == 1 ? PatternUploadPackets.ACTION_TOGGLE_MAPPING : PatternUploadPackets.ACTION_REMOVE_MAPPING,
+                0,
+                true);
+        }
     }
 
     /** Back to the terminal; deferred until every mouse button is released so the release is not fed to it. */
@@ -293,6 +330,8 @@ final class PatternUploadScreen extends GuiScreen {
         int buttonWidth = (panelWidth - 10 - 2 * 3) / 3;
         for (int index = 0; index < footerButtons.length; index++) footerButtons[index] = new int[] {
             left + 5 + index * (buttonWidth + 3), buttonY, buttonWidth, BUTTON_HEIGHT };
+        for (int index = 0; index < mappingButtons.length; index++) mappingButtons[index] = new int[] {
+            left + 5 + index * (buttonWidth + 3), buttonY - BUTTON_HEIGHT - 3, buttonWidth, BUTTON_HEIGHT };
         refilter();
     }
 
@@ -327,7 +366,7 @@ final class PatternUploadScreen extends GuiScreen {
         }
         boolean enter = key == Keyboard.KEY_RETURN || key == Keyboard.KEY_NUMPADENTER;
         if (enter) {
-            uploadTop(isShiftKeyDown());
+            if (!mappingMode) uploadTop(isShiftKeyDown());
             return;
         }
         if (search.isFocused()) {
@@ -389,7 +428,7 @@ final class PatternUploadScreen extends GuiScreen {
             dragStartOffsetY = offsetY;
             return;
         }
-        if (inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12)) {
+        if (!mappingMode && inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12)) {
             click();
             showAll = !showAll;
             refilter();
@@ -416,8 +455,23 @@ final class PatternUploadScreen extends GuiScreen {
             }
             return;
         }
+        for (int action = 0; action < mappingButtons.length; action++) {
+            int[] box = mappingButtons[action];
+            if (!inside(mouseX, mouseY, box[0], box[1], box[2], box[3]) || !mappingEnabled(action)) continue;
+            click();
+            mappingAction(action);
+            return;
+        }
         if (index < 0) return;
         Row row = visible.get(index);
+        if (mappingMode) {
+            if (!busy() && mappable(row)) {
+                click();
+                localMessage = null;
+                send(PatternUploadPackets.ACTION_SAVE_MAPPING, row.token, true);
+            }
+            return;
+        }
         if (uploadable(row) && !busy()) {
             click();
             upload(row, isShiftKeyDown());
@@ -475,10 +529,14 @@ final class PatternUploadScreen extends GuiScreen {
 
     private boolean footerEnabled(int index) {
         return switch (index) {
-            case 0 -> list.autoToken != 0 && !busy();
+            case 0 -> list.autoToken != 0 && !busy() && !mappingMode;
             case 1 -> list.receipt && !busy();
             default -> !busy();
         };
+    }
+
+    private boolean mappingEnabled(int index) {
+        return !busy() && list.canMap && (index == 0 || list.hasMapping);
     }
 
     private static boolean inside(int x, int y, int left, int top, int width, int height) {
@@ -500,7 +558,10 @@ final class PatternUploadScreen extends GuiScreen {
         drawFooter(mouseX, mouseY);
         List<String> tooltip = tooltip(mouseX, mouseY);
         if (!tooltip.isEmpty()) {
-            drawHoveringText(tooltip, mouseX, mouseY, fontRendererObj);
+            List<String> wrapped = new ArrayList<>();
+            for (String line : tooltip) wrapped
+                .addAll(fontRendererObj.listFormattedStringToWidth(line, Math.max(40, Math.min(300, width - 24))));
+            drawHoveringText(wrapped, mouseX, mouseY, fontRendererObj);
             RenderHelper.disableStandardItemLighting();
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL12.GL_RESCALE_NORMAL);
@@ -579,10 +640,11 @@ final class PatternUploadScreen extends GuiScreen {
                 search.xPosition + 3,
                 search.yPosition + 2,
                 0x707070);
-        boolean hover = inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12);
+        boolean hover = !mappingMode && inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12);
         UploadDraw.button(toggleX, toggleY, TOGGLE_WIDTH, 12, hover);
-        String label = StatCollector.translateToLocal(
-            showAll ? "gui.neoecoae.pattern_upload.show_available" : "gui.neoecoae.pattern_upload.show_all");
+        String label = mappingMode ? text("gui.neoecoae.pattern_upload.mapping.targets")
+            : StatCollector.translateToLocal(
+                showAll ? "gui.neoecoae.pattern_upload.show_available" : "gui.neoecoae.pattern_upload.show_all");
         smallCentered(label, toggleX, toggleY + 3, TOGGLE_WIDTH, TEXT);
         StringBuilder info = new StringBuilder(
             StatCollector
@@ -610,7 +672,7 @@ final class PatternUploadScreen extends GuiScreen {
             if (index >= visible.size()) break;
             Row row = visible.get(index);
             int x = listX, y = listY + slot * ROW_HEIGHT, w = listWidth, h = CARD_HEIGHT;
-            boolean enabled = uploadable(row);
+            boolean enabled = mappingMode ? mappable(row) : uploadable(row);
             boolean hover = inside(mouseX, mouseY, x, y, w, h);
             UploadDraw.button(x, y, w, h, hover && enabled && !busy);
             if (!enabled) UploadDraw.rect(x, y, x + w, y + h, 0x40000000);
@@ -656,19 +718,49 @@ final class PatternUploadScreen extends GuiScreen {
         small(trim(message, panelWidth - 12), left + 6, messageY + 1, color);
         String[] labels = { "gui.neoecoae.pattern_upload.auto_upload", "gui.neoecoae.pattern_upload.undo",
             "gui.neoecoae.pattern_upload.refresh" };
-        for (int index = 0; index < footerButtons.length; index++) {
-            int[] box = footerButtons[index];
-            boolean enabled = footerEnabled(index);
-            boolean hover = inside(mouseX, mouseY, box[0], box[1], box[2], box[3]);
-            UploadDraw.button(box[0], box[1], box[2], box[3], hover && enabled);
-            if (!enabled) UploadDraw.rect(box[0], box[1], box[0] + box[2], box[1] + box[3], 0x40000000);
-            smallCentered(
-                StatCollector.translateToLocal(labels[index]),
-                box[0],
-                box[1] + 4,
-                box[2],
-                enabled ? TEXT : DISABLED_TEXT);
+        for (int index = 0; index < footerButtons.length; index++)
+            drawActionButton(footerButtons[index], labels[index], footerEnabled(index), mouseX, mouseY);
+        small(
+            trim(mappingStatus(), panelWidth - 12),
+            left + 6,
+            messageY + 12,
+            list.hasMapping && list.mappingEnabled ? 0x665090 : MUTED);
+        String[] mappingLabels = {
+            mappingMode ? "gui.neoecoae.pattern_upload.mapping.cancel"
+                : list.hasMapping ? "gui.neoecoae.pattern_upload.mapping.edit"
+                    : "gui.neoecoae.pattern_upload.mapping.add",
+            list.mappingEnabled ? "gui.neoecoae.pattern_upload.mapping.disable"
+                : "gui.neoecoae.pattern_upload.mapping.enable",
+            "gui.neoecoae.pattern_upload.mapping.remove" };
+        for (int index = 0; index < mappingButtons.length; index++)
+            drawActionButton(mappingButtons[index], mappingLabels[index], mappingEnabled(index), mouseX, mouseY);
+    }
+
+    private String mappingStatus() {
+        if (mappingMode) return text("gui.neoecoae.pattern_upload.mapping.pick");
+        if (!list.canMap) return text("gui.neoecoae.pattern_upload.mapping.no_category");
+        if (!list.hasMapping) return text("gui.neoecoae.pattern_upload.mapping.none");
+        String name = text(list.mappingName) + list.mappingNameSuffix;
+        for (Row row : list.rows) if (row.token == list.mappingToken) {
+            name = hostName(row);
+            break;
         }
+        return StatCollector.translateToLocalFormatted(
+            list.mappingEnabled ? "gui.neoecoae.pattern_upload.mapping.current"
+                : "gui.neoecoae.pattern_upload.mapping.inactive",
+            name);
+    }
+
+    private void drawActionButton(int[] box, String label, boolean enabled, int mouseX, int mouseY) {
+        boolean hover = inside(mouseX, mouseY, box[0], box[1], box[2], box[3]);
+        UploadDraw.button(box[0], box[1], box[2], box[3], hover && enabled);
+        if (!enabled) UploadDraw.rect(box[0], box[1], box[0] + box[2], box[1] + box[3], 0x40000000);
+        smallCentered(
+            StatCollector.translateToLocal(label),
+            box[0],
+            box[1] + 4,
+            box[2],
+            enabled ? TEXT : DISABLED_TEXT);
     }
 
     private List<String> tooltip(int mouseX, int mouseY) {
@@ -682,8 +774,15 @@ final class PatternUploadScreen extends GuiScreen {
             int[] box = footerButtons[index];
             if (!inside(mouseX, mouseY, box[0], box[1], box[2], box[3])) continue;
             if (index == 0) {
+                if (mappingMode) {
+                    lines.add(text("gui.neoecoae.pattern_upload.mapping.pick"));
+                    return lines;
+                }
                 if (list.autoToken != 0) {
-                    lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.auto_ready"));
+                    lines.add(
+                        StatCollector.translateToLocal(
+                            list.autoMapped ? "gui.neoecoae.pattern_upload.mapping.used"
+                                : "gui.neoecoae.pattern_upload.auto_ready"));
                     for (Row row : list.rows) if (row.token == list.autoToken) lines.add("§6★ §r" + title(row));
                     lines.add("§7" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.stay"));
                 } else if (!list.autoReason.isEmpty()) lines.add("§7" + text(list.autoReason));
@@ -695,6 +794,22 @@ final class PatternUploadScreen extends GuiScreen {
                             text(list.receiptName) + list.receiptNameSuffix)
                         : "§7" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.reason.no_receipt"));
             }
+            return lines;
+        }
+        for (int index = 0; index < mappingButtons.length; index++) {
+            int[] box = mappingButtons[index];
+            if (!inside(mouseX, mouseY, box[0], box[1], box[2], box[3])) continue;
+            lines.add(mappingStatus());
+            lines.add(
+                "§7" + text(
+                    index == 0 ? "gui.neoecoae.pattern_upload.mapping.add.tooltip"
+                        : index == 1 ? "gui.neoecoae.pattern_upload.mapping.toggle.tooltip"
+                            : "gui.neoecoae.pattern_upload.mapping.remove.tooltip"));
+            return lines;
+        }
+        if (inside(mouseX, mouseY, left + 5, listY + visibleRows * ROW_HEIGHT + 12, panelWidth - 10, 10)) {
+            lines.add(mappingStatus());
+            if (list.canMap) lines.add("§7" + text("gui.neoecoae.pattern_upload.mapping.add.tooltip"));
             return lines;
         }
         if (inside(mouseX, mouseY, search.xPosition, search.yPosition, search.width, search.height)) {
@@ -741,15 +856,19 @@ final class PatternUploadScreen extends GuiScreen {
                 .translateToLocalFormatted("gui.neoecoae.pattern_upload.button.auto.tooltip.circuit", row.circuit));
         if (row.programmingCover)
             tip.notes.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programming_cover"));
-        if (tip.star)
-            tip.notes.add("§6★ §r" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.auto_choice"));
+        if (tip.star) tip.notes.add(
+            "§6★ §r" + StatCollector.translateToLocal(
+                list.autoMapped ? "gui.neoecoae.pattern_upload.mapping.used"
+                    : "gui.neoecoae.pattern_upload.auto_choice"));
+        if (row.token == list.mappingToken && !tip.star) tip.notes.add(mappingStatus());
         tip.location = StatCollector.translateToLocalFormatted(
             "gui.neoecoae.pattern_upload.tooltip.location",
             row.dimension,
             row.x,
             row.y,
             row.z);
-        tip.uploadable = uploadable(row);
+        tip.uploadable = mappingMode ? mappable(row) : uploadable(row);
+        tip.mappingAction = mappingMode && mappable(row);
         tip.disabledReason = StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.disabled");
         return tip;
     }
