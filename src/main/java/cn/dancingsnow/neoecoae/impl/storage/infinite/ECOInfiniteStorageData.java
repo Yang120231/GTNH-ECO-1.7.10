@@ -316,6 +316,7 @@ public final class ECOInfiniteStorageData extends SavedData {
     public void save(File file, HolderLookup.Provider registries) {
         if (unreadable || incompleteLegacy) return;
         if (!isDirty() && writeFailure == null) return;
+        long captureStarted = System.nanoTime();
         Snapshot snapshot;
         try {
             snapshot = capture(registries);
@@ -325,16 +326,42 @@ public final class ECOInfiniteStorageData extends SavedData {
             writeFailure = e.toString();
             return;
         }
+        long capturedAt = System.nanoTime();
+        long captureNanos = capturedAt - captureStarted;
+        int entryCount = snapshot.keys().length + snapshot.raw()
+            .size();
+        if (captureNanos >= 50_000_000L) {
+            LogManager.getLogger(ECOInfiniteStorageData.class)
+                .warn(
+                    "Slow ECO domain capture: file={}, entries={}, capture={} ms",
+                    file,
+                    entryCount,
+                    captureNanos / 1_000_000L);
+        }
         Path target = file.toPath();
-        IOUtilities.withIOWorker(() -> {
+        IOUtilities.withIOWorker(target, () -> {
+            long encodeStarted = System.nanoTime();
             try {
                 CompoundTag root = new CompoundTag();
                 root.put("data", snapshot.write(new CompoundTag(), registries));
                 NbtUtils.addCurrentDataVersion(root);
+                long writeStarted = System.nanoTime();
                 IOUtilities.writeNbtCompressed(root, target);
                 // The snapshot records journalSequence, so a journal left behind by a crash here is harmless.
                 Files.deleteIfExists(journalPath(target.toAbsolutePath()));
                 writeFailure = null;
+                long finishedAt = System.nanoTime();
+                if (finishedAt - encodeStarted >= 1_000_000_000L) {
+                    LogManager.getLogger(ECOInfiniteStorageData.class)
+                        .warn(
+                            "Slow ECO domain save: file={}, entries={}, capture={} ms, queue={} ms, encode={} ms, write={} ms",
+                            file,
+                            entryCount,
+                            captureNanos / 1_000_000L,
+                            (encodeStarted - capturedAt) / 1_000_000L,
+                            (writeStarted - encodeStarted) / 1_000_000L,
+                            (finishedAt - writeStarted) / 1_000_000L);
+                }
             } catch (IOException | RuntimeException e) {
                 if (writeFailure == null) LogManager.getLogger(ECOInfiniteStorageData.class)
                     .error("Cannot save infinite domain {}", file, e);

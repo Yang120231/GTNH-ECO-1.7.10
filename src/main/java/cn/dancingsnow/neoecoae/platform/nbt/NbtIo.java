@@ -16,6 +16,8 @@ import net.minecraft.nbt.CompressedStreamTools;
 
 public final class NbtIo {
 
+    private static final int IO_BUFFER_SIZE = 64 * 1024;
+
     private NbtIo() {}
 
     public static CompoundTag read(DataInput input, NbtAccounter budget) throws IOException {
@@ -27,15 +29,21 @@ public final class NbtIo {
     }
 
     public static CompoundTag readCompressed(Path path, NbtAccounter budget) throws IOException {
-        try (DataInputStream input = new DataInputStream(
-            new BufferedInputStream(new GZIPInputStream(Files.newInputStream(path))))) {
+        // Buffer the compressed file as well as decoded NBT; buffering only above GZIP leaves tiny disk reads.
+        try (var file = Files.newInputStream(path);
+            DataInputStream input = new DataInputStream(
+                new BufferedInputStream(
+                    new GZIPInputStream(new BufferedInputStream(file, IO_BUFFER_SIZE), IO_BUFFER_SIZE)))) {
             return read(input, budget);
         }
     }
 
     public static void writeCompressed(CompoundTag tag, Path path) throws IOException {
-        try (DataOutputStream output = new DataOutputStream(
-            new BufferedOutputStream(new GZIPOutputStream(Files.newOutputStream(path))))) {
+        // Coalesce compressed output before it reaches the file; retain buffering of the small NBT field writes.
+        try (var file = Files.newOutputStream(path);
+            DataOutputStream output = new DataOutputStream(
+                new BufferedOutputStream(
+                    new GZIPOutputStream(new BufferedOutputStream(file, IO_BUFFER_SIZE), IO_BUFFER_SIZE)))) {
             write(tag, output);
         }
     }

@@ -4,11 +4,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import net.minecraft.nbt.CompressedStreamTools;
+import net.minecraft.world.storage.ThreadedFileIOBase;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -89,6 +99,29 @@ class ECOInfiniteStorageDurabilityTest {
         return ECOInfiniteStorageData.load(root.getCompound("data"), RegistryAccess.EMPTY, ITEM_CODEC);
     }
 
+    private static void awaitWriterRelease(CountDownLatch release) {
+        try {
+            if (!release.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Timed out releasing the test save");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread()
+                .interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void writeSequence(Path file, int sequence, AtomicInteger writes) {
+        var root = new CompoundTag();
+        root.putInt("sequence", sequence);
+        try {
+            IOUtilities.writeNbtCompressed(root, file);
+            writes.incrementAndGet();
+        } catch (IOException e) {
+            throw new AssertionError("Cannot write test snapshot", e);
+        }
+    }
+
     @Test
     void transfersStayInMemoryUntilTheVanillaSave(@TempDir Path directory) throws Exception {
         var key = AEItemKey.of(TestItems.STONE);
@@ -109,6 +142,121 @@ class ECOInfiniteStorageDurabilityTest {
         IOUtilities.waitUntilIOWorkerComplete();
         assertFalse(live.isDirty());
         assertEquals(HugeAmount.of(900), readBack(snapshot).getAmount(key));
+    }
+
+    @Test
+    void vanillaFlushIncludesQueuedDomainSnapshots(@TempDir Path directory) throws Exception {
+        var key = AEItemKey.of(TestItems.STONE);
+        var snapshot = directory.resolve("domain.dat");
+        var live = fresh();
+        var engine = new SavedDataInfiniteStorageEngine(live);
+        var writerStarted = new CountDownLatch(1);
+        var releaseWriter = new CountDownLatch(1);
+        CompletableFuture<Void> flush = null;
+        try {
+            IOUtilities.withIOWorker(() -> {
+                writerStarted.countDown();
+                awaitWriterRelease(releaseWriter);
+            });
+            assertTrue(writerStarted.await(5, TimeUnit.SECONDS));
+            engine.insert(key, 100, Actionable.MODULATE);
+            live.save(snapshot.toFile(), RegistryAccess.EMPTY);
+            engine.extract(key, 25, Actionable.MODULATE);
+
+            flush = CompletableFuture.runAsync(() -> {
+                try {
+                    // This is the same public barrier ServerUtilities uses before copying world files.
+                    ThreadedFileIOBase.threadedIOInstance.waitForFinish();
+                } catch (InterruptedException e) {
+                    Thread.currentThread()
+                        .interrupt();
+                    throw new IllegalStateException(e);
+                }
+            });
+            var pendingFlush = flush;
+            assertThrows(TimeoutException.class, () -> pendingFlush.get(150, TimeUnit.MILLISECONDS));
+            releaseWriter.countDown();
+            flush.get(5, TimeUnit.SECONDS);
+
+            assertEquals(HugeAmount.of(100), readBack(snapshot).getAmount(key), "backup sees the captured save");
+            assertEquals(HugeAmount.of(75), engine.getAmount(key), "later gameplay does not mutate the snapshot");
+            assertTrue(live.isDirty(), "later changes remain due for the next save");
+        } finally {
+            releaseWriter.countDown();
+            IOUtilities.waitUntilIOWorkerComplete();
+            if (flush != null) flush.get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    void queuedSnapshotsCoalescePerFileWhileKeepingTheActiveWrite(@TempDir Path directory) throws Exception {
+        var first = directory.resolve("first.dat");
+        var second = directory.resolve("second.dat");
+        var writes = new AtomicInteger();
+        var writerStarted = new CountDownLatch(1);
+        var releaseWriter = new CountDownLatch(1);
+        try {
+            IOUtilities.withIOWorker(first, () -> {
+                writerStarted.countDown();
+                awaitWriterRelease(releaseWriter);
+                writeSequence(first, 0, writes);
+            });
+            assertTrue(writerStarted.await(5, TimeUnit.SECONDS));
+            for (int sequence = 1; sequence <= 20; sequence++) {
+                int captured = sequence;
+                IOUtilities.withIOWorker(first, () -> writeSequence(first, captured, writes));
+            }
+            IOUtilities.withIOWorker(second, () -> writeSequence(second, 99, writes));
+            releaseWriter.countDown();
+            ThreadedFileIOBase.threadedIOInstance.waitForFinish();
+
+            assertEquals(3, writes.get(), "one active write plus the latest pending snapshot of each file");
+            assertEquals(
+                20,
+                NbtIo.readCompressed(first, NbtAccounter.unlimitedHeap())
+                    .getInt("sequence"));
+            assertEquals(
+                99,
+                NbtIo.readCompressed(second, NbtAccounter.unlimitedHeap())
+                    .getInt("sequence"));
+
+            IOUtilities.withIOWorker(first, () -> writeSequence(first, 21, writes));
+            ThreadedFileIOBase.threadedIOInstance.waitForFinish();
+            assertEquals(4, writes.get(), "an idle writer can schedule another batch");
+            assertEquals(
+                21,
+                NbtIo.readCompressed(first, NbtAccounter.unlimitedHeap())
+                    .getInt("sequence"));
+        } finally {
+            releaseWriter.countDown();
+            IOUtilities.waitUntilIOWorkerComplete();
+        }
+    }
+
+    @Test
+    void compressedSnapshotsRemainCompatibleWithVanillaAcrossBufferBoundaries(@TempDir Path directory)
+        throws Exception {
+        byte[] payload = new byte[192 * 1024 + 17];
+        new Random(738).nextBytes(payload);
+        var root = new CompoundTag();
+        root.putByteArray("payload", payload);
+        root.putLong("amount", Long.MAX_VALUE);
+        var snapshot = directory.resolve("domain.dat");
+        IOUtilities.writeNbtCompressed(root, snapshot);
+
+        try (var input = Files.newInputStream(snapshot)) {
+            var restored = CompressedStreamTools.readCompressed(input);
+            assertArrayEquals(payload, restored.getByteArray("payload"));
+            assertEquals(Long.MAX_VALUE, restored.getLong("amount"));
+        }
+
+        var legacy = directory.resolve("vanilla.dat");
+        try (var output = Files.newOutputStream(legacy)) {
+            CompressedStreamTools.writeCompressed(root.nativeTag(), output);
+        }
+        var restored = NbtIo.readCompressed(legacy, NbtAccounter.unlimitedHeap());
+        assertArrayEquals(payload, restored.getByteArray("payload"));
+        assertEquals(Long.MAX_VALUE, restored.getLong("amount"));
     }
 
     @Test

@@ -7,35 +7,84 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
-/** One ordered writer. Atomic replacement never exposes a partially compressed authoritative snapshot. */
+import net.minecraft.world.storage.IThreadedFileIO;
+import net.minecraft.world.storage.ThreadedFileIOBase;
+
+import org.apache.logging.log4j.LogManager;
+
+/** Native background I/O participates in world/backup flushes; domain files still use atomic replacement. */
 public final class IOUtilities {
 
-    private static final ExecutorService WORKER = Executors.newSingleThreadExecutor(task -> {
-        Thread thread = new Thread(task, "NeoECOAE domain save");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final Map<Path, Runnable> PENDING_WRITES = new LinkedHashMap<>();
+    private static boolean writerQueued;
 
     private IOUtilities() {}
 
     public static void withIOWorker(Runnable action) {
-        WORKER.submit(action);
+        ThreadedFileIOBase.threadedIOInstance.queueIO(new IThreadedFileIO() {
+
+            @Override
+            public boolean writeNextIO() {
+                runSafely(action);
+                return false;
+            }
+        });
+    }
+
+    /** Keeps only the newest not-yet-started snapshot of each file, without replacing an in-flight write. */
+    public static void withIOWorker(Path target, Runnable action) {
+        synchronized (PENDING_WRITES) {
+            PENDING_WRITES.put(
+                target.toAbsolutePath()
+                    .normalize(),
+                action);
+            if (writerQueued) return;
+            writerQueued = true;
+            // A fresh identity avoids losing a new batch while the native queue removes its previous drain.
+            ThreadedFileIOBase.threadedIOInstance.queueIO(new IThreadedFileIO() {
+
+                @Override
+                public boolean writeNextIO() {
+                    Runnable next;
+                    synchronized (PENDING_WRITES) {
+                        var iterator = PENDING_WRITES.entrySet()
+                            .iterator();
+                        if (!iterator.hasNext()) {
+                            writerQueued = false;
+                            return false;
+                        }
+                        next = iterator.next()
+                            .getValue();
+                        iterator.remove();
+                    }
+                    runSafely(next);
+                    return true;
+                }
+            });
+        }
+    }
+
+    private static void runSafely(Runnable action) {
+        try {
+            action.run();
+        } catch (Throwable failure) {
+            // Like ExecutorService.submit, a failed callback must not kill the shared I/O thread. Domain saves
+            // handle their own encode/write failures and retain the owning data for a later retry.
+            LogManager.getLogger(IOUtilities.class)
+                .error("Unexpected ECO background I/O failure", failure);
+        }
     }
 
     public static void waitUntilIOWorkerComplete() {
         try {
-            WORKER.submit(() -> {})
-                .get();
+            ThreadedFileIOBase.threadedIOInstance.waitForFinish();
         } catch (InterruptedException e) {
             Thread.currentThread()
                 .interrupt();
             throw new IllegalStateException("Interrupted domain save", e);
-        } catch (ExecutionException e) {
-            throw new IllegalStateException("Domain save failed", e.getCause());
         }
     }
 
