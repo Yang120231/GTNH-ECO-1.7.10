@@ -1,9 +1,9 @@
 ---
 navigation:
-  position: 70
+  position: 20
   title: 计算系统
   icon: neoecoae:computation_system_l9
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:computation_system_l4
   - neoecoae:computation_system_l6
@@ -32,9 +32,7 @@ item_ids:
 
 ## 计算主机
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:computation_system_l9" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:computation_system_l9" meta="2" scale="3" />
 
 ## 计算系统结构
 
@@ -44,9 +42,7 @@ item_ids:
 
 ## 计算通讯端口
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:computation_interface" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:computation_interface" meta="2" scale="3" />
 
 计算系统充当 ME 网络中的合成 CPU，负责安排合成任务。
 

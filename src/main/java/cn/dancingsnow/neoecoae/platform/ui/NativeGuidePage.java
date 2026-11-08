@@ -43,6 +43,8 @@ public final class NativeGuidePage {
                 .collect(Collectors.joining("\n"))
                 .replaceAll("(?s)^---.*?---\\s*", "")
                 .replaceAll("(?s)<GameScene\\b[^>]*>.*?</GameScene>\\s*", "")
+                .replaceAll("(?s)<ItemGrid\\b[^>]*>.*?</ItemGrid>\\s*", "")
+                .replaceAll("<BlockImage\\b[^>]*/>\\s*", "")
                 .replaceAll("!\\[[^]]*]\\([^)]*\\)", "")
                 .replaceAll("\\[([^]]+)]\\([^)]*\\)", "$1")
                 .replaceAll("(?m)^#{1,6}\\s+", "")

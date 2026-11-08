@@ -1,9 +1,9 @@
 ---
 navigation:
-  position: 40
+  position: 50
   title: 多方块搭建
   icon: neoecoae:crafting_system_l9
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 ---
 
 # 多方块搭建

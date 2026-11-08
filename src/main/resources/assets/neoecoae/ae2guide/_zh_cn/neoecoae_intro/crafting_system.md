@@ -1,9 +1,9 @@
 ---
 navigation:
-  position: 80
+  position: 10
   title: 合成系统
   icon: neoecoae:crafting_system_l9
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:crafting_system_l4
   - neoecoae:crafting_system_l6
@@ -26,9 +26,7 @@ item_ids:
 
 ## 合成主机
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:crafting_system_l9" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:crafting_system_l9" meta="2" scale="3" />
 
 ## 合成系统结构
 
@@ -38,9 +36,7 @@ item_ids:
 
 ## 合成通讯端口
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:crafting_interface" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:crafting_interface" meta="2" scale="3" />
 
 合成系统读取合成样板，使用工作核心批量完成制造。合成 CPU 负责派单，合成系统负责执行。
 

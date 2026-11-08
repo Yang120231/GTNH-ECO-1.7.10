@@ -1,9 +1,9 @@
 ---
 navigation:
-  position: 50
+  position: 40
   title: 存储系统
   icon: neoecoae:storage_system_l9
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:storage_system_l4
   - neoecoae:storage_system_l6
@@ -27,9 +27,7 @@ item_ids:
 
 ## 存储主机
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:storage_system_l9" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:storage_system_l9" meta="2" scale="3" />
 
 ## 存储系统结构
 
@@ -39,9 +37,7 @@ item_ids:
 
 ## 存储通讯端口
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:storage_interface" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:storage_interface" meta="2" scale="3" />
 
 存储系统把 ECO 存储矩阵中的物品和流体提供给 ME 网络。
 

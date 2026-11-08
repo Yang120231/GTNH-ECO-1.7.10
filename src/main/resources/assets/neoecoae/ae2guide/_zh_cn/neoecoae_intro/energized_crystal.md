@@ -2,14 +2,20 @@
 navigation:
   title: 盈能水晶
   icon: neoecoae:energized_crystal
-  position: 10
-  parent: neoecoae_intro/index.md
+  position: 80
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:energized_crystal
   - neoecoae:energized_crystal_block
 ---
 
 # 盈能水晶
+
+<ItemGrid>
+  <ItemIcon id="neoecoae:energized_crystal" />
+  <ItemIcon id="neoecoae:energized_crystal_dust" />
+  <ItemIcon id="neoecoae:energized_crystal_block" />
+</ItemGrid>
 
 盈能水晶是 ECO 的基础材料。
 

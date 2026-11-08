@@ -2,8 +2,8 @@
 navigation:
   title: 集成工作站
   icon: neoecoae:integrated_working_station
-  position: 20
-  parent: neoecoae_intro/index.md
+  position: 70
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:integrated_working_station
   - neoecoae:crystal_ingot
@@ -13,9 +13,7 @@ item_ids:
 
 # 集成工作站
 
-<GameScene width="300" height="144" zoom="4" interactive={true}>
-  <Block id="neoecoae:integrated_working_station" meta="2" />
-</GameScene>
+<BlockImage id="neoecoae:integrated_working_station" meta="2" scale="3" />
 
 集成工作站是一台单方块机器，用于制作 ECO 材料和高级组件。
 

@@ -1,7 +1,9 @@
 ---
 navigation:
+  parent: neoecoae:index.md
   title: 入门指南
-  position: 0
+  icon: neoecoae:energized_crystal
+  position: 90
 ---
 
 # 入门指南

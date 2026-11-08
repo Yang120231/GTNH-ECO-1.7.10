@@ -2,8 +2,8 @@
 navigation:
   title: 存储矩阵
   icon: neoecoae:eco_drive
-  position: 60
-  parent: neoecoae_intro/storage_system.md
+  position: 30
+  parent: neoecoae:neoecoae_intro/storage_system.md
 ---
 
 # 存储矩阵
