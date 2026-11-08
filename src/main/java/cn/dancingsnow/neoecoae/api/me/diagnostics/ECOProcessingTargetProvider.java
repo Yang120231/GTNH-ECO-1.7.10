@@ -2,6 +2,8 @@ package cn.dancingsnow.neoecoae.api.me.diagnostics;
 
 import java.util.List;
 
+import net.minecraftforge.common.util.ForgeDirection;
+
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
@@ -18,10 +20,15 @@ public interface ECOProcessingTargetProvider {
     }
 
     @com.github.bsideup.jabel.Desugar
-    record Target(int dimension, BlockPos position) {
+    record Target(int dimension, BlockPos position, @Nullable ForgeDirection side) {
+
+        public Target(int dimension, BlockPos position) {
+            this(dimension, position, null);
+        }
 
         public Target {
             position = position.immutable();
+            if (side == ForgeDirection.UNKNOWN) side = null;
         }
     }
 }

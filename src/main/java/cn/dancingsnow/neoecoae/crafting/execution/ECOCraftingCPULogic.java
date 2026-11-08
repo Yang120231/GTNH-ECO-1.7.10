@@ -673,10 +673,15 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress getProcessingProgress(
         AEKey output) {
+        return getProcessingProgress(output, false);
+    }
+
+    public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress getProcessingProgress(AEKey output,
+        boolean priority) {
         var world = cpu.getLevel();
         return job == null || getWaitingFor(output) <= 0 || world == null
             ? cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY
-            : processingMonitor.sample(world, output, world.getTotalWorldTime());
+            : processingMonitor.sample(world, output, world.getTotalWorldTime(), priority);
     }
 
     ECOCraftingEnergyTransaction energyTransactionForPersistence() {

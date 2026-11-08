@@ -60,7 +60,8 @@ final class StatusItemActionsMenu {
     private AEKey key;
     private String title = "";
     private long sequence;
-    private boolean open, loaded;
+    private boolean open, loaded, refreshing;
+    private long nextRefresh;
     private Mode mode = Mode.MENU;
     private int page, x, y, width, height, screenWidth, screenHeight;
     private String message = "";
@@ -80,6 +81,7 @@ final class StatusItemActionsMenu {
         this.screenHeight = screenHeight;
         sequence++;
         loaded = false;
+        refreshing = false;
         sources.clear();
         machines.clear();
         mode = Mode.MENU;
@@ -106,8 +108,10 @@ final class StatusItemActionsMenu {
             close();
             return;
         }
-        if (!INSPECT.equals(response.getString("action"))) return;
+        if (!INSPECT.equals(response.getString("action")) || mode != Mode.MENU) return;
         loaded = true;
+        refreshing = response.getBoolean("refreshing");
+        nextRefresh = System.nanoTime() + 500_000_000L;
         sources.clear();
         machines.clear();
         for (var raw : response.getList("sources", Tag.TAG_COMPOUND)) sources.add((CompoundTag) raw);
@@ -247,6 +251,10 @@ final class StatusItemActionsMenu {
 
     void draw(FontRenderer font, int mouseX, int mouseY) {
         if (!open) return;
+        if (mode == Mode.MENU && loaded && refreshing && System.nanoTime() >= nextRefresh) {
+            nextRefresh = Long.MAX_VALUE;
+            requester.send(++sequence, INSPECT, key, null);
+        }
         GL11.glPushMatrix();
         GL11.glTranslatef(0, 0, 400);
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT);
@@ -296,7 +304,7 @@ final class StatusItemActionsMenu {
         if (enabled && mouseX >= x && mouseX < x + width && mouseY >= top && mouseY < top + ROW)
             Gui.drawRect(x + 1, top, x + width - 1, top + ROW, 0x605A4A8A);
         String suffix = !loaded ? "  " + I18n.format(KEY + "loading")
-            : enabled ? count(row) : "  " + I18n.format(KEY + "none");
+            : enabled ? count(row) : "  " + I18n.format(KEY + (row == 1 && refreshing ? "loading" : "none"));
         text(font, I18n.format(label) + EnumChatFormatting.GRAY + suffix, x + 6, top + 3, enabled ? TEXT : MUTED);
     }
 

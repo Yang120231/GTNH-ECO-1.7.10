@@ -5,14 +5,26 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraftforge.common.util.ForgeDirection;
+
+import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.storage.data.IAEStack;
+import appeng.api.util.IInterfaceViewable;
 import appeng.container.ContainerNull;
+import appeng.helpers.DualityInterface;
+import appeng.helpers.IInterfaceHost;
+import appeng.parts.AEBasePart;
 import appeng.util.inv.MEInventoryCrafting;
+import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
+import cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
+import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 
 /** Real native medium dispatch, retaining GTNH's generic item/fluid crafting table. */
 public final class NativeCraftingProvider implements ICraftingProvider, NativeProviderAdapters.BlockingState,
@@ -37,6 +49,24 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return medium;
     }
 
+    /** Physical pattern holder, including the face of a cable-mounted interface. Never probes a push target. */
+    @Nullable
+    public static Target patternProviderTarget(Object provider) {
+        if (provider instanceof NativeCraftingProvider nativeProvider) provider = nativeProvider.nativeMedium();
+        if (provider instanceof LargeWorkstationPatternProvider workstation)
+            provider = workstation.getWorkstationInterface();
+        // DualityInterface#getTile is null for parts; its host owns the actual cable tile and part face.
+        if (provider instanceof DualityInterface duality) provider = duality.getHost();
+        ForgeDirection side = provider instanceof AEBasePart part ? part.getSide() : null;
+        TileEntity tile = provider instanceof IInterfaceViewable viewable ? viewable.getTileEntity()
+            : provider instanceof TileEntity direct ? direct : NativeGregTech.hostTile(provider);
+        if (tile == null || tile.isInvalid() || tile.getWorldObj() == null) return null;
+        return new Target(
+            tile.getWorldObj().provider.dimensionId,
+            new BlockPos(tile.xCoord, tile.yCoord, tile.zCoord),
+            side);
+    }
+
     @Override
     public cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target neoecoae$getProcessingTarget() {
         return medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
@@ -56,6 +86,7 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         if (medium instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider)
             return ((cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider) medium)
                 .neoecoae$getProcessingTargets();
+        if (medium instanceof IInterfaceHost host) return processingTargets(host.getInterfaceDuality());
         if (medium instanceof NativeSourceCraftingMedium) {
             var source = ((NativeSourceCraftingMedium) medium).sourceCraftingProvider();
             return source instanceof cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider
@@ -72,14 +103,9 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
      */
     private static java.util.List<cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target> ownPosition(
         ICraftingMedium medium) {
-        net.minecraft.tileentity.TileEntity tile = medium instanceof net.minecraft.tileentity.TileEntity
-            ? (net.minecraft.tileentity.TileEntity) medium
-            : cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.hostTile(medium);
-        if (tile == null || tile.isInvalid() || tile.getWorldObj() == null) return java.util.Collections.emptyList();
-        return java.util.Collections.singletonList(
-            new cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target(
-                tile.getWorldObj().provider.dimensionId,
-                new cn.dancingsnow.neoecoae.platform.minecraft.BlockPos(tile.xCoord, tile.yCoord, tile.zCoord)));
+        Target target = patternProviderTarget(medium);
+        return target == null ? Collections.emptyList()
+            : Collections.singletonList(new Target(target.dimension(), target.position()));
     }
 
     @Override

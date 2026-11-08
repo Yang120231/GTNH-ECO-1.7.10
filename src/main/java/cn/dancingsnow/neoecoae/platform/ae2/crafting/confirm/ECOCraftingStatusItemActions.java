@@ -16,9 +16,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
-import appeng.api.networking.crafting.ICraftingMedium;
+import appeng.api.parts.IPartHost;
+import appeng.api.util.IInterfaceViewable;
 import appeng.container.implementations.ContainerCraftingStatus;
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
+import cn.dancingsnow.neoecoae.api.me.pattern.ECOPatternWrappers;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPULogic;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingNativeRuntime;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
@@ -113,10 +115,14 @@ public final class ECOCraftingStatusItemActions {
     }
 
     private static void inspect(ECOCraftingNativeRuntime runtime, AEKey key, CompoundTag response) {
-        UUID job = logic(runtime).runningJobId();
+        var logic = logic(runtime);
+        UUID job = logic.runningJobId();
         if (job != null) response.putString("job", job.toString());
-        response.put("sources", describe(providers(runtime, key)));
-        response.put("machines", describe(machines(runtime, key)));
+        var progress = logic.getProcessingProgress(key, true);
+        var providers = providers(runtime, key);
+        response.put("sources", describe(providers));
+        response.put("machines", describe(machines(runtime, key, providers)));
+        response.putBoolean("refreshing", progress.refreshing());
     }
 
     private static ListTag describe(List<Place> places) {
@@ -130,17 +136,26 @@ public final class ECOCraftingStatusItemActions {
             .getLogic();
     }
 
-    /** The providers (interfaces, pattern hatches, ECO workstations) holding the job's patterns for this output. */
+    /** Successful dispatchers first; before a push, fall back to the holders of this job's physical patterns. */
     static List<Place> providers(ECOCraftingNativeRuntime runtime, AEKey key) {
         Map<String, Place> places = new LinkedHashMap<>();
         var logic = logic(runtime);
+        for (Target target : logic.getProcessingMonitor()
+            .providerTargets(key)) {
+            Place place = providerPlace(target);
+            if (place != null) places.putIfAbsent(place.id, place);
+            if (places.size() >= MAX_PLACES) break;
+        }
+        if (!places.isEmpty()) return new ArrayList<>(places.values());
         var grid = runtime.grid();
         if (grid == null) return new ArrayList<>();
         var crafting = grid.getCraftingService();
         for (IPatternDetails pattern : logic.patternsProducing(key)) {
+            IPatternDetails physical = ECOPatternWrappers.unwrap(pattern);
+            if (physical == null) continue;
             List<ICraftingProvider> providers;
             try {
-                providers = crafting.getProviders(pattern);
+                providers = crafting.getProviders(physical);
             } catch (RuntimeException unsupported) {
                 continue;
             }
@@ -158,10 +173,14 @@ public final class ECOCraftingStatusItemActions {
      * providers' GT hatches, and recorded destinations that are machines themselves.
      */
     static List<Place> machines(ECOCraftingNativeRuntime runtime, AEKey key) {
+        return machines(runtime, key, providers(runtime, key));
+    }
+
+    private static List<Place> machines(ECOCraftingNativeRuntime runtime, AEKey key, List<Place> providers) {
         Map<String, Place> places = new LinkedHashMap<>();
         var monitor = logic(runtime).getProcessingMonitor();
         List<Target> candidates = new ArrayList<>(monitor.machineTargets(key));
-        for (Place provider : providers(runtime, key)) {
+        for (Place provider : providers) {
             candidates.addAll(NativeProcessingMachines.controllers(provider.tile.getWorldObj(), provider.position));
         }
         for (Target destination : monitor.destinations(key)) {
@@ -196,22 +215,23 @@ public final class ECOCraftingStatusItemActions {
 
     @Nullable
     private static Place providerPlace(ICraftingProvider provider) {
-        if (provider instanceof cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider workstation) {
-            TileEntity tile = workstation.getWorkstationInterface();
-            return valid(tile) ? new Place(tile, null, displayName(tile)) : null;
-        }
-        if (!(provider instanceof NativeCraftingProvider nativeProvider)) return null;
-        ICraftingMedium medium = nativeProvider.nativeMedium();
-        if (medium instanceof appeng.helpers.DualityInterface duality) {
-            Object host = duality.getHost();
-            ForgeDirection side = host instanceof appeng.parts.AEBasePart base ? base.getSide() : null;
-            TileEntity tile = duality.getTile();
-            if (!valid(tile)) return null;
-            String name = duality.getTermName();
-            return new Place(tile, side, name == null || name.isEmpty() ? displayName(tile) : name);
-        }
-        TileEntity tile = medium instanceof TileEntity direct ? direct : NativeGregTech.hostTile(medium);
-        return valid(tile) ? new Place(tile, null, displayName(tile)) : null;
+        Target target = NativeCraftingProvider.patternProviderTarget(provider);
+        return target == null ? null : providerPlace(target);
+    }
+
+    @Nullable
+    private static Place providerPlace(Target target) {
+        World world = net.minecraftforge.common.DimensionManager.getWorld(target.dimension());
+        BlockPos pos = target.position();
+        if (world == null || !world.getChunkProvider()
+            .chunkExists(pos.getX() >> 4, pos.getZ() >> 4)) return null;
+        TileEntity tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
+        if (!valid(tile)) return null;
+        Object host = target.side() == null ? tile
+            : tile instanceof IPartHost parts ? parts.getPart(target.side()) : null;
+        if (host == null) return null;
+        String name = host instanceof IInterfaceViewable viewable ? viewable.getName() : displayName(tile);
+        return new Place(tile, target.side(), name == null || name.isEmpty() ? displayName(tile) : name);
     }
 
     private static boolean valid(@Nullable TileEntity tile) {

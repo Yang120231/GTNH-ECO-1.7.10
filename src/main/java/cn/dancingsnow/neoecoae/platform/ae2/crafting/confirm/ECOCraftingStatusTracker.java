@@ -148,6 +148,7 @@ public final class ECOCraftingStatusTracker {
         }
         var logic = runtime.cpu()
             .getLogic();
+        if (tracked.detailKey != null) logic.getProcessingProgress(tracked.detailKey, true);
         // Scans advance a few coordinates per tick; the samples below only queue and publish them.
         logic.refreshProcessingProgress();
         long tick = player.worldObj.getTotalWorldTime();

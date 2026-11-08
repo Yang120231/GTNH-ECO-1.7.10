@@ -139,7 +139,8 @@ public final class ECOGregTechMachineStatus {
             }
             var controllers = NativeProcessingMachines.controllers(world, pos);
             if (!controllers.isEmpty()) {
-                pending.addAll(controllers);
+                // Resolve the machine behind this accepted input before visiting every other input destination.
+                for (int i = controllers.size() - 1; i >= 0; i--) pending.addFirst(controllers.get(i));
                 return;
             }
             // Hatches are not recipe controllers; only GT machines with a native output cycle are sampled.
