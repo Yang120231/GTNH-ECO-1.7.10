@@ -85,7 +85,7 @@ public final class ECOCraftConfirmClient {
             latest = null;
             return;
         }
-        Container open = mc.thePlayer.openContainer;
+        Container open = cn.dancingsnow.neoecoae.platform.ui.NativeUiAccess.clientContainer();
         if (entry.bound == null) {
             if (open instanceof ContainerCraftConfirm && open.windowId == entry.windowId) entry.bound = open;
             else if (++entry.unboundTicks > UNBOUND_TICKS) {

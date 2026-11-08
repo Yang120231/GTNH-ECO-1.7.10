@@ -9,6 +9,19 @@ public final class NativeUiAccess {
 
     private NativeUiAccess() {}
 
+    /** NEI's recipe overlay temporarily installs an empty client container while the underlying menu stays open. */
+    @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
+    public static Container clientContainer() {
+        var mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (mc.thePlayer == null) return null;
+        if (cpw.mods.fml.common.Loader.isModLoaded("NotEnoughItems")
+            && mc.currentScreen instanceof codechicken.nei.api.IGuiContainerOverlay overlay) {
+            var first = overlay.getFirstScreen();
+            if (first != null) return first.inventorySlots;
+        }
+        return mc.thePlayer.openContainer;
+    }
+
     public static boolean canEdit(TileEntity tile, EntityPlayer player, Container container) {
         return tile != null && player != null
             && container != null
