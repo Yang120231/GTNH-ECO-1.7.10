@@ -411,7 +411,7 @@
     },
     {
       "path": "data/neoecoae/recipe/input_hatch.json",
-      "sha256": "79f9bb59c521c765d8baaeb90f5bae918cc6903e30973f3d7171b5ad5c5d21a7"
+      "sha256": "8253d885febb8436ec402895f5fad5512028dc9ed370bd359f462e0a0e820eb2"
     },
     {
       "path": "data/neoecoae/recipe/inscriber/aluminum_alloy_dust.json",
@@ -511,7 +511,7 @@
     },
     {
       "path": "data/neoecoae/recipe/output_hatch.json",
-      "sha256": "f8089fe96b64c040ecd058a79eeb1520b3304851b6aaab3a338742731b90224a"
+      "sha256": "5c8550fa117477d3cf35efd7a3cc18fa800603e71db195a593c6fc9df91ac165"
     },
     {
       "path": "data/neoecoae/recipe/raw_aluminum_block.json",
