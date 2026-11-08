@@ -1136,12 +1136,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         return cpuColumn || leftButton || sideButtons;
     }
 
-    @Override
-    public void onGuiClosed() {
-        super.onGuiClosed();
-        ECOCraftingStatusClient.release(inventorySlots);
-    }
-
     /** AE2's CPU column, moved down to the ECO texture's card rows while the ECO layout is shown. */
     private final class EcoCpuTable extends GuiCraftingCPUTable {
 

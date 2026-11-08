@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.platform.ui.crafting;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.inventory.Container;
 import net.minecraftforge.client.event.GuiOpenEvent;
 
@@ -13,6 +14,7 @@ import appeng.container.implementations.ContainerCraftingStatus;
 import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -45,6 +47,9 @@ public final class ECOCraftingStatusClient {
     }
 
     private static volatile State latest = State.NONE;
+
+    @Nullable
+    private Container statusContainer;
 
     /** The newest live machine status of one status window, as the server sent it. */
     static final class Processing {
@@ -102,11 +107,25 @@ public final class ECOCraftingStatusClient {
     }
 
     /** Drops the state of a closed window; a newer window's state is kept. */
-    static void release(Container container) {
+    private static void release(Container container) {
         State state = latest;
         if (container != null && state.windowId == container.windowId) latest = State.NONE;
         Processing value = processing;
         if (container != null && value.windowId == container.windowId) processing = Processing.NONE;
+        Processing action = itemAction;
+        if (container != null && action.windowId == container.windowId) itemAction = Processing.NONE;
+    }
+
+    @SubscribeEvent
+    public void tick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || statusContainer == null) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        // NEI temporarily closes the screen while keeping the server's status container open.
+        // Clear only when that container actually closes, including disconnects and window id reuse.
+        if (mc.thePlayer == null || mc.thePlayer.openContainer != statusContainer) {
+            release(statusContainer);
+            statusContainer = null;
+        }
     }
 
     @SubscribeEvent
@@ -118,7 +137,9 @@ public final class ECOCraftingStatusClient {
             || !(container.getTarget() instanceof ITerminalHost host)) return;
         try {
             // FML assigns the window id to the open container after the screen is shown, so ours receives it.
-            event.gui = new ECOCraftingStatusGui(container.getPlayerInv(), host);
+            var gui = new ECOCraftingStatusGui(container.getPlayerInv(), host);
+            event.gui = gui;
+            statusContainer = gui.inventorySlots;
         } catch (RuntimeException | LinkageError failure) {
             LOGGER.warn("[craft-status] Could not create the ECO crafting status page; keeping AE2's", failure);
         }

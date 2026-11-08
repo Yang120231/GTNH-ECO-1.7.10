@@ -26,8 +26,11 @@ public class ClientProxy extends CommonProxy {
         cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
             .register(new cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftConfirmClient());
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS
-            .register(new cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftingStatusClient());
+        var craftingStatus = new cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftingStatusClient();
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.register(craftingStatus);
+        cpw.mods.fml.common.FMLCommonHandler.instance()
+            .bus()
+            .register(craftingStatus);
     }
 
     @Override
