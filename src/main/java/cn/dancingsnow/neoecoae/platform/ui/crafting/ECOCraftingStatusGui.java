@@ -194,6 +194,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private CompoundTag processingSource;
     /** Whether the selected CPU is an ECO CPU whose processing monitor reports machines at all. */
     private boolean processingMonitored;
+    private boolean finalOutputDeliveryBlocked;
     /** Machine details the tooltip wants, and those last asked of the server. */
     @Nullable
     private AEKey detailKey;
@@ -555,8 +556,9 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
     /** AE2's title and elapsed time beside the ECO logo. */
     private void drawHeader() {
-        String title = GuiText.CraftingStatus.getLocal();
-        if (cpuContainer.getElapsedTime() > 0 && hasVisualEntries()) {
+        String title = finalOutputDeliveryBlocked
+            ? I18n.format("gui.neoecoae.crafting_status.destination_full") : GuiText.CraftingStatus.getLocal();
+        if (!finalOutputDeliveryBlocked && cpuContainer.getElapsedTime() > 0 && hasVisualEntries()) {
             long millis = TimeUnit.MILLISECONDS.convert(cpuContainer.getElapsedTime(), TimeUnit.NANOSECONDS);
             title = title + " - " + DurationFormatUtils.formatDuration(millis, GuiText.ETAFormat.getLocal());
         }
@@ -565,7 +567,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         GL11.glPushMatrix();
         GL11.glTranslatef(TITLE_X, TITLE_Y, 0);
         GL11.glScalef(scale, scale, 1);
-        fontRendererObj.drawStringWithShadow(title, 0, 0, 0xFFFFFF);
+        fontRendererObj.drawStringWithShadow(title, 0, 0, finalOutputDeliveryBlocked ? 0xFFAA00 : 0xFFFFFF);
         GL11.glPopMatrix();
     }
 
@@ -643,7 +645,8 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         if (tag == processingSource && serial == processingSerial) return;
         processingSerial = serial;
         processingSource = tag;
-        boolean current = tag.getInt("cpuSerial") == serial;
+        boolean current = tag.contains("cpuSerial") && tag.getInt("cpuSerial") == serial;
+        finalOutputDeliveryBlocked = current && tag.getBoolean("deliveryBlocked");
         processingMonitored = current && tag.getBoolean("eco");
         taskJob = current ? tag.getString("job") : "";
         Map<AEKey, ECOProcessingProgress> parsed = new HashMap<>();

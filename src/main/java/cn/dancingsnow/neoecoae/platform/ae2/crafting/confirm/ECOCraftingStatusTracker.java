@@ -174,6 +174,7 @@ public final class ECOCraftingStatusTracker {
         CompoundTag payload = new CompoundTag();
         payload.putBoolean("eco", true);
         payload.putInt("cpuSerial", tracked.container.getCPUTable().selectedCpuSerial);
+        payload.putBoolean("deliveryBlocked", logic.isFinalOutputDeliveryBlocked());
         var job = logic.getProcessingJobId();
         payload.putString("job", job == null ? "" : job.toString());
         payload.put("entries", entries);

@@ -1380,5 +1380,6 @@
   "gui.neoecoae.pattern_upload.mapping.add.tooltip": "为当前配方类别选择一个目标组，自动识别无结果时使用。",
   "gui.neoecoae.pattern_upload.mapping.toggle.tooltip": "停用后保留映射记录，可随时重新启用。",
   "gui.neoecoae.pattern_upload.mapping.remove.tooltip": "删除当前配方类别的映射。",
-  "gui.neoecoae.pattern_upload.mapping.targets": "可映射"
+  "gui.neoecoae.pattern_upload.mapping.targets": "可映射",
+  "gui.neoecoae.crafting_status.destination_full": "对应容器容量不足！"
 }

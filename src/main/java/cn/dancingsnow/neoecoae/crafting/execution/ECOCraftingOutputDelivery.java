@@ -31,6 +31,7 @@ final class ECOCraftingOutputDelivery {
     private final Object2LongLinkedOpenHashMap<AEKey> pendingFinalOutputs = new Object2LongLinkedOpenHashMap<>();
     private boolean deliveringFinalOutput;
     private boolean receivingExactOutput;
+    private @Nullable ExecutingCraftingJob blockedDeliveryJob;
 
     ECOCraftingOutputDelivery(ECOCraftingCPULogic host) {
         this.host = host;
@@ -38,6 +39,14 @@ final class ECOCraftingOutputDelivery {
 
     void clearPendingFinalOutputs() {
         pendingFinalOutputs.clear();
+        blockedDeliveryJob = null;
+    }
+
+    boolean isFinalOutputDeliveryBlocked() {
+        var current = host.getJob();
+        return current != null && current == blockedDeliveryJob && current.remainingAmount > 0L
+            && current.waitingFor.list.isEmpty()
+            && !host.taskSchedulerForOutput().hasPendingTasks(current);
     }
 
     boolean hasPendingFinalOutputs() {
@@ -45,6 +54,7 @@ final class ECOCraftingOutputDelivery {
     }
 
     void deliverStoredFinalOutput() {
+        blockedDeliveryJob = null;
         var current = host.getJob();
         if (current == null) {
             return;
@@ -422,7 +432,9 @@ final class ECOCraftingOutputDelivery {
             } else {
                 inserted = current.link.insert(key, amount, Actionable.MODULATE);
             }
-            return clampRoutedAmount(inserted, amount);
+            long accepted = clampRoutedAmount(inserted, amount);
+            if (accepted < amount) blockedDeliveryJob = current;
+            return accepted;
         } catch (RuntimeException failure) {
             LOGGER.error("Final output delivery failed; items remain in the CPU inventory", failure);
             return 0L;

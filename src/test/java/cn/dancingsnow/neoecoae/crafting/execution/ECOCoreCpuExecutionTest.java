@@ -112,6 +112,33 @@ class ECOCoreCpuExecutionTest {
         assertEquals(0L, fixture.stock.getOrDefault(fixture.goal, 0L));
     }
 
+    @Test
+    void completedProductionReportsBlockedDeliveryUntilDestinationAcceptsOutput() throws Exception {
+        var fixture = new Fixture();
+        var full = new java.util.concurrent.atomic.AtomicBoolean(true);
+        when(fixture.network.insert(eq(fixture.goal), anyLong(), eq(Actionable.MODULATE), any()))
+            .thenAnswer(call -> {
+                if (full.get()) return 0L;
+                long amount = call.getArgument(1);
+                fixture.stock.merge(fixture.goal, amount, Long::sum);
+                return amount;
+            });
+        assertTrue(fixture.submit());
+        assertFalse(fixture.cpu.getLogic().isFinalOutputDeliveryBlocked());
+        fixture.tickAndReturnOutputs();
+        assertFalse(fixture.cpu.getLogic().isFinalOutputDeliveryBlocked(), "Production is still running");
+        for (int tick = 0; tick < 20; tick++) fixture.tickAndReturnOutputs();
+        assertTrue(fixture.cpu.isBusy());
+        assertEquals(5L, fixture.cpu.getLogic().getStored(fixture.goal));
+        assertTrue(fixture.cpu.getLogic().isFinalOutputDeliveryBlocked());
+
+        full.set(false);
+        fixture.tickAndReturnOutputs();
+        assertFalse(fixture.cpu.isBusy());
+        assertFalse(fixture.cpu.getLogic().isFinalOutputDeliveryBlocked());
+        assertEquals(5L, fixture.stock.get(fixture.goal));
+    }
+
     private static appeng.api.storage.data.IAEItemStack requestOutput(long initialAmount) {
         var stack = mock(appeng.api.storage.data.IAEItemStack.class);
         var amount = new java.util.concurrent.atomic.AtomicLong(initialAmount);

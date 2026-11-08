@@ -719,6 +719,11 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return view.getRemainingJobOutputAmount();
     }
 
+    /** Production has ended, but the destination did not accept all of the final output. */
+    public boolean isFinalOutputDeliveryBlocked() {
+        return outputDelivery.isFinalOutputDeliveryBlocked();
+    }
+
     /**
      * @deprecated Use {@link #getProgressView()} so integrations cannot mutate or depend on the tracker type.
      */

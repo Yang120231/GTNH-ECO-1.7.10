@@ -1380,5 +1380,6 @@
   "gui.neoecoae.pattern_upload.mapping.add.tooltip": "Choose a group for this category, used when no verified route exists.",
   "gui.neoecoae.pattern_upload.mapping.toggle.tooltip": "Disabling keeps the saved group so it can be enabled again.",
   "gui.neoecoae.pattern_upload.mapping.remove.tooltip": "Delete the mapping for the current recipe category.",
-  "gui.neoecoae.pattern_upload.mapping.targets": "Mappable"
+  "gui.neoecoae.pattern_upload.mapping.targets": "Mappable",
+  "gui.neoecoae.crafting_status.destination_full": "Destination container capacity insufficient!"
 }
