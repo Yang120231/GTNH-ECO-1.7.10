@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui.crafting;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.Container;
 import net.minecraftforge.client.event.GuiOpenEvent;
 
@@ -13,6 +14,8 @@ import appeng.client.gui.implementations.GuiCraftingStatus;
 import appeng.container.implementations.ContainerCraftingStatus;
 import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import codechicken.nei.api.IGuiContainerOverlay;
+import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
@@ -120,9 +123,16 @@ public final class ECOCraftingStatusClient {
     public void tick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END || statusContainer == null) return;
         Minecraft mc = Minecraft.getMinecraft();
-        // NEI temporarily closes the screen while keeping the server's status container open.
-        // Clear only when that container actually closes, including disconnects and window id reuse.
-        if (mc.thePlayer == null || mc.thePlayer.openContainer != statusContainer) {
+        Container open = mc.thePlayer == null ? null : mc.thePlayer.openContainer;
+        // NEI installs an EmptyContainer on the client while the server's status window stays open.
+        // Its overlay API retains the original screen even through nested recipe/usage pages.
+        if (mc.thePlayer != null && Loader.isModLoaded("NotEnoughItems")
+            && mc.currentScreen instanceof IGuiContainerOverlay overlay) {
+            GuiContainer first = overlay.getFirstScreen();
+            if (first != null) open = first.inventorySlots;
+        }
+        // Compare container identity so a genuinely closed window cannot leak state into a reused window id.
+        if (open != statusContainer) {
             release(statusContainer);
             statusContainer = null;
         }
