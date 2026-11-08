@@ -111,8 +111,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         String hintMap = context.hint == null ? null : context.hint.getRecipeMapId();
         if (hintMap != null && !knownMap(hintMap)) hintMap = null;
         ItemStack hintCircuit = context.hint == null ? null : GtCircuits.unwrap(context.hint.getCircuit());
-        ItemStack patternCircuit = GtCircuits.patternCircuit(context.details);
-        boolean programmingCircuit = GtCircuits.hasProgrammingCircuit(context.details);
+        ItemStack patternCircuit = GtCircuits.patternCircuit(context.recipeInputs);
+        boolean programmingCircuit = GtCircuits.hasProgrammingCircuit(context.recipeInputs);
         Candidate best = null;
         for (Route route : routes) {
             Candidate candidate = evaluate(
@@ -151,18 +151,18 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             // The pattern carries its own selector; the machine slot and NEI context must not disagree with it.
             if (hintCircuit != null && !GtCircuits.same(hintCircuit, patternCircuit))
                 conflict = "gui.neoecoae.pattern_upload.reason.hint_circuit";
-            else if (programmingCircuit && !canProgram)
-                conflict = "gui.neoecoae.pattern_upload.reason.needs_programming";
         } else {
             if (route.circuit != null && hintCircuit != null && !GtCircuits.same(route.circuit, hintCircuit))
                 conflict = "gui.neoecoae.pattern_upload.reason.machine_circuit";
             selector = route.circuit != null ? route.circuit : hintCircuit;
         }
+        if (conflict == null && programmingCircuit && !canProgram)
+            conflict = "gui.neoecoae.pattern_upload.reason.needs_programming";
         ItemStack shown = patternCircuit != null ? patternCircuit : selector;
-        GtRecipeVerifier.Verdict verdict = verdicts.verify(route.map, context.details, selector);
+        GtRecipeVerifier.Verdict verdict = verdicts.verify(route.map, context, selector);
         if (verdict == GtRecipeVerifier.Verdict.NONE && patternCircuit == null
             && selector == null
-            && verdicts.matchesWithAnyCircuit(route.map, context.details))
+            && verdicts.matchesWithAnyCircuit(route.map, context))
             return new Candidate(
                 MatchResult.Level.UNVERIFIED,
                 "gui.neoecoae.pattern_upload.reason.circuit_unknown",

@@ -135,6 +135,10 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
     @Override
     public MatchResult match(PatternContext context) {
         boolean plainInterface = kind == Kind.AE2_INTERFACE || kind == Kind.AE2_DUAL_INTERFACE;
+        if (context.details.isInputOnly()) return plainInterface
+            ? MatchResult.of(MatchResult.Level.ACCEPTED, "gui.neoecoae.pattern_upload.reason.tunnel_definition")
+            : MatchResult.of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.tunnel_interface");
+        if (context.inputError != null) return MatchResult.of(MatchResult.Level.UNVERIFIED, context.inputError);
         if (!context.processing) {
             if (!plainInterface) return MatchResult
                 .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.processing_only");

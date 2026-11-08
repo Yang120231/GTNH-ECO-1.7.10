@@ -327,15 +327,22 @@ public final class PatternUploadService {
             .get(source.slot());
         IGrid grid = source.grid();
         TooltipState state = TOOLTIPS.get(player);
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache tracking = grid == null ? null
+            : grid.getCache(cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache.class);
+        long revision = tracking == null ? -1L : tracking.revision();
         long now = player.worldObj.getTotalWorldTime();
         if (state != null && state.windowId == container.windowId
             && state.grid == grid
+            && state.revision == revision
             && (state.pattern == null ? pattern == null : PatternStacks.sameItem(state.pattern, pattern))
             && now - state.at < HINT_FORCE_TICKS) return;
         PatternUploadPackets.AutoTarget message;
         PatternContext context = grid == null ? null
-            : PatternContext
-                .of(pattern, PatternUploadSessions.routeHintFor(player, container.windowId, pattern), player.worldObj);
+            : PatternContext.of(
+                pattern,
+                PatternUploadSessions.routeHintFor(player, container.windowId, pattern),
+                player.worldObj,
+                grid);
         if (context == null) message = new PatternUploadPackets.AutoTarget(container.windowId, "", -1, null, false, "");
         else {
             PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(
@@ -365,7 +372,7 @@ public final class PatternUploadService {
         String key = message.key();
         if (state == null || !key.equals(state.key) || state.windowId != container.windowId)
             PatternUploadPackets.autoTarget(player, message);
-        TOOLTIPS.put(player, new TooltipState(container.windowId, grid, copy(pattern), now, key));
+        TOOLTIPS.put(player, new TooltipState(container.windowId, grid, copy(pattern), now, revision, key));
     }
 
     public static void highlight(EntityPlayerMP player, PatternUploadTarget target) {
@@ -447,13 +454,15 @@ public final class PatternUploadService {
         final IGrid grid;
         final ItemStack pattern;
         final long at;
+        final long revision;
         final String key;
 
-        TooltipState(int windowId, IGrid grid, ItemStack pattern, long at, String key) {
+        TooltipState(int windowId, IGrid grid, ItemStack pattern, long at, long revision, String key) {
             this.windowId = windowId;
             this.grid = grid;
             this.pattern = pattern;
             this.at = at;
+            this.revision = revision;
             this.key = key;
         }
     }

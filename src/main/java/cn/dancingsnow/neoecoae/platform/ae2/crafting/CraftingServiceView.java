@@ -63,7 +63,7 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
             var captured = new ArrayList<IPatternDetails>();
             var producers = catalog.get(key.toNative(1));
             if (producers != null) for (var pattern : producers) {
-                var details = capture(pattern, substitutes);
+                var details = capture(pattern, substitutes, world);
                 if (details != null) captured.add(details);
             }
             index.put(key, Collections.unmodifiableList(captured));
@@ -75,11 +75,14 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     }
 
     /** Native AE2 declines unrepresentable patterns (e.g. zero-sized stacks) instead of failing the grid tick. */
-    private NativePatternDetails capture(ICraftingPatternDetails pattern, NativeSubstitutionIndex substitutes) {
+    private NativePatternDetails capture(ICraftingPatternDetails pattern, NativeSubstitutionIndex substitutes,
+        World world) {
         NativePatternDetails details = patterns.get(pattern);
         if (details != null) return details;
         try {
-            details = substitutes.details(pattern);
+            details = NativePatternDetails.hasTunnelInputs(pattern.getAEInputs()) && !pattern.isCraftable()
+                ? NativePatternDetails.capture(pattern, world, substitutes, (CraftingGridCache) crafting)
+                : substitutes.details(pattern);
         } catch (IllegalArgumentException rejected) {
             if (REJECTED_TYPES.add(
                 pattern.getClass()

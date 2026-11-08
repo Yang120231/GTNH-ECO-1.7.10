@@ -9,7 +9,7 @@ import cpw.mods.fml.common.Loader;
 
 /**
  * Programmable Hatches support, accessed reflectively so the mod stays optional. Its programming circuit wraps the
- * circuit a cover writes; an empty wrapper is a reset marker, not an ingredient.
+ * item a cover writes (an integrated circuit or a mold); an empty wrapper is a reset marker, not an ingredient.
  */
 public final class ProgrammableHatchUpload {
 
@@ -46,7 +46,7 @@ public final class ProgrammableHatchUpload {
         return circuitType != null && circuitType.isInstance(stack.getItem());
     }
 
-    /** The circuit carried by a programming circuit, or null (also for an empty reset marker). */
+    /** The item carried by a programming circuit, including molds; null for an empty reset marker. */
     public static ItemStack unwrap(ItemStack stack) {
         if (!isProgrammingCircuit(stack) || getCircuit == null) return null;
         try {

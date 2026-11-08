@@ -138,6 +138,10 @@ public final class PatternTargetSelector {
         for (Evaluation evaluation : sorted) if (evaluation.canUploadAutomatically()) exact.add(evaluation);
         if (exact.isEmpty()) {
             for (Evaluation evaluation : sorted)
+                if ("gui.neoecoae.pattern_upload.reason.tunnel_missing".equals(evaluation.match.reason)
+                    || "gui.neoecoae.pattern_upload.reason.tunnel_invalid".equals(evaluation.match.reason))
+                    return new AutoChoice(null, evaluation.match.reason);
+            for (Evaluation evaluation : sorted)
                 if (evaluation.match.allowsAuto() && evaluation.state == SlotState.DUPLICATE)
                     return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.duplicate");
             return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.no_exact");

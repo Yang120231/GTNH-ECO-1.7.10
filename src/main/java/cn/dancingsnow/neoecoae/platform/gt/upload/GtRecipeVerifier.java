@@ -12,10 +12,10 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.fluids.FluidStack;
 
-import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
+import cn.dancingsnow.neoecoae.crafting.upload.PatternContext;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
@@ -39,8 +39,8 @@ final class GtRecipeVerifier {
     private GtRecipeVerifier() {}
 
     /** {@code circuit} is the non-consumed selector supplied by the machine or NEI when the pattern omits it. */
-    static Verdict verify(RecipeMap<?> map, ICraftingPatternDetails details, ItemStack circuit) {
-        Pattern base = Pattern.of(details);
+    static Verdict verify(RecipeMap<?> map, PatternContext context, ItemStack circuit) {
+        Pattern base = Pattern.of(context);
         return lookup(map, base == null ? null : base.withSelector(circuit));
     }
 
@@ -78,8 +78,10 @@ final class GtRecipeVerifier {
     private static Verdict ratio(GTRecipe recipe, Pattern pattern) {
         long[] multiple = { 0 };
         boolean[] used = new boolean[pattern.items.size()];
-        if (recipe.mInputs != null) for (ItemStack input : recipe.mInputs) {
-            if (input == null) continue;
+        boolean[] recipeUsed = new boolean[recipe.mInputs == null ? 0 : recipe.mInputs.length];
+        for (int slot = 0; slot < recipeUsed.length; slot++) {
+            ItemStack input = recipe.mInputs[slot];
+            if (input == null || recipeUsed[slot]) continue;
             long total = 0;
             for (int index = 0; index < pattern.items.size(); index++) {
                 if (!sameItem(input, pattern.items.get(index))) continue;
@@ -90,14 +92,26 @@ final class GtRecipeVerifier {
                 if (total <= 0) return Verdict.RATIO_MISMATCH;
                 continue;
             }
-            if (!scale(multiple, total, input.stackSize)) return Verdict.RATIO_MISMATCH;
+            // GT may split one ingredient over several slots; AE2 condenses those slots into one total.
+            // Keep non-consumed selectors separate: their presence is required, but they do not scale.
+            long required = input.stackSize;
+            for (int other = slot + 1; other < recipeUsed.length; other++) {
+                ItemStack duplicate = recipe.mInputs[other];
+                if (recipeUsed[other] || duplicate == null || duplicate.stackSize <= 0
+                    || !sameItem(input, duplicate)) continue;
+                recipeUsed[other] = true;
+                required += duplicate.stackSize;
+            }
+            if (!scale(multiple, total, required)) return Verdict.RATIO_MISMATCH;
         }
         // Every encoded ingredient must be consumed (or be a non-consumed selector) by this recipe.
         for (int index = 0; index < used.length; index++)
             if (!used[index] && !GtCircuits.isCircuit(pattern.items.get(index))) return Verdict.RATIO_MISMATCH;
         boolean[] fluidUsed = new boolean[pattern.fluids.size()];
-        if (recipe.mFluidInputs != null) for (FluidStack input : recipe.mFluidInputs) {
-            if (input == null) continue;
+        boolean[] recipeFluidUsed = new boolean[recipe.mFluidInputs == null ? 0 : recipe.mFluidInputs.length];
+        for (int slot = 0; slot < recipeFluidUsed.length; slot++) {
+            FluidStack input = recipe.mFluidInputs[slot];
+            if (input == null || recipeFluidUsed[slot]) continue;
             long total = 0;
             for (int index = 0; index < pattern.fluids.size(); index++) {
                 if (!GTUtility.areFluidsEqual(input, pattern.fluids.get(index), true)) continue;
@@ -105,7 +119,15 @@ final class GtRecipeVerifier {
                 total += pattern.fluidAmounts.get(index);
             }
             if (input.amount <= 0) continue;
-            if (!scale(multiple, total, input.amount)) return Verdict.RATIO_MISMATCH;
+            long required = input.amount;
+            for (int other = slot + 1; other < recipeFluidUsed.length; other++) {
+                FluidStack duplicate = recipe.mFluidInputs[other];
+                if (recipeFluidUsed[other] || duplicate == null || duplicate.amount <= 0
+                    || !GTUtility.areFluidsEqual(input, duplicate, true)) continue;
+                recipeFluidUsed[other] = true;
+                required += duplicate.amount;
+            }
+            if (!scale(multiple, total, required)) return Verdict.RATIO_MISMATCH;
         }
         for (boolean value : fluidUsed) if (!value) return Verdict.RATIO_MISMATCH;
 
@@ -113,14 +135,27 @@ final class GtRecipeVerifier {
         for (int index = 0; index < pattern.outputs.size(); index++) {
             int slot = recipeItemOutput(recipe, pattern.outputs.get(index));
             if (slot < 0) return Verdict.RATIO_MISMATCH;
-            if (recipe.mOutputChances != null && slot < recipe.mOutputChances.length
-                && recipe.mOutputChances[slot] < CERTAIN) probabilistic = true;
-            if (!scale(multiple, pattern.outputAmounts.get(index), recipe.mOutputs[slot].stackSize))
+            long produced = 0;
+            for (int other = slot; other < recipe.mOutputs.length; other++) {
+                ItemStack output = recipe.mOutputs[other];
+                if (output == null || !GTUtility.areStacksEqual(pattern.outputs.get(index), output, true)) continue;
+                produced += output.stackSize;
+                if (recipe.mOutputChances != null && other < recipe.mOutputChances.length
+                    && recipe.mOutputChances[other] < CERTAIN) probabilistic = true;
+            }
+            if (!scale(multiple, pattern.outputAmounts.get(index), produced))
                 return Verdict.RATIO_MISMATCH;
         }
         for (int index = 0; index < pattern.fluidOutputs.size(); index++) {
             int slot = recipeFluidOutput(recipe, pattern.fluidOutputs.get(index));
-            if (slot < 0 || !scale(multiple, pattern.fluidOutputAmounts.get(index), recipe.mFluidOutputs[slot].amount))
+            if (slot < 0) return Verdict.RATIO_MISMATCH;
+            long produced = 0;
+            for (int other = slot; other < recipe.mFluidOutputs.length; other++) {
+                FluidStack output = recipe.mFluidOutputs[other];
+                if (output != null && GTUtility.areFluidsEqual(pattern.fluidOutputs.get(index), output, true))
+                    produced += output.amount;
+            }
+            if (!scale(multiple, pattern.fluidOutputAmounts.get(index), produced))
                 return Verdict.RATIO_MISMATCH;
         }
         if (multiple[0] <= 0) return Verdict.RATIO_MISMATCH;
@@ -155,7 +190,8 @@ final class GtRecipeVerifier {
     }
 
     /**
-     * Memoized verdicts for one evaluation pass. A verdict is a pure function of (recipe map, decoded pattern, selector
+     * Memoized verdicts for one evaluation pass. A verdict is a pure function of (recipe map, resolved upload context,
+     * selector
      * circuit) and recipe maps are fixed after load, so it is shared by every target of the pass that exposes the same
      * map and circuit. Machine state (which map, which circuit) is never cached here: callers read it from the live
      * host. Entries live at most for the server tick they were computed in, are dropped on every discovery, and are
@@ -167,7 +203,7 @@ final class GtRecipeVerifier {
         private static final int MAX_VERDICTS = 4096;
         private static final Object NO_CIRCUIT = new Object();
 
-        private final Map<ICraftingPatternDetails, PatternEntry> patterns = new IdentityHashMap<>();
+        private final Map<PatternContext, PatternEntry> patterns = new IdentityHashMap<>();
         private long tick = Long.MIN_VALUE;
         private int verdicts;
 
@@ -177,10 +213,10 @@ final class GtRecipeVerifier {
             tick = Long.MIN_VALUE;
         }
 
-        Verdict verify(RecipeMap<?> map, ICraftingPatternDetails details, ItemStack circuit) {
+        Verdict verify(RecipeMap<?> map, PatternContext context, ItemStack circuit) {
             Object key = circuitKey(circuit);
-            PatternEntry entry = key == null || map == null ? null : entry(details);
-            if (entry == null) return GtRecipeVerifier.verify(map, details, circuit);
+            PatternEntry entry = key == null || map == null ? null : entry(context);
+            if (entry == null) return GtRecipeVerifier.verify(map, context, circuit);
             Map<Object, Verdict> known = entry.verdicts(map);
             Verdict verdict = known.get(key);
             if (verdict == null) {
@@ -192,37 +228,37 @@ final class GtRecipeVerifier {
         }
 
         /** Whether some integrated circuit 0..MAX makes the pattern a recipe of {@code map}. */
-        boolean matchesWithAnyCircuit(RecipeMap<?> map, ICraftingPatternDetails details) {
-            PatternEntry entry = map == null ? null : entry(details);
+        boolean matchesWithAnyCircuit(RecipeMap<?> map, PatternContext context) {
+            PatternEntry entry = map == null ? null : entry(context);
             Boolean known = entry == null ? null : entry.anyCircuit.get(map);
             if (known != null) return known;
             boolean found = false;
             for (int number = 0; number <= ItemIntegratedCircuit.MAX_CIRCUIT_NUMBER && !found; number++) {
                 ItemStack circuit = GTUtility.getIntegratedCircuit(number);
-                found = circuit != null && verify(map, details, circuit) != Verdict.NONE;
+                found = circuit != null && verify(map, context, circuit) != Verdict.NONE;
             }
             // Re-read: a bound overflow inside verify may have started a fresh pass.
-            entry = map == null ? null : entry(details);
+            entry = map == null ? null : entry(context);
             if (entry != null) entry.anyCircuit.put(map, found);
             return found;
         }
 
-        private PatternEntry entry(ICraftingPatternDetails details) {
-            if (details == null) return null;
+        private PatternEntry entry(PatternContext context) {
+            if (context == null) return null;
             long now = currentTick();
             if (now == Long.MIN_VALUE) {
                 clear();
                 return null;
             }
             if (now != tick || verdicts >= MAX_VERDICTS
-                || patterns.size() >= MAX_PATTERNS && !patterns.containsKey(details)) {
+                || patterns.size() >= MAX_PATTERNS && !patterns.containsKey(context)) {
                 clear();
                 tick = now;
             }
-            PatternEntry entry = patterns.get(details);
+            PatternEntry entry = patterns.get(context);
             if (entry == null) {
-                entry = new PatternEntry(Pattern.of(details));
-                patterns.put(details, entry);
+                entry = new PatternEntry(Pattern.of(context));
+                patterns.put(context, entry);
             }
             return entry;
         }
@@ -245,7 +281,7 @@ final class GtRecipeVerifier {
 
     private static final class PatternEntry {
 
-        /** Null when the details decode to no processing pattern; every verdict is then NONE. */
+        /** Null when the context decode to no processing pattern; every verdict is then NONE. */
         final Pattern pattern;
         final Map<RecipeMap<?>, Map<Object, Verdict>> verdicts = new IdentityHashMap<>();
         final Map<RecipeMap<?>, Boolean> anyCircuit = new IdentityHashMap<>();
@@ -333,11 +369,11 @@ final class GtRecipeVerifier {
             return new Pattern(this, selector);
         }
 
-        static Pattern of(ICraftingPatternDetails details) {
-            if (details == null || details.isCraftable()) return null;
+        static Pattern of(PatternContext context) {
+            if (context == null || !context.processing || context.inputError != null) return null;
             Pattern pattern = new Pattern();
-            IAEStack<?>[] inputs = details.getCondensedAEInputs();
-            IAEStack<?>[] outputs = details.getCondensedAEOutputs();
+            IAEStack<?>[] inputs = context.recipeInputs;
+            IAEStack<?>[] outputs = context.details.getCondensedAEOutputs();
             if (inputs == null || outputs == null) return null;
             for (IAEStack<?> input : inputs) {
                 if (input instanceof IAEItemStack) {

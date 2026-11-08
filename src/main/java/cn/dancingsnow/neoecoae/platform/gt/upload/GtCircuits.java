@@ -2,7 +2,6 @@ package cn.dancingsnow.neoecoae.platform.gt.upload;
 
 import net.minecraft.item.ItemStack;
 
-import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import cn.dancingsnow.neoecoae.compat.proghatches.upload.ProgrammableHatchUpload;
@@ -26,10 +25,13 @@ final class GtCircuits {
         return isCircuit(wrapped) ? single(wrapped) : null;
     }
 
-    /** Recipe form of an ingredient; an empty programming circuit becomes null (a reset marker). */
+    /** Recipe form of an ingredient, including a wrapped mold; an empty wrapper is a reset marker. */
     static ItemStack normalizeForRecipe(ItemStack stack) {
         if (stack == null) return null;
-        if (ProgrammableHatchUpload.isProgrammingCircuit(stack)) return unwrap(stack);
+        if (ProgrammableHatchUpload.isProgrammingCircuit(stack)) {
+            ItemStack programmed = ProgrammableHatchUpload.unwrap(stack);
+            return programmed == null ? null : single(programmed);
+        }
         return stack.copy();
     }
 
@@ -44,9 +46,9 @@ final class GtCircuits {
     }
 
     /** The selector encoded in a processing pattern, if any. */
-    static ItemStack patternCircuit(ICraftingPatternDetails details) {
-        if (details == null || details.isCraftable() || details.getCondensedAEInputs() == null) return null;
-        for (IAEStack<?> input : details.getCondensedAEInputs()) {
+    static ItemStack patternCircuit(IAEStack<?>[] inputs) {
+        if (inputs == null) return null;
+        for (IAEStack<?> input : inputs) {
             if (!(input instanceof IAEItemStack)) continue;
             ItemStack circuit = unwrap(((IAEItemStack) input).getItemStack());
             if (circuit != null) return circuit;
@@ -54,9 +56,9 @@ final class GtCircuits {
         return null;
     }
 
-    static boolean hasProgrammingCircuit(ICraftingPatternDetails details) {
-        if (details == null || details.getCondensedAEInputs() == null) return false;
-        for (IAEStack<?> input : details.getCondensedAEInputs()) if (input instanceof IAEItemStack
+    static boolean hasProgrammingCircuit(IAEStack<?>[] inputs) {
+        if (inputs == null) return false;
+        for (IAEStack<?> input : inputs) if (input instanceof IAEItemStack
             && ProgrammableHatchUpload.isProgrammingCircuit(((IAEItemStack) input).getItemStack())) return true;
         return false;
     }

@@ -1358,5 +1358,9 @@
   "neoecoae.configuration.keyReuse": "AE 資源鍵復用",
   "neoecoae.configuration.keyReuse.tooltip": "本機快取選項。保留值相等語義與舊存檔格式。",
   "neoecoae.configuration.keyReuse.enabled": "復用無額外資料的資源鍵",
-  "neoecoae.configuration.keyReuse.enabled.tooltip": "復用無額外元件或 NBT 的不可變資源鍵；帶額外資料的資源保留原有建立行為。"
+  "neoecoae.configuration.keyReuse.enabled.tooltip": "復用無額外元件或 NBT 的不可變資源鍵；帶額外資料的資源保留原有建立行為。",
+  "gui.neoecoae.pattern_upload.reason.tunnel_missing": "引用的通道樣板尚未註冊到目前的 ME 網路。",
+  "gui.neoecoae.pattern_upload.reason.tunnel_invalid": "通道展開失敗：請檢查循環引用、無效或空定義，以及數量溢位。",
+  "gui.neoecoae.pattern_upload.reason.tunnel_definition": "通道定義：請選擇 ME 介面，將其註冊到網路。",
+  "gui.neoecoae.pattern_upload.reason.tunnel_interface": "請將通道定義放入 ME 介面或 ME 二合一介面。"
 }

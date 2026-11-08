@@ -14,10 +14,9 @@ import org.apache.logging.log4j.Logger;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
-import appeng.items.misc.ItemTunnelPattern;
 import appeng.me.cache.CraftingGridCache;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 
@@ -39,12 +38,18 @@ final class NativePlannerRouting {
         var cache = grid.getCache(ICraftingGrid.class);
         if (!(cache instanceof CraftingGridCache)) return null;
         var catalog = ((CraftingGridCache) cache).getCraftingMultiPatterns();
-        return nativeOnlyReason(catalog::get, output);
+        return nativeOnlyReason(catalog::get, output, (CraftingGridCache) cache);
     }
 
     /** @param producersOf the native catalog lookup: patterns producing a stack, or null */
     static String nativeOnlyReason(Function<IAEStack<?>, ? extends Collection<ICraftingPatternDetails>> producersOf,
         IAEStack<?> output) {
+        return nativeOnlyReason(producersOf, output, null);
+    }
+
+    private static String nativeOnlyReason(
+        Function<IAEStack<?>, ? extends Collection<ICraftingPatternDetails>> producersOf, IAEStack<?> output,
+        CraftingGridCache cache) {
         Set<AEKey> visitedKeys = new HashSet<>();
         Set<ICraftingPatternDetails> visitedPatterns = Collections.newSetFromMap(new IdentityHashMap<>());
         var queue = new ArrayDeque<IAEStack<?>>();
@@ -60,7 +65,9 @@ final class NativePlannerRouting {
                 if (visitedPatterns.size() > MAX_VISITED_PATTERNS) return null;
                 String reason = unsupported(pattern);
                 if (reason != null) return reason;
-                for (var input : pattern.getCondensedAEInputs()) if (input != null) queue.add(input);
+                var inputs = NativePatternDetails.expandInputs(pattern, cache, true);
+                if (inputs == null) return "invalid tunnel pattern expansion";
+                for (var input : inputs) if (input != null) queue.add(input);
             }
         }
         return null;
@@ -70,11 +77,6 @@ final class NativePlannerRouting {
         if (pattern.isInputOnly()) return "input-only pattern";
         // GTNH substitutes processing inputs with FuzzyMode.IGNORE_ALL; ECO only substitutes crafting recipes.
         if (!pattern.isCraftable() && pattern.canSubstitute()) return "processing pattern with substitution";
-        for (var input : pattern.getCondensedAEInputs()) {
-            if (input instanceof IAEItemStack
-                && ItemTunnelPattern.isTunnelPattern(((IAEItemStack) input).getItemStack()))
-                return "tunnel pattern input";
-        }
         return null;
     }
 

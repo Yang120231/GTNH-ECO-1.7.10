@@ -1381,5 +1381,9 @@
   "gui.neoecoae.pattern_upload.mapping.toggle.tooltip": "Disabling keeps the saved group so it can be enabled again.",
   "gui.neoecoae.pattern_upload.mapping.remove.tooltip": "Delete the mapping for the current recipe category.",
   "gui.neoecoae.pattern_upload.mapping.targets": "Mappable",
-  "gui.neoecoae.crafting_status.destination_full": "Destination container capacity insufficient!"
+  "gui.neoecoae.crafting_status.destination_full": "Destination container capacity insufficient!",
+  "gui.neoecoae.pattern_upload.reason.tunnel_missing": "A referenced tunnel pattern is not registered on this ME network.",
+  "gui.neoecoae.pattern_upload.reason.tunnel_invalid": "Tunnel expansion failed: check for circular references, invalid or empty definitions, or quantity overflow.",
+  "gui.neoecoae.pattern_upload.reason.tunnel_definition": "Tunnel definition: choose an ME interface to register it on the network.",
+  "gui.neoecoae.pattern_upload.reason.tunnel_interface": "Register tunnel definitions in an ME interface or ME dual interface."
 }

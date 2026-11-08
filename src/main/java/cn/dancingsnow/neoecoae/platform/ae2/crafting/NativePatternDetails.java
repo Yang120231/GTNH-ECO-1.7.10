@@ -14,7 +14,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
+import appeng.helpers.PatternHelper;
+import appeng.items.misc.ItemTunnelPattern;
+import appeng.me.cache.CraftingGridCache;
+import appeng.util.TunnelPatternExpander;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
@@ -31,9 +36,18 @@ public class NativePatternDetails implements IPatternDetails {
     private final GenericStack[] sparse;
 
     protected NativePatternDetails(ICraftingPatternDetails pattern, World world, Substitutes substitutes) {
+        this(pattern, world, substitutes, pattern.getAEInputs(), pattern.getCondensedAEInputs());
+    }
+
+    protected NativePatternDetails(ICraftingPatternDetails pattern, World world, Substitutes substitutes,
+        IAEStack<?>[] expanded) {
+        this(pattern, world, substitutes, expanded, PatternHelper.convertToCondensedAEList(expanded));
+    }
+
+    private NativePatternDetails(ICraftingPatternDetails pattern, World world, Substitutes substitutes,
+        IAEStack<?>[] nativeSparse, IAEStack<?>[] nativeInputs) {
         nativePattern = Objects.requireNonNull(pattern);
         definition = AEItemKey.of(pattern.getPattern());
-        IAEStack<?>[] nativeSparse = pattern.getAEInputs();
         if (nativeSparse == null) throw new IllegalArgumentException("Null native sparse inputs");
         boolean dropEmpty = mightHaveEmptyInputs(pattern);
         sparse = new GenericStack[nativeSparse.length];
@@ -42,7 +56,7 @@ public class NativePatternDetails implements IPatternDetails {
                 sparse[i] = stack(nativeSparse[i]);
         List<IInput> captured = new ArrayList<>();
         int inputIndex = 0;
-        for (IAEStack<?> raw : pattern.getCondensedAEInputs()) {
+        for (IAEStack<?> raw : nativeInputs) {
             // Programmable Hatches marks "no input" with a zero-sized placeholder that its native mixin filters out.
             if (raw == null || dropEmpty && raw.getStackSize() <= 0) continue;
             GenericStack primary = stack(raw);
@@ -84,6 +98,35 @@ public class NativePatternDetails implements IPatternDetails {
         return !pattern.isCraftable() && pattern.getClass() == appeng.helpers.PatternHelper.class
             ? new AEProcessingPattern(pattern, world, substitutes)
             : new NativePatternDetails(pattern, world, substitutes);
+    }
+
+    /**
+     * Tunnel expansion depends on this grid's live definitions, so these details must not enter the substitute memo.
+     */
+    static NativePatternDetails capture(ICraftingPatternDetails pattern, World world, Substitutes substitutes,
+        CraftingGridCache cache) {
+        IAEStack<?>[] expanded = expandInputs(pattern, cache, false);
+        if (expanded == null) throw new IllegalArgumentException("Invalid tunnel pattern expansion");
+        return pattern.getClass() == PatternHelper.class
+            ? new AEProcessingPattern(pattern, world, substitutes, expanded)
+            : new NativePatternDetails(pattern, world, substitutes, expanded);
+    }
+
+    public static boolean hasTunnelInputs(IAEStack<?>[] inputs) {
+        if (inputs != null) for (IAEStack<?> input : inputs) if (input instanceof IAEItemStack
+            && ItemTunnelPattern.isTunnelPattern(((IAEItemStack) input).getItemStack())) return true;
+        return false;
+    }
+
+    /** AE2's expansion and condensation, shared by upload validation, planning snapshots and native execution. */
+    public static IAEStack<?>[] expandInputs(ICraftingPatternDetails pattern, CraftingGridCache cache,
+        boolean condensed) {
+        IAEStack<?>[] inputs = condensed ? pattern.getCondensedAEInputs() : pattern.getAEInputs();
+        if (pattern.isCraftable() || cache == null || !hasTunnelInputs(inputs)) return inputs;
+        var expanded = TunnelPatternExpander.expandInputs(inputs, cache, null);
+        if (expanded == null) return null;
+        IAEStack<?>[] result = expanded.toArray(new IAEStack<?>[0]);
+        return condensed ? PatternHelper.convertToCondensedAEList(result) : result;
     }
 
     /** Uncached substitute scan; every candidate costs one native recipe match per occupied slot. */

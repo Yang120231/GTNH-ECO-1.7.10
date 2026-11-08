@@ -99,7 +99,7 @@ public final class PatternUploadSession {
     public PatternContext context() {
         ItemStack pattern = currentPattern();
         RouteHint hint = PatternUploadSessions.routeHintFor(player, sourceWindowId, pattern);
-        return PatternContext.of(pattern, hint, player.worldObj);
+        return PatternContext.of(pattern, hint, player.worldObj, source.grid());
     }
 
     /** Re-discovers targets, re-evaluates them against the live machines and regroups them. */

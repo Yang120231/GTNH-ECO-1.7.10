@@ -31,7 +31,6 @@ import appeng.container.ContainerNull;
 import appeng.helpers.DualityInterface;
 import appeng.me.cache.CraftingGridCache;
 import appeng.util.Platform;
-import appeng.util.TunnelPatternExpander;
 import appeng.util.inv.MEInventoryCrafting;
 import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
@@ -414,24 +413,13 @@ final class ECOVanillaCraftingExecutor {
 
     private static List<IAEStack<?>> getExpandedCondensedInputs(ICraftingPatternDetails details,
         CraftingGridCache cache) {
-        if (details.isCraftable() || cache == null) {
-            return Arrays.asList(details.getCondensedAEInputs());
-        }
-        final List<IAEStack<?>> expanded = TunnelPatternExpander
-            .expandInputs(details.getCondensedAEInputs(), cache, null);
-        if (expanded == null) {
-            return null;
-        }
-        final IAEStack<?>[] condensed = appeng.helpers.PatternHelper
-            .convertToCondensedAEList(expanded.toArray(new IAEStack<?>[0]));
-        return Arrays.asList(condensed);
+        var expanded = NativePatternDetails.expandInputs(details, cache, true);
+        return expanded == null ? null : Arrays.asList(expanded);
     }
 
     private static List<IAEStack<?>> getExpandedInputs(ICraftingPatternDetails details, CraftingGridCache cache) {
-        if (details.isCraftable() || cache == null) {
-            return Arrays.asList(details.getAEInputs());
-        }
-        return TunnelPatternExpander.expandInputs(details.getAEInputs(), cache, null);
+        var expanded = NativePatternDetails.expandInputs(details, cache, false);
+        return expanded == null ? null : Arrays.asList(expanded);
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
