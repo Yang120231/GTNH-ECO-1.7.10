@@ -81,7 +81,7 @@ final class UploadButtonTooltip {
             if (target.reason.isEmpty()) return;
             statusWarning = true;
             status.add(tr("gui.neoecoae.pattern_upload.button.auto.tooltip.manual"));
-            statusLines.add(tr("gui.neoecoae.pattern_upload.button.auto.tooltip.no_match"));
+            statusLines.add(tr(target.reason));
             return;
         }
         if (target.icon != null && target.icon.getItem() != null) icon = target.icon;
@@ -92,6 +92,10 @@ final class UploadButtonTooltip {
                 "gui.neoecoae.pattern_upload.button.auto.tooltip.target",
                 PatternUploadScreen.hostText(target.name, target.icon) + target.nameSuffix,
                 kind));
+        if (!target.reason.isEmpty()) {
+            statusWarning = true;
+            statusLines.add(tr(target.reason));
+        }
         if (target.mapped) statusDetails.add(tr("gui.neoecoae.pattern_upload.mapping.used"));
         if (target.programmingCover) statusDetails.add(tr("gui.neoecoae.pattern_upload.programming_cover"));
         else if (target.circuit != null) statusDetails.add(

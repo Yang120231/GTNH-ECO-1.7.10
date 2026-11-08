@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.gt.upload;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -13,12 +14,16 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import appeng.api.crafting.ICraftingIconProvider;
+import appeng.api.storage.data.IAEFluidStack;
+import appeng.api.storage.data.IAEStack;
 import appeng.helpers.IInterfaceHost;
 import cn.dancingsnow.neoecoae.compat.proghatches.upload.ProgrammableHatchUpload;
 import cn.dancingsnow.neoecoae.crafting.upload.MatchResult;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternContext;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternRouteProbe;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
+import cn.dancingsnow.neoecoae.crafting.upload.RouteHint;
+import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -30,11 +35,12 @@ import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.common.tileentities.machines.IDualInputHatch;
 import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
+import tectech.recipe.TecTechRecipeMaps;
+import tectech.thing.metaTileEntity.multi.bec.MTEBECIONode;
 
 /**
  * Reads the machine routes behind a pattern host on every call: GT pattern hatches, and GT machines or hatches facing
- * an ME interface. Multiblock ownership comes from a per-world index rebuilt at most once per interval, so hint
- * refreshes never rescan the world per candidate.
+ * an ME interface. Multiblock ownership comes from one per-world index per discovery, so candidates share its scan.
  */
 public final class GtPatternRoutes implements PatternRouteProbe {
 
@@ -55,9 +61,37 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         return new GtPatternRoutes();
     }
 
+    /** Server entry points stay independent of NEI's client-only handler classes. */
+    public static boolean isKnownMap(String id) {
+        return knownMap(id) != null;
+    }
+
+    public static void updateSelection(RouteHint hint, IAEStack<?>[] inputs) {
+        if (GtCircuits.conflictingCircuits(inputs)) return;
+        ItemStack selected = GtCircuits.patternCircuit(inputs);
+        if (selected != null) hint.selectCircuit(selected);
+        else if (GtCircuits.resetsSelector(inputs)) hint.selectCircuit(null);
+    }
+
+    /** One effective request for matching, binding and display, including selectors expanded from tunnel inputs. */
+    public static ItemStack selectedCircuit(PatternContext context) {
+        ItemStack selected = GtCircuits.patternCircuit(context.recipeInputs);
+        if (selected != null) return selected;
+        if (GtCircuits.resetsSelector(context.recipeInputs)) return null;
+        return context.hint == null ? null : GtCircuits.unwrap(context.hint.getCircuit());
+    }
+
+    public static String selectionKey(PatternContext context) {
+        if (GtCircuits.conflictingCircuits(context.recipeInputs)) return "!";
+        ItemStack selected = selectedCircuit(context);
+        if (selected != null) return GtCircuits.number(selected);
+        if (GtCircuits.resetsSelector(context.recipeInputs)) return "-";
+        return context.hint == null ? "?" : context.hint.selectionKey();
+    }
+
     @Override
     public void invalidate() {
-        // Ownership is time-bounded instead; structure changes are re-read at submit through the live routes.
+        owners.clear();
         verdicts.clear();
     }
 
@@ -75,17 +109,23 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         final ItemStack circuit;
         final ItemStack icon;
         final String name;
+        final IMetaTileEntity receiver;
         final boolean programmingCover;
         final boolean programmable;
 
-        Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, boolean programmingCover,
-            boolean programmable) {
+        Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, IMetaTileEntity receiver,
+            boolean programmingCover, boolean programmable) {
             this.map = map;
             this.circuit = circuit;
             this.icon = icon;
             this.name = name;
+            this.receiver = receiver;
             this.programmingCover = programmingCover;
             this.programmable = programmable;
+        }
+
+        String role() {
+            return receiver == null ? "" : receiver.getClass().getName();
         }
     }
 
@@ -95,198 +135,198 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         final String reason;
         final Route route;
         final ItemStack circuit;
+        final String categoryId;
+        final String selectionKey;
+        final boolean programming;
 
-        Candidate(MatchResult.Level level, String reason, Route route, ItemStack circuit) {
+        Candidate(MatchResult.Level level, String reason, Route route, ItemStack circuit, String categoryId,
+            String selectionKey, boolean programming) {
             this.level = level;
             this.reason = reason;
             this.route = route;
             this.circuit = circuit;
+            this.categoryId = categoryId;
+            this.selectionKey = selectionKey;
+            this.programming = programming;
+        }
+
+        MatchResult result() {
+            String signature = (route.map == null ? "" : route.map.unlocalizedName)
+                + "#" + GtCircuits.number(circuit) + "#" + route.role();
+            return new MatchResult(
+                level, reason, circuit, route.name, route.icon, signature, programming, categoryId, selectionKey);
         }
     }
 
     @Override
     public MatchResult match(Object host, PatternContext context, boolean programmable) {
+        if (host instanceof IDualInputHatch && !((IDualInputHatch) host).supportsFluids()
+            && context.recipeInputs != null) for (IAEStack<?> input : context.recipeInputs)
+                if (input instanceof IAEFluidStack && input.getStackSize() > 0) return MatchResult.of(
+                    MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.fluid_input");
         List<Route> routes = routes(host);
         if (routes.isEmpty()) return null;
-        String hintMap = context.hint == null ? null : context.hint.getRecipeMapId();
-        if (hintMap != null && !knownMap(hintMap)) hintMap = null;
-        ItemStack hintCircuit = context.hint == null ? null : GtCircuits.unwrap(context.hint.getCircuit());
+        RecipeMap<?> sourceMap = context.hint != null && context.hint.hasRecipeMap()
+            ? knownMap(context.hint.getRecipeMapId()) : null;
         ItemStack patternCircuit = GtCircuits.patternCircuit(context.recipeInputs);
+        ItemStack selected = selectedCircuit(context);
         boolean programmingCircuit = GtCircuits.hasProgrammingCircuit(context.recipeInputs);
+        boolean conflict = GtCircuits.conflictingCircuits(context.recipeInputs);
         Candidate best = null;
+        String resolved = null;
+        boolean ambiguous = false;
         for (Route route : routes) {
             Candidate candidate = evaluate(
-                verdicts,
-                route,
-                context,
-                hintMap,
-                hintCircuit,
-                patternCircuit,
-                programmingCircuit,
+                route, context, sourceMap, selected, patternCircuit, programmingCircuit, conflict,
                 programmable || route.programmingCover || route.programmable);
-            if (best == null || candidate.level.ordinal() < best.level.ordinal()) best = candidate;
+            if (candidate.level == MatchResult.Level.ROUTED
+                || MatchResult.allowsMapping(candidate.level, candidate.reason)) {
+                String signature = candidate.result().routeSignature;
+                if (resolved != null && !resolved.equals(signature)) ambiguous = true;
+                resolved = signature;
+            }
+            if (best == null || candidate.level.rank() < best.level.rank()) best = candidate;
         }
-        String signature = best.route.map.unlocalizedName + "#" + GtCircuits.number(best.circuit);
-        return new MatchResult(
-            best.level,
-            best.reason,
-            best.circuit,
-            best.route.name,
-            best.route.icon,
-            signature,
-            best.route.programmingCover || (programmable || best.route.programmable) && programmingCircuit);
+        MatchResult result = best.result();
+        return ambiguous ? new MatchResult(
+            MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.route_ambiguous",
+            result.circuit, result.routeName, result.routeIcon, result.routeSignature, result.programmingCover,
+            result.categoryId, result.selectionKey) : result;
     }
 
-    private static Candidate evaluate(GtRecipeVerifier.Cache verdicts, Route route, PatternContext context,
-        String hintMap, ItemStack hintCircuit, ItemStack patternCircuit, boolean programmingCircuit,
-        boolean canProgram) {
-        if (hintMap != null && !hintMap.equals(route.map.unlocalizedName)) return new Candidate(
-            MatchResult.Level.WRONG_RECIPE,
-            "gui.neoecoae.pattern_upload.reason.hint_map",
-            route,
-            route.circuit);
-        ItemStack selector = null;
-        String conflict = null;
-        if (patternCircuit != null) {
-            // The pattern carries its own selector; the machine slot and NEI context must not disagree with it.
-            if (hintCircuit != null && !GtCircuits.same(hintCircuit, patternCircuit))
-                conflict = "gui.neoecoae.pattern_upload.reason.hint_circuit";
-        } else {
-            if (route.circuit != null && hintCircuit != null && !GtCircuits.same(route.circuit, hintCircuit))
-                conflict = "gui.neoecoae.pattern_upload.reason.machine_circuit";
-            selector = route.circuit != null ? route.circuit : hintCircuit;
-        }
-        if (conflict == null && programmingCircuit && !canProgram)
-            conflict = "gui.neoecoae.pattern_upload.reason.needs_programming";
-        ItemStack shown = patternCircuit != null ? patternCircuit : selector;
-        GtRecipeVerifier.Verdict verdict = verdicts.verify(route.map, context, selector);
-        if (verdict == GtRecipeVerifier.Verdict.NONE && patternCircuit == null
-            && selector == null
-            && verdicts.matchesWithAnyCircuit(route.map, context))
-            return new Candidate(
-                MatchResult.Level.UNVERIFIED,
-                "gui.neoecoae.pattern_upload.reason.circuit_unknown",
-                route,
-                null);
-        switch (verdict) {
-            case EXACT:
-                if (conflict != null) return new Candidate(MatchResult.Level.CIRCUIT_CONFLICT, conflict, route, shown);
-                if (patternCircuit == null && route.circuit == null && hintCircuit != null) return new Candidate(
+    private Candidate evaluate(Route route, PatternContext context, RecipeMap<?> sourceMap, ItemStack selected,
+        ItemStack patternCircuit, boolean programmingCircuit, boolean conflictingCircuits, boolean canProgram) {
+        boolean sourced = context.hint != null && !context.hint.isEmpty();
+        String category = sourced && !context.hint.getCategoryId().isEmpty()
+            ? context.hint.getCategoryId() : route.map == null ? "" : "gt:" + route.map.unlocalizedName;
+        String selection = selectionKey(context);
+        boolean programming = route.programmingCover || programmingCircuit && canProgram;
+        boolean categoryUnknown = sourced && !context.hint.hasRecipeMap() && !context.hint.hasMachineTypes();
+        if (conflictingCircuits) return candidate(
+            MatchResult.Level.CIRCUIT_CONFLICT, "circuits_multiple", route, selected, category, selection, programming);
+        if (route.map == null) return candidate(
+            MatchResult.Level.UNVERIFIED, "no_controller", route, selected, category, selection, programming);
+        if (sourced && context.hint.hasRecipeMap()) {
+            // An invalid captured source is not permission to infer a different map from the edited pattern.
+            if (sourceMap == null) return candidate(
+                MatchResult.Level.UNVERIFIED, "source_map_unknown", route, selected, category, selection, programming);
+            if (sourceMap != route.map) return candidate(
+                MatchResult.Level.WRONG_RECIPE, "hint_map", route, selected, category, selection, programming);
+        } else if (sourced && !categoryUnknown && !context.hint.matchesMachine(route.icon)
+            && (route.receiver == null || !context.hint.matchesMachine(route.receiver.getStackForm(1)))) return candidate(
+            MatchResult.Level.WRONG_RECIPE, "hint_map", route, selected, category, selection, programming);
+        if (route.receiver == null) return candidate(
+            MatchResult.Level.UNVERIFIED, "no_controller", route, selected, category, selection, programming);
+        if (route.map == TecTechRecipeMaps.condensateAssemblingRecipes
+            && !(route.receiver instanceof MTEBECIONode)) return candidate(
+                MatchResult.Level.INCOMPATIBLE, "bec_role", route, selected, category, selection, programming);
+
+        if (!sourced) {
+            GtRecipeVerifier.Inference inferred = verdicts.infer(route.map, context);
+            if (!inferred.complete) return candidate(
+                MatchResult.Level.UNVERIFIED, "search_incomplete", route, selected, category, selection, programming);
+            if (!inferred.found()) return candidate(
+                MatchResult.Level.WRONG_RECIPE, "recipe", route, selected, category, selection, programming);
+            if (!inferred.unique()) {
+                if (programmingCircuit && !canProgram) return candidate(
+                    MatchResult.Level.CIRCUIT_CONFLICT, "needs_programming", route, route.circuit,
+                    category, selection, programming);
+                if (!inferred.allows(route.circuit)) return candidate(
                     MatchResult.Level.CIRCUIT_CONFLICT,
-                    "gui.neoecoae.pattern_upload.reason.machine_circuit_missing",
-                    route,
-                    shown);
-                return new Candidate(MatchResult.Level.EXACT, null, route, shown);
-            case PROBABILISTIC:
-                return new Candidate(
-                    MatchResult.Level.UNVERIFIED,
-                    "gui.neoecoae.pattern_upload.reason.probabilistic",
-                    route,
-                    shown);
-            case RATIO_MISMATCH:
-                return new Candidate(
-                    MatchResult.Level.RATIO_MISMATCH,
-                    "gui.neoecoae.pattern_upload.reason.ratio",
-                    route,
-                    shown);
-            default:
-                return new Candidate(
-                    MatchResult.Level.WRONG_RECIPE,
-                    "gui.neoecoae.pattern_upload.reason.recipe",
-                    route,
-                    shown);
+                    route.circuit == null ? "machine_circuit_missing" : "machine_circuit",
+                    route, route.circuit, category, selection, programming);
+                return candidate(
+                    MatchResult.Level.UNVERIFIED, "circuit_unknown", route, route.circuit,
+                    category, selection, programming);
+            }
+            selected = patternCircuit != null ? patternCircuit : inferred.circuit();
         }
+        if (programmingCircuit && !canProgram) return candidate(
+            MatchResult.Level.CIRCUIT_CONFLICT, "needs_programming", route, selected, category, selection, programming);
+        if (selected != null && route.circuit != null && !GtCircuits.same(selected, route.circuit)
+            && !(GtCircuits.hasProgrammingSelector(context.recipeInputs) && canProgram)) return candidate(
+                MatchResult.Level.CIRCUIT_CONFLICT, "machine_circuit", route, selected, category, selection, programming);
+        if (selected != null && route.circuit == null && patternCircuit == null) return candidate(
+            MatchResult.Level.CIRCUIT_CONFLICT, "machine_circuit_missing", route, selected, category, selection, programming);
+        if (selected != null && patternCircuit == null && programmingCircuit) return candidate(
+            MatchResult.Level.CIRCUIT_CONFLICT, "machine_circuit_missing", route, selected, category, selection, programming);
+        if (sourced && !context.hint.hasRecipeMap() && selected == null && route.circuit != null) return candidate(
+            MatchResult.Level.UNVERIFIED, "circuit_unknown", route, route.circuit, category, selection, programming);
+        if (categoryUnknown) return candidate(
+            MatchResult.Level.UNVERIFIED, "no_route", route, selected, category, selection, programming);
+        return candidate(MatchResult.Level.ROUTED, null, route, selected, category, selection, programming);
     }
 
-    private static boolean knownMap(String id) {
+    private static Candidate candidate(MatchResult.Level level, String reason, Route route, ItemStack circuit,
+        String category, String selection, boolean programming) {
+        return new Candidate(
+            level, reason == null ? null : "gui.neoecoae.pattern_upload.reason." + reason,
+            route, circuit, category, selection, programming);
+    }
+
+    private static RecipeMap<?> knownMap(String id) {
         try {
-            return RecipeMap.ALL_RECIPE_MAPS.containsKey(id) || RecipeMap.getFromOldIdentifier(id) != null;
+            return RecipeMap.getFromOldIdentifier(id);
         } catch (RuntimeException unknown) {
-            return false;
+            return null;
         }
     }
 
     private List<Route> routes(Object host) {
         List<Route> routes = new ArrayList<>();
         try {
-            if (host instanceof IMetaTileEntity) {
-                IMetaTileEntity machine = (IMetaTileEntity) host;
-                ItemStack circuit = circuit(machine);
-                boolean cover = hasProgrammingCover(machine.getBaseMetaTileEntity());
-                MTEMultiBlockBase owner = machine instanceof IDualInputHatch ? owner(machine) : null;
-                RecipeMap<?> ownerMap = owner == null ? null : owner.getRecipeMap();
-                if (ownerMap != null) {
-                    // The controller's live mode. A hatch's own map is only refreshed by a structure check, so after
-                    // a screwdriver mode switch it still names the previous mode.
-                    ItemStack ownerIcon = icon(owner);
-                    add(
-                        routes,
-                        ownerMap,
-                        circuit,
-                        ownerIcon,
-                        name(ownerIcon, owner, ownerMap),
-                        cover,
-                        ProgrammableHatchUpload.isProgrammingInput(machine));
-                } else {
-                    RecipeMap<?> map = recipeMap(machine);
-                    ItemStack icon = icon(machine);
-                    if (map != null) add(
-                        routes,
-                        map,
-                        circuit,
-                        icon,
-                        name(icon, machine, map),
-                        cover,
-                        ProgrammableHatchUpload.isProgrammingInput(machine));
-                }
-            }
+            if (host instanceof IMetaTileEntity) addMachine(routes, (IMetaTileEntity) host);
             if (host instanceof IInterfaceHost) {
                 TileEntity tile = ((IInterfaceHost) host).getTileEntity();
                 EnumSet<ForgeDirection> targets = ((IInterfaceHost) host).getTargets();
                 if (tile != null && tile.getWorldObj() != null && targets != null) for (ForgeDirection side : targets) {
                     if (side == null || side == ForgeDirection.UNKNOWN) continue;
-                    TileEntity adjacent = tile.getWorldObj()
-                        .getTileEntity(
-                            tile.xCoord + side.offsetX,
-                            tile.yCoord + side.offsetY,
-                            tile.zCoord + side.offsetZ);
+                    TileEntity adjacent = tile.getWorldObj().getTileEntity(
+                        tile.xCoord + side.offsetX, tile.yCoord + side.offsetY, tile.zCoord + side.offsetZ);
                     if (!(adjacent instanceof IGregTechTileEntity)) continue;
                     IMetaTileEntity machine = ((IGregTechTileEntity) adjacent).getMetaTileEntity();
-                    if (!(machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus
-                        || machine instanceof RecipeMapWorkable)) continue;
-                    // An input part follows its formed controller's current mode, not the map cached at formation.
-                    MTEMultiBlockBase owner = machine instanceof RecipeMapWorkable ? null : owner(machine);
-                    RecipeMap<?> map = owner != null ? owner.getRecipeMap() : null;
-                    if (map == null) {
-                        owner = null;
-                        map = recipeMap(machine);
-                    }
-                    if (map == null) continue;
-                    ItemStack icon = icon(owner != null ? owner : machine);
-                    add(
-                        routes,
-                        map,
-                        circuit(machine),
-                        icon,
-                        name(icon, owner != null ? owner : machine, map),
-                        hasProgrammingCover((IGregTechTileEntity) adjacent),
-                        ProgrammableHatchUpload.isProgrammingInput(machine));
+                    if (machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus
+                        || machine instanceof RecipeMapWorkable) addMachine(routes, machine);
                 }
             }
         } catch (RuntimeException rebuilding) {
-            // A machine observed while its structure or inventory initializes exposes no route this time.
+            // A partially inspected host is never considered a unique processing receiver.
+            routes.clear();
         }
         return routes;
     }
 
+    private void addMachine(List<Route> routes, IMetaTileEntity machine) {
+        ItemStack circuit = circuit(machine);
+        boolean cover = hasProgrammingCover(machine.getBaseMetaTileEntity());
+        boolean programmable = ProgrammableHatchUpload.isProgrammingInput(machine);
+        List<MTEMultiBlockBase> controllers = machine instanceof RecipeMapWorkable
+            ? Collections.emptyList() : owners(machine);
+        if (!controllers.isEmpty()) {
+            for (MTEMultiBlockBase controller : controllers) {
+                RecipeMap<?> map = controller.getRecipeMap();
+                if (map == null) continue;
+                ItemStack icon = icon(controller);
+                add(routes, map, circuit, icon, name(icon, controller, map), controller, cover, programmable);
+            }
+        } else {
+            RecipeMap<?> map = recipeMap(machine);
+            ItemStack icon = icon(machine);
+            add(
+                routes, map, circuit, icon, name(icon, machine, map),
+                machine instanceof RecipeMapWorkable ? machine : null, cover, programmable);
+        }
+    }
+
     private static void add(List<Route> routes, RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name,
-        boolean cover, boolean programmable) {
+        IMetaTileEntity receiver, boolean cover, boolean programmable) {
         // The same map and circuit can be reached through different input parts. Keep programming capability:
         // an earlier unprogrammed bus (or fluid hatch) must not hide a later bus carrying a programming cover.
         for (Route route : routes) if (route.map == map && route.programmingCover == cover
             && route.programmable == programmable
+            && route.receiver == receiver
             && (route.circuit == null ? circuit == null : GtCircuits.same(route.circuit, circuit))) return;
-        routes.add(new Route(map, circuit, icon, name, cover, programmable));
+        routes.add(new Route(map, circuit, icon, name, receiver, cover, programmable));
     }
 
     private static RecipeMap<?> recipeMap(IMetaTileEntity machine) {
@@ -346,28 +386,29 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         return machine.getMetaName();
     }
 
-    private MTEMultiBlockBase owner(IMetaTileEntity part) {
+    private List<MTEMultiBlockBase> owners(IMetaTileEntity part) {
         IGregTechTileEntity base = part.getBaseMetaTileEntity();
         World world = base == null ? null : base.getWorld();
-        if (world == null) return null;
+        if (world == null) return Collections.emptyList();
         OwnerIndex index = owners.get(world);
         long now = world.getTotalWorldTime();
         if (index == null || now - index.builtAt > OWNER_INDEX_TICKS || now < index.builtAt) {
             index = OwnerIndex.build(world, now);
             owners.put(world, index);
         }
-        MTEMultiBlockBase owner = index.owners.get(part);
-        return owner != null && owner.mMachine
-            && owner.getBaseMetaTileEntity() != null
-            && !owner.getBaseMetaTileEntity()
-                .isDead() ? owner : null;
+        List<MTEMultiBlockBase> found = index.owners.get(part);
+        if (found == null) return Collections.emptyList();
+        List<MTEMultiBlockBase> live = new ArrayList<>(found);
+        live.removeIf(owner -> !owner.mMachine || owner.getBaseMetaTileEntity() == null
+            || owner.getBaseMetaTileEntity().isDead());
+        return live;
     }
 
     /** Formed controller per input part, built by one bounded pass over the loaded tiles. */
     private static final class OwnerIndex {
 
         final long builtAt;
-        final Map<Object, MTEMultiBlockBase> owners = new IdentityHashMap<>();
+        final Map<Object, List<MTEMultiBlockBase>> owners = new IdentityHashMap<>();
 
         private OwnerIndex(long builtAt) {
             this.builtAt = builtAt;
@@ -381,12 +422,13 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                 if (!(meta instanceof MTEMultiBlockBase)) continue;
                 MTEMultiBlockBase controller = (MTEMultiBlockBase) meta;
                 if (!controller.mMachine) continue;
-                if (controller.mDualInputHatches != null)
-                    for (Object hatch : controller.mDualInputHatches) index.owners.putIfAbsent(hatch, controller);
-                if (controller.mInputBusses != null)
-                    for (Object bus : controller.mInputBusses) index.owners.putIfAbsent(bus, controller);
-                if (controller.mInputHatches != null)
-                    for (Object hatch : controller.mInputHatches) index.owners.putIfAbsent(hatch, controller);
+                for (TileEntity input : NativeGregTech.inputTiles(controller)) {
+                    if (!(input instanceof IGregTechTileEntity)) continue;
+                    IMetaTileEntity part = ((IGregTechTileEntity) input).getMetaTileEntity();
+                    if (part == null) continue;
+                    List<MTEMultiBlockBase> linked = index.owners.computeIfAbsent(part, ignored -> new ArrayList<>());
+                    if (!linked.contains(controller)) linked.add(controller);
+                }
             }
             return index;
         }

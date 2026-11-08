@@ -19,9 +19,18 @@ public final class GtNeiRoutes {
     @com.github.bsideup.jabel.Desugar
     public record Hint(String map, ItemStack circuit) {}
 
-    /** Null for non-GT handlers or recipe maps without a name. */
+    /** Reads the selected circuit, plus a recipe map for GT handlers; null when the page cannot be identified. */
     public static Hint read(IRecipeHandler handler, int recipeIndex) {
-        if (!(handler instanceof GTNEIDefaultHandler)) return null;
+        if (!(handler instanceof GTNEIDefaultHandler)) {
+            if (handler == null) return null;
+            ItemStack circuit = null;
+            List<PositionedStack> inputs = handler.getIngredientStacks(recipeIndex);
+            if (inputs != null) for (PositionedStack input : inputs) {
+                circuit = circuit(input);
+                if (circuit != null) break;
+            }
+            return new Hint("", circuit);
+        }
         GTNEIDefaultHandler gt = (GTNEIDefaultHandler) handler;
         var recipeMap = gt.getRecipeMap();
         String name = recipeMap == null ? null : recipeMap.unlocalizedName;

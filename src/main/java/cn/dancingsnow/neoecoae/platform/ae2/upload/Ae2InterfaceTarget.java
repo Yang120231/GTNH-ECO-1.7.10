@@ -1,14 +1,22 @@
 package cn.dancingsnow.neoecoae.platform.ae2.upload;
 
+import java.util.Set;
+import java.util.TreeSet;
+
 import net.minecraft.inventory.IInventory;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.Vec3;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import appeng.api.AEApi;
+import appeng.api.crafting.ICraftingIconProvider;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.util.IInterfaceViewable;
+import appeng.helpers.IInterfaceHost;
 import cn.dancingsnow.neoecoae.compat.ae2fc.upload.DualInterfaceUpload;
 import cn.dancingsnow.neoecoae.compat.gtnl.upload.SuperInputHatchUpload;
 import cn.dancingsnow.neoecoae.compat.proghatches.upload.ProgrammableHatchUpload;
@@ -17,6 +25,8 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternContext;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternRouteProbe;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternSlotAccess;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
+import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
+import com.gtnewhorizon.gtnhlib.capability.Capabilities;
 
 /** Any host listed by AE2's interface terminal: ME interfaces, 2-in-1 interfaces and GT/addon pattern hatches. */
 final class Ae2InterfaceTarget implements PatternUploadTarget {
@@ -108,6 +118,11 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
     }
 
     @Override
+    public Object storageIdentity() {
+        return viewable.getPatterns();
+    }
+
+    @Override
     public boolean isPresent(IGrid grid) {
         TileEntity tile = tile();
         return node.isActive() && node.getGrid() == grid
@@ -143,12 +158,71 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
             if (!plainInterface) return MatchResult
                 .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.processing_only");
             return facesMolecularAssembler()
-                ? new MatchResult(MatchResult.Level.EXACT, null, null, null, null, "crafting", false)
+                ? new MatchResult(
+                    MatchResult.Level.EXACT, null, null, null, null, "crafting", false, "ae2:crafting", "-")
                 : MatchResult.of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.no_assembler");
         }
+        boolean nativeGt = NativeGregTech.isAvailable();
+        String selection = nativeGt ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
+            : context.hint == null ? "?" : context.hint.selectionKey();
+        ItemStack circuit = nativeGt ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectedCircuit(context)
+            : context.hint == null ? null : context.hint.getCircuit();
+        if ("!".equals(selection)) return MatchResult.of(
+            MatchResult.Level.CIRCUIT_CONFLICT, "gui.neoecoae.pattern_upload.reason.circuits_multiple");
+        if (context.hint != null && context.hint.hasRecipeMap() && (!nativeGt
+            || !cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.isKnownMap(context.hint.getRecipeMapId())))
+            return MatchResult.of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.source_map_unknown");
         MatchResult routed = probe.match(viewable, context, kind == Kind.PROGRAMMABLE_HATCH);
-        return routed != null ? routed
-            : MatchResult.of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.no_route");
+        if (routed != null) return routed;
+        if (context.hint != null && !context.hint.hasRecipeMap() && viewable instanceof IInterfaceHost) {
+            IInterfaceHost host = (IInterfaceHost) viewable;
+            TileEntity tile = host.getTileEntity();
+            var targets = host.getTargets();
+            Set<String> machines = new TreeSet<>();
+            ItemStack shown = null;
+            if (tile != null && tile.getWorldObj() != null && targets != null) for (ForgeDirection target : targets) {
+                if (target == null || target == ForgeDirection.UNKNOWN) continue;
+                TileEntity machine = tile.getWorldObj().getTileEntity(
+                    tile.xCoord + target.offsetX, tile.yCoord + target.offsetY, tile.zCoord + target.offsetZ);
+                ItemStack type = machineType(machine, target.getOpposite());
+                if (!context.hint.matchesMachine(type)) continue;
+                if (shown == null) shown = type;
+                machines.add(machine.getClass().getName() + "@"
+                    + Item.itemRegistry.getNameForObject(type.getItem()) + ":" + type.getItemDamage());
+            }
+            if (!machines.isEmpty()) {
+                String category = context.hint.getCategoryId();
+                return new MatchResult(
+                    MatchResult.Level.ROUTED, null, circuit, null, shown,
+                    category + "#" + selection + "#" + String.join(",", machines), false, category, selection);
+            }
+        }
+        return new MatchResult(
+            MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.no_route", circuit, null, null, "", false,
+            context.hint == null ? "" : context.hint.getCategoryId(),
+            selection);
+    }
+
+    /** Inspect every facing machine, rather than relying on AE2's first adjacent display icon. */
+    private static ItemStack machineType(TileEntity machine, ForgeDirection face) {
+        if (machine == null || machine.getWorldObj() == null || machine.getBlockType() == null) return null;
+        var provider = Capabilities.getCapability(machine, ICraftingIconProvider.class);
+        if (provider != null) {
+            ItemStack icon = provider.getMachineCraftingIcon();
+            if (icon != null) return icon.copy();
+        }
+        var block = machine.getBlockType();
+        ItemStack type = new ItemStack(block, 1, block.getDamageValue(
+            machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord));
+        try {
+            var hit = new MovingObjectPosition(
+                machine.xCoord, machine.yCoord, machine.zCoord, face.ordinal(),
+                Vec3.createVectorHelper(machine.xCoord + 0.5, machine.yCoord + 0.5, machine.zCoord + 0.5));
+            ItemStack picked = block.getPickBlock(
+                hit, machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord, null);
+            if (picked != null && picked.getItem() != null) type = picked;
+        } catch (RuntimeException | LinkageError unsupportedPick) { /* Use the block's declared item form. */ }
+        return type.getItem() == null ? null : type;
     }
 
     private boolean facesMolecularAssembler() {

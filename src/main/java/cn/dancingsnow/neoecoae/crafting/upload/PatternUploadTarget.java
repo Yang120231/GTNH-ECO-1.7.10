@@ -56,6 +56,11 @@ public interface PatternUploadTarget {
     /** Stable position key including the part side, used for sorting and duplicate host detection. */
     String positionKey();
 
+    /** Actual shared inventory ownership; aliases of the same inventory are one upload object. */
+    default Object storageIdentity() {
+        return null;
+    }
+
     /** Still on {@code grid}, powered and in the same world slot. */
     boolean isPresent(IGrid grid);
 

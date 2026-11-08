@@ -1,5 +1,9 @@
 package cn.dancingsnow.neoecoae.platform.mixin;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
@@ -18,12 +22,13 @@ import cn.dancingsnow.neoecoae.platform.gt.upload.GtNeiRoutes;
 import cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient;
 import codechicken.nei.recipe.IRecipeHandler;
 import codechicken.nei.recipe.RecipeHandlerRef;
+import codechicken.nei.recipe.RecipeCatalysts;
 import codechicken.nei.recipe.ShapedRecipeHandler;
 
 /**
- * Captures the recipe source at NEI's transfer dispatch, before either the selected overlay or its legacy fallback
- * fills a pattern terminal. NotEnoughEnergistics replaces AE2's overlay, so intercepting AE2's own handler misses it.
- * Anything unreadable clears the hint; the server re-verifies every route regardless.
+ * Sends NEI's source after the selected overlay has dispatched its fill packet, including the legacy fallback.
+ * Those packets clear the draft first; the source packet follows them on the same connection. NEE replaces AE2's
+ * overlay, so intercepting AE2's own handler misses it.
  */
 @Mixin(value = RecipeHandlerRef.class, remap = false)
 public abstract class NeiPatternRouteMixin {
@@ -43,22 +48,27 @@ public abstract class NeiPatternRouteMixin {
 
     @Inject(
         method = "fillCraftingGrid(Lnet/minecraft/client/gui/inventory/GuiContainer;I)V",
-        at = @At(
-            value = "INVOKE",
-            target = "Lcodechicken/nei/recipe/RecipeHandlerRef;allowedTransferAlghoritm(Lnet/minecraft/client/gui/inventory/GuiContainer;)Z"),
+        at = {
+            @At(
+                value = "INVOKE",
+                target = "Lcodechicken/nei/api/IOverlayHandler;overlayRecipe(Lnet/minecraft/client/gui/inventory/GuiContainer;Lcodechicken/nei/recipe/IRecipeHandler;IZ)V",
+                shift = At.Shift.AFTER),
+            @At(
+                value = "INVOKE",
+                target = "Lcodechicken/nei/api/IOverlayHandler;transferRecipe(Lnet/minecraft/client/gui/inventory/GuiContainer;Lcodechicken/nei/recipe/IRecipeHandler;II)I",
+                shift = At.Shift.AFTER) },
         require = 1)
     private void neoecoae$captureFill(GuiContainer gui, int multiplier, CallbackInfo ci) {
+        // NEE returns zero even after dispatching a complete virtual recipe; it is not a transfer-failure flag.
         neoecoae$captureRoute(gui);
     }
 
     @Inject(
         method = "craft(Lnet/minecraft/client/gui/inventory/GuiContainer;I)Z",
-        at = @At(
-            value = "INVOKE",
-            target = "Lcodechicken/nei/api/IOverlayHandler;craft(Lnet/minecraft/client/gui/inventory/GuiContainer;Lcodechicken/nei/recipe/IRecipeHandler;II)Z"),
+        at = @At("RETURN"),
         require = 1)
     private void neoecoae$captureCraft(GuiContainer gui, int multiplier, CallbackInfoReturnable<Boolean> cir) {
-        neoecoae$captureRoute(gui);
+        if (cir.getReturnValueZ()) neoecoae$captureRoute(gui);
     }
 
     private void neoecoae$captureRoute(GuiContainer gui) {
@@ -81,7 +91,36 @@ public abstract class NeiPatternRouteMixin {
             }
         }
         PatternUploadClient
-            .captureHint(terminal, map, circuit, neoecoae$category(handler), neoecoae$categoryId(handler, map));
+            .captureHint(
+                terminal, map, circuit, neoecoae$category(handler), neoecoae$categoryId(handler, map),
+                neoecoae$machineTypes(handler, map));
+    }
+
+    /** The selected category's full catalyst directory; GT's map already includes alternate/mega controllers. */
+    private static List<ItemStack> neoecoae$machineTypes(IRecipeHandler handler, String map) {
+        if (handler == null || map != null && !map.isEmpty()) return Collections.emptyList();
+        List<ItemStack> types = new ArrayList<>();
+        try {
+            for (var catalyst : RecipeCatalysts.getRecipeCatalysts(handler)) {
+                if (catalyst == null || catalyst.items == null) continue;
+                for (ItemStack type : catalyst.items) {
+                    if (type == null || type.getItem() == null) continue;
+                    boolean duplicate = false;
+                    for (ItemStack known : types) if (known.isItemEqual(type)
+                        && ItemStack.areItemStackTagsEqual(known, type)) duplicate = true;
+                    if (!duplicate) {
+                        ItemStack copy = type.copy();
+                        copy.stackSize = 1;
+                        types.add(copy);
+                    }
+                    // A partial directory could hide a second compatible machine. Use explicit bindings instead.
+                    if (types.size() > 128) return Collections.emptyList();
+                }
+            }
+        } catch (RuntimeException | LinkageError unavailable) {
+            return Collections.emptyList();
+        }
+        return types;
     }
 
     /** NEI's handler identity and overlay distinguish categories without depending on the display language. */

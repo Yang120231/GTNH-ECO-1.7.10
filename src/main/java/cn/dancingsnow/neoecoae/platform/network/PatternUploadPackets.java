@@ -77,8 +77,9 @@ public final class PatternUploadPackets {
         }
     }
 
-    public static void hint(int windowId, String recipeMapId, ItemStack circuit, String category, String categoryId) {
-        CHANNEL.sendToServer(new Hint(windowId, recipeMapId, circuit, category, categoryId));
+    public static void hint(int windowId, String recipeMapId, ItemStack circuit, String category, String categoryId,
+        List<ItemStack> machineTypes) {
+        CHANNEL.sendToServer(new Hint(windowId, recipeMapId, circuit, category, categoryId, machineTypes));
     }
 
     public static void autoTarget(EntityPlayerMP player, AutoTarget message) {
@@ -141,15 +142,19 @@ public final class PatternUploadPackets {
         /** Display name of the NEI recipe category; empty for crafting-table recipes. */
         String category = "";
         String categoryId = "";
+        List<ItemStack> machineTypes = new ArrayList<>();
 
         public Hint() {}
 
-        Hint(int windowId, String recipeMapId, ItemStack circuit, String category, String categoryId) {
+        Hint(int windowId, String recipeMapId, ItemStack circuit, String category, String categoryId,
+            List<ItemStack> machineTypes) {
             this.windowId = windowId;
             this.recipeMapId = recipeMapId == null ? "" : recipeMapId;
             this.circuit = circuit == null ? null : circuit.copy();
             this.category = category == null ? "" : category;
             this.categoryId = categoryId == null ? "" : categoryId;
+            if (machineTypes != null && machineTypes.size() <= 128) for (ItemStack type : machineTypes)
+                if (type != null) this.machineTypes.add(type.copy());
         }
 
         @Override
@@ -162,6 +167,14 @@ public final class PatternUploadPackets {
                 String id = ByteBufUtils.readUTF8String(buf);
                 categoryId = id.length() <= 512 ? id : "";
             }
+            if (buf.isReadable()) {
+                int count = buf.readUnsignedByte();
+                if (count > 128) throw new IllegalArgumentException("Too many NEI machine types");
+                for (int index = 0; index < count; index++) {
+                    ItemStack type = ByteBufUtils.readItemStack(buf);
+                    if (type != null) machineTypes.add(type);
+                }
+            }
         }
 
         @Override
@@ -171,6 +184,8 @@ public final class PatternUploadPackets {
             ByteBufUtils.writeItemStack(buf, circuit);
             ByteBufUtils.writeUTF8String(buf, category);
             ByteBufUtils.writeUTF8String(buf, categoryId);
+            buf.writeByte(machineTypes.size());
+            for (ItemStack type : machineTypes) ByteBufUtils.writeItemStack(buf, type);
         }
     }
 
@@ -187,7 +202,8 @@ public final class PatternUploadPackets {
                         message.recipeMapId,
                         message.circuit,
                         message.category,
-                        message.categoryId));
+                        message.categoryId,
+                        message.machineTypes));
             return null;
         }
     }

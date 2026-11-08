@@ -7,7 +7,7 @@ public final class MatchResult {
 
     public enum Level {
 
-        /** Recipe, quantities and circuit were verified against the target's actual configuration. */
+        /** A native crafting pattern can be handled by this target. */
         EXACT("exact"),
         /** The target accepts this kind of pattern; no recipe route needs proving. */
         ACCEPTED("accepted"),
@@ -17,7 +17,9 @@ public final class MatchResult {
         RATIO_MISMATCH("ratio_mismatch"),
         WRONG_RECIPE("wrong_recipe"),
         /** The target cannot hold this pattern kind at all. */
-        INCOMPATIBLE("incompatible");
+        INCOMPATIBLE("incompatible"),
+        /** The recipe category and selection parameters identify this processing route. */
+        ROUTED("routed");
 
         public final String key;
 
@@ -27,6 +29,10 @@ public final class MatchResult {
 
         public String translationKey() {
             return "gui.neoecoae.pattern_upload.match." + key;
+        }
+
+        public int rank() {
+            return this == ROUTED ? 0 : ordinal();
         }
     }
 
@@ -38,9 +44,17 @@ public final class MatchResult {
     /** Recipe map and circuit of the selected route; different signatures among auto candidates are ambiguous. */
     public final String routeSignature;
     public final boolean programmingCover;
+    /** Language-independent category and requested selector used by automatic route bindings. */
+    public final String categoryId;
+    public final String selectionKey;
 
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover) {
+        this(level, reason, circuit, routeName, routeIcon, routeSignature, programmingCover, "", "");
+    }
+
+    public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
+        String routeSignature, boolean programmingCover, String categoryId, String selectionKey) {
         this.level = level;
         this.reason = reason;
         this.circuit = circuit == null ? null : circuit.copy();
@@ -48,6 +62,8 @@ public final class MatchResult {
         this.routeIcon = routeIcon == null ? null : routeIcon.copy();
         this.routeSignature = routeSignature == null ? "" : routeSignature;
         this.programmingCover = programmingCover;
+        this.categoryId = categoryId == null ? "" : categoryId;
+        this.selectionKey = selectionKey == null ? "" : selectionKey;
     }
 
     public static MatchResult of(Level level) {
@@ -59,18 +75,19 @@ public final class MatchResult {
     }
 
     public boolean allowsAuto() {
-        return level == Level.EXACT;
+        return level == Level.EXACT || level == Level.ROUTED;
     }
 
     public boolean allowsManual() {
         return level != Level.INCOMPATIBLE;
     }
 
-    /** A user mapping supplies a missing route, but cannot resolve a known recipe or circuit problem. */
+    /** A binding can declare an unknown source selector, but cannot override a known target conflict. */
     public static boolean allowsMapping(Level level, String reason) {
-        return level == Level.EXACT || level == Level.ACCEPTED
+        return level == Level.EXACT || level == Level.ROUTED || level == Level.ACCEPTED
             || level == Level.UNVERIFIED
-                && (reason == null || reason.isEmpty() || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason));
+                && (reason == null || reason.isEmpty() || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason)
+                    || "gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason));
     }
 
     public boolean allowsMapping() {

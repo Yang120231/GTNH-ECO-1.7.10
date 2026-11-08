@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,9 +13,8 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetSelector.Evaluation;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetSelector.SlotState;
 
 /**
- * Folds target evaluations into list rows. Hosts of the same kind, name, route, match level, route signature, circuit
- * and programming cover are interchangeable for the player (typically parallel machines), so they share one row and
- * one server-issued token; the server picks the member to write at submit time.
+ * One row per concrete upload inventory. Only aliases of the same inventory and route share a row and token;
+ * independent parallel machines remain separate binding choices.
  *
  * <p>
  * Tokens are kept for a group key that is still present after a refresh, so a click sent against the previous list
@@ -43,8 +43,8 @@ public final class PatternTargetGroups {
                 if (member.state == SlotState.FREE) free++;
                 else if (member.state == SlotState.DUPLICATE) duplicate++;
                 else if (member.state == SlotState.FULL) full = true;
-                empty += member.emptySlots;
-                total += member.totalSlots;
+                empty = Math.max(empty, member.emptySlots);
+                total = Math.max(total, member.totalSlots);
                 manual |= member.canUploadManually();
             }
             this.freeMembers = free;
@@ -52,7 +52,7 @@ public final class PatternTargetGroups {
             this.emptySlots = empty;
             this.totalSlots = total;
             this.manual = manual;
-            // A free parallel machine wins over copies that already hold the pattern.
+            // Members are alternate views of the same inventory.
             this.state = free > 0 ? SlotState.FREE
                 : duplicate > 0 ? SlotState.DUPLICATE : full ? SlotState.FULL : SlotState.OFFLINE;
         }
@@ -147,8 +147,20 @@ public final class PatternTargetGroups {
     /** Pure grouping, sorted best group first. */
     public static List<Group> group(List<Evaluation> evaluations) {
         Map<String, List<Evaluation>> byKey = new LinkedHashMap<>();
-        for (Evaluation evaluation : evaluations) byKey.computeIfAbsent(key(evaluation), ignored -> new ArrayList<>())
-            .add(evaluation);
+        Map<Object, Map<String, String>> aliases = new IdentityHashMap<>();
+        for (Evaluation evaluation : evaluations) {
+            String key = key(evaluation);
+            Object inventory = evaluation.storageIdentity;
+            if (inventory != null) {
+                String route = evaluation.target.kind().name() + '\u0001' + evaluation.match.routeSignature
+                    + '\u0001' + evaluation.match.level.name() + '\u0001' + evaluation.match.categoryId
+                    + '\u0001' + evaluation.match.selectionKey + '\u0001' + evaluation.match.programmingCover;
+                Map<String, String> views = aliases.computeIfAbsent(inventory, ignored -> new HashMap<>());
+                String previous = views.putIfAbsent(route, key);
+                if (previous != null) key = previous;
+            }
+            byKey.computeIfAbsent(key, ignored -> new ArrayList<>()).add(evaluation);
+        }
         List<Group> result = new ArrayList<>(byKey.size());
         for (Map.Entry<String, List<Evaluation>> entry : byKey.entrySet()) {
             List<Evaluation> members = entry.getValue();
@@ -163,8 +175,17 @@ public final class PatternTargetGroups {
         return mappingKey(evaluation) + '\u0001' + evaluation.match.level.name();
     }
 
-    /** Persistent group identity: match verdicts and free slots change with the pattern, the route does not. */
+    /** Concrete row identity, independent of names, free slots and match verdicts. */
     public static String mappingKey(Evaluation evaluation) {
+        StringBuilder key = new StringBuilder("2:");
+        append(key, evaluation.positionKey);
+        append(key, evaluation.target.kind().name());
+        append(key, evaluation.match.routeSignature);
+        return key.append(':').append(evaluation.match.programmingCover).toString();
+    }
+
+    /** Old group keys are read only to prove whether they still name exactly one concrete inventory. */
+    public static String legacyMappingKey(Evaluation evaluation) {
         MatchResult match = evaluation.match;
         PatternUploadTarget target = evaluation.target;
         StringBuilder key = new StringBuilder("1:");
@@ -175,11 +196,34 @@ public final class PatternTargetGroups {
         append(key, target.name());
         append(key, target.nameSuffix());
         append(key, match.routeName);
-        append(key, match.routeSignature);
+        String signature = match.routeSignature;
+        int role = signature.indexOf('#', signature.indexOf('#') + 1);
+        append(key, role < 0 ? signature : signature.substring(0, role));
         return key.append(circuitNumber(match))
             .append(':')
             .append(match.programmingCover)
             .toString();
+    }
+
+    /** Selector encoded at the end of the old five-field length-prefixed group key. */
+    public static String legacySelection(String key) {
+        if (!key.startsWith("1:")) return null;
+        try {
+            int cursor = 2;
+            for (int field = 0; field < 5; field++) {
+                int colon = key.indexOf(':', cursor);
+                if (colon < 0) return null;
+                int length = Integer.parseInt(key.substring(cursor, colon));
+                if (length < 0 || length > key.length() - colon - 1) return null;
+                cursor = colon + 1 + length;
+            }
+            int end = key.indexOf(':', cursor);
+            if (end < 0) return null;
+            int number = Integer.parseInt(key.substring(cursor, end));
+            return number < 0 ? "-" : Integer.toString(number);
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
     }
 
     /** Virtual circuit number shown for a route, or -1. */

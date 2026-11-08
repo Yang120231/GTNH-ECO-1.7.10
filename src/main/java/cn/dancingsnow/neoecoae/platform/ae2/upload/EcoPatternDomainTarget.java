@@ -24,7 +24,7 @@ import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
  */
 final class EcoPatternDomainTarget implements PatternUploadTarget {
 
-    private final ECOMachineInterfaceBlockEntity<?> host;
+    private ECOMachineInterfaceBlockEntity<?> host;
     private final Object domain;
 
     EcoPatternDomainTarget(ECOMachineInterfaceBlockEntity<?> host, Object domain) {
@@ -34,6 +34,11 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
 
     Object domain() {
         return domain;
+    }
+
+    /** An online alias of this same domain may supply its grid access. */
+    void preferHost(ECOMachineInterfaceBlockEntity<?> candidate) {
+        if (!host.isTargetOnline() && candidate.isTargetOnline()) host = candidate;
     }
 
     private NECraftingCluster cluster() {
@@ -80,27 +85,39 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
 
     @Override
     public int dimension() {
-        return host.getWorldObj() == null ? 0 : host.getWorldObj().provider.dimensionId;
+        var position = position();
+        return position.getWorldObj() == null ? 0 : position.getWorldObj().provider.dimensionId;
     }
 
     @Override
     public int x() {
-        return host.xCoord;
+        return position().xCoord;
     }
 
     @Override
     public int y() {
-        return host.yCoord;
+        return position().yCoord;
     }
 
     @Override
     public int z() {
-        return host.zCoord;
+        return position().zCoord;
+    }
+
+    /** A domain's canonical bus address stays stable when another interface discovers the same inventory. */
+    private net.minecraft.tileentity.TileEntity position() {
+        List<ECOCraftingPatternBusBlockEntity> buses = buses();
+        return buses.isEmpty() ? host : buses.get(0);
     }
 
     @Override
     public String positionKey() {
         return "eco:" + dimension() + ":" + x() + ":" + y() + ":" + z();
+    }
+
+    @Override
+    public Object storageIdentity() {
+        return domain;
     }
 
     @Override
@@ -122,7 +139,8 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
     public MatchResult match(PatternContext context) {
         return context.processing
             ? MatchResult.of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.eco_crafting_only")
-            : new MatchResult(MatchResult.Level.EXACT, null, null, null, null, "crafting", false);
+            : new MatchResult(
+                MatchResult.Level.EXACT, null, null, null, null, "crafting", false, "ae2:crafting", "-");
     }
 
     /** Concatenated view over the domain's buses; {@link #physical} resolves one bus slot for the transfer. */

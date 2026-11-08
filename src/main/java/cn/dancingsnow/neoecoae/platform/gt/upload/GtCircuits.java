@@ -56,10 +56,46 @@ final class GtCircuits {
         return null;
     }
 
+    static boolean conflictingCircuits(IAEStack<?>[] inputs) {
+        if (inputs == null) return false;
+        ItemStack selected = null;
+        boolean reset = false;
+        for (IAEStack<?> input : inputs) {
+            if (!(input instanceof IAEItemStack)) continue;
+            ItemStack raw = ((IAEItemStack) input).getItemStack();
+            ItemStack circuit = unwrap(raw);
+            if (circuit != null) {
+                if (selected != null && !same(selected, circuit)) return true;
+                selected = circuit;
+            } else if (ProgrammableHatchUpload.isProgrammingCircuit(raw)
+                && ProgrammableHatchUpload.unwrap(raw) == null) reset = true;
+        }
+        return reset && selected != null;
+    }
+
     static boolean hasProgrammingCircuit(IAEStack<?>[] inputs) {
         if (inputs == null) return false;
         for (IAEStack<?> input : inputs) if (input instanceof IAEItemStack
             && ProgrammableHatchUpload.isProgrammingCircuit(((IAEItemStack) input).getItemStack())) return true;
+        return false;
+    }
+
+    static boolean hasProgrammingSelector(IAEStack<?>[] inputs) {
+        if (inputs == null) return false;
+        for (IAEStack<?> input : inputs) if (input instanceof IAEItemStack) {
+            ItemStack raw = ((IAEItemStack) input).getItemStack();
+            if (ProgrammableHatchUpload.isProgrammingCircuit(raw) && unwrap(raw) != null) return true;
+        }
+        return false;
+    }
+
+    static boolean resetsSelector(IAEStack<?>[] inputs) {
+        if (inputs == null) return false;
+        for (IAEStack<?> input : inputs) if (input instanceof IAEItemStack) {
+            ItemStack raw = ((IAEItemStack) input).getItemStack();
+            if (ProgrammableHatchUpload.isProgrammingCircuit(raw) && ProgrammableHatchUpload.unwrap(raw) == null)
+                return true;
+        }
         return false;
     }
 

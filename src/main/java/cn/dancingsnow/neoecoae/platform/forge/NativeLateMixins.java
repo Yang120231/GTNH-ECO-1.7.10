@@ -31,6 +31,7 @@ public final class NativeLateMixins implements ILateMixinLoader {
                 "StorageBusMountMixin",
                 "CraftingCpuPublicationMixin",
                 "PatternTermEncodeMixin",
+                "PatternTerminalSourceMixin",
                 "ProcessingTargetMixin",
                 "NetworkMonitorMixin",
                 "ContainerCraftConfirmAccessor",

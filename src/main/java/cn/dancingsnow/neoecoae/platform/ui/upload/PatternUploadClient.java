@@ -133,14 +133,15 @@ public final class PatternUploadClient {
      */
     @SideOnly(Side.CLIENT)
     public static void captureHint(GuiContainer gui, String recipeMapId, ItemStack circuit, String category,
-        String categoryId) {
+        String categoryId, java.util.List<ItemStack> machineTypes) {
         if (!(gui instanceof GuiPatternTerm)) return;
         PatternUploadPackets.hint(
             gui.inventorySlots.windowId,
             recipeMapId == null ? "" : recipeMapId,
             circuit,
             category == null ? "" : category,
-            categoryId == null ? "" : categoryId);
+            categoryId == null ? "" : categoryId,
+            machineTypes);
     }
 
     @SubscribeEvent
@@ -203,7 +204,8 @@ public final class PatternUploadClient {
         GuiButton button = event.button;
         if (!(event.gui instanceof GuiPatternTerm) || !(button instanceof PatternUploadButton)) return;
         int windowId = ((GuiContainer) event.gui).inventorySlots.windowId;
-        expectList(windowId);
+        if (((PatternUploadButton) button).automatic) awaitingWindow = -1;
+        else expectList(windowId);
         PatternUploadPackets.request(
             windowId,
             ((PatternUploadButton) button).automatic ? PatternUploadPackets.AUTO : PatternUploadPackets.OPEN);

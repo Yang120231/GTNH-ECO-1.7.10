@@ -57,6 +57,11 @@ public final class NativeGregTech {
         return isAvailable() ? GregTechMachineAccess.hostTile(machine) : null;
     }
 
+    /** Input parts and proxy masters of a formed controller, shared by route and machine-status discovery. */
+    public static java.util.List<TileEntity> inputTiles(Object machine) {
+        return isAvailable() ? GregTechMachineAccess.inputs(machine) : java.util.Collections.emptyList();
+    }
+
     @com.github.bsideup.jabel.Desugar
     public record MachineSnapshot(int metaTileId, String machineClass, boolean active, long storedEu, long euCapacity,
         int progress, int maxProgress, int euPerTick) {}

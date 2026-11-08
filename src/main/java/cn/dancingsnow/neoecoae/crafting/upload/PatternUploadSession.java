@@ -98,7 +98,7 @@ public final class PatternUploadSession {
 
     public PatternContext context() {
         ItemStack pattern = currentPattern();
-        RouteHint hint = PatternUploadSessions.routeHintFor(player, sourceWindowId, pattern);
+        RouteHint hint = PatternUploadSessions.hintFor(player, sourceWindowId, pattern);
         return PatternContext.of(pattern, hint, player.worldObj, source.grid());
     }
 
@@ -120,7 +120,11 @@ public final class PatternUploadSession {
 
     public PatternUploadMappings.Mapping mapping() {
         PatternContext context = context();
-        return context == null || !context.processing ? null : PatternUploadMappings.get(player, hint());
+        return context == null ? null : PatternUploadMappings.get(player, context, evaluations);
+    }
+
+    public PatternUploadMappings.Scope mappingScope() {
+        return PatternUploadMappings.scope(context(), evaluations);
     }
 
     public PatternTargetSelector.AutoChoice autoChoice() {
@@ -134,11 +138,7 @@ public final class PatternUploadSession {
             return false;
         }
         PatternContext context = context();
-        RouteHint hint = hint();
-        if (context == null || !context.processing
-            || hint == null
-            || hint.getCategoryId()
-                .isEmpty()) {
+        if (context == null) {
             message("gui.neoecoae.pattern_upload.mapping.no_category", true);
             return false;
         }
@@ -158,7 +158,8 @@ public final class PatternUploadSession {
                 || !PatternTargetGroups.mappingKey(current)
                     .equals(PatternTargetGroups.mappingKey(member)))
                 continue;
-            boolean saved = PatternUploadMappings.put(player, hint, current);
+            PatternUploadMappings.Scope scope = PatternUploadMappings.scope(context, current);
+            boolean saved = PatternUploadMappings.put(player, scope, current);
             message(
                 saved ? "gui.neoecoae.pattern_upload.mapping.saved" : "gui.neoecoae.pattern_upload.mapping.save_failed",
                 !saved);
@@ -218,35 +219,49 @@ public final class PatternUploadSession {
         if (!isOpen() || !source.canEdit(player)) return fail(REASON_NO_PERMISSION);
         PatternContext context = context();
         if (context == null) return fail(REASON_NO_PATTERN);
+        if (!PatternStacks.sameItem(context.pattern, listedPattern)) return fail(PatternTransfer.REASON_SOURCE_CHANGED);
         IGrid grid = source.grid();
-        // Re-read the destination and its machine route at submit time.
-        PatternTargetSelector.Evaluation evaluation = PatternTargetSelector.evaluate(target, context, grid);
-        boolean allowed = automatic ? evaluation.canUploadAutomatically() : evaluation.canUploadManually();
-        if (automatic && !allowed && evaluation.canUploadByMapping(mapping())) {
-            // A mapped upload must still be the fallback now: another machine may have become verifiable.
+        PatternTargetSelector.Evaluation evaluation;
+        PatternUploadMappings.Mapping binding = null;
+        if (automatic) {
+            PatternTargetSelector.Evaluation expected = null;
+            for (PatternTargetSelector.Evaluation previous : evaluations) if (previous.target == target) {
+                expected = previous;
+                break;
+            }
+            if (expected == null) return fail(REASON_TARGET_MISSING);
+            // Re-discover every receiver, so another matching machine appearing since the tooltip/list cannot be ignored.
             refresh();
+            if (!PatternStacks.sameItem(context.pattern, listedPattern)) return fail(PatternTransfer.REASON_SOURCE_CHANGED);
             PatternTargetSelector.AutoChoice choice = autoChoice();
-            if (!choice.mapped || choice.selected == null
-                || !choice.selected.target.positionKey()
-                    .equals(target.positionKey()))
+            if (choice.selected == null) return fail(choice.reason);
+            if (!PatternTargetSelector.sameReceiver(expected, choice.selected)
+                || !expected.match.routeSignature.equals(choice.selected.match.routeSignature))
                 return fail("gui.neoecoae.pattern_upload.mapping.target_changed");
             evaluation = choice.selected;
             target = evaluation.target;
-            allowed = true;
+            binding = mapping();
+        } else {
+            evaluation = PatternTargetSelector.evaluate(target, context, grid);
+            if (!evaluation.canUploadManually()) return fail(PatternTargetSelector.rejection(evaluation));
         }
-        if (!allowed) {
-            String reason = evaluation.state != PatternTargetSelector.SlotState.FREE ? evaluation.state.translationKey()
-                : evaluation.match.level.translationKey();
-            return fail(reason);
-        }
-        PatternSlotAccess.SlotRef physical = target.slots()
-            .physical(evaluation.freeSlot);
-        PatternTransfer.Result result = PatternTransfer
-            .move(source.slots(), source.slot(), physical.access, physical.slot, context.pattern);
+        PatternSlotAccess.SlotRef physical = target.slots().physical(evaluation.freeSlot);
+        PatternTransfer.Result result = PatternTransfer.move(
+            source.slots(), source.slot(), physical.access, physical.slot, context.pattern);
         if (result.succeeded()) {
-            PatternUploadSessions
-                .remember(player, new UploadReceipt(source.identity(), physical, context.pattern, target));
-            message("gui.neoecoae.pattern_upload.success", false);
+            PatternUploadSessions.remember(
+                player, new UploadReceipt(source.identity(), physical, context.pattern, target));
+            // The first successful unique route becomes sticky. Existing disabled or explicit bindings stay authoritative.
+            if (automatic && evaluation.match.allowsAuto() && (binding == null || binding.legacy && binding.enabled)) {
+                PatternUploadMappings.Scope scope = binding == null
+                    ? PatternUploadMappings.scope(context, evaluation) : binding.scope;
+                if (PatternUploadMappings.put(player, scope, evaluation) && binding != null && binding.legacy)
+                    PatternUploadMappings.remove(player, binding);
+            }
+            message(
+                automatic && evaluation.match.level == MatchResult.Level.UNVERIFIED
+                    ? "gui.neoecoae.pattern_upload.success_unverified" : "gui.neoecoae.pattern_upload.success",
+                false);
         } else message(result.reason, true);
         return result;
     }

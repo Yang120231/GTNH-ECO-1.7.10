@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import appeng.api.AEApi;
@@ -45,7 +46,7 @@ public final class Ae2UploadDiscovery {
         routes.invalidate();
         List<PatternUploadTarget> result = new ArrayList<>();
         Set<Object> seen = Collections.newSetFromMap(new IdentityHashMap<>());
-        Set<Object> domains = Collections.newSetFromMap(new IdentityHashMap<>());
+        Map<Object, EcoPatternDomainTarget> domains = new IdentityHashMap<>();
         try {
             for (Class<? extends IGridHost> type : AEApi.instance()
                 .registries()
@@ -59,7 +60,8 @@ public final class Ae2UploadDiscovery {
         return result;
     }
 
-    private static void add(List<PatternUploadTarget> result, Set<Object> seen, Set<Object> domains, IGridNode node,
+    private static void add(List<PatternUploadTarget> result, Set<Object> seen,
+        Map<Object, EcoPatternDomainTarget> domains, IGridNode node,
         PatternRouteProbe routes) {
         try {
             IGridHost machine = node.getMachine();
@@ -69,7 +71,12 @@ public final class Ae2UploadDiscovery {
                 Object cluster = host.getCluster();
                 if (!(cluster instanceof NECraftingCluster) || ((NECraftingCluster) cluster).isDestroyed()) return;
                 Object domain = ((NECraftingCluster) cluster).getPatternDomain();
-                if (domains.add(domain)) result.add(new EcoPatternDomainTarget(host, domain));
+                EcoPatternDomainTarget target = domains.get(domain);
+                if (target == null) {
+                    target = new EcoPatternDomainTarget(host, domain);
+                    domains.put(domain, target);
+                    result.add(target);
+                } else target.preferHost(host);
                 return;
             }
             // Other ECO hosts (such as the large workstation) need their own adapter and are not targets.

@@ -56,6 +56,7 @@ final class PatternUploadScreen extends GuiScreen {
     private static final int OFFLINE = PatternTargetSelector.SlotState.OFFLINE.ordinal();
     private static final int EXACT = MatchResult.Level.EXACT.ordinal();
     private static final int ACCEPTED = MatchResult.Level.ACCEPTED.ordinal();
+    private static final int ROUTED = MatchResult.Level.ROUTED.ordinal();
     private static final int INCOMPATIBLE = MatchResult.Level.INCOMPATIBLE.ordinal();
 
     private static final String[] CLOSE_GLYPH = { "o.....o", ".o...o.", "..o.o..", "...o...", "..o.o..", ".o...o.",
@@ -115,7 +116,7 @@ final class PatternUploadScreen extends GuiScreen {
         for (Row row : next.rows) haystacks.put(row, haystack(row));
         if (firstOrNewCategory || next.event == PatternUploadPackets.EVENT_MAPPING) {
             mappingMode = false;
-            prefill = next.category;
+            prefill = text(next.category);
             if (next.mappingEnabled) for (Row row : next.rows) if (row.token == next.mappingToken) {
                 prefill = hostName(row);
                 break;
@@ -149,7 +150,12 @@ final class PatternUploadScreen extends GuiScreen {
 
     private static boolean mappable(Row row) {
         return row.state != OFFLINE && MatchResult
-            .allowsMapping(MatchResult.Level.values()[safe(row.level, MatchResult.Level.values().length)], row.reason);
+            .allowsMapping(level(row), row.reason);
+    }
+
+    private static MatchResult.Level level(Row row) {
+        MatchResult.Level[] levels = MatchResult.Level.values();
+        return row.level >= 0 && row.level < levels.length ? levels[row.level] : MatchResult.Level.INCOMPATIBLE;
     }
 
     private void refilter() {
@@ -622,7 +628,7 @@ final class PatternUploadScreen extends GuiScreen {
         if (!list.category.isEmpty()) {
             if (detail.length() > 0) detail.append(" · ");
             detail.append(
-                StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.nei_category", list.category));
+                StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.nei_category", text(list.category)));
         }
         if (list.hinted) {
             if (detail.length() > 0) detail.append(" · ");
@@ -784,6 +790,7 @@ final class PatternUploadScreen extends GuiScreen {
                             list.autoMapped ? "gui.neoecoae.pattern_upload.mapping.used"
                                 : "gui.neoecoae.pattern_upload.auto_ready"));
                     for (Row row : list.rows) if (row.token == list.autoToken) lines.add("§6★ §r" + title(row));
+                    if (!list.autoReason.isEmpty()) lines.add("§e" + text(list.autoReason));
                     lines.add("§7" + StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.stay"));
                 } else if (!list.autoReason.isEmpty()) lines.add("§7" + text(list.autoReason));
             } else if (index == 1) {
@@ -839,9 +846,8 @@ final class PatternUploadScreen extends GuiScreen {
                 : kind.isEmpty() ? host : host + " · " + kind;
         }
         tip.star = row.token == list.autoToken && list.autoToken != 0;
-        tip.level = text(
-            MatchResult.Level.values()[safe(row.level, MatchResult.Level.values().length)].translationKey());
-        tip.levelColor = row.level == EXACT || row.level == ACCEPTED ? UploadRowTooltip.GOOD
+        tip.level = text(level(row).translationKey());
+        tip.levelColor = row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED ? UploadRowTooltip.GOOD
             : row.level == INCOMPATIBLE ? UploadRowTooltip.BAD : UploadRowTooltip.WARN;
         tip.state = text(stateKey(row));
         tip.stateGood = row.state == FREE;
@@ -916,7 +922,7 @@ final class PatternUploadScreen extends GuiScreen {
 
     private static int accent(Row row) {
         if (row.state != FREE) return 0xff9a9a9a;
-        if (row.level == EXACT || row.level == ACCEPTED) return 0xff3fa03f;
+        if (row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED) return 0xff3fa03f;
         if (row.level == INCOMPATIBLE) return 0xffb03030;
         return 0xffd0a020;
     }
@@ -936,7 +942,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static String levelColor(Row row) {
-        if (row.level == EXACT || row.level == ACCEPTED) return "§a";
+        if (row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED) return "§a";
         if (row.level == INCOMPATIBLE) return "§c";
         return "§e";
     }

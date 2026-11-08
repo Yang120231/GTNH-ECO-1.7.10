@@ -7,13 +7,14 @@ import java.util.UUID;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 
 /** Server-thread registry: at most one active session, one NEI hint and one undo receipt per player. */
 public final class PatternUploadSessions {
 
     private static final Map<UUID, PatternUploadSession> SESSIONS = new HashMap<>();
-    private static final Map<UUID, RouteHint> HINTS = new HashMap<>();
+    private static final Map<UUID, EditorSource> HINTS = new HashMap<>();
     private static final Map<UUID, UploadReceipt> RECEIPTS = new HashMap<>();
 
     private PatternUploadSessions() {}
@@ -44,22 +45,92 @@ public final class PatternUploadSessions {
         return session != null && session.boundTo(container) ? session : null;
     }
 
-    public static void setHint(EntityPlayer player, RouteHint hint) {
-        if (hint == null || hint.isEmpty()) HINTS.remove(player.getUniqueID());
-        else HINTS.put(player.getUniqueID(), hint);
+    /** Registers one editor and its native successful-encode listener; old windows release their listener. */
+    public static boolean bindEditor(EntityPlayer player, Container container, Object inventory, Runnable release) {
+        EditorSource current = HINTS.get(player.getUniqueID());
+        if (current != null && current.container == container && current.inventory == inventory) return false;
+        if (current != null) current.close();
+        HINTS.put(player.getUniqueID(), new EditorSource(player, container, inventory, release));
+        return true;
     }
 
-    /** The terminal just encoded {@code pattern}; a pending hint now belongs to it, an older one is dropped. */
+    public static void setHint(EntityPlayer player, RouteHint hint) {
+        EditorSource source = editor(player);
+        if (source == null) return;
+        source.draft = hint == null || hint.isEmpty() ? null : hint;
+        for (EditorSource other : HINTS.values()) if (other != source && other.inventory == source.inventory)
+            other.draft = null;
+    }
+
+    public static void beginEncoding(EntityPlayer player) {
+        EditorSource source = editor(player);
+        if (source != null) {
+            source.encoding = true;
+            for (EditorSource other : HINTS.values()) if (other != source && other.inventory == source.inventory) {
+                other.draft = null;
+                other.encoded = null;
+            }
+        }
+    }
+
+    public static void endEncoding(EntityPlayer player) {
+        EditorSource source = editor(player);
+        if (source != null) source.encoding = false;
+    }
+
+    public static boolean isEncoding(EntityPlayer player) {
+        EditorSource source = editor(player);
+        return source != null && source.encoding;
+    }
+
+    public static RouteHint draft(EntityPlayer player) {
+        EditorSource source = editor(player);
+        return source == null ? null : source.draft;
+    }
+
+    /** Called by AE2 only after an encoding succeeds, including a re-encoding of the same draft. */
     public static void onEncoded(EntityPlayer player, int windowId, ItemStack pattern) {
-        RouteHint hint = HINTS.get(player.getUniqueID());
-        if (hint == null) return;
-        if (hint.isPending() && !hint.expired(windowId) && pattern != null) hint.bind(pattern);
-        else HINTS.remove(player.getUniqueID());
+        EditorSource source = editor(player);
+        if (source == null || source.container.windowId != windowId) return;
+        source.encoded = source.draft == null ? null : source.draft.copy();
+        if (source.encoded != null) source.encoded.bind(pattern);
+    }
+
+    /** A user loaded another pattern; native encoding and removal of an uploaded pattern keep the draft. */
+    public static void patternChanged(IInventory inventory, ItemStack pattern) {
+        if (pattern == null) return;
+        for (EditorSource source : HINTS.values()) {
+            if (source.inventory != inventory || source.encoding || !source.isOpen()) continue;
+            if (source.encoded != null && source.encoded.appliesTo(source.container.windowId, pattern))
+                source.draft = source.encoded.copy();
+            else {
+                source.draft = null;
+                source.encoded = null;
+            }
+        }
+    }
+
+    /** NEI's source packet follows its clear/fill packet; any subsequent clear starts an unbound draft. */
+    public static void draftCleared(EntityPlayer player) {
+        EditorSource source = editor(player);
+        if (source == null) return;
+        for (EditorSource other : HINTS.values()) if (other.inventory == source.inventory) other.draft = null;
+    }
+
+    private static EditorSource editor(EntityPlayer player) {
+        EditorSource source = HINTS.get(player.getUniqueID());
+        if (source != null && !source.isOpen()) {
+            source.close();
+            HINTS.remove(player.getUniqueID());
+            return null;
+        }
+        return source;
     }
 
     /** Any hint bound to {@code pattern} in this window, including one that only names the NEI category. */
     public static RouteHint hintFor(EntityPlayer player, int windowId, ItemStack pattern) {
-        RouteHint hint = HINTS.get(player.getUniqueID());
+        EditorSource source = editor(player);
+        RouteHint hint = source == null ? null : source.encoded;
         return hint != null && hint.appliesTo(windowId, pattern) ? hint : null;
     }
 
@@ -85,12 +156,21 @@ public final class PatternUploadSessions {
         UUID id = player.getUniqueID();
         PatternUploadSession session = SESSIONS.remove(id);
         if (session != null) session.close();
-        HINTS.remove(id);
+        EditorSource source = HINTS.remove(id);
+        if (source != null) source.close();
         RECEIPTS.remove(id);
     }
 
     /** Periodic sweep; closed, idle or replaced windows release player, inventory and world references. */
     public static void sweep() {
+        Iterator<EditorSource> sources = HINTS.values().iterator();
+        while (sources.hasNext()) {
+            EditorSource source = sources.next();
+            if (!source.isOpen()) {
+                source.close();
+                sources.remove();
+            }
+        }
         Iterator<PatternUploadSession> iterator = SESSIONS.values()
             .iterator();
         while (iterator.hasNext()) {
@@ -113,7 +193,36 @@ public final class PatternUploadSessions {
         SESSIONS.values()
             .forEach(PatternUploadSession::close);
         SESSIONS.clear();
+        HINTS.values().forEach(EditorSource::close);
         HINTS.clear();
         RECEIPTS.clear();
+    }
+
+    private static final class EditorSource {
+
+        final EntityPlayer player;
+        final Container container;
+        final Object inventory;
+        final Runnable release;
+        RouteHint draft;
+        RouteHint encoded;
+        boolean encoding;
+
+        EditorSource(EntityPlayer player, Container container, Object inventory, Runnable release) {
+            this.player = player;
+            this.container = container;
+            this.inventory = inventory;
+            this.release = release;
+        }
+
+        boolean isOpen() {
+            return player.openContainer == container;
+        }
+
+        void close() {
+            release.run();
+            draft = null;
+            encoded = null;
+        }
     }
 }

@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.crafting.upload;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
@@ -35,6 +36,8 @@ public final class PatternTargetSelector {
     public static final class Evaluation {
 
         public final PatternUploadTarget target;
+        public final String positionKey;
+        public final Object storageIdentity;
         public final MatchResult match;
         public final SlotState state;
         public final int emptySlots;
@@ -44,6 +47,12 @@ public final class PatternTargetSelector {
         Evaluation(PatternUploadTarget target, MatchResult match, SlotState state, int emptySlots, int totalSlots,
             int freeSlot) {
             this.target = target;
+            this.positionKey = target.positionKey();
+            Object identity = null;
+            try {
+                identity = target.storageIdentity();
+            } catch (RuntimeException unavailable) { /* The position still identifies this receiver. */ }
+            this.storageIdentity = identity;
             this.match = match;
             this.state = state;
             this.emptySlots = emptySlots;
@@ -70,9 +79,9 @@ public final class PatternTargetSelector {
     public static final class AutoChoice {
 
         public final Evaluation selected;
-        /** Translation key explaining why nothing was selected. */
+        /** Rejection reason, or a warning when an unverified receiver was selected. */
         public final String reason;
-        /** A player-defined fallback was used; the underlying match is still unverified. */
+        /** A player binding chose the concrete receiver. */
         public final boolean mapped;
 
         AutoChoice(Evaluation selected, String reason) {
@@ -88,24 +97,24 @@ public final class PatternTargetSelector {
 
     public static final Comparator<Evaluation> ORDER = Comparator
         .<Evaluation>comparingInt(evaluation -> evaluation.state == SlotState.OFFLINE ? 1 : 0)
-        .thenComparingInt(evaluation -> evaluation.match.level.ordinal())
+        .thenComparingInt(evaluation -> evaluation.match.level.rank())
         .thenComparingInt(evaluation -> evaluation.state.ordinal())
         .thenComparingInt(evaluation -> evaluation.target.kind().priority)
         .thenComparingInt(evaluation -> -evaluation.emptySlots)
-        .thenComparing(evaluation -> evaluation.target.positionKey());
+        .thenComparing(evaluation -> evaluation.positionKey);
 
     private PatternTargetSelector() {}
 
     public static Evaluation evaluate(PatternUploadTarget target, PatternContext context, IGrid grid) {
         try {
+            MatchResult match = target.match(context);
             if (!target.isPresent(grid)) return new Evaluation(
                 target,
-                MatchResult.of(MatchResult.Level.UNVERIFIED),
+                match,
                 SlotState.OFFLINE,
                 0,
                 0,
                 -1);
-            MatchResult match = target.match(context);
             PatternSlotAccess slots = target.slots();
             ItemStack one = PatternStacks.copy(context.pattern, 1);
             int empty = 0, free = -1;
@@ -134,43 +143,92 @@ public final class PatternTargetSelector {
     }
 
     public static AutoChoice choose(List<Evaluation> sorted) {
-        List<Evaluation> exact = new ArrayList<>();
-        for (Evaluation evaluation : sorted) if (evaluation.canUploadAutomatically()) exact.add(evaluation);
-        if (exact.isEmpty()) {
-            for (Evaluation evaluation : sorted)
-                if ("gui.neoecoae.pattern_upload.reason.tunnel_missing".equals(evaluation.match.reason)
-                    || "gui.neoecoae.pattern_upload.reason.tunnel_invalid".equals(evaluation.match.reason))
-                    return new AutoChoice(null, evaluation.match.reason);
-            for (Evaluation evaluation : sorted)
-                if (evaluation.match.allowsAuto() && evaluation.state == SlotState.DUPLICATE)
-                    return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.duplicate");
+        List<Evaluation> routes = new ArrayList<>();
+        boolean unknownSelector = false;
+        for (Evaluation evaluation : sorted) {
+            String reason = evaluation.match.reason;
+            if ("gui.neoecoae.pattern_upload.reason.search_incomplete".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.route_ambiguous".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.tunnel_missing".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.tunnel_invalid".equals(reason))
+                return new AutoChoice(null, reason);
+            if (evaluation.match.allowsAuto()
+                || evaluation.match.level == MatchResult.Level.UNVERIFIED
+                    && evaluation.match.allowsMapping()
+                    && !evaluation.match.categoryId.isEmpty()
+                    && !evaluation.match.routeSignature.isEmpty()) routes.add(evaluation);
+            else if ("gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason)) unknownSelector = true;
+        }
+        if (unknownSelector) return new AutoChoice(null, routes.isEmpty()
+            ? "gui.neoecoae.pattern_upload.reason.circuit_unknown"
+            : "gui.neoecoae.pattern_upload.reason.route_ambiguous");
+        if (routes.isEmpty()) {
+            for (Evaluation evaluation : sorted) if (evaluation.match.reason != null
+                && evaluation.match.level != MatchResult.Level.WRONG_RECIPE
+                && evaluation.match.level != MatchResult.Level.INCOMPATIBLE)
+                return new AutoChoice(null, evaluation.match.reason);
+            for (Evaluation evaluation : sorted) if ("gui.neoecoae.pattern_upload.reason.fluid_input".equals(evaluation.match.reason)
+                || "gui.neoecoae.pattern_upload.reason.bec_role".equals(evaluation.match.reason))
+                return new AutoChoice(null, evaluation.match.reason);
             return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.no_exact");
         }
         Set<String> signatures = new HashSet<>();
-        for (Evaluation evaluation : exact) signatures.add(evaluation.match.routeSignature);
-        if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
-        return new AutoChoice(exact.get(0), null);
+        for (Evaluation evaluation : routes) signatures.add(evaluation.match.routeSignature);
+        if (signatures.size() > 1)
+            return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
+        // Full, duplicate and offline receivers still participate in identity resolution.
+        if (receiverCount(routes) != 1)
+            return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
+        return available(routes.get(0), false);
     }
 
-    /** A saved mapping is a fallback for missing route knowledge, never for a full or ambiguous verified route. */
+    /** Explicit bindings are authoritative, including a full, missing or reconfigured destination. */
     public static AutoChoice choose(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {
-        AutoChoice verified = choose(sorted);
-        if (mapping == null || !mapping.enabled || verified.selected != null) return verified;
-        for (Evaluation evaluation : sorted) if (evaluation.match.allowsAuto()) return verified;
-        Evaluation selected = null, unavailable = null;
-        for (Evaluation evaluation : sorted) {
-            if (!mapping.matches(evaluation)) continue;
-            if (evaluation.canUploadByMapping(mapping)) {
-                if (selected == null || PatternTargetGroups.UPLOAD_ORDER.compare(evaluation, selected) < 0)
-                    selected = evaluation;
-            } else if (unavailable == null) unavailable = evaluation;
+        if (mapping == null || !mapping.enabled) return choose(sorted);
+        if (mapping.conflict) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.ambiguous");
+        List<Evaluation> owned = new ArrayList<>();
+        for (Evaluation evaluation : sorted) if (mapping.owns(evaluation)) owned.add(evaluation);
+        if (owned.isEmpty()) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_missing");
+        if (receiverCount(owned) != 1)
+            return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.legacy_ambiguous");
+        Evaluation target = owned.get(0);
+        if (target.state == SlotState.OFFLINE) return new AutoChoice(null, target.state.translationKey());
+        if (!target.match.allowsMapping()) return new AutoChoice(null, rejection(target));
+        if (!mapping.matches(target))
+            return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_changed");
+        return available(target, true);
+    }
+
+    private static AutoChoice available(Evaluation target, boolean mapped) {
+        return target.state == SlotState.FREE ? new AutoChoice(
+            target,
+            target.match.level == MatchResult.Level.UNVERIFIED
+                ? "gui.neoecoae.pattern_upload.warning.unverified" : null,
+            mapped)
+            : new AutoChoice(null, rejection(target));
+    }
+
+    static String rejection(Evaluation target) {
+        if (target.match.level == MatchResult.Level.INCOMPATIBLE && target.match.reason != null)
+            return target.match.reason;
+        if (target.state != SlotState.FREE) return target.state.translationKey();
+        return target.match.reason == null || target.match.reason.isEmpty()
+            ? target.match.level.translationKey() : target.match.reason;
+    }
+
+    private static int receiverCount(List<Evaluation> evaluations) {
+        Set<Object> inventories = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<String> positions = new HashSet<>();
+        int count = 0;
+        for (Evaluation evaluation : evaluations) {
+            Object inventory = evaluation.storageIdentity;
+            if (positions.add(evaluation.positionKey) && (inventory == null || inventories.add(inventory))) count++;
         }
-        if (selected != null) return new AutoChoice(selected, null, true);
-        if (unavailable == null) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_missing");
-        String reason = unavailable.state != SlotState.FREE ? unavailable.state.translationKey()
-            : unavailable.match.reason == null || unavailable.match.reason.isEmpty()
-                ? unavailable.match.level.translationKey()
-                : unavailable.match.reason;
-        return new AutoChoice(null, reason);
+        return count;
+    }
+
+    public static boolean sameReceiver(Evaluation left, Evaluation right) {
+        return left.positionKey.equals(right.positionKey)
+            || left.storageIdentity != null && left.storageIdentity == right.storageIdentity;
     }
 }
