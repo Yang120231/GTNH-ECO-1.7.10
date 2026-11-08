@@ -14,6 +14,7 @@ public final class PatternDetailsHelper {
     private PatternDetailsHelper() {}
 
     public static IPatternDetails decodePattern(AEItemKey definition, World world) {
+        if (TemporaryCraftingOrder.isOrder(definition)) return TemporaryCraftingOrder.decode(definition);
         if (definition == null || !(definition.getItem() instanceof ICraftingPatternItem)) return null;
         ItemStack stack = definition.toStack();
         var details = ((ICraftingPatternItem) stack.getItem()).getPatternForItem(stack, world);

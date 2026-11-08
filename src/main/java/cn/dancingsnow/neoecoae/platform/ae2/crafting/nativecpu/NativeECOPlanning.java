@@ -92,6 +92,17 @@ public final class NativeECOPlanning {
         return future instanceof Pending;
     }
 
+    /** Every ingredient keeps the same native-semantics routing check as an individual request. */
+    public static boolean supportsOrder(IGrid grid,
+        List<cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack> ingredients) {
+        for (var ingredient : ingredients) if (NativePlannerRouting.routeToNative(
+            grid,
+            ingredient.what()
+                .toNative(ingredient.amount())))
+            return false;
+        return true;
+    }
+
     public static Future<ICraftingJob> begin(World world, IGrid grid, BaseActionSource source, IAEStack<?> output,
         ICraftingCallback callback) {
         if (world == null || world.isRemote

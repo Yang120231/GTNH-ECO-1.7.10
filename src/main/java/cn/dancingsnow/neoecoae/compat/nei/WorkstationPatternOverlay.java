@@ -23,6 +23,14 @@ final class WorkstationPatternOverlay implements IOverlayHandler {
 
     private WorkstationPatternOverlay() {}
 
+    @Override
+    public List<codechicken.nei.recipe.GuiOverlayButton.ItemOverlayState> presenceOverlay(GuiContainer gui,
+        IRecipeHandler recipe, int index) {
+        return cpw.mods.fml.common.Loader.isModLoaded("neenergistics")
+            ? NEEWorkstationSupport.presence(gui, recipe, index)
+            : java.util.Collections.emptyList();
+    }
+
     static IAEStack<?> stack(ItemStack stack, boolean fluid) {
         IAEStack<?> value = fluid ? AEFluidStack.create(ItemFluidPacket.getFluidStack(stack))
             : AEItemStack.create(stack.copy());
@@ -39,7 +47,9 @@ final class WorkstationPatternOverlay implements IOverlayHandler {
     public int transferRecipe(GuiContainer gui, IRecipeHandler recipe, int index, int multiplier) {
         if (!(gui.inventorySlots instanceof ContainerPatternTerm terminal)
             || !(recipe instanceof WorkstationRecipeHandler handler)) return 0;
-        transfer(terminal, handler.patternStacks(index, false), handler.patternStacks(index, true), multiplier);
+        if (transfer(terminal, handler.patternStacks(index, false), handler.patternStacks(index, true), multiplier)
+            && cpw.mods.fml.common.Loader.isModLoaded("neenergistics"))
+            NEEWorkstationSupport.captureIngredients(handler, index);
         return 0;
     }
 

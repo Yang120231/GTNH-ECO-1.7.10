@@ -8,6 +8,9 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void preInit(cpw.mods.fml.common.event.FMLPreInitializationEvent event) {
         super.preInit(event);
+        cpw.mods.fml.common.FMLCommonHandler.instance()
+            .bus()
+            .register(new cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCraftingClient());
         ((net.minecraft.client.resources.IReloadableResourceManager) net.minecraft.client.Minecraft.getMinecraft()
             .getResourceManager())
                 .registerReloadListener(manager -> cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.invalidate());

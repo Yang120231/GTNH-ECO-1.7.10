@@ -41,6 +41,7 @@ public final class CompiledStructureCache {
 
     public static synchronized Structure get(ICraftingService service, long revision, long contractGeneration,
         AEKey goal, boolean cycles, Set<ResourceLocation> fuzzyItems) {
+        if (cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.isOrder(goal)) return null;
         ENTRIES.removeIf(
             entry -> entry.owner()
                 .get() == null || entry.contractGeneration() != contractGeneration
@@ -61,6 +62,7 @@ public final class CompiledStructureCache {
 
     public static synchronized void put(ICraftingService service, long revision, long contractGeneration, AEKey goal,
         boolean cycles, Set<ResourceLocation> fuzzyItems, Structure structure) {
+        if (cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.isOrder(goal)) return;
         if (revision < 0 || revision(service) != revision || PatternRuntime.reloadGeneration() != contractGeneration)
             return;
         long weight = (long) structure.network()

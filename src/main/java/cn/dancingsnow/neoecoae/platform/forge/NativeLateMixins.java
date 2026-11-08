@@ -41,8 +41,16 @@ public final class NativeLateMixins implements ILateMixinLoader {
             mixins.add("GTRemoteGuiReachMixin");
         }
         // The NEI route capture only exists on the physical client.
+        if (loadedMods.contains("neenergistics")) {
+            mixins.add("NEEPatternRemovalMixin");
+            mixins.add("NEETemporaryPatternMixin");
+        }
         if (FMLLaunchHandler.side()
-            .isClient() && loadedMods.contains("NotEnoughItems")) mixins.add("NeiPatternRouteMixin");
+            .isClient() && loadedMods.contains("NotEnoughItems")) {
+            mixins.add("NeiPatternRouteMixin");
+        }
+        if (FMLLaunchHandler.side()
+            .isClient() && loadedMods.contains("neenergistics")) mixins.add("NEECraftingPreviewMixin");
         if (FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("blockrenderer6343")) mixins.add("StructurePreviewChannelsMixin");
         return mixins;

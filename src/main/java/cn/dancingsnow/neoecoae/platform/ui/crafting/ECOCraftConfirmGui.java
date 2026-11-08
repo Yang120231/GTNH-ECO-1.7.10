@@ -1252,6 +1252,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     }
 
     private void goBack() {
+        cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCraftingClient.cancelPreview();
         try {
             NetworkHandler.instance.sendToServer(new PacketSwitchGuis());
         } catch (Exception failure) {
@@ -1267,6 +1268,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
 
     @Override
     protected void keyTyped(char character, int key) {
+        if (key == Keyboard.KEY_ESCAPE) {
+            goBack();
+            return;
+        }
         boolean enter = key == Keyboard.KEY_RETURN || key == Keyboard.KEY_NUMPADENTER;
         if (search.isFocused() && key != Keyboard.KEY_ESCAPE) {
             // Enter in the tree view jumps to the next match, as in GTNH's tree search.

@@ -241,8 +241,10 @@ public final class NativeStorageInterfacePages {
         @Override
         @SideOnly(Side.CLIENT)
         public boolean handleDragAndDrop(ItemStack dragged, int button) {
-            if (!areAncestorsEnabled() || ItemStacks.isEmpty(dragged)) return false;
+            if (!areAncestorsEnabled() || ItemStacks.isEmpty(dragged)
+                || !cn.dancingsnow.neoecoae.compat.nei.NEEGhostSlots.allowsDrop(button)) return false;
             session.setFilter(index, NativeStorageFilters.sample(dragged, Interactable.hasShiftDown()));
+            cn.dancingsnow.neoecoae.compat.nei.NEEGhostSlots.acceptedDrop(dragged);
             return true;
         }
 

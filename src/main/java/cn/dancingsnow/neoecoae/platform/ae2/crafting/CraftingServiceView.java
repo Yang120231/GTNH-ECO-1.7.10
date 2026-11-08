@@ -101,6 +101,8 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
 
     @Override
     public List<IPatternDetails> getCraftingFor(AEKey key) {
+        var order = TemporaryCraftingOrder.decode(key);
+        if (order != null) return Collections.singletonList(order);
         return byOutput.getOrDefault(key, Collections.emptyList());
     }
 

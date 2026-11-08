@@ -1518,3 +1518,4 @@ gui.neoecoae.pattern_upload.mapping.toggle.tooltip=Disabling keeps the saved gro
 gui.neoecoae.pattern_upload.mapping.remove.tooltip=Delete the mapping for the current recipe category.
 gui.neoecoae.pattern_upload.mapping.targets=Mappable
 gui.neoecoae.crafting_status.destination_full=Destination container capacity insufficient!
+item.neoecoae.temporary_crafting_order.name=Temporary Ingredient Order

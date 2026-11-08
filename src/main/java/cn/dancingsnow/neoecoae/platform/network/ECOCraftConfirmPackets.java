@@ -43,6 +43,8 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.registerMessage(ProcessingDetailHandler.class, ProcessingDetail.class, 6, Side.SERVER);
         CHANNEL.registerMessage(ItemActionHandler.class, ItemAction.class, 7, Side.SERVER);
         CHANNEL.registerMessage(ItemActionResultHandler.class, ItemActionResult.class, 8, Side.CLIENT);
+        CHANNEL.registerMessage(IngredientsHandler.class, Ingredients.class, 9, Side.SERVER);
+        CHANNEL.registerMessage(IngredientsReplyHandler.class, IngredientsReply.class, 10, Side.CLIENT);
     }
 
     public static void sync(EntityPlayerMP player, int windowId, ECOCraftConfirmState state,
@@ -76,6 +78,104 @@ public final class ECOCraftConfirmPackets {
 
     public static void start(int windowId, boolean forced, boolean follow) {
         CHANNEL.sendToServer(new Start(windowId, forced, follow));
+    }
+
+    public static void requestIngredients(int windowId, long sequence,
+        java.util.List<cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack> ingredients, boolean autoStart) {
+        Ingredients request = new Ingredients();
+        request.windowId = windowId;
+        request.sequence = sequence;
+        request.items = ingredients;
+        request.autoStart = autoStart;
+        CHANNEL.sendToServer(request);
+    }
+
+    /** One bounded list replaces NEE's client-side sequence of confirmation windows. */
+    public static final class Ingredients implements IMessage {
+
+        int windowId;
+        long sequence;
+        boolean autoStart;
+        java.util.List<cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack> items;
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            windowId = buf.readInt();
+            sequence = buf.readLong();
+            autoStart = buf.readBoolean();
+            int count = buf.readInt();
+            if (count < 2
+                || count > cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.MAX_INGREDIENTS)
+                throw new IllegalArgumentException("Invalid ingredient count");
+            items = new java.util.ArrayList<>(count);
+            var bytes = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            for (int i = 0; i < count; i++) items.add(
+                cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack.readTag(RegistryAccess.EMPTY, bytes.readNbt()));
+            items = cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.normalize(items);
+            if (buf.isReadable()) throw new IllegalArgumentException("Trailing ingredient request data");
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            buf.writeInt(windowId);
+            buf.writeLong(sequence);
+            buf.writeBoolean(autoStart);
+            buf.writeInt(items.size());
+            var bytes = new RegistryFriendlyByteBuf(buf, RegistryAccess.EMPTY);
+            for (var stack : items) bytes
+                .writeNbt(cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack.writeTag(RegistryAccess.EMPTY, stack));
+        }
+    }
+
+    public static final class IngredientsHandler implements IMessageHandler<Ingredients, IMessage> {
+
+        @Override
+        public IMessage onMessage(Ingredients message, MessageContext context) {
+            EntityPlayerMP player = context.getServerHandler().playerEntity;
+            ServerTasks.captureSession()
+                .execute(() -> {
+                    boolean accepted = false;
+                    try {
+                        if (cpw.mods.fml.common.Loader.isModLoaded("neenergistics"))
+                            accepted = cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCrafting
+                                .open(player, message.windowId, message.items, message.autoStart);
+                    } catch (RuntimeException | LinkageError failure) {
+                        org.apache.logging.log4j.LogManager.getLogger("neoecoae")
+                            .warn(
+                                "Temporary ingredient order could not be opened; retaining NEE's native route",
+                                failure);
+                    }
+                    IngredientsReply reply = new IngredientsReply();
+                    reply.sequence = message.sequence;
+                    reply.accepted = accepted;
+                    CHANNEL.sendTo(reply, player);
+                });
+            return null;
+        }
+    }
+
+    public static final class IngredientsReply implements IMessage {
+
+        long sequence;
+        boolean accepted;
+
+        public void fromBytes(ByteBuf buf) {
+            sequence = buf.readLong();
+            accepted = buf.readBoolean();
+        }
+
+        public void toBytes(ByteBuf buf) {
+            buf.writeLong(sequence);
+            buf.writeBoolean(accepted);
+        }
+    }
+
+    public static final class IngredientsReplyHandler implements IMessageHandler<IngredientsReply, IMessage> {
+
+        public IMessage onMessage(IngredientsReply message, MessageContext context) {
+            cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCraftingClient.accept(message.sequence, message.accepted);
+            return null;
+        }
     }
 
     public static void clearError(int windowId) {

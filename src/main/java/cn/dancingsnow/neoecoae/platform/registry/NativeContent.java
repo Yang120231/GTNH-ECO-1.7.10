@@ -78,6 +78,9 @@ public final class NativeContent {
         // Recipe-viewer fluid stand-in; outside the source item catalog and every creative tab.
         GameRegistry
             .registerItem(cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.INSTANCE, "fluid_display");
+        GameRegistry.registerItem(
+            cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.INSTANCE,
+            "temporary_crafting_order");
     }
 
     public static void connectAe2() {

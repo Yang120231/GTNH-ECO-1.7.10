@@ -216,6 +216,9 @@ final class ECOCraftingTaskScheduler {
                 }
 
                 var pattern = candidate.pattern();
+                // The final collection step is completed by output delivery after every requested material is ready.
+                if (pattern instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.Pattern)
+                    continue;
                 if (current.isProcessingStepStopped(pattern)) {
                     logReason(
                         current,

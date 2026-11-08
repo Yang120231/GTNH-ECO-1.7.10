@@ -100,8 +100,10 @@ public final class NativeComputationInterfacePages {
         @Override
         @SideOnly(Side.CLIENT)
         public boolean handleDragAndDrop(ItemStack sample, int button) {
-            if (!areAncestorsEnabled() || ItemStacks.isEmpty(sample)) return false;
+            if (!areAncestorsEnabled() || ItemStacks.isEmpty(sample)
+                || !cn.dancingsnow.neoecoae.compat.nei.NEEGhostSlots.allowsDrop(button)) return false;
             session.setSample(index, sample);
+            cn.dancingsnow.neoecoae.compat.nei.NEEGhostSlots.acceptedDrop(sample);
             return true;
         }
 

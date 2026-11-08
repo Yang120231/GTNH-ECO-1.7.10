@@ -1518,3 +1518,4 @@ gui.neoecoae.pattern_upload.mapping.toggle.tooltip=停用后保留映射记录�
 gui.neoecoae.pattern_upload.mapping.remove.tooltip=删除当前配方类别的映射。
 gui.neoecoae.pattern_upload.mapping.targets=可映射
 gui.neoecoae.crafting_status.destination_full=对应容器容量不足！
+item.neoecoae.temporary_crafting_order.name=临时补料订单

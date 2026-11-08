@@ -21,9 +21,12 @@ public final class ServerTasks {
     }
 
     public static void assertServerThread() {
+        if (!isServerThread()) throw new IllegalStateException("Operation requires the server thread");
+    }
+
+    public static boolean isServerThread() {
         Session session = current;
-        if (session == null || Thread.currentThread() != session.owner)
-            throw new IllegalStateException("Operation requires the server thread");
+        return session != null && Thread.currentThread() == session.owner;
     }
 
     public static void execute(Runnable task) {

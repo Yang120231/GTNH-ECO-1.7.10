@@ -38,7 +38,10 @@ public final class NEINeoECOAEConfig implements IConfigureNEI {
             }
         }
         API.hideItem(new ItemStack(cn.dancingsnow.neoecoae.platform.minecraft.FluidDisplayItem.INSTANCE));
+        API.hideItem(new ItemStack(cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.INSTANCE));
         MinecraftForge.EVENT_BUS.register(this);
+        if (cpw.mods.fml.common.Loader.isModLoaded("neenergistics"))
+            MinecraftForge.EVENT_BUS.register(new NEEWorkstationSupport());
         // NEI's first handler-info event precedes plugin loading; also install the initial entries.
         registerHandlerInfo(new NEIRegisterHandlerInfosEvent());
     }

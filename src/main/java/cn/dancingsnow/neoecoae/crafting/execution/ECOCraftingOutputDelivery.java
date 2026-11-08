@@ -13,6 +13,7 @@ import cn.dancingsnow.neoecoae.crafting.amount.NEMath;
 import cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPhaseScheduler;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
@@ -46,7 +47,8 @@ final class ECOCraftingOutputDelivery {
         var current = host.getJob();
         return current != null && current == blockedDeliveryJob
             && current.remainingAmount > 0L
-            && current.waitingFor.list.isEmpty()
+            && (current.waitingFor.list.isEmpty()
+                || current.finalOutput != null && TemporaryCraftingOrder.isOrder(current.finalOutput.what()))
             && !host.taskSchedulerForOutput()
                 .hasPendingTasks(current);
     }
@@ -59,6 +61,10 @@ final class ECOCraftingOutputDelivery {
         blockedDeliveryJob = null;
         var current = host.getJob();
         if (current == null) {
+            return;
+        }
+        if (current.finalOutput != null && TemporaryCraftingOrder.isOrder(current.finalOutput.what())) {
+            deliverTemporaryOrder(current);
             return;
         }
         deliverPendingFinalOutputs(current);
@@ -113,6 +119,45 @@ final class ECOCraftingOutputDelivery {
         }
     }
 
+    /** Keeps delivery progress in the existing persisted buffer; cancellation returns the same physical inventory. */
+    private void deliverTemporaryOrder(ExecutingCraftingJob current) {
+        TemporaryCraftingOrder.Pattern order = null;
+        for (var task : current.tasks.entrySet()) {
+            if (task.getKey() instanceof TemporaryCraftingOrder.Pattern candidate && candidate.getDefinition()
+                .equals(current.finalOutput.what())) order = candidate;
+            else if (task.getValue().value > 0L) return;
+        }
+        if (order == null) return;
+        var progress = current.tasks.get(order);
+        if (progress.value > 0L) {
+            if (progress.value != 1L) throw new IllegalStateException("A temporary order must be collected once");
+            for (GenericStack stack : order.collected())
+                if (host.getInventory().list.get(stack.what()) < stack.amount()) return;
+            if (current.executionRuntime == null) progress.accept(1L);
+            else {
+                ECOExecutionRuntime.DispatchCandidate ready = null;
+                for (var candidate : current.executionRuntime.candidates())
+                    if (candidate.pattern() == order && candidate.maxDispatchCount() > 0L) {
+                        ready = candidate;
+                        break;
+                    }
+                if (ready == null) return;
+                current.executionRuntime.onVirtualAccepted(ready, 1L);
+            }
+            for (GenericStack stack : order.collected()) pendingFinalOutputs.put(stack.what(), stack.amount());
+            host.markCpuDirty();
+        }
+        deliverPendingFinalOutputs(current);
+        if (host.getJob() != current || !pendingFinalOutputs.isEmpty()) return;
+        current.remainingAmount = 0L;
+        current.timeTracker.decrementItems(
+            1L,
+            current.finalOutput.what()
+                .getType());
+        host.postChange(current.finalOutput.what());
+        host.finishJob(true);
+    }
+
     long insert(AEKey what, long amount, Actionable type) {
         return insert(what, amount, type, null);
     }
@@ -132,7 +177,8 @@ final class ECOCraftingOutputDelivery {
         }
         boolean matchesFinalOutput = preflightMatchesFinalOutput != null ? preflightMatchesFinalOutput
             : current.finalOutput != null && what.matches(current.finalOutput);
-        if (deliveringFinalOutput && matchesFinalOutput) {
+        if (deliveringFinalOutput && (matchesFinalOutput
+            || current.finalOutput != null && TemporaryCraftingOrder.isOrder(current.finalOutput.what()))) {
             return 0L;
         }
         long accepted = preflightAccepted != null ? preflightAccepted
@@ -388,15 +434,17 @@ final class ECOCraftingOutputDelivery {
         if (pendingFinalOutputs.isEmpty()) {
             return;
         }
+        boolean order = current.finalOutput != null && TemporaryCraftingOrder.isOrder(current.finalOutput.what());
         // Delivery can re-enter this CPU through the destination, so walk a key snapshot and re-read each amount.
         for (AEKey key : pendingFinalOutputs.keySet()
             .toArray(new AEKey[0])) {
             long stored = Math.min(pendingFinalOutputs.getLong(key), host.getInventory().list.get(key));
             if (stored <= 0L) {
-                pendingFinalOutputs.removeLong(key);
+                if (order) blockedDeliveryJob = current;
+                else pendingFinalOutputs.removeLong(key);
                 continue;
             }
-            long amount = Math.min(stored, Math.max(0L, current.remainingAmount));
+            long amount = order ? stored : Math.min(stored, Math.max(0L, current.remainingAmount));
             if (amount <= 0L) {
                 continue;
             }
@@ -404,13 +452,13 @@ final class ECOCraftingOutputDelivery {
             host.getInventory()
                 .extract(key, inserted, Actionable.MODULATE);
             if (inserted > 0L) {
-                long remaining = Math.max(0L, stored - inserted);
+                long remaining = Math.max(0L, (order ? pendingFinalOutputs.getLong(key) : stored) - inserted);
                 if (remaining == 0L) {
                     pendingFinalOutputs.removeLong(key);
                 } else {
                     pendingFinalOutputs.put(key, remaining);
                 }
-                current.remainingAmount = Math.max(0L, current.remainingAmount - inserted);
+                if (!order) current.remainingAmount = Math.max(0L, current.remainingAmount - inserted);
                 host.markCpuDirty();
                 host.taskSchedulerForOutput()
                     .progress(cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
