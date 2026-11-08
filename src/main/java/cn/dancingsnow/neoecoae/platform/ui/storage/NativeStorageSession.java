@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui.storage;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import net.minecraft.item.ItemStack;
@@ -31,6 +33,10 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
     private int offset, nextToken, pendingToken;
     private boolean canExtractComponents;
     private long revision;
+    private static final int BOOKMARK_BATCH = 128;
+    private int bookmarkSequence;
+    private volatile int readyBookmarkSequence = -1;
+    private final List<ItemStack> bookmarkInventory = new ArrayList<>();
 
     public NativeStorageSession(ECOStorageSystemBlockEntity host, StorageHostUI.Config config) {
         this.host = host;
@@ -86,11 +92,55 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
             int token = buffer.readInt();
             buffer.readBoolean();
             if (token == pendingToken) pendingToken = 0;
+        } else if (id == 3) {
+            int sequence = buffer.readInt();
+            boolean last = buffer.readBoolean();
+            List<ItemStack> stacks = readBookmarkStacks(buffer);
+            synchronized (bookmarkInventory) {
+                if (sequence == bookmarkSequence) {
+                    bookmarkInventory.addAll(stacks);
+                    if (last) readyBookmarkSequence = sequence;
+                }
+            }
         } else throw new java.io.IOException("Unknown storage response: " + id);
     }
 
     @Override
     public void readOnServer(int id, PacketBuffer buffer) throws java.io.IOException {
+        if (id == 3) {
+            int sequence = buffer.readInt();
+            boolean last = buffer.readBoolean();
+            List<ItemStack> candidates = readBookmarkStacks(buffer);
+            if (buffer.isReadable()) throw new java.io.IOException("Trailing bookmark query bytes");
+            serverSession.execute(() -> {
+                if (!validSession()) return;
+                List<ItemStack> available = new ArrayList<>();
+                var grid = bookmarkGrid();
+                if (grid != null) {
+                    appeng.api.networking.storage.IStorageGrid storage = grid
+                        .getCache(appeng.api.networking.storage.IStorageGrid.class);
+                    var monitor = storage.getItemInventory();
+                    for (ItemStack sample : candidates) {
+                        var found = monitor.getStorageList()
+                            .findPrecise(appeng.util.item.AEItemStack.create(sample));
+                        if (found != null && found.getStackSize() > 0) available.add(
+                            ItemStacks.copyWithCount(sample, (int) Math.min(Integer.MAX_VALUE, found.getStackSize())));
+                    }
+                }
+                syncToClient(3, output -> {
+                    output.writeInt(sequence);
+                    output.writeBoolean(last);
+                    writeBookmarkStacks(output, available);
+                });
+            });
+            return;
+        }
+        if (id == 4) {
+            List<ItemStack> requested = readBookmarkStacks(buffer);
+            if (buffer.isReadable()) throw new java.io.IOException("Trailing bookmark extraction bytes");
+            serverSession.execute(() -> { if (validSession()) pullBookmarks(requested); });
+            return;
+        }
         if (id == 0) {
             int requested = buffer.readInt();
             serverSession.execute(() -> { if (validSession()) offset = Math.max(0, requested); });
@@ -127,6 +177,127 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
                 }
             }
         });
+    }
+
+    private appeng.api.networking.IGrid bookmarkGrid() {
+        if (!host.isFormed() || !host.getMainNode()
+            .isOnline()) return null;
+        var view = host.getMainNode()
+            .getGrid();
+        if (view == null) return null;
+        var grid = view.nativeGrid();
+        appeng.api.networking.security.ISecurityGrid security = grid
+            .getCache(appeng.api.networking.security.ISecurityGrid.class);
+        return security != null
+            && security.hasPermission(getSyncManager().getPlayer(), appeng.api.config.SecurityPermissions.EXTRACT)
+                ? grid
+                : null;
+    }
+
+    private List<ItemStack> readBookmarkStacks(PacketBuffer buffer) throws java.io.IOException {
+        int count = buffer.readInt();
+        if (count < 0 || count > BOOKMARK_BATCH) throw new java.io.IOException("Invalid bookmark batch size");
+        List<ItemStack> stacks = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            ItemStack stack = ItemStacks.parseOptional(config.registries(), bytes(buffer).readNbt());
+            if (ItemStacks.isEmpty(stack)) throw new java.io.IOException("Invalid bookmark stack");
+            stacks.add(stack);
+        }
+        return stacks;
+    }
+
+    private void writeBookmarkStacks(PacketBuffer buffer, List<ItemStack> stacks) {
+        buffer.writeInt(stacks.size());
+        for (ItemStack stack : stacks) bytes(buffer).writeNbt(ItemStacks.save(config.registries(), stack));
+    }
+
+    /** Query only keys used by the bookmark recipe chain, in bounded packets, rather than exporting the network. */
+    @SideOnly(Side.CLIENT)
+    public int queryBookmarkInventory(List<ItemStack> candidates) {
+        final int sequence;
+        synchronized (bookmarkInventory) {
+            sequence = ++bookmarkSequence;
+            readyBookmarkSequence = -1;
+            bookmarkInventory.clear();
+        }
+        java.util.Map<cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey, ItemStack> unique = new java.util.LinkedHashMap<>();
+        for (ItemStack candidate : candidates) if (!ItemStacks.isEmpty(candidate)) unique.putIfAbsent(
+            cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(candidate),
+            ItemStacks.copyWithCount(candidate, 1));
+        List<ItemStack> keys = new ArrayList<>(unique.values());
+        for (int offset = 0; offset < Math.max(1, keys.size()); offset += BOOKMARK_BATCH) {
+            int end = Math.min(keys.size(), offset + BOOKMARK_BATCH);
+            List<ItemStack> batch = new ArrayList<>(keys.subList(offset, end));
+            boolean last = end == keys.size();
+            syncToServer(3, output -> {
+                output.writeInt(sequence);
+                output.writeBoolean(last);
+                writeBookmarkStacks(output, batch);
+            });
+        }
+        return sequence;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public boolean bookmarkInventoryReady(int sequence) {
+        return readyBookmarkSequence == sequence;
+    }
+
+    @SideOnly(Side.CLIENT)
+    public List<ItemStack> bookmarkInventory() {
+        synchronized (bookmarkInventory) {
+            List<ItemStack> result = new ArrayList<>(bookmarkInventory.size());
+            for (ItemStack stack : bookmarkInventory) result.add(stack.copy());
+            return result;
+        }
+    }
+
+    @SideOnly(Side.CLIENT)
+    public void requestBookmarks(List<ItemStack> items) {
+        for (int offset = 0; offset < items.size(); offset += BOOKMARK_BATCH) {
+            List<ItemStack> batch = new ArrayList<>(
+                items.subList(offset, Math.min(items.size(), offset + BOOKMARK_BATCH)));
+            syncToServer(4, output -> writeBookmarkStacks(output, batch));
+        }
+    }
+
+    private void pullBookmarks(List<ItemStack> requested) {
+        var grid = bookmarkGrid();
+        if (grid == null) return;
+        var player = getSyncManager().getPlayer();
+        appeng.api.networking.storage.IStorageGrid storage = grid
+            .getCache(appeng.api.networking.storage.IStorageGrid.class);
+        appeng.api.networking.energy.IEnergyGrid energy = grid.getCache(appeng.api.networking.energy.IEnergyGrid.class);
+        var monitor = storage.getItemInventory();
+        var source = new appeng.api.networking.security.PlayerSource(player, host);
+        var inventory = appeng.util.InventoryAdaptor
+            .getAdaptor(player, net.minecraftforge.common.util.ForgeDirection.UNKNOWN);
+        for (ItemStack wanted : requested) {
+            // A player inventory bounds useful extraction even if a forged request carries an enormous count.
+            int capacity = (int) Math.min(
+                Integer.MAX_VALUE,
+                (long) player.inventory.mainInventory.length * Math.max(1, wanted.getMaxStackSize()));
+            ItemStack sample = ItemStacks.copyWithCount(wanted, Math.min(wanted.stackSize, capacity));
+            ItemStack overflow = inventory.simulateAdd(sample);
+            int amount = sample.stackSize - ItemStacks.count(overflow);
+            if (amount <= 0) continue;
+            var extracted = appeng.util.Platform.poweredExtraction(
+                energy,
+                monitor,
+                appeng.util.item.AEItemStack.create(ItemStacks.copyWithCount(sample, amount)),
+                source);
+            if (extracted == null) continue;
+            ItemStack leftover = inventory.addItems(extracted.getItemStack());
+            if (!ItemStacks.isEmpty(leftover)) {
+                var rejected = monitor.injectItems(
+                    appeng.util.item.AEItemStack.create(leftover),
+                    appeng.api.config.Actionable.MODULATE,
+                    source);
+                if (rejected != null) appeng.util.Platform.addToPlayerInvOrDrop(player, rejected.getItemStack());
+            }
+        }
+        player.inventory.markDirty();
+        cn.dancingsnow.neoecoae.platform.minecraft.NativePlayerInventory.syncMenu(player);
     }
 
     @SideOnly(Side.CLIENT)

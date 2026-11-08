@@ -48,6 +48,8 @@ public final class NativeLateMixins implements ILateMixinLoader {
         if (FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("NotEnoughItems")) {
             mixins.add("NeiPatternRouteMixin");
+            mixins.add("NEIBookmarkContainerMixin");
+            mixins.add("NEIBookmarkPullMixin");
         }
         if (FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("neenergistics")) mixins.add("NEECraftingPreviewMixin");
