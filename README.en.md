@@ -42,6 +42,10 @@ Monitors job inventory and processing status, showing associated machines, actua
 
 Provides fast planning, cyclic recipe handling, and large-order planning, with material requirements, inventory usage, and crafting step counts in one view. Supports CPU selection, job merging, Start With Follow, and NEI bookmarks for missing materials.
 
+With NEE installed, Ctrl ingredient previews and Alt direct requests combine multiple missing ingredients into one temporary order on an ECO CPU. The order is cleared after delivery; cancelling stops further requests and returns the job inventory. Outputs that do not fit in network storage stay in the CPU for retry. Recipes requiring AE2's native planning semantics retain NEE's sequential requests, with ECO confirmation, cancellation, and temporary-pattern cleanup support.
+
+ECO workstation recipes support NEE ingredient indicators, crafting shortcuts, and pattern ingredient cycling. The storage controller supports NEI bookmark extraction and recipe-chain inventory queries. Storage and computation interface filters follow NEE's drag-and-drop and ghost-item retention settings; these type filters do not store ingredient quantities.
+
 ### Planning Graph
 
 ![Planning Graph](docs/images/en_us/planning-graph.png)
