@@ -108,13 +108,7 @@ public final class PatternTargetSelector {
     public static Evaluation evaluate(PatternUploadTarget target, PatternContext context, IGrid grid) {
         try {
             MatchResult match = target.match(context);
-            if (!target.isPresent(grid)) return new Evaluation(
-                target,
-                match,
-                SlotState.OFFLINE,
-                0,
-                0,
-                -1);
+            if (!target.isPresent(grid)) return new Evaluation(target, match, SlotState.OFFLINE, 0, 0, -1);
             PatternSlotAccess slots = target.slots();
             ItemStack one = PatternStacks.copy(context.pattern, 1);
             int empty = 0, free = -1;
@@ -153,32 +147,32 @@ public final class PatternTargetSelector {
                 || "gui.neoecoae.pattern_upload.reason.tunnel_invalid".equals(reason))
                 return new AutoChoice(null, reason);
             if (evaluation.match.allowsAuto()
-                || evaluation.match.level == MatchResult.Level.UNVERIFIED
-                    && evaluation.match.allowsMapping()
+                || evaluation.match.level == MatchResult.Level.UNVERIFIED && evaluation.match.allowsMapping()
                     && !evaluation.match.categoryId.isEmpty()
-                    && !evaluation.match.routeSignature.isEmpty()) routes.add(evaluation);
+                    && !evaluation.match.routeSignature.isEmpty())
+                routes.add(evaluation);
             else if ("gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason)) unknownSelector = true;
         }
-        if (unknownSelector) return new AutoChoice(null, routes.isEmpty()
-            ? "gui.neoecoae.pattern_upload.reason.circuit_unknown"
-            : "gui.neoecoae.pattern_upload.reason.route_ambiguous");
+        if (unknownSelector) return new AutoChoice(
+            null,
+            routes.isEmpty() ? "gui.neoecoae.pattern_upload.reason.circuit_unknown"
+                : "gui.neoecoae.pattern_upload.reason.route_ambiguous");
         if (routes.isEmpty()) {
-            for (Evaluation evaluation : sorted) if (evaluation.match.reason != null
-                && evaluation.match.level != MatchResult.Level.WRONG_RECIPE
-                && evaluation.match.level != MatchResult.Level.INCOMPATIBLE)
-                return new AutoChoice(null, evaluation.match.reason);
-            for (Evaluation evaluation : sorted) if ("gui.neoecoae.pattern_upload.reason.fluid_input".equals(evaluation.match.reason)
-                || "gui.neoecoae.pattern_upload.reason.bec_role".equals(evaluation.match.reason))
-                return new AutoChoice(null, evaluation.match.reason);
+            for (Evaluation evaluation : sorted)
+                if (evaluation.match.reason != null && evaluation.match.level != MatchResult.Level.WRONG_RECIPE
+                    && evaluation.match.level != MatchResult.Level.INCOMPATIBLE)
+                    return new AutoChoice(null, evaluation.match.reason);
+            for (Evaluation evaluation : sorted)
+                if ("gui.neoecoae.pattern_upload.reason.fluid_input".equals(evaluation.match.reason)
+                    || "gui.neoecoae.pattern_upload.reason.bec_role".equals(evaluation.match.reason))
+                    return new AutoChoice(null, evaluation.match.reason);
             return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.no_exact");
         }
         Set<String> signatures = new HashSet<>();
         for (Evaluation evaluation : routes) signatures.add(evaluation.match.routeSignature);
-        if (signatures.size() > 1)
-            return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
+        if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
         // Full, duplicate and offline receivers still participate in identity resolution.
-        if (receiverCount(routes) != 1)
-            return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
+        if (receiverCount(routes) != 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
         return available(routes.get(0), false);
     }
 
@@ -194,17 +188,17 @@ public final class PatternTargetSelector {
         Evaluation target = owned.get(0);
         if (target.state == SlotState.OFFLINE) return new AutoChoice(null, target.state.translationKey());
         if (!target.match.allowsMapping()) return new AutoChoice(null, rejection(target));
-        if (!mapping.matches(target))
-            return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_changed");
+        if (!mapping.matches(target)) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_changed");
         return available(target, true);
     }
 
     private static AutoChoice available(Evaluation target, boolean mapped) {
-        return target.state == SlotState.FREE ? new AutoChoice(
-            target,
-            target.match.level == MatchResult.Level.UNVERIFIED
-                ? "gui.neoecoae.pattern_upload.warning.unverified" : null,
-            mapped)
+        return target.state == SlotState.FREE
+            ? new AutoChoice(
+                target,
+                target.match.level == MatchResult.Level.UNVERIFIED ? "gui.neoecoae.pattern_upload.warning.unverified"
+                    : null,
+                mapped)
             : new AutoChoice(null, rejection(target));
     }
 
@@ -212,8 +206,8 @@ public final class PatternTargetSelector {
         if (target.match.level == MatchResult.Level.INCOMPATIBLE && target.match.reason != null)
             return target.match.reason;
         if (target.state != SlotState.FREE) return target.state.translationKey();
-        return target.match.reason == null || target.match.reason.isEmpty()
-            ? target.match.level.translationKey() : target.match.reason;
+        return target.match.reason == null || target.match.reason.isEmpty() ? target.match.level.translationKey()
+            : target.match.reason;
     }
 
     private static int receiverCount(List<Evaluation> evaluations) {

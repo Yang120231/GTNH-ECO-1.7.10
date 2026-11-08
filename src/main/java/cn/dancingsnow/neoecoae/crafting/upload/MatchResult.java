@@ -84,10 +84,11 @@ public final class MatchResult {
 
     /** A binding can declare an unknown source selector, but cannot override a known target conflict. */
     public static boolean allowsMapping(Level level, String reason) {
-        return level == Level.EXACT || level == Level.ROUTED || level == Level.ACCEPTED
-            || level == Level.UNVERIFIED
-                && (reason == null || reason.isEmpty() || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason)
-                    || "gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason));
+        return level == Level.EXACT || level == Level.ROUTED
+            || level == Level.ACCEPTED
+            || level == Level.UNVERIFIED && (reason == null || reason.isEmpty()
+                || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason));
     }
 
     public boolean allowsMapping() {

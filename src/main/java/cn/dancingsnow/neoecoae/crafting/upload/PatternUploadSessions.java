@@ -58,8 +58,8 @@ public final class PatternUploadSessions {
         EditorSource source = editor(player);
         if (source == null) return;
         source.draft = hint == null || hint.isEmpty() ? null : hint;
-        for (EditorSource other : HINTS.values()) if (other != source && other.inventory == source.inventory)
-            other.draft = null;
+        for (EditorSource other : HINTS.values())
+            if (other != source && other.inventory == source.inventory) other.draft = null;
     }
 
     public static void beginEncoding(EntityPlayer player) {
@@ -163,7 +163,8 @@ public final class PatternUploadSessions {
 
     /** Periodic sweep; closed, idle or replaced windows release player, inventory and world references. */
     public static void sweep() {
-        Iterator<EditorSource> sources = HINTS.values().iterator();
+        Iterator<EditorSource> sources = HINTS.values()
+            .iterator();
         while (sources.hasNext()) {
             EditorSource source = sources.next();
             if (!source.isOpen()) {
@@ -193,7 +194,8 @@ public final class PatternUploadSessions {
         SESSIONS.values()
             .forEach(PatternUploadSession::close);
         SESSIONS.clear();
-        HINTS.values().forEach(EditorSource::close);
+        HINTS.values()
+            .forEach(EditorSource::close);
         HINTS.clear();
         RECEIPTS.clear();
     }

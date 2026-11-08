@@ -21,8 +21,8 @@ import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
 import cn.dancingsnow.neoecoae.platform.gt.upload.GtNeiRoutes;
 import cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient;
 import codechicken.nei.recipe.IRecipeHandler;
-import codechicken.nei.recipe.RecipeHandlerRef;
 import codechicken.nei.recipe.RecipeCatalysts;
+import codechicken.nei.recipe.RecipeHandlerRef;
 import codechicken.nei.recipe.ShapedRecipeHandler;
 
 /**
@@ -48,11 +48,10 @@ public abstract class NeiPatternRouteMixin {
 
     @Inject(
         method = "fillCraftingGrid(Lnet/minecraft/client/gui/inventory/GuiContainer;I)V",
-        at = {
-            @At(
-                value = "INVOKE",
-                target = "Lcodechicken/nei/api/IOverlayHandler;overlayRecipe(Lnet/minecraft/client/gui/inventory/GuiContainer;Lcodechicken/nei/recipe/IRecipeHandler;IZ)V",
-                shift = At.Shift.AFTER),
+        at = { @At(
+            value = "INVOKE",
+            target = "Lcodechicken/nei/api/IOverlayHandler;overlayRecipe(Lnet/minecraft/client/gui/inventory/GuiContainer;Lcodechicken/nei/recipe/IRecipeHandler;IZ)V",
+            shift = At.Shift.AFTER),
             @At(
                 value = "INVOKE",
                 target = "Lcodechicken/nei/api/IOverlayHandler;transferRecipe(Lnet/minecraft/client/gui/inventory/GuiContainer;Lcodechicken/nei/recipe/IRecipeHandler;II)I",
@@ -63,10 +62,7 @@ public abstract class NeiPatternRouteMixin {
         neoecoae$captureRoute(gui);
     }
 
-    @Inject(
-        method = "craft(Lnet/minecraft/client/gui/inventory/GuiContainer;I)Z",
-        at = @At("RETURN"),
-        require = 1)
+    @Inject(method = "craft(Lnet/minecraft/client/gui/inventory/GuiContainer;I)Z", at = @At("RETURN"), require = 1)
     private void neoecoae$captureCraft(GuiContainer gui, int multiplier, CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValueZ()) neoecoae$captureRoute(gui);
     }
@@ -90,10 +86,13 @@ public abstract class NeiPatternRouteMixin {
                 circuit = null;
             }
         }
-        PatternUploadClient
-            .captureHint(
-                terminal, map, circuit, neoecoae$category(handler), neoecoae$categoryId(handler, map),
-                neoecoae$machineTypes(handler, map));
+        PatternUploadClient.captureHint(
+            terminal,
+            map,
+            circuit,
+            neoecoae$category(handler),
+            neoecoae$categoryId(handler, map),
+            neoecoae$machineTypes(handler, map));
     }
 
     /** The selected category's full catalyst directory; GT's map already includes alternate/mega controllers. */
@@ -106,8 +105,8 @@ public abstract class NeiPatternRouteMixin {
                 for (ItemStack type : catalyst.items) {
                     if (type == null || type.getItem() == null) continue;
                     boolean duplicate = false;
-                    for (ItemStack known : types) if (known.isItemEqual(type)
-                        && ItemStack.areItemStackTagsEqual(known, type)) duplicate = true;
+                    for (ItemStack known : types)
+                        if (known.isItemEqual(type) && ItemStack.areItemStackTagsEqual(known, type)) duplicate = true;
                     if (!duplicate) {
                         ItemStack copy = type.copy();
                         copy.stackSize = 1;

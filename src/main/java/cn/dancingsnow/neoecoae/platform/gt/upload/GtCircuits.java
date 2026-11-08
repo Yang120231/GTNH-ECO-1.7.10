@@ -67,8 +67,8 @@ final class GtCircuits {
             if (circuit != null) {
                 if (selected != null && !same(selected, circuit)) return true;
                 selected = circuit;
-            } else if (ProgrammableHatchUpload.isProgrammingCircuit(raw)
-                && ProgrammableHatchUpload.unwrap(raw) == null) reset = true;
+            } else if (ProgrammableHatchUpload.isProgrammingCircuit(raw) && ProgrammableHatchUpload.unwrap(raw) == null)
+                reset = true;
         }
         return reset && selected != null;
     }

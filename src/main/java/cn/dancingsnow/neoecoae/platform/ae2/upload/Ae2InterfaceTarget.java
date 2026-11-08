@@ -11,6 +11,8 @@ import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.gtnewhorizon.gtnhlib.capability.Capabilities;
+
 import appeng.api.AEApi;
 import appeng.api.crafting.ICraftingIconProvider;
 import appeng.api.networking.IGrid;
@@ -26,7 +28,6 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternRouteProbe;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternSlotAccess;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
 import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
-import com.gtnewhorizon.gtnhlib.capability.Capabilities;
 
 /** Any host listed by AE2's interface terminal: ME interfaces, 2-in-1 interfaces and GT/addon pattern hatches. */
 final class Ae2InterfaceTarget implements PatternUploadTarget {
@@ -159,19 +160,30 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
                 .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.processing_only");
             return facesMolecularAssembler()
                 ? new MatchResult(
-                    MatchResult.Level.EXACT, null, null, null, null, "crafting", false, "ae2:crafting", "-")
+                    MatchResult.Level.EXACT,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "crafting",
+                    false,
+                    "ae2:crafting",
+                    "-")
                 : MatchResult.of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.no_assembler");
         }
         boolean nativeGt = NativeGregTech.isAvailable();
         String selection = nativeGt ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
             : context.hint == null ? "?" : context.hint.selectionKey();
-        ItemStack circuit = nativeGt ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectedCircuit(context)
+        ItemStack circuit = nativeGt
+            ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectedCircuit(context)
             : context.hint == null ? null : context.hint.getCircuit();
-        if ("!".equals(selection)) return MatchResult.of(
-            MatchResult.Level.CIRCUIT_CONFLICT, "gui.neoecoae.pattern_upload.reason.circuits_multiple");
-        if (context.hint != null && context.hint.hasRecipeMap() && (!nativeGt
-            || !cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.isKnownMap(context.hint.getRecipeMapId())))
-            return MatchResult.of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.source_map_unknown");
+        if ("!".equals(selection)) return MatchResult
+            .of(MatchResult.Level.CIRCUIT_CONFLICT, "gui.neoecoae.pattern_upload.reason.circuits_multiple");
+        if (context.hint != null && context.hint.hasRecipeMap()
+            && (!nativeGt || !cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes
+                .isKnownMap(context.hint.getRecipeMapId())))
+            return MatchResult
+                .of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.source_map_unknown");
         MatchResult routed = probe.match(viewable, context, kind == Kind.PROGRAMMABLE_HATCH);
         if (routed != null) return routed;
         if (context.hint != null && !context.hint.hasRecipeMap() && viewable instanceof IInterfaceHost) {
@@ -182,23 +194,43 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
             ItemStack shown = null;
             if (tile != null && tile.getWorldObj() != null && targets != null) for (ForgeDirection target : targets) {
                 if (target == null || target == ForgeDirection.UNKNOWN) continue;
-                TileEntity machine = tile.getWorldObj().getTileEntity(
-                    tile.xCoord + target.offsetX, tile.yCoord + target.offsetY, tile.zCoord + target.offsetZ);
+                TileEntity machine = tile.getWorldObj()
+                    .getTileEntity(
+                        tile.xCoord + target.offsetX,
+                        tile.yCoord + target.offsetY,
+                        tile.zCoord + target.offsetZ);
                 ItemStack type = machineType(machine, target.getOpposite());
                 if (!context.hint.matchesMachine(type)) continue;
                 if (shown == null) shown = type;
-                machines.add(machine.getClass().getName() + "@"
-                    + Item.itemRegistry.getNameForObject(type.getItem()) + ":" + type.getItemDamage());
+                machines.add(
+                    machine.getClass()
+                        .getName() + "@"
+                        + Item.itemRegistry.getNameForObject(type.getItem())
+                        + ":"
+                        + type.getItemDamage());
             }
             if (!machines.isEmpty()) {
                 String category = context.hint.getCategoryId();
                 return new MatchResult(
-                    MatchResult.Level.ROUTED, null, circuit, null, shown,
-                    category + "#" + selection + "#" + String.join(",", machines), false, category, selection);
+                    MatchResult.Level.ROUTED,
+                    null,
+                    circuit,
+                    null,
+                    shown,
+                    category + "#" + selection + "#" + String.join(",", machines),
+                    false,
+                    category,
+                    selection);
             }
         }
         return new MatchResult(
-            MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.no_route", circuit, null, null, "", false,
+            MatchResult.Level.UNVERIFIED,
+            "gui.neoecoae.pattern_upload.reason.no_route",
+            circuit,
+            null,
+            null,
+            "",
+            false,
             context.hint == null ? "" : context.hint.getCategoryId(),
             selection);
     }
@@ -212,14 +244,19 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
             if (icon != null) return icon.copy();
         }
         var block = machine.getBlockType();
-        ItemStack type = new ItemStack(block, 1, block.getDamageValue(
-            machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord));
+        ItemStack type = new ItemStack(
+            block,
+            1,
+            block.getDamageValue(machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord));
         try {
             var hit = new MovingObjectPosition(
-                machine.xCoord, machine.yCoord, machine.zCoord, face.ordinal(),
+                machine.xCoord,
+                machine.yCoord,
+                machine.zCoord,
+                face.ordinal(),
                 Vec3.createVectorHelper(machine.xCoord + 0.5, machine.yCoord + 0.5, machine.zCoord + 0.5));
-            ItemStack picked = block.getPickBlock(
-                hit, machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord, null);
+            ItemStack picked = block
+                .getPickBlock(hit, machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord, null);
             if (picked != null && picked.getItem() != null) type = picked;
         } catch (RuntimeException | LinkageError unsupportedPick) { /* Use the block's declared item form. */ }
         return type.getItem() == null ? null : type;

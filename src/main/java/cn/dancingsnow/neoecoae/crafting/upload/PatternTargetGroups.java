@@ -152,14 +152,23 @@ public final class PatternTargetGroups {
             String key = key(evaluation);
             Object inventory = evaluation.storageIdentity;
             if (inventory != null) {
-                String route = evaluation.target.kind().name() + '\u0001' + evaluation.match.routeSignature
-                    + '\u0001' + evaluation.match.level.name() + '\u0001' + evaluation.match.categoryId
-                    + '\u0001' + evaluation.match.selectionKey + '\u0001' + evaluation.match.programmingCover;
+                String route = evaluation.target.kind()
+                    .name() + '\u0001'
+                    + evaluation.match.routeSignature
+                    + '\u0001'
+                    + evaluation.match.level.name()
+                    + '\u0001'
+                    + evaluation.match.categoryId
+                    + '\u0001'
+                    + evaluation.match.selectionKey
+                    + '\u0001'
+                    + evaluation.match.programmingCover;
                 Map<String, String> views = aliases.computeIfAbsent(inventory, ignored -> new HashMap<>());
                 String previous = views.putIfAbsent(route, key);
                 if (previous != null) key = previous;
             }
-            byKey.computeIfAbsent(key, ignored -> new ArrayList<>()).add(evaluation);
+            byKey.computeIfAbsent(key, ignored -> new ArrayList<>())
+                .add(evaluation);
         }
         List<Group> result = new ArrayList<>(byKey.size());
         for (Map.Entry<String, List<Evaluation>> entry : byKey.entrySet()) {
@@ -179,9 +188,14 @@ public final class PatternTargetGroups {
     public static String mappingKey(Evaluation evaluation) {
         StringBuilder key = new StringBuilder("2:");
         append(key, evaluation.positionKey);
-        append(key, evaluation.target.kind().name());
+        append(
+            key,
+            evaluation.target.kind()
+                .name());
         append(key, evaluation.match.routeSignature);
-        return key.append(':').append(evaluation.match.programmingCover).toString();
+        return key.append(':')
+            .append(evaluation.match.programmingCover)
+            .toString();
     }
 
     /** Old group keys are read only to prove whether they still name exactly one concrete inventory. */

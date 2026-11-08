@@ -31,16 +31,17 @@ public abstract class PatternTermEncodeMixin implements PatternTermEncoder {
         if (player == null || player.worldObj.isRemote) return;
         ContainerPatternTerm container = (ContainerPatternTerm) (Object) this;
         if (!ServerTasks.isServerThread()) {
-            ServerTasks.captureSession().execute(() -> {
-                if (player.openContainer != container) return;
-                try {
-                    ((PatternTermEncoder) container).neoecoae$encode();
-                } catch (RuntimeException failure) {
-                    NeoECOAE.LOG.warn("Pattern terminal encode failed", failure);
-                } finally {
-                    PatternUploadService.afterEncoded(player);
-                }
-            });
+            ServerTasks.captureSession()
+                .execute(() -> {
+                    if (player.openContainer != container) return;
+                    try {
+                        ((PatternTermEncoder) container).neoecoae$encode();
+                    } catch (RuntimeException failure) {
+                        NeoECOAE.LOG.warn("Pattern terminal encode failed", failure);
+                    } finally {
+                        PatternUploadService.afterEncoded(player);
+                    }
+                });
             ci.cancel();
             return;
         }
@@ -50,8 +51,7 @@ public abstract class PatternTermEncodeMixin implements PatternTermEncoder {
     @Inject(method = "encode", at = @At("RETURN"), require = 1)
     private void neoecoae$afterEncode(CallbackInfo ci) {
         var player = ((AEBaseContainer) (Object) this).getPlayerInv().player;
-        if (player != null && !player.worldObj.isRemote)
-            PatternUploadService.afterEncoded(player);
+        if (player != null && !player.worldObj.isRemote) PatternUploadService.afterEncoded(player);
     }
 
     @Inject(method = "clear", at = @At("HEAD"), require = 1)
@@ -60,8 +60,7 @@ public abstract class PatternTermEncodeMixin implements PatternTermEncoder {
         if (player == null || player.worldObj.isRemote) return;
         ContainerPatternTerm container = (ContainerPatternTerm) (Object) this;
         if (ServerTasks.isServerThread()) PatternUploadService.draftCleared(player);
-        else ServerTasks.captureSession().execute(() -> {
-            if (player.openContainer == container) PatternUploadService.draftCleared(player);
-        });
+        else ServerTasks.captureSession()
+            .execute(() -> { if (player.openContainer == container) PatternUploadService.draftCleared(player); });
     }
 }

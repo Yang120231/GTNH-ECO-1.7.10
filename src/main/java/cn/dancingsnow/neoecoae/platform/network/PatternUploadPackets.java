@@ -153,8 +153,8 @@ public final class PatternUploadPackets {
             this.circuit = circuit == null ? null : circuit.copy();
             this.category = category == null ? "" : category;
             this.categoryId = categoryId == null ? "" : categoryId;
-            if (machineTypes != null && machineTypes.size() <= 128) for (ItemStack type : machineTypes)
-                if (type != null) this.machineTypes.add(type.copy());
+            if (machineTypes != null && machineTypes.size() <= 128)
+                for (ItemStack type : machineTypes) if (type != null) this.machineTypes.add(type.copy());
         }
 
         @Override

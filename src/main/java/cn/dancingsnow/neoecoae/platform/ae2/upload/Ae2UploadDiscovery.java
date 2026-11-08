@@ -61,8 +61,7 @@ public final class Ae2UploadDiscovery {
     }
 
     private static void add(List<PatternUploadTarget> result, Set<Object> seen,
-        Map<Object, EcoPatternDomainTarget> domains, IGridNode node,
-        PatternRouteProbe routes) {
+        Map<Object, EcoPatternDomainTarget> domains, IGridNode node, PatternRouteProbe routes) {
         try {
             IGridHost machine = node.getMachine();
             if (machine == null || !seen.add(machine)) return;

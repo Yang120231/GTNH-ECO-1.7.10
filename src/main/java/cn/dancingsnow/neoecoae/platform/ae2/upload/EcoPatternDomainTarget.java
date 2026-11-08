@@ -139,8 +139,7 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
     public MatchResult match(PatternContext context) {
         return context.processing
             ? MatchResult.of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.eco_crafting_only")
-            : new MatchResult(
-                MatchResult.Level.EXACT, null, null, null, null, "crafting", false, "ae2:crafting", "-");
+            : new MatchResult(MatchResult.Level.EXACT, null, null, null, null, "crafting", false, "ae2:crafting", "-");
     }
 
     /** Concatenated view over the domain's buses; {@link #physical} resolves one bus slot for the transfer. */

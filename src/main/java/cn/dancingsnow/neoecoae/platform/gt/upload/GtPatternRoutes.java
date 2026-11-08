@@ -125,7 +125,9 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         }
 
         String role() {
-            return receiver == null ? "" : receiver.getClass().getName();
+            return receiver == null ? ""
+                : receiver.getClass()
+                    .getName();
         }
     }
 
@@ -151,23 +153,35 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         }
 
         MatchResult result() {
-            String signature = (route.map == null ? "" : route.map.unlocalizedName)
-                + "#" + GtCircuits.number(circuit) + "#" + route.role();
+            String signature = (route.map == null ? "" : route.map.unlocalizedName) + "#"
+                + GtCircuits.number(circuit)
+                + "#"
+                + route.role();
             return new MatchResult(
-                level, reason, circuit, route.name, route.icon, signature, programming, categoryId, selectionKey);
+                level,
+                reason,
+                circuit,
+                route.name,
+                route.icon,
+                signature,
+                programming,
+                categoryId,
+                selectionKey);
         }
     }
 
     @Override
     public MatchResult match(Object host, PatternContext context, boolean programmable) {
         if (host instanceof IDualInputHatch && !((IDualInputHatch) host).supportsFluids()
-            && context.recipeInputs != null) for (IAEStack<?> input : context.recipeInputs)
-                if (input instanceof IAEFluidStack && input.getStackSize() > 0) return MatchResult.of(
-                    MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.fluid_input");
+            && context.recipeInputs != null)
+            for (IAEStack<?> input : context.recipeInputs) if (input instanceof IAEFluidStack
+                && input.getStackSize() > 0)
+                return MatchResult.of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.fluid_input");
         List<Route> routes = routes(host);
         if (routes.isEmpty()) return null;
         RecipeMap<?> sourceMap = context.hint != null && context.hint.hasRecipeMap()
-            ? knownMap(context.hint.getRecipeMapId()) : null;
+            ? knownMap(context.hint.getRecipeMapId())
+            : null;
         ItemStack patternCircuit = GtCircuits.patternCircuit(context.recipeInputs);
         ItemStack selected = selectedCircuit(context);
         boolean programmingCircuit = GtCircuits.hasProgrammingCircuit(context.recipeInputs);
@@ -177,7 +191,13 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         boolean ambiguous = false;
         for (Route route : routes) {
             Candidate candidate = evaluate(
-                route, context, sourceMap, selected, patternCircuit, programmingCircuit, conflict,
+                route,
+                context,
+                sourceMap,
+                selected,
+                patternCircuit,
+                programmingCircuit,
+                conflict,
                 programmable || route.programmingCover || route.programmable);
             if (candidate.level == MatchResult.Level.ROUTED
                 || MatchResult.allowsMapping(candidate.level, candidate.reason)) {
@@ -188,80 +208,201 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             if (best == null || candidate.level.rank() < best.level.rank()) best = candidate;
         }
         MatchResult result = best.result();
-        return ambiguous ? new MatchResult(
-            MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.route_ambiguous",
-            result.circuit, result.routeName, result.routeIcon, result.routeSignature, result.programmingCover,
-            result.categoryId, result.selectionKey) : result;
+        return ambiguous
+            ? new MatchResult(
+                MatchResult.Level.UNVERIFIED,
+                "gui.neoecoae.pattern_upload.reason.route_ambiguous",
+                result.circuit,
+                result.routeName,
+                result.routeIcon,
+                result.routeSignature,
+                result.programmingCover,
+                result.categoryId,
+                result.selectionKey)
+            : result;
     }
 
     private Candidate evaluate(Route route, PatternContext context, RecipeMap<?> sourceMap, ItemStack selected,
         ItemStack patternCircuit, boolean programmingCircuit, boolean conflictingCircuits, boolean canProgram) {
         boolean sourced = context.hint != null && !context.hint.isEmpty();
-        String category = sourced && !context.hint.getCategoryId().isEmpty()
-            ? context.hint.getCategoryId() : route.map == null ? "" : "gt:" + route.map.unlocalizedName;
+        String category = sourced && !context.hint.getCategoryId()
+            .isEmpty() ? context.hint.getCategoryId() : route.map == null ? "" : "gt:" + route.map.unlocalizedName;
         String selection = selectionKey(context);
         boolean programming = route.programmingCover || programmingCircuit && canProgram;
         boolean categoryUnknown = sourced && !context.hint.hasRecipeMap() && !context.hint.hasMachineTypes();
         if (conflictingCircuits) return candidate(
-            MatchResult.Level.CIRCUIT_CONFLICT, "circuits_multiple", route, selected, category, selection, programming);
+            MatchResult.Level.CIRCUIT_CONFLICT,
+            "circuits_multiple",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
         if (route.map == null) return candidate(
-            MatchResult.Level.UNVERIFIED, "no_controller", route, selected, category, selection, programming);
+            MatchResult.Level.UNVERIFIED,
+            "no_controller",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
         if (sourced && context.hint.hasRecipeMap()) {
             // An invalid captured source is not permission to infer a different map from the edited pattern.
             if (sourceMap == null) return candidate(
-                MatchResult.Level.UNVERIFIED, "source_map_unknown", route, selected, category, selection, programming);
+                MatchResult.Level.UNVERIFIED,
+                "source_map_unknown",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
             if (sourceMap != route.map) return candidate(
-                MatchResult.Level.WRONG_RECIPE, "hint_map", route, selected, category, selection, programming);
-        } else if (sourced && !categoryUnknown && !context.hint.matchesMachine(route.icon)
-            && (route.receiver == null || !context.hint.matchesMachine(route.receiver.getStackForm(1)))) return candidate(
-            MatchResult.Level.WRONG_RECIPE, "hint_map", route, selected, category, selection, programming);
+                MatchResult.Level.WRONG_RECIPE,
+                "hint_map",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
+        } else if (sourced && !categoryUnknown
+            && !context.hint.matchesMachine(route.icon)
+            && (route.receiver == null || !context.hint.matchesMachine(route.receiver.getStackForm(1))))
+            return candidate(
+                MatchResult.Level.WRONG_RECIPE,
+                "hint_map",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
         if (route.receiver == null) return candidate(
-            MatchResult.Level.UNVERIFIED, "no_controller", route, selected, category, selection, programming);
-        if (route.map == TecTechRecipeMaps.condensateAssemblingRecipes
-            && !(route.receiver instanceof MTEBECIONode)) return candidate(
-                MatchResult.Level.INCOMPATIBLE, "bec_role", route, selected, category, selection, programming);
+            MatchResult.Level.UNVERIFIED,
+            "no_controller",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
+        if (route.map == TecTechRecipeMaps.condensateAssemblingRecipes && !(route.receiver instanceof MTEBECIONode))
+            return candidate(
+                MatchResult.Level.INCOMPATIBLE,
+                "bec_role",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
 
         if (!sourced) {
             GtRecipeVerifier.Inference inferred = verdicts.infer(route.map, context);
             if (!inferred.complete) return candidate(
-                MatchResult.Level.UNVERIFIED, "search_incomplete", route, selected, category, selection, programming);
+                MatchResult.Level.UNVERIFIED,
+                "search_incomplete",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
             if (!inferred.found()) return candidate(
-                MatchResult.Level.WRONG_RECIPE, "recipe", route, selected, category, selection, programming);
+                MatchResult.Level.WRONG_RECIPE,
+                "recipe",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
             if (!inferred.unique()) {
                 if (programmingCircuit && !canProgram) return candidate(
-                    MatchResult.Level.CIRCUIT_CONFLICT, "needs_programming", route, route.circuit,
-                    category, selection, programming);
+                    MatchResult.Level.CIRCUIT_CONFLICT,
+                    "needs_programming",
+                    route,
+                    route.circuit,
+                    category,
+                    selection,
+                    programming);
                 if (!inferred.allows(route.circuit)) return candidate(
                     MatchResult.Level.CIRCUIT_CONFLICT,
                     route.circuit == null ? "machine_circuit_missing" : "machine_circuit",
-                    route, route.circuit, category, selection, programming);
+                    route,
+                    route.circuit,
+                    category,
+                    selection,
+                    programming);
                 return candidate(
-                    MatchResult.Level.UNVERIFIED, "circuit_unknown", route, route.circuit,
-                    category, selection, programming);
+                    MatchResult.Level.UNVERIFIED,
+                    "circuit_unknown",
+                    route,
+                    route.circuit,
+                    category,
+                    selection,
+                    programming);
             }
             selected = patternCircuit != null ? patternCircuit : inferred.circuit();
         }
         if (programmingCircuit && !canProgram) return candidate(
-            MatchResult.Level.CIRCUIT_CONFLICT, "needs_programming", route, selected, category, selection, programming);
-        if (selected != null && route.circuit != null && !GtCircuits.same(selected, route.circuit)
-            && !(GtCircuits.hasProgrammingSelector(context.recipeInputs) && canProgram)) return candidate(
-                MatchResult.Level.CIRCUIT_CONFLICT, "machine_circuit", route, selected, category, selection, programming);
+            MatchResult.Level.CIRCUIT_CONFLICT,
+            "needs_programming",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
+        if (selected != null && route.circuit != null
+            && !GtCircuits.same(selected, route.circuit)
+            && !(GtCircuits.hasProgrammingSelector(context.recipeInputs) && canProgram))
+            return candidate(
+                MatchResult.Level.CIRCUIT_CONFLICT,
+                "machine_circuit",
+                route,
+                selected,
+                category,
+                selection,
+                programming);
         if (selected != null && route.circuit == null && patternCircuit == null) return candidate(
-            MatchResult.Level.CIRCUIT_CONFLICT, "machine_circuit_missing", route, selected, category, selection, programming);
+            MatchResult.Level.CIRCUIT_CONFLICT,
+            "machine_circuit_missing",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
         if (selected != null && patternCircuit == null && programmingCircuit) return candidate(
-            MatchResult.Level.CIRCUIT_CONFLICT, "machine_circuit_missing", route, selected, category, selection, programming);
+            MatchResult.Level.CIRCUIT_CONFLICT,
+            "machine_circuit_missing",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
         if (sourced && !context.hint.hasRecipeMap() && selected == null && route.circuit != null) return candidate(
-            MatchResult.Level.UNVERIFIED, "circuit_unknown", route, route.circuit, category, selection, programming);
+            MatchResult.Level.UNVERIFIED,
+            "circuit_unknown",
+            route,
+            route.circuit,
+            category,
+            selection,
+            programming);
         if (categoryUnknown) return candidate(
-            MatchResult.Level.UNVERIFIED, "no_route", route, selected, category, selection, programming);
+            MatchResult.Level.UNVERIFIED,
+            "no_route",
+            route,
+            selected,
+            category,
+            selection,
+            programming);
         return candidate(MatchResult.Level.ROUTED, null, route, selected, category, selection, programming);
     }
 
     private static Candidate candidate(MatchResult.Level level, String reason, Route route, ItemStack circuit,
         String category, String selection, boolean programming) {
         return new Candidate(
-            level, reason == null ? null : "gui.neoecoae.pattern_upload.reason." + reason,
-            route, circuit, category, selection, programming);
+            level,
+            reason == null ? null : "gui.neoecoae.pattern_upload.reason." + reason,
+            route,
+            circuit,
+            category,
+            selection,
+            programming);
     }
 
     private static RecipeMap<?> knownMap(String id) {
@@ -281,8 +422,11 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                 EnumSet<ForgeDirection> targets = ((IInterfaceHost) host).getTargets();
                 if (tile != null && tile.getWorldObj() != null && targets != null) for (ForgeDirection side : targets) {
                     if (side == null || side == ForgeDirection.UNKNOWN) continue;
-                    TileEntity adjacent = tile.getWorldObj().getTileEntity(
-                        tile.xCoord + side.offsetX, tile.yCoord + side.offsetY, tile.zCoord + side.offsetZ);
+                    TileEntity adjacent = tile.getWorldObj()
+                        .getTileEntity(
+                            tile.xCoord + side.offsetX,
+                            tile.yCoord + side.offsetY,
+                            tile.zCoord + side.offsetZ);
                     if (!(adjacent instanceof IGregTechTileEntity)) continue;
                     IMetaTileEntity machine = ((IGregTechTileEntity) adjacent).getMetaTileEntity();
                     if (machine instanceof MTEHatchInput || machine instanceof MTEHatchInputBus
@@ -300,8 +444,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         ItemStack circuit = circuit(machine);
         boolean cover = hasProgrammingCover(machine.getBaseMetaTileEntity());
         boolean programmable = ProgrammableHatchUpload.isProgrammingInput(machine);
-        List<MTEMultiBlockBase> controllers = machine instanceof RecipeMapWorkable
-            ? Collections.emptyList() : owners(machine);
+        List<MTEMultiBlockBase> controllers = machine instanceof RecipeMapWorkable ? Collections.emptyList()
+            : owners(machine);
         if (!controllers.isEmpty()) {
             for (MTEMultiBlockBase controller : controllers) {
                 RecipeMap<?> map = controller.getRecipeMap();
@@ -313,8 +457,14 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             RecipeMap<?> map = recipeMap(machine);
             ItemStack icon = icon(machine);
             add(
-                routes, map, circuit, icon, name(icon, machine, map),
-                machine instanceof RecipeMapWorkable ? machine : null, cover, programmable);
+                routes,
+                map,
+                circuit,
+                icon,
+                name(icon, machine, map),
+                machine instanceof RecipeMapWorkable ? machine : null,
+                cover,
+                programmable);
         }
     }
 
@@ -399,8 +549,10 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         List<MTEMultiBlockBase> found = index.owners.get(part);
         if (found == null) return Collections.emptyList();
         List<MTEMultiBlockBase> live = new ArrayList<>(found);
-        live.removeIf(owner -> !owner.mMachine || owner.getBaseMetaTileEntity() == null
-            || owner.getBaseMetaTileEntity().isDead());
+        live.removeIf(
+            owner -> !owner.mMachine || owner.getBaseMetaTileEntity() == null
+                || owner.getBaseMetaTileEntity()
+                    .isDead());
         return live;
     }
 

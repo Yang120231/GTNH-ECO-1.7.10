@@ -20,9 +20,9 @@ import gregtech.api.enums.CondensateType;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.util.BlastFurnaceGasStat;
+import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTRecipeConstants;
-import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
 import tectech.recipe.TecTechRecipeMaps;
 
@@ -49,7 +49,9 @@ final class GtRecipeVerifier {
         }
 
         ItemStack circuit() {
-            return unique() ? selections.values().iterator().next() : null;
+            return unique() ? selections.values()
+                .iterator()
+                .next() : null;
         }
 
         boolean allows(ItemStack circuit) {
@@ -125,10 +127,10 @@ final class GtRecipeVerifier {
         }
         // A gasless EBF pattern can describe a supplied-from-subnet gas variant. Keep those variants in the search
         // instead of "proving" the dry circuit from the absence of gas. An explicitly supplied gas remains evidence.
-        if (map == RecipeMaps.blastFurnaceRecipes && !pattern.hasProtectiveGas()
-            && recipe.mFluidInputs != null) for (FluidStack input : recipe.mFluidInputs)
-                if (protectiveGas(input)) fluids.add(input.copy());
-        return recipe.isRecipeInputEqual(false, true, fluids.toArray(new FluidStack[0]), items.toArray(new ItemStack[0]));
+        if (map == RecipeMaps.blastFurnaceRecipes && !pattern.hasProtectiveGas() && recipe.mFluidInputs != null)
+            for (FluidStack input : recipe.mFluidInputs) if (protectiveGas(input)) fluids.add(input.copy());
+        return recipe
+            .isRecipeInputEqual(false, true, fluids.toArray(new FluidStack[0]), items.toArray(new ItemStack[0]));
     }
 
     private static boolean fluidInput(GTRecipe recipe, FluidStack encoded) {
@@ -163,18 +165,18 @@ final class GtRecipeVerifier {
         // Omitted byproducts, probability and edited quantities do not change the upload route.
         for (ItemStack encoded : pattern.outputs) {
             boolean found = false;
-            if (recipe.mOutputs != null) for (ItemStack output : recipe.mOutputs) if (output != null
-                && (GTUtility.areStacksEqual(encoded, output, true)
+            if (recipe.mOutputs != null) for (ItemStack output : recipe.mOutputs)
+                if (output != null && (GTUtility.areStacksEqual(encoded, output, true)
                     || GTUtility.areStacksEqual(encoded, cooled(output), true))) {
-                found = true;
-                break;
-            }
+                        found = true;
+                        break;
+                    }
             if (!found) return false;
         }
         for (FluidStack encoded : pattern.fluidOutputs) {
             boolean found = false;
-            if (recipe.mFluidOutputs != null) for (FluidStack output : recipe.mFluidOutputs)
-                if (GTUtility.areFluidsEqual(encoded, output, true)) {
+            if (recipe.mFluidOutputs != null)
+                for (FluidStack output : recipe.mFluidOutputs) if (GTUtility.areFluidsEqual(encoded, output, true)) {
                     found = true;
                     break;
                 }

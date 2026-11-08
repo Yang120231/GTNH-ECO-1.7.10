@@ -149,8 +149,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static boolean mappable(Row row) {
-        return row.state != OFFLINE && MatchResult
-            .allowsMapping(level(row), row.reason);
+        return row.state != OFFLINE && MatchResult.allowsMapping(level(row), row.reason);
     }
 
     private static MatchResult.Level level(Row row) {
@@ -628,7 +627,8 @@ final class PatternUploadScreen extends GuiScreen {
         if (!list.category.isEmpty()) {
             if (detail.length() > 0) detail.append(" · ");
             detail.append(
-                StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.nei_category", text(list.category)));
+                StatCollector
+                    .translateToLocalFormatted("gui.neoecoae.pattern_upload.nei_category", text(list.category)));
         }
         if (list.hinted) {
             if (detail.length() > 0) detail.append(" · ");

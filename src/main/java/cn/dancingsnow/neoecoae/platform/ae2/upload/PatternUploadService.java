@@ -230,7 +230,8 @@ public final class PatternUploadService {
         if ("gui.neoecoae.pattern_upload.success_unverified".equals(session.message())) {
             ChatComponentTranslation warning = new ChatComponentTranslation(
                 "gui.neoecoae.pattern_upload.warning.unverified");
-            warning.getChatStyle().setColor(EnumChatFormatting.YELLOW);
+            warning.getChatStyle()
+                .setColor(EnumChatFormatting.YELLOW);
             player.addChatMessage(warning);
         }
         TOOLTIPS.remove(player);
@@ -318,18 +319,18 @@ public final class PatternUploadService {
         ContainerPatternTerm container = terminal(player, windowId);
         if (container == null) return;
         bindEditor(container, player);
-        PatternUploadSessions.setHint(
-            player, new RouteHint(recipeMapId, circuit, category, categoryId, windowId, machineTypes));
+        PatternUploadSessions
+            .setHint(player, new RouteHint(recipeMapId, circuit, category, categoryId, windowId, machineTypes));
     }
 
     private static void bindEditor(ContainerPatternTerm container, EntityPlayer player) {
         Ae2TerminalSource source = Ae2TerminalSource.of(container);
         if (source == null) return;
         var terminal = container.getPatternTerminal();
-        appeng.api.parts.IPatternTerminal.PatternEncodeListener listener = (host, pattern) ->
-            onEncoded(container, player, pattern);
-        if (PatternUploadSessions.bindEditor(
-            player, container, source.identity(), () -> terminal.removePatternEncodeListeners(listener)))
+        appeng.api.parts.IPatternTerminal.PatternEncodeListener listener = (host,
+            pattern) -> onEncoded(container, player, pattern);
+        if (PatternUploadSessions
+            .bindEditor(player, container, source.identity(), () -> terminal.removePatternEncodeListeners(listener)))
             terminal.addPatternEncodeListeners(listener);
     }
 
@@ -379,16 +380,13 @@ public final class PatternUploadService {
             && now - state.at < HINT_FORCE_TICKS) return;
         PatternUploadPackets.AutoTarget message;
         PatternContext context = grid == null ? null
-            : PatternContext.of(
-                pattern,
-                PatternUploadSessions.hintFor(player, container.windowId, pattern),
-                player.worldObj,
-                grid);
+            : PatternContext
+                .of(pattern, PatternUploadSessions.hintFor(player, container.windowId, pattern), player.worldObj, grid);
         if (context == null) message = new PatternUploadPackets.AutoTarget(container.windowId, "", -1, null, false, "");
         else {
             var evaluations = PatternTargetSelector.evaluateAll(Ae2UploadDiscovery.discover(grid), context, grid);
-            PatternTargetSelector.AutoChoice choice = PatternTargetSelector.choose(
-                evaluations, PatternUploadMappings.get(player, context, evaluations));
+            PatternTargetSelector.AutoChoice choice = PatternTargetSelector
+                .choose(evaluations, PatternUploadMappings.get(player, context, evaluations));
             if (choice.selected == null)
                 message = new PatternUploadPackets.AutoTarget(container.windowId, "", -1, null, false, choice.reason);
             else {
@@ -402,8 +400,8 @@ public final class PatternUploadService {
                     match.circuit,
                     match.programmingCover,
                     choice.reason);
-                message.nameSuffix = (match.routeName == null && target.nameSuffix() != null ? target.nameSuffix() : "")
-                    + " (" + target.dimension() + ": " + target.x() + ", " + target.y() + ", " + target.z() + ")";
+                message.nameSuffix = (match.routeName == null && target.nameSuffix() != null ? target.nameSuffix()
+                    : "") + " (" + target.dimension() + ": " + target.x() + ", " + target.y() + ", " + target.z() + ")";
                 message.icon = copy(match.routeIcon != null ? match.routeIcon : target.icon());
                 message.mapped = choice.mapped;
             }

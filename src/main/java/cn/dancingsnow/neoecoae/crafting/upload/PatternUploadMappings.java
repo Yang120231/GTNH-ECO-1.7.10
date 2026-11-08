@@ -71,7 +71,9 @@ public final class PatternUploadMappings {
         public boolean matches(Evaluation evaluation) {
             if (conflict || !owns(evaluation)) return false;
             if (legacy) return true;
-            return kind.equals(evaluation.target.kind().name())
+            return kind.equals(
+                evaluation.target.kind()
+                    .name())
                 && signature.equals(evaluation.match.routeSignature)
                 && programming == evaluation.match.programmingCover
                 && scope.categoryId.equals(evaluation.match.categoryId);
@@ -83,7 +85,9 @@ public final class PatternUploadMappings {
         Scope source = sourceScope(context);
         if (source != null) return source;
         Map<String, Scope> inferred = inferredScopes(evaluations);
-        return inferred.size() == 1 ? inferred.values().iterator().next() : null;
+        return inferred.size() == 1 ? inferred.values()
+            .iterator()
+            .next() : null;
     }
 
     /** The player may declare an inferred category/unknown selector by binding one concrete receiver. */
@@ -98,10 +102,11 @@ public final class PatternUploadMappings {
     private static Scope sourceScope(PatternContext context) {
         if (context == null) return null;
         if (!context.processing) return new Scope("ae2:crafting", "-", "gui.neoecoae.pattern_upload.crafting");
-        if (context.hint == null
-            || context.hint.getCategoryId().isEmpty()) return null;
+        if (context.hint == null || context.hint.getCategoryId()
+            .isEmpty()) return null;
         String selection = NativeGregTech.isAvailable()
-            ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context) : context.hint.selectionKey();
+            ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
+            : context.hint.selectionKey();
         return new Scope(context.hint.getCategoryId(), selection, context.hint.getCategory());
     }
 
@@ -109,9 +114,10 @@ public final class PatternUploadMappings {
         Map<String, Scope> scopes = new LinkedHashMap<>();
         for (Evaluation evaluation : evaluations) {
             MatchResult match = evaluation.match;
-            if (match.categoryId.isEmpty() || !match.allowsMapping()
-                && (match.level != MatchResult.Level.CIRCUIT_CONFLICT
-                    || "gui.neoecoae.pattern_upload.reason.circuits_multiple".equals(match.reason))) continue;
+            if (match.categoryId.isEmpty()
+                || !match.allowsMapping() && (match.level != MatchResult.Level.CIRCUIT_CONFLICT
+                    || "gui.neoecoae.pattern_upload.reason.circuits_multiple".equals(match.reason)))
+                continue;
             Scope scope = new Scope(match.categoryId, match.selectionKey, category(match));
             scopes.put(scope.key(), scope);
         }
@@ -147,14 +153,15 @@ public final class PatternUploadMappings {
             if (mapping == null && "?".equals(scope.selectionKey)) {
                 String proven = null;
                 boolean ambiguous = false;
-                for (Evaluation evaluation : evaluations) if (scope.categoryId.equals(evaluation.match.categoryId)
-                    && evaluation.match.allowsAuto()) {
-                    String selection = evaluation.match.circuit == null ? "-"
-                        : Integer.toString(evaluation.match.circuit.getItemDamage() & 0xFF);
-                    if (proven != null && !proven.equals(selection)) ambiguous = true;
-                    proven = selection;
-                }
-                if (!ambiguous && proven != null) mapping = get(player, new Scope(scope.categoryId, proven, scope.category));
+                for (Evaluation evaluation : evaluations)
+                    if (scope.categoryId.equals(evaluation.match.categoryId) && evaluation.match.allowsAuto()) {
+                        String selection = evaluation.match.circuit == null ? "-"
+                            : Integer.toString(evaluation.match.circuit.getItemDamage() & 0xFF);
+                        if (proven != null && !proven.equals(selection)) ambiguous = true;
+                        proven = selection;
+                    }
+                if (!ambiguous && proven != null)
+                    mapping = get(player, new Scope(scope.categoryId, proven, scope.category));
             }
             if (mapping == null) continue;
             (mapping.enabled ? enabled : disabled).add(mapping);
@@ -166,24 +173,41 @@ public final class PatternUploadMappings {
 
     /** Call only after re-reading a receiver selected by its server-issued list token. */
     public static boolean put(EntityPlayer player, Scope scope, Evaluation evaluation) {
-        if (scope == null || scope.categoryId.isEmpty() || !evaluation.match.allowsMapping()
+        if (scope == null || scope.categoryId.isEmpty()
+            || !evaluation.match.allowsMapping()
             || !scope.categoryId.equals(evaluation.match.categoryId)
             || evaluation.state == PatternTargetSelector.SlotState.OFFLINE) return false;
         String position = evaluation.positionKey;
         String signature = evaluation.match.routeSignature;
         NBTTagCompound current = data(player, false);
-        if (position.length() > 1024 || signature.length() > 8192 || scope.key().length() > 1024
-            || !current.hasKey(scope.key(), 10) && current.func_150296_c().size() >= MAX_MAPPINGS) return false;
+        if (position.length() > 1024 || signature.length() > 8192
+            || scope.key()
+                .length() > 1024
+            || !current.hasKey(scope.key(), 10) && current.func_150296_c()
+                .size() >= MAX_MAPPINGS)
+            return false;
         NBTTagCompound tag = new NBTTagCompound();
         tag.setString("category", scope.categoryId);
         tag.setString("selection", scope.selectionKey);
         tag.setString("position", position);
-        tag.setString("kind", evaluation.target.kind().name());
+        tag.setString(
+            "kind",
+            evaluation.target.kind()
+                .name());
         tag.setString("signature", signature);
         tag.setBoolean("programming", evaluation.match.programmingCover);
         tag.setString("name", display(evaluation.target.name()));
-        tag.setString("suffix", display(evaluation.target.nameSuffix()) + " (" + evaluation.target.dimension() + ": "
-            + evaluation.target.x() + ", " + evaluation.target.y() + ", " + evaluation.target.z() + ")");
+        tag.setString(
+            "suffix",
+            display(evaluation.target.nameSuffix()) + " ("
+                + evaluation.target.dimension()
+                + ": "
+                + evaluation.target.x()
+                + ", "
+                + evaluation.target.y()
+                + ", "
+                + evaluation.target.z()
+                + ")");
         tag.setBoolean("enabled", true);
         data(player, true).setTag(scope.key(), tag);
         return true;

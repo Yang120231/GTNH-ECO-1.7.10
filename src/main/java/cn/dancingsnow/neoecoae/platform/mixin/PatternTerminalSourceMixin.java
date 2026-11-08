@@ -26,11 +26,14 @@ public abstract class PatternTerminalSourceMixin {
         ItemStack added, CallbackInfo ci) {
         IPatternTerminal terminal = (IPatternTerminal) (Object) this;
         if (slot != 1 || inventory != terminal.getInventoryByName(StorageName.CRAFTING_PATTERN.getName())) return;
-        if (FMLCommonHandler.instance().getEffectiveSide().isClient()) return;
+        if (FMLCommonHandler.instance()
+            .getEffectiveSide()
+            .isClient()) return;
         if (ServerTasks.isServerThread()) PatternUploadSessions.patternChanged(inventory, added);
         else {
             ItemStack pattern = added == null ? null : added.copy();
-            ServerTasks.captureSession().execute(() -> PatternUploadSessions.patternChanged(inventory, pattern));
+            ServerTasks.captureSession()
+                .execute(() -> PatternUploadSessions.patternChanged(inventory, pattern));
         }
     }
 }

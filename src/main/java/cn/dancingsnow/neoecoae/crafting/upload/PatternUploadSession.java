@@ -230,9 +230,11 @@ public final class PatternUploadSession {
                 break;
             }
             if (expected == null) return fail(REASON_TARGET_MISSING);
-            // Re-discover every receiver, so another matching machine appearing since the tooltip/list cannot be ignored.
+            // Re-discover every receiver, so another matching machine appearing since the tooltip/list cannot be
+            // ignored.
             refresh();
-            if (!PatternStacks.sameItem(context.pattern, listedPattern)) return fail(PatternTransfer.REASON_SOURCE_CHANGED);
+            if (!PatternStacks.sameItem(context.pattern, listedPattern))
+                return fail(PatternTransfer.REASON_SOURCE_CHANGED);
             PatternTargetSelector.AutoChoice choice = autoChoice();
             if (choice.selected == null) return fail(choice.reason);
             if (!PatternTargetSelector.sameReceiver(expected, choice.selected)
@@ -245,22 +247,25 @@ public final class PatternUploadSession {
             evaluation = PatternTargetSelector.evaluate(target, context, grid);
             if (!evaluation.canUploadManually()) return fail(PatternTargetSelector.rejection(evaluation));
         }
-        PatternSlotAccess.SlotRef physical = target.slots().physical(evaluation.freeSlot);
-        PatternTransfer.Result result = PatternTransfer.move(
-            source.slots(), source.slot(), physical.access, physical.slot, context.pattern);
+        PatternSlotAccess.SlotRef physical = target.slots()
+            .physical(evaluation.freeSlot);
+        PatternTransfer.Result result = PatternTransfer
+            .move(source.slots(), source.slot(), physical.access, physical.slot, context.pattern);
         if (result.succeeded()) {
-            PatternUploadSessions.remember(
-                player, new UploadReceipt(source.identity(), physical, context.pattern, target));
-            // The first successful unique route becomes sticky. Existing disabled or explicit bindings stay authoritative.
+            PatternUploadSessions
+                .remember(player, new UploadReceipt(source.identity(), physical, context.pattern, target));
+            // The first successful unique route becomes sticky. Existing disabled or explicit bindings stay
+            // authoritative.
             if (automatic && evaluation.match.allowsAuto() && (binding == null || binding.legacy && binding.enabled)) {
-                PatternUploadMappings.Scope scope = binding == null
-                    ? PatternUploadMappings.scope(context, evaluation) : binding.scope;
+                PatternUploadMappings.Scope scope = binding == null ? PatternUploadMappings.scope(context, evaluation)
+                    : binding.scope;
                 if (PatternUploadMappings.put(player, scope, evaluation) && binding != null && binding.legacy)
                     PatternUploadMappings.remove(player, binding);
             }
             message(
                 automatic && evaluation.match.level == MatchResult.Level.UNVERIFIED
-                    ? "gui.neoecoae.pattern_upload.success_unverified" : "gui.neoecoae.pattern_upload.success",
+                    ? "gui.neoecoae.pattern_upload.success_unverified"
+                    : "gui.neoecoae.pattern_upload.success",
                 false);
         } else message(result.reason, true);
         return result;
