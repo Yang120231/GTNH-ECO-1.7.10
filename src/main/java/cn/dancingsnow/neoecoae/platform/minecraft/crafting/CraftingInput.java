@@ -7,17 +7,23 @@ import net.minecraft.item.ItemStack;
 
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 
-/** Modern recipe coordinates backed by real legacy stacks and a native crafting inventory. */
+/** Cropped recipe coordinates retaining the full native grid for legacy recipe execution. */
 public final class CraftingInput {
 
     private final int width, height;
+    private final int gridWidth, gridHeight, left, top;
     private final List<ItemStack> items;
 
-    private CraftingInput(int width, int height, List<ItemStack> items) {
+    private CraftingInput(int width, int height, List<ItemStack> items, int gridWidth, int gridHeight, int left,
+        int top) {
         if (width < 0 || height < 0 || items.size() != width * height)
             throw new IllegalArgumentException("Crafting grid dimensions");
         this.width = width;
         this.height = height;
+        this.gridWidth = gridWidth;
+        this.gridHeight = gridHeight;
+        this.left = left;
+        this.top = top;
         this.items = new ArrayList<>(items);
     }
 
@@ -26,7 +32,8 @@ public final class CraftingInput {
     }
 
     public static Positioned ofPositioned(int width, int height, List<ItemStack> items) {
-        if (items.size() != width * height) throw new IllegalArgumentException("Crafting grid dimensions");
+        if (width < 0 || height < 0 || items.size() != width * height)
+            throw new IllegalArgumentException("Crafting grid dimensions");
         int left = width, top = height, right = -1, bottom = -1;
         for (int y = 0; y < height; y++)
             for (int x = 0; x < width; x++) if (!ItemStacks.isEmpty(items.get(x + y * width))) {
@@ -35,10 +42,16 @@ public final class CraftingInput {
                 right = Math.max(right, x);
                 bottom = Math.max(bottom, y);
             }
-        if (right < 0) return new Positioned(new CraftingInput(0, 0, java.util.Collections.emptyList()), 0, 0);
+        if (right < 0) return new Positioned(
+            new CraftingInput(0, 0, java.util.Collections.emptyList(), width, height, 0, 0),
+            0,
+            0);
         var cropped = new ArrayList<ItemStack>();
         for (int y = top; y <= bottom; y++) for (int x = left; x <= right; x++) cropped.add(items.get(x + y * width));
-        return new Positioned(new CraftingInput(right - left + 1, bottom - top + 1, cropped), left, top);
+        return new Positioned(
+            new CraftingInput(right - left + 1, bottom - top + 1, cropped, width, height, left, top),
+            left,
+            top);
     }
 
     public int width() {
@@ -66,8 +79,11 @@ public final class CraftingInput {
     }
 
     public net.minecraft.inventory.InventoryCrafting nativeInventory() {
-        var inventory = new TransientCraftingContainer(Math.max(1, width), Math.max(1, height));
-        for (int i = 0; i < items.size(); i++) inventory.setItem(i, ItemStacks.copy(items.get(i)));
+        // Legacy shaped recipes (including GT/Forge recipes) inspect the original grid dimensions and slots.
+        // Cropping is only for source-side state/remainder coordinates, never for the native IRecipe boundary.
+        var inventory = new TransientCraftingContainer(Math.max(1, gridWidth), Math.max(1, gridHeight));
+        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+            inventory.setItem((top + y) * gridWidth + left + x, ItemStacks.copy(items.get(y * width + x)));
         return inventory;
     }
 
