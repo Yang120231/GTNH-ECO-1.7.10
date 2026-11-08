@@ -44,9 +44,11 @@ final class ECOCraftingOutputDelivery {
 
     boolean isFinalOutputDeliveryBlocked() {
         var current = host.getJob();
-        return current != null && current == blockedDeliveryJob && current.remainingAmount > 0L
+        return current != null && current == blockedDeliveryJob
+            && current.remainingAmount > 0L
             && current.waitingFor.list.isEmpty()
-            && !host.taskSchedulerForOutput().hasPendingTasks(current);
+            && !host.taskSchedulerForOutput()
+                .hasPendingTasks(current);
     }
 
     boolean hasPendingFinalOutputs() {

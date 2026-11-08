@@ -556,8 +556,8 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
     /** AE2's title and elapsed time beside the ECO logo. */
     private void drawHeader() {
-        String title = finalOutputDeliveryBlocked
-            ? I18n.format("gui.neoecoae.crafting_status.destination_full") : GuiText.CraftingStatus.getLocal();
+        String title = finalOutputDeliveryBlocked ? I18n.format("gui.neoecoae.crafting_status.destination_full")
+            : GuiText.CraftingStatus.getLocal();
         if (!finalOutputDeliveryBlocked && cpuContainer.getElapsedTime() > 0 && hasVisualEntries()) {
             long millis = TimeUnit.MILLISECONDS.convert(cpuContainer.getElapsedTime(), TimeUnit.NANOSECONDS);
             title = title + " - " + DurationFormatUtils.formatDuration(millis, GuiText.ETAFormat.getLocal());
