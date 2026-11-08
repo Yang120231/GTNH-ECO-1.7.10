@@ -418,6 +418,46 @@ public final class ECOCraftConfirmTracker {
         push(player, tracked.container, tracked.session);
     }
 
+    /** Re-read the grid and stock through the normal planner routing, retaining the requested output and CPU choice. */
+    public static void replan(EntityPlayerMP player, int windowId) {
+        Tracked tracked = lookup(player, windowId);
+        if (tracked == null || !tracked.container.canInteractWith(player)) return;
+        ContainerCraftConfirm container = tracked.container;
+        var access = (ContainerCraftConfirmAccessor) container;
+        if (access.neoecoae$getJob() != null) return;
+        IGrid grid = container.getGrid();
+        if (grid == null) return;
+        appeng.api.networking.security.ISecurityGrid security = grid
+            .getCache(appeng.api.networking.security.ISecurityGrid.class);
+        if (security == null || !security.hasPermission(player, appeng.api.config.SecurityPermissions.CRAFT)) return;
+        Future<ICraftingJob> pending = null;
+        try {
+            ICraftingJob previous = access.neoecoae$getResult();
+            var output = previous == null ? container.getItemToCraft() : previous.getOutput();
+            if (output == null || output.getStackSize() <= 0) return;
+            ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
+            pending = crafting
+                .beginCraftingJob(container.getWorld(), grid, actionSource(container), output.copy(), null);
+            if (pending == null) return;
+            var host = planningHost(container);
+            tracked.session.restart(host != null && host.isCyclePlanningEnabled());
+            tracked.options = host == null ? null : ECOPlannerOptions.from(host);
+            tracked.exportObserved = null;
+            access.neoecoae$setResult(null);
+            container.setAutoStart(false);
+            container.setAutoStartAndFollow(false);
+            container.bytesUsed = 0;
+            container.simulation = true;
+            container.errorMessage = "";
+            container.setJob(pending);
+            push(player, container, tracked.session);
+        } catch (RuntimeException failure) {
+            if (pending != null) pending.cancel(true);
+            LOGGER.warn("[craft-confirm] Replanning failed: container={}", windowId, failure);
+            reject(player, tracked, ECOCraftConfirmError.REPLAN_FAILED, String.valueOf(failure));
+        }
+    }
+
     private static @Nullable Tracked lookup(EntityPlayerMP player, int windowId) {
         if (!(player.openContainer instanceof ContainerCraftConfirm container) || container.windowId != windowId)
             return null;

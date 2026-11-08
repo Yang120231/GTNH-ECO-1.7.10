@@ -157,6 +157,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private GuiButton selectCpu;
     private GuiButton cancel;
     private GuiButton retry;
+    private GuiButton replan;
     /** Error page: submit again, waiting for the inputs the network lost since planning. */
     private GuiButton forceRetry;
     private GuiButton back;
@@ -299,10 +300,11 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         cpuSortButtons.clear();
         for (Object button : buttonList) cpuSortButtons.add((GuiButton) button);
         selectCpu = new GuiButton(0, guiLeft + 19, guiTop + 193 + extra(), 198, 20, "");
-        cancel = new FitButton(1, guiLeft + 4, bottom, 46, 20, GuiText.Cancel.getLocal());
-        graph = new FitButton(5, guiLeft + 52, bottom, 56, 20, I18n.format("gui.neoecoae.crafting_graph.open"));
-        start = new FitButton(2, guiLeft + 110, bottom, 60, 20, GuiText.Start.getLocal());
-        startWithFollow = new FitButton(6, guiLeft + 172, bottom, 60, 20, GuiText.StartWithFollow.getLocal());
+        cancel = new FitButton(1, guiLeft + 4, bottom, 40, 20, GuiText.Cancel.getLocal());
+        graph = new FitButton(5, guiLeft + 46, bottom, 40, 20, I18n.format("gui.neoecoae.crafting_graph.open"));
+        replan = new FitButton(11, guiLeft + 88, bottom, 58, 20, I18n.format("gui.neoecoae.crafting_report.replan"));
+        start = new FitButton(2, guiLeft + 148, bottom, 40, 20, GuiText.Start.getLocal());
+        startWithFollow = new FitButton(6, guiLeft + 190, bottom, 42, 20, GuiText.StartWithFollow.getLocal());
         retry = new GuiButton(
             3,
             guiLeft + 40,
@@ -337,6 +339,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         buttonList.add(start);
         buttonList.add(startWithFollow);
         buttonList.add(retry);
+        buttonList.add(replan);
         buttonList.add(forceRetry);
         buttonList.add(back);
         buttonList.add(sortByButton);
@@ -381,6 +384,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         boolean force = ECOCraftConfirmRules.isForceStart(state, shift);
         boolean error = state.error != null;
         boolean list = !treeMode;
+        replan.enabled = state.reportReady;
         var gate = ECOCraftConfirmRules.startGate(state, shift, container.hasNoCPU());
         start.enabled = !error && report != null && gate == ECOCraftConfirmRules.StartGate.READY;
         CraftingCPUStatus selected = container.cpuTable.getSelectedCPU();
@@ -1160,7 +1164,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         }
         boolean force = ECOCraftConfirmRules.isForceStart(state, isShiftKeyDown());
         if (button == start) submit(force, false);
-        else if (button == startWithFollow) submit(force, true);
+        else if (button == replan && replan.enabled) {
+            replan.enabled = start.enabled = startWithFollow.enabled = false;
+            ECOCraftConfirmPackets.replan(container.windowId);
+        } else if (button == startWithFollow) submit(force, true);
         else if (button == selectCpu) cpuTable.cycleCPU(backwards);
         else if (button == cancel) {
             addMissingToBookmarks();

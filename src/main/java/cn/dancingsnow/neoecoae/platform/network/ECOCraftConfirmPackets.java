@@ -45,6 +45,7 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.registerMessage(ItemActionResultHandler.class, ItemActionResult.class, 8, Side.CLIENT);
         CHANNEL.registerMessage(IngredientsHandler.class, Ingredients.class, 9, Side.SERVER);
         CHANNEL.registerMessage(IngredientsReplyHandler.class, IngredientsReply.class, 10, Side.CLIENT);
+        CHANNEL.registerMessage(ReplanHandler.class, Replan.class, 11, Side.SERVER);
     }
 
     public static void sync(EntityPlayerMP player, int windowId, ECOCraftConfirmState state,
@@ -180,6 +181,43 @@ public final class ECOCraftConfirmPackets {
 
     public static void clearError(int windowId) {
         CHANNEL.sendToServer(new ClearError(windowId));
+    }
+
+    public static void replan(int windowId) {
+        CHANNEL.sendToServer(new Replan(windowId));
+    }
+
+    /** Carries intent only: output, amount and grid always come from the server's open confirmation. */
+    public static final class Replan implements IMessage {
+
+        int windowId;
+
+        public Replan() {}
+
+        Replan(int windowId) {
+            this.windowId = windowId;
+        }
+
+        @Override
+        public void fromBytes(ByteBuf buf) {
+            windowId = buf.readInt();
+        }
+
+        @Override
+        public void toBytes(ByteBuf buf) {
+            buf.writeInt(windowId);
+        }
+    }
+
+    public static final class ReplanHandler implements IMessageHandler<Replan, IMessage> {
+
+        @Override
+        public IMessage onMessage(Replan message, MessageContext context) {
+            EntityPlayerMP player = context.getServerHandler().playerEntity;
+            ServerTasks.captureSession()
+                .execute(() -> ECOCraftConfirmTracker.replan(player, message.windowId));
+            return null;
+        }
     }
 
     public static void startBigOrder(int windowId, boolean forced) {

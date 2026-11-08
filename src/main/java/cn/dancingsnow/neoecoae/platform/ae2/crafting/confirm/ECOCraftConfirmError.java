@@ -22,7 +22,9 @@ public enum ECOCraftConfirmError {
     /** Stored materials changed since the report was built; the detail names the missing input. */
     MISSING_INGREDIENT("gui.neoecoae.crafting_report.error.missing_ingredient"),
     /** A big order needs an idle, online ECO crafting CPU and none is available. */
-    BIG_ORDER_NO_CPU("gui.neoecoae.crafting_report.error.big_order_no_cpu");
+    BIG_ORDER_NO_CPU("gui.neoecoae.crafting_report.error.big_order_no_cpu"),
+    /** A fresh calculation could not be scheduled. */
+    REPLAN_FAILED("gui.neoecoae.crafting_report.error.replan_failed");
 
     private final String translationKey;
 

@@ -65,6 +65,18 @@ public final class ECOCraftConfirmSession {
         return cyclePlanningEnabled;
     }
 
+    /** A fresh request in the same window; report versions keep increasing so old graph data cannot match it. */
+    public void restart(boolean cyclePlanningEnabled) {
+        closeImprovements();
+        this.cyclePlanningEnabled = cyclePlanningEnabled;
+        observedResult = null;
+        displayed = null;
+        improvementsClosed = false;
+        base = ECOCraftConfirmReports.calculating(cyclePlanningEnabled);
+        report = ECOCraftConfirmReport.EMPTY;
+        clearError();
+    }
+
     /**
      * Records the container's current result. A new result identity rebuilds the report and clears a stale error;
      * the builder is only invoked for a changed ECO result.
