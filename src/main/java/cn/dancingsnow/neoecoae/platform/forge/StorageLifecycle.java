@@ -44,8 +44,6 @@ public final class StorageLifecycle {
             cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker.tick();
             cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingStatusTracker.tick();
             cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingGraphSync.tick();
-            DevAcceptance.hooks()
-                .serverTick();
             for (net.minecraft.world.WorldServer world : net.minecraftforge.common.DimensionManager.getWorlds())
                 cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.tick(
                     (cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView) cn.dancingsnow.neoecoae.platform.minecraft.WorldView

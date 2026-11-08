@@ -23,8 +23,6 @@ public final class NativeGregTech {
             .getVersion();
         NeoECOAE.LOG.info("NEOECOAE_NATIVE_GT_AVAILABLE version={} reviewed_api=5.09.54.264", version);
         GregTechMachineRecipes.register();
-        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
-            .gregTechInit();
     }
 
     public static net.minecraft.item.ItemStack recipeItem(String id, int count) {

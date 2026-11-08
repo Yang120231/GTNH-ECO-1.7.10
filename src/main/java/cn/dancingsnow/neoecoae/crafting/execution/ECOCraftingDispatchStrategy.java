@@ -45,7 +45,4 @@ public final class ECOCraftingDispatchStrategy {
         java.util.Arrays.fill(usedOperations, 0);
     }
 
-    int[] usedOperationsForTest() {
-        return usedOperations;
-    }
 }

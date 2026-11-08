@@ -103,10 +103,6 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
         return catalog.patterns(worldObj);
     }
 
-    ECOCraftingPatternBusCatalog catalogForTest() {
-        return catalog;
-    }
-
     /** Decodes one stored stack. Package-private so tests can supply patterns without a recipe registry. */
     NativePatternDetails decodePattern(net.minecraft.item.ItemStack stack, net.minecraft.world.World world) {
         if (!(stack.getItem() instanceof appeng.api.implementations.ICraftingPatternItem)) return null;

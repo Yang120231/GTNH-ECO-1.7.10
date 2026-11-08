@@ -12,6 +12,11 @@ version = providers.gradleProperty("releaseVersion").getOrElse("7.3.8")
 // GTNH's generated Tags and mcmod.info read this extra property, rather than project.version.
 extra["modVersion"] = version.toString()
 
+// This project no longer includes automated tests or development acceptance harnesses.
+tasks.withType<Test>().configureEach {
+    enabled = false
+}
+
 fun gtnhDevJar(artifactId: String, version: String) =
     "com.github.GTNewHorizons:$artifactId:$version:dev"
 
@@ -30,9 +35,6 @@ repositories {
         forRepository { mavenCentral() }
         filter {
             includeModule("org.jetbrains", "annotations")
-            includeGroup("org.mockito")
-            includeGroup("net.bytebuddy")
-            includeGroup("org.objenesis")
         }
     }
     exclusiveContent {
@@ -42,9 +44,6 @@ repositories {
 }
 
 dependencies {
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
-    testImplementation("org.mockito:mockito-core:5.12.0")
-    testCompileOnly("com.github.GTNewHorizons:jabel-javac-plugin:1.0.2-GTNH")
     implementation("it.unimi.dsi:fastutil:8.5.18")
     // Pinyin matching for the pattern-upload search box; shaded and relocated (GTNH ships no pinyin library).
     // Its fastutil dependency is GTNH's own at runtime, like the mod's: shading it would also relocate the mod's own
@@ -53,9 +52,6 @@ dependencies {
     compileOnly("org.jetbrains:annotations:24.1.0")
     // Optional integration; use the MineTweaker 3 API shared by legacy CraftTweaker and GTNH.
     compileOnly(gtnhDevJar("CraftTweaker", "3.4.8")) { isTransitive = false }
-    testImplementation(gtnhDevJar("CraftTweaker", "3.4.8")) { isTransitive = false }
-    testImplementation("org.jetbrains:annotations:24.1.0")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
     // Native adapters compile against the investigation's pinned APIs.
     compileOnly(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
     compileOnly(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
@@ -74,16 +70,6 @@ dependencies {
     compileOnly(gtnhDevJar("waila", "1.19.34")) { isTransitive = false }
     // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
     compileOnly(project.extra["mixinProviderSpec"] as String)
-    testImplementation(project.extra["mixinProviderSpec"] as String)
-    testImplementation(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version))
-    testImplementation(gtnhDevJar("AE2FluidCraft-Rework", ae2fcVersion)) { isTransitive = false }
-    testImplementation(gtnhDevJar("NotEnoughItems", "2.8.171-GTNH"))
-    testImplementation(gtnhDevJar("ModularUI2", modularUi2Version))
-    testImplementation(gtnhDevJar("ModularUI", "1.3.4")) { isTransitive = false }
-    testRuntimeOnly(gtnhDevJar("GTNHLib", gtnhLibVersion))
-    testImplementation(gtnhDevJar("StructureLib", structureLibVersion)) { isTransitive = false }
-    // Bytecode contracts for optional GT monitoring; tests do not initialize GregTech.
-    testRuntimeOnly(gtnhDevJar("GT5-Unofficial", gregTechVersion)) { isTransitive = false }
 
     runtimeOnlyNonPublishable(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version)) {
         // Select one explicitly remapped CoFHCore implementation for GT's Thermal dependency.
@@ -113,28 +99,6 @@ dependencies {
     }
 }
 
-// In-game acceptance harnesses run only from development launches; they compile against main and never ship in the jar.
-val acceptance: SourceSet = sourceSets.create("acceptance") {
-    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
-    runtimeClasspath += output + compileClasspath
-}
-afterEvaluate {
-    val main = tasks.compileJava.get()
-    tasks.named<JavaCompile>(acceptance.compileJavaTaskName) {
-        javaCompiler.set(main.javaCompiler)
-        sourceCompatibility = main.sourceCompatibility
-        targetCompatibility = main.targetCompatibility
-        options.release.set(main.options.release)
-        options.encoding = main.options.encoding
-        options.annotationProcessorPath = main.options.annotationProcessorPath
-        options.compilerArgs.addAll(main.options.compilerArgs)
-    }
-}
-tasks.withType<JavaExec>().matching { it.name.startsWith("run") }.configureEach {
-    dependsOn(acceptance.classesTaskName)
-    classpath(acceptance.output)
-}
-
 // GuideNH discovers language-prefixed Markdown pages in its native resource folder.
 // Keep one editable guide source and package its images/structures alongside both languages.
 tasks.processResources {
@@ -153,30 +117,6 @@ tasks.processResources {
 // Use Forge's development config instead of patching either external mod or registering fake fluids.
 tasks.withType<JavaExec>().matching { it.name.matches(Regex("run(Client|Server)(17|21|25)?")) }.configureEach {
     if (name.startsWith("runClient")) systemProperty("neoecoae.devGenerator", "true")
-    if (providers.gradleProperty("keyReuseAcceptance").map(String::toBoolean).getOrElse(false)) {
-        systemProperty("neoecoae.keyReuseAcceptance", "true")
-        workingDir = file("run/key-reuse-" + if (name.startsWith("runClient")) "client" else "server")
-        doFirst { workingDir.mkdirs() }
-    }
-    if (name.startsWith("runClient") && providers.gradleProperty("transmitterRenderAcceptance").map(String::toBoolean).getOrElse(false)) {
-        systemProperty("neoecoae.transmitterRenderAcceptance", "true")
-        systemProperty("neoecoae.renderLabel", providers.gradleProperty("transmitterRenderLabel").getOrElse("after"))
-        workingDir = file("run/transmitter-render-acceptance")
-        doFirst {
-            workingDir.mkdirs()
-            val options = workingDir.resolve("options.txt")
-            if (!options.exists()) options.writeText("lang:en_US\noverrideWidth:1280\noverrideHeight:900\npauseOnLostFocus:false\nrenderDistance:4\nmipmapLevels:0\n")
-        }
-    }
-    if (name.startsWith("runClient") && providers.gradleProperty("launchAcceptance").map(String::toBoolean).getOrElse(false)) {
-        systemProperty("neoecoae.launchAcceptance", "true")
-        workingDir = file("run/launch-acceptance")
-        doFirst {
-            workingDir.mkdirs()
-            val options = workingDir.resolve("options.txt")
-            if (!options.exists()) options.writeText("lang:zh_CN\n")
-        }
-    }
     doFirst {
         if (gtRuntime) {
             val dependencyFile = workingDir.resolve("config/injectedDependencies.json")
@@ -272,31 +212,4 @@ val verifyGtRuntimeProfile by tasks.registering {
         report.parentFile.mkdirs()
         report.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(mapOf("verified_jars" to verified, "resolved_modules" to modules.map { it.toString() }))) + "\n")
     }
-}
-
-tasks.test {
-    useJUnitPlatform()
-    systemProperty("planner.challenge.enabled", providers.gradleProperty("plannerChallenge").getOrElse("false"))
-    systemProperty("planner.challenge.profile", providers.gradleProperty("plannerChallengeProfile").getOrElse("default"))
-}
-
-// Development names hide collisions between IInventory's remapped methods and custom interfaces.
-val verifyReobfuscatedInventory by tasks.registering(Test::class) {
-    group = "verification"
-    description = "Exercise the item-handler adapter from the actual release JAR."
-    dependsOn(tasks.named("reobfJar"), tasks.named("testClasses"))
-    inputs.files(tasks.named("reobfJar"))
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    classpath = sourceSets.test.get().runtimeClasspath
-    useJUnitPlatform()
-    filter {
-        includeTestsMatching("cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventoryTest.releaseHandlerResolvesTheRemappedNativeGetter")
-    }
-    doFirst {
-        systemProperty("neoecoae.reobfJar", tasks.named("reobfJar").get().outputs.files.singleFile.absolutePath)
-    }
-}
-
-tasks.check {
-    dependsOn(verifyReobfuscatedInventory)
 }

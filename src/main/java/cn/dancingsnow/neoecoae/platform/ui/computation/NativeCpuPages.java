@@ -238,13 +238,6 @@ public final class NativeCpuPages {
             NativeUiStyle.plainHover(this);
             onMousePressed(button -> {
                 int token = row().getInt("token");
-                if (Boolean.getBoolean("neoecoae.uiParityAcceptance")) cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
-                    "NEOECOAE_UI_CPU_CLICK row={} token={} selected={} details={}",
-                    index,
-                    token,
-                    session.state()
-                        .getInt("selectedToken"),
-                    status);
                 if (button != 0 || token == 0) return false;
                 if (session.state()
                     .getInt("selectedToken") == token && !status) openDetails.accept(token);

@@ -26,9 +26,6 @@ public class CommonProxy {
             && Boolean.TRUE.equals(net.minecraft.launchwrapper.Launch.blackboard.get("fml.deobfuscatedEnvironment"))) {
             cn.dancingsnow.neoecoae.dev.DevResourceGenerator.register();
         }
-        DevAcceptance.load();
-        DevAcceptance.hooks()
-            .preInit();
         StorageLifecycle lifecycle = new StorageLifecycle();
         cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()

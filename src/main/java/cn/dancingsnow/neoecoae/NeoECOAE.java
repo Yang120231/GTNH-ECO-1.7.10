@@ -58,8 +58,6 @@ public class NeoECOAE {
             && Boolean.TRUE.equals(net.minecraft.launchwrapper.Launch.blackboard.get("fml.deobfuscatedEnvironment"))) {
             event.registerServerCommand(new cn.dancingsnow.neoecoae.dev.DevResourceGenerator.GeneratorCommand());
         }
-        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
-            .serverStarting(event);
     }
 
     @Mod.EventHandler

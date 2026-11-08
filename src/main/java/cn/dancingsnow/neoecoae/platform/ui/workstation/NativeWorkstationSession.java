@@ -23,16 +23,10 @@ public final class NativeWorkstationSession extends NativeTileSession {
 
     private final ECOIntegratedWorkingStationBlockEntity host;
     private CompoundTag state = new CompoundTag(), previous;
-    private static volatile NativeWorkstationSession inspection;
 
     public NativeWorkstationSession(ECOIntegratedWorkingStationBlockEntity host) {
         super(host);
         this.host = host;
-        if (Boolean.getBoolean("neoecoae.workstationUiAcceptance") && host.getWorldObj().isRemote) inspection = this;
-    }
-
-    public static NativeWorkstationSession acceptanceInspection() {
-        return inspection;
     }
 
     public boolean autoExport() {

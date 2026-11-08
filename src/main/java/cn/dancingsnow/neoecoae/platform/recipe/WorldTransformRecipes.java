@@ -120,9 +120,6 @@ public final class WorldTransformRecipes {
             if (elapsed > 60 && !tryTransform(item, recipe -> recipe.inFluid(fluid))) elapsed = 0;
             fluidTime.put(item, elapsed);
         }
-        if (event.world instanceof net.minecraft.world.WorldServer)
-            cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
-                .worldTick((net.minecraft.world.WorldServer) event.world);
     }
 
     @SubscribeEvent
@@ -143,8 +140,6 @@ public final class WorldTransformRecipes {
     public void unload(WorldEvent.Unload event) {
         fluidTime.keySet()
             .removeIf(entity -> entity.worldObj == event.world);
-        cn.dancingsnow.neoecoae.platform.forge.DevAcceptance.hooks()
-            .worldUnload(event.world);
     }
 
     public static boolean tryTransform(EntityItem anchor, Predicate<NativeTransformRecipe> circumstance) {
