@@ -16,8 +16,13 @@ class NativeGuideResourcesTest {
         for (String locale : new String[] { "_en_us", "_zh_cn" }) {
             String root = "/assets/neoecoae/guidenh/" + locale + "/";
             String home = resource(root + "index.md");
-            for (String page : new String[] { "storage_system", "computation_system", "crafting_system",
-                "integrated_working_station", "large_integrated_working_station", "multiblock_builder", "index" }) {
+            String[] pages = locale.equals("_zh_cn")
+                ? new String[] { "index", "energized_crystal", "integrated_working_station",
+                    "large_integrated_working_station", "multiblock_builder", "storage_system",
+                    "compat_storage_matrices", "computation_system", "crafting_system" }
+                : new String[] { "storage_system", "computation_system", "crafting_system", "integrated_working_station",
+                    "large_integrated_working_station", "multiblock_builder", "index" };
+            for (String page : pages) {
                 String target = "neoecoae_intro/" + page + ".md";
                 assertTrue(home.contains(target), locale + ": " + target);
                 String markdown = resource(root + target);
@@ -34,6 +39,25 @@ class NativeGuideResourcesTest {
                 assertArrayEquals(ByteStreams.toByteArray(original), ByteStreams.toByteArray(nativeAsset), asset);
             }
         }
+    }
+
+    @Test
+    void chineseMachinePagesPackageInteractiveNativeBlockAndStructurePreviews() throws Exception {
+        String root = "/assets/neoecoae/guidenh/_zh_cn/neoecoae_intro/";
+        for (String system : new String[] { "storage", "computation", "crafting" }) {
+            String page = resource(root + system + "_system.md");
+            assertTrue(page.contains("<Block id=\"neoecoae:" + system + "_system_l9\""), system);
+            assertTrue(page.contains("<Block id=\"neoecoae:" + system + "_interface\""), system);
+            assertTrue(page.contains("<ImportStructureLib controller=\"neoecoae:" + system + "_system_l9\""), system);
+            assertEquals(3, page.split("interactive=\\{true\\}", -1).length - 1, system);
+            assertFalse(page.contains("<ImportStructure src="), system);
+        }
+        assertTrue(
+            resource(root + "integrated_working_station.md")
+                .contains("<Block id=\"neoecoae:integrated_working_station\""));
+        String large = resource(root + "large_integrated_working_station.md");
+        assertTrue(large.contains("<ImportStructureLib controller=\"neoecoae:integrated_working_station\""));
+        assertFalse(large.contains("p:formed="));
     }
 
     @Test

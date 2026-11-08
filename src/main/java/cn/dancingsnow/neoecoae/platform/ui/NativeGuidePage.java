@@ -42,6 +42,7 @@ public final class NativeGuidePage {
             text = reader.lines()
                 .collect(Collectors.joining("\n"))
                 .replaceAll("(?s)^---.*?---\\s*", "")
+                .replaceAll("(?s)<GameScene\\b[^>]*>.*?</GameScene>\\s*", "")
                 .replaceAll("!\\[[^]]*]\\([^)]*\\)", "")
                 .replaceAll("\\[([^]]+)]\\([^)]*\\)", "$1")
                 .replaceAll("(?m)^#{1,6}\\s+", "")
