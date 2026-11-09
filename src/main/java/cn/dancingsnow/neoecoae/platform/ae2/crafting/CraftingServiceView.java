@@ -19,11 +19,12 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.me.cache.CraftingGridCache;
+import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Frozen pattern contracts captured on the owning server thread; revision reads stay lock-free for the planner. */
-public final class CraftingServiceView implements ICraftingService, ECOCraftingProviderRevision {
+public final class CraftingServiceView implements ICraftingService, ECOCraftingProviderRevision, ECOCraftingOutputRouter {
 
     private static final Logger LOGGER = LogManager.getLogger("neoecoae.crafting");
     private static final Set<String> REJECTED_TYPES = ConcurrentHashMap.newKeySet();
@@ -154,6 +155,21 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
         long left = remainder == null ? 0 : remainder.getStackSize();
         if (left < 0 || left > amount) throw new IllegalStateException("Invalid native crafting output remainder");
         return amount - left;
+    }
+
+    /** The native cache owns the job index independently of this replaceable pattern snapshot. */
+    @Override
+    public long neoecoae$insertIntoCpuForJob(java.util.UUID jobId, AEKey key, long amount,
+        appeng.api.config.Actionable mode) {
+        return crafting instanceof ECOCraftingOutputRouter router
+            ? router.neoecoae$insertIntoCpuForJob(jobId, key, amount, mode) : 0L;
+    }
+
+    @Override
+    public java.math.BigInteger neoecoae$insertExactIntoCpuForJob(java.util.UUID jobId, AEKey key,
+        java.math.BigInteger amount, appeng.api.config.Actionable mode) {
+        return crafting instanceof ECOCraftingOutputRouter router
+            ? router.neoecoae$insertExactIntoCpuForJob(jobId, key, amount, mode) : java.math.BigInteger.ZERO;
     }
 
     @Override

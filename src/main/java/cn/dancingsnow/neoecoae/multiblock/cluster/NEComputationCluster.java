@@ -61,6 +61,8 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     private NEComputationNetworkCluster networkCluster;
 
     private final Map<ICraftingPlan, ECOCraftingCPU> activeCpus = new IdentityHashMap<>();
+    @Nullable
+    private List<ECOCraftingCPU> allocatedCpuSnapshot;
     /** BigInt child plans are segmented by the controller and must not consume the finite CPU byte reservation. */
     private final ReferenceSet<ICraftingPlan> bigOrderPlans = new ReferenceOpenHashSet<>();
     private ECOCraftingCPU fakeCpu;
@@ -280,7 +282,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     public void pickup(ICraftingPlan plan, ECOCraftingCPU cpu) {
-        this.activeCpus.put(plan, cpu);
+        putActiveCpu(plan, cpu);
         // Restored CPUs are registered after the cluster's initial formed-state capacity calculation.
         // Recalculate immediately so persisted jobs consume their bytes and jobs restored without enough
         // computation cells are cancelled before they can intercept items from network storage.
@@ -440,7 +442,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     boolean registerActiveJob(ICraftingPlan job, ECOCraftingCPU cpu) {
-        this.activeCpus.put(job, cpu);
+        putActiveCpu(job, cpu);
         this.recalculateRemainingStorage();
         this.updateGridForChangedCpu();
         return this.activeCpus.get(job) == cpu && cpu.getLogic()
@@ -470,10 +472,10 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     public boolean replaceBigOrderPlan(ECOCraftingCPU cpu, ICraftingPlan next) {
         ICraftingPlan previous = cpu.getPlan();
         if (previous == null || activeCpus.get(previous) != cpu || next.bytes() < 0) return false;
-        activeCpus.remove(previous);
+        removeActiveCpu(previous);
         bigOrderPlans.remove(previous);
         cpu.setBigOrderChildPlan(next);
-        activeCpus.put(next, cpu);
+        putActiveCpu(next, cpu);
         bigOrderPlans.add(next);
         recalculateRemainingStorage();
         return activeCpus.get(next) == cpu;
@@ -489,9 +491,9 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         if (previous == null || activeCpus.get(previous) != cpu || bigOrderPlans.contains(previous)) return false;
         long extra = next.bytes() - previous.bytes();
         if (next.bytes() < 0 || extra < 0 || extra > getAvailableStorage()) return false;
-        activeCpus.remove(previous);
+        removeActiveCpu(previous);
         cpu.setBigOrderChildPlan(next);
-        activeCpus.put(next, cpu);
+        putActiveCpu(next, cpu);
         recalculateRemainingStorage();
         return activeCpus.get(next) == cpu;
     }
@@ -505,10 +507,29 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         return usedStorage;
     }
 
+    private void putActiveCpu(ICraftingPlan plan, ECOCraftingCPU cpu) {
+        activeCpus.put(plan, cpu);
+        allocatedCpuSnapshot = null;
+    }
+
+    @Nullable
+    private ECOCraftingCPU removeActiveCpu(@Nullable ICraftingPlan plan) {
+        var removed = activeCpus.remove(plan);
+        if (removed != null) allocatedCpuSnapshot = null;
+        return removed;
+    }
+
+    /** Stable during output callbacks, which can re-enter the cluster and add or release CPUs. */
+    public List<ECOCraftingCPU> getAllocatedCPUs() {
+        if (allocatedCpuSnapshot == null) {
+            allocatedCpuSnapshot = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listCopyOf(activeCpus.values());
+        }
+        return allocatedCpuSnapshot;
+    }
+
     public List<ECOCraftingCPU> getActiveCPUs() {
         List<ECOCraftingCPU> cpus = new ArrayList<>();
-        for (Map.Entry<ICraftingPlan, ECOCraftingCPU> entry : new ArrayList<>(activeCpus.entrySet())) {
-            ECOCraftingCPU cpu = entry.getValue();
+        for (ECOCraftingCPU cpu : getAllocatedCPUs()) {
             if (cpu.getLogic()
                 .hasJob()
                 || cpu.getLogic()
@@ -577,7 +598,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     public void deactivate(@Nullable ICraftingPlan plan) {
-        ECOCraftingCPU cpu = this.activeCpus.remove(plan);
+        ECOCraftingCPU cpu = removeActiveCpu(plan);
         if (cpu != null) nativeCpus.remove(cpu);
         this.bigOrderPlans.remove(plan);
         this.recalculateRemainingStorage();
@@ -613,7 +634,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
                 cpu.getOwner()
                     .deactivate(cpu);
             }
-            this.activeCpus.remove(plan);
+            removeActiveCpu(plan);
             this.bigOrderPlans.remove(plan);
             this.nativeCpus.remove(cpu);
         }

@@ -1,7 +1,12 @@
 package cn.dancingsnow.neoecoae.platform.mixin;
 
+import java.math.BigInteger;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -13,19 +18,24 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
+import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
+import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPU;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeCpuTargets;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpuSelection;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Include live ECO CPU identities in the exact set used for scheduling, link recovery and output routing. */
 @Mixin(value = CraftingGridCache.class, remap = false)
-public abstract class CraftingCpuPublicationMixin {
+public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRouter {
 
     @Redirect(
         method = NativeCpuTargets.SUBMIT,
@@ -51,12 +61,15 @@ public abstract class CraftingCpuPublicationMixin {
     /** Reused per tick so releasing finished ECO CPUs allocates nothing in steady state. */
     @Unique
     private final Set<Object> neoecoae$owners = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    @Unique
+    private final Map<UUID, ECOCraftingCPU> neoecoae$cpusByJob = new HashMap<>();
 
     @Shadow
     public abstract void addLink(appeng.crafting.CraftingLink link);
 
     @Inject(method = NativeCpuTargets.PUBLISH, at = @At("TAIL"), require = 1)
     private void neoecoae$publish(CallbackInfo ci) {
+        neoecoae$cpusByJob.clear();
         Set<cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster> seen = java.util.Collections
             .newSetFromMap(new java.util.IdentityHashMap<>());
         for (Class<? extends IGridHost> type : grid.getMachinesClasses()) {
@@ -70,6 +83,8 @@ public abstract class CraftingCpuPublicationMixin {
                 if (cluster.shouldPublishPlaceholder())
                     craftingCPUClusters.add((CraftingCPUCluster) cluster.nativeCPU(cluster.getFakeCPU()));
                 for (var cpu : cluster.getActiveCPUs()) {
+                    UUID jobId = cpu.getLogic().getProcessingJobId();
+                    if (jobId != null) neoecoae$cpusByJob.put(jobId, cpu);
                     CraftingCPUCluster nativeCpu = (CraftingCPUCluster) cluster.nativeCPU(cpu);
                     craftingCPUClusters.add(nativeCpu);
                     if (nativeCpu.getLastCraftingLink() != null)
@@ -77,6 +92,56 @@ public abstract class CraftingCpuPublicationMixin {
                 }
             }
         }
+    }
+
+    @Override
+    public long neoecoae$insertIntoCpuForJob(UUID jobId, AEKey key, long amount, Actionable mode) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        if (jobId == null || key == null || amount <= 0L) return 0L;
+        ECOCraftingCPU owner = neoecoae$findCpuForJob(jobId);
+        return owner == null ? 0L : owner.getLogic().insertForJob(jobId, key, amount, mode);
+    }
+
+    @Override
+    public BigInteger neoecoae$insertExactIntoCpuForJob(UUID jobId, AEKey key, BigInteger amount, Actionable mode) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        if (jobId == null || key == null || amount.signum() <= 0) return BigInteger.ZERO;
+        ECOCraftingCPU owner = neoecoae$findCpuForJob(jobId);
+        return owner == null ? BigInteger.ZERO : owner.getLogic().insertExactForJob(jobId, key, amount, mode);
+    }
+
+    @Unique
+    @Nullable
+    private ECOCraftingCPU neoecoae$findCpuForJob(UUID jobId) {
+        ECOCraftingCPU cached = neoecoae$cpusByJob.get(jobId);
+        if (cached != null) {
+            if (cached.getLogic().hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cached)) return cached;
+            neoecoae$cpusByJob.remove(jobId);
+        }
+        // New and restored CPUs may receive output before the native cache publishes their identities.
+        Set<NEComputationCluster> visited = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (Class<? extends IGridHost> type : grid.getMachinesClasses()) {
+            if (!ECOComputationSystemBlockEntity.class.isAssignableFrom(type)) continue;
+            for (IGridNode node : grid.getMachines(type)) {
+                NEComputationCluster cluster = ((ECOComputationSystemBlockEntity) node.getMachine()).getCluster();
+                if (cluster == null || !visited.add(cluster)) continue;
+                for (ECOCraftingCPU cpu : cluster.getAllocatedCPUs()) {
+                    if (cpu.getLogic().hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cpu)) {
+                        neoecoae$cpusByJob.put(jobId, cpu);
+                        return cpu;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    @Unique
+    private boolean neoecoae$isRegisteredCpu(ECOCraftingCPU cpu) {
+        if (!(cpu.getCluster() instanceof NEComputationCluster cluster) || cluster.isDestroyed()
+            || cluster.findCPU(cpu.getPlan()) != cpu) return false;
+        var cpuGrid = cpu.getGrid();
+        return cpuGrid != null && cpuGrid.nativeGrid() == grid;
     }
 
     @Inject(method = { NativeCpuTargets.ADD, NativeCpuTargets.REMOVE }, at = @At("HEAD"), require = 1)
