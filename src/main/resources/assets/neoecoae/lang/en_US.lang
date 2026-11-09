@@ -496,6 +496,7 @@ gui.neoecoae.crafting_interface.preview.filter_fluid_substitutions=Show/hide flu
 gui.neoecoae.crafting_interface.preview.filter_substitutions=Show/hide substitution patterns
 gui.neoecoae.crafting_interface.preview.loading=Loading patterns… %s slots received
 gui.neoecoae.crafting_interface.preview.no_results=No matching pattern rows
+gui.neoecoae.crafting_interface.preview.searching=Searching patterns...
 gui.neoecoae.crafting_interface.preview.organize=Organize pattern buses
 gui.neoecoae.crafting_interface.preview.organize.result_primary=Organization complete: recovered %d invalid patterns, %d duplicate patterns
 gui.neoecoae.crafting_interface.preview.organize.result_secondary=Inventory space insufficient, %d patterns remain to be recovered

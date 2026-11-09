@@ -496,6 +496,7 @@ gui.neoecoae.crafting_interface.preview.filter_fluid_substitutions=显示/隐藏
 gui.neoecoae.crafting_interface.preview.filter_substitutions=显示/隐藏可替换样板
 gui.neoecoae.crafting_interface.preview.loading=正在加载样板…已接收 %s 个槽位
 gui.neoecoae.crafting_interface.preview.no_results=没有匹配的样板行
+gui.neoecoae.crafting_interface.preview.searching=正在搜索样板……
 gui.neoecoae.crafting_interface.preview.organize=一键整理样板总线
 gui.neoecoae.crafting_interface.preview.organize.result_primary=整理完成：回收无效样板 %d 个，重复样板 %d 个
 gui.neoecoae.crafting_interface.preview.organize.result_secondary=背包空间不足，仍有 %d 个样板待回收

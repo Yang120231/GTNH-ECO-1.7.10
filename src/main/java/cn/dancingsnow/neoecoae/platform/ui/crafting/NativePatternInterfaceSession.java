@@ -26,6 +26,12 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
     private final ECOMachineInterfaceBlockEntity<?> host;
     private final IdentityHashMap<ECOCraftingPatternBusBlockEntity, Map<Integer, Target>> slots = new IdentityHashMap<>();
     private final Map<Integer, Target> targets = new HashMap<>();
+    // Names belong to the viewing client's language. Only bounded match results return to the server.
+    private final Map<Integer, Boolean> searchMatches = new HashMap<>();
+    private final List<Target> searchProbe = new ArrayList<>();
+    private int probeSerial, pendingProbe, answeredProbe;
+    private String matchedInputs = "", matchedOutputs = "";
+    private static final int SEARCH_BATCH = 24;
     private volatile String inputs = "", outputs = "";
     private volatile int offset;
     private static final int OPERATION_TRANSFER = 1, OPERATION_ORGANIZE = 2;
@@ -69,10 +75,19 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
         targets.values()
             .removeIf(target -> !buses.contains(target.bus));
         var matches = new ArrayList<Target>();
+        var unknown = new ArrayList<Target>();
         String inputQuery = inputs.toLowerCase(Locale.ROOT)
             .trim(),
             outputQuery = outputs.toLowerCase(Locale.ROOT)
                 .trim();
+        // StringSyncValue can update the query on the network thread; invalidate server state only during capture.
+        if (!inputQuery.equals(matchedInputs) || !outputQuery.equals(matchedOutputs)) {
+            matchedInputs = inputQuery;
+            matchedOutputs = outputQuery;
+            searchMatches.clear();
+            searchProbe.clear();
+            pendingProbe = 0;
+        }
         int occupied = 0;
         for (var bus : buses) for (int index = 0; index < bus.getInternalInventory()
             .size(); index++) {
@@ -88,12 +103,34 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
                     targets.put(target.token, target);
                 }
                 if (inputQuery.isEmpty() && outputQuery.isEmpty()
-                    || !inputQuery.isEmpty() && terms(target, false).contains(inputQuery)
-                    || !outputQuery.isEmpty() && terms(target, true).contains(outputQuery)) matches.add(target);
+                    || Boolean.TRUE.equals(searchMatches.get(target.token))) matches.add(target);
+                else if (!ItemStacks.isEmpty(stack) && !searchMatches.containsKey(target.token)
+                    && unknown.size() < SEARCH_BATCH) unknown.add(target);
+            }
+        searchMatches.keySet()
+            .retainAll(targets.keySet());
+        if (inputQuery.isEmpty() && outputQuery.isEmpty()) {
+            searchProbe.clear();
+            pendingProbe = 0;
+        } else if (pendingProbe == 0 || searchProbe.stream()
+            .anyMatch(target -> targets.get(target.token) != target)) {
+                searchProbe.clear();
+                searchProbe.addAll(unknown);
+                pendingProbe = searchProbe.isEmpty() ? 0
+                    : (probeSerial = probeSerial == Integer.MAX_VALUE ? 1 : probeSerial + 1);
             }
         int rows = (matches.size() + 8) / 9;
         offset = Math.max(0, Math.min(Math.max(0, rows - 6), offset));
         var tag = new CompoundTag();
+        tag.putBoolean("searching", !inputQuery.isEmpty() || !outputQuery.isEmpty());
+        tag.putInt("searchProbe", pendingProbe);
+        if (pendingProbe != 0) {
+            tag.putString("inputQuery", inputQuery);
+            tag.putString("outputQuery", outputQuery);
+            var probe = new ListTag();
+            for (var target : searchProbe) probe.add(ItemStacks.save(RegistryAccess.EMPTY, target.expected));
+            tag.put("searchStacks", probe);
+        }
         tag.putInt("offset", offset);
         tag.putInt("rows", rows);
         tag.putInt("occupied", occupied);
@@ -140,12 +177,31 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
         return stack;
     }
 
-    private String terms(Target target, boolean output) {
-        if (ItemStacks.isEmpty(target.expected)) return "";
+    /** Runs from the existing widget update on the client thread, never while decoding a network packet. */
+    void matchClientSearch() {
+        if (host.getWorldObj() == null || !host.getWorldObj().isRemote) return;
+        var snapshot = state();
+        int request = snapshot.getInt("searchProbe");
+        if (request == 0 || request == answeredProbe) return;
+        answeredProbe = request;
+        String inputQuery = snapshot.getString("inputQuery"), outputQuery = snapshot.getString("outputQuery");
+        var stacks = snapshot.getList("searchStacks", 10);
+        int mask = 0;
+        for (int index = 0; index < Math.min(SEARCH_BATCH, stacks.size()); index++) {
+            var stack = ItemStacks.parseOptional(RegistryAccess.EMPTY, stacks.getCompound(index));
+            if (!inputQuery.isEmpty() && terms(stack, false).contains(inputQuery)
+                || !outputQuery.isEmpty() && terms(stack, true).contains(outputQuery)) mask |= 1 << index;
+        }
+        // Negative action IDs identify the exact request; late replies cannot satisfy a newer query.
+        action(-request, mask);
+    }
+
+    private String terms(ItemStack stack, boolean output) {
+        if (ItemStacks.isEmpty(stack)) return "";
         try {
-            var pattern = ((appeng.api.implementations.ICraftingPatternItem) target.expected.getItem())
-                .getPatternForItem(target.expected, host.getWorldObj());
-            if (pattern == null) return target.expected.getDisplayName()
+            var pattern = ((appeng.api.implementations.ICraftingPatternItem) stack.getItem())
+                .getPatternForItem(stack, host.getWorldObj());
+            if (pattern == null) return stack.getDisplayName()
                 .toLowerCase(Locale.ROOT);
             var builder = new StringBuilder();
             var keys = output ? pattern.getCondensedOutputs() : pattern.getCondensedInputs();
@@ -156,13 +212,23 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
             return builder.toString()
                 .toLowerCase(Locale.ROOT);
         } catch (RuntimeException invalid) {
-            return target.expected.getDisplayName()
+            return stack.getDisplayName()
                 .toLowerCase(Locale.ROOT);
         }
     }
 
     @Override
     protected void apply(int action, int argument) {
+        if (action < 0) {
+            if (pendingProbe == 0 || action != -pendingProbe) return;
+            for (int index = 0; index < searchProbe.size(); index++) {
+                var target = searchProbe.get(index);
+                if (targets.get(target.token) == target) searchMatches.put(target.token, (argument & 1 << index) != 0);
+            }
+            searchProbe.clear();
+            pendingProbe = 0;
+            return;
+        }
         if (action == 0) {
             offset = Math.max(0, Math.min(65535, argument));
             return;

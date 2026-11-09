@@ -43,6 +43,12 @@ public final class NativeCraftingInterfacePages {
         PanelSyncManager sync) {
         var session = new NativePatternInterfaceSession(host);
         sync.syncValue("crafting.patterns", session);
+        sync.syncValue(
+            "crafting.search.inputs",
+            new StringSyncValue(() -> session.search(false), query -> session.search(false, query)).allowC2S());
+        sync.syncValue(
+            "crafting.search.outputs",
+            new StringSyncValue(() -> session.search(true), query -> session.search(true, query)).allowC2S());
         var layout = new NativePageLayout("crafting/crafting_interface");
         var panel = cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel
             .create("neoecoae_crafting_interface", layout.width(), layout.height())
@@ -60,11 +66,11 @@ public final class NativeCraftingInterfacePages {
                 case "operation_indicator":
                     return new OperationIndicator(session);
                 case "input_search":
-                    return search(session, false);
+                    return search(false);
                 case "output_search":
-                    return search(session, true);
+                    return search(true);
                 case "pattern_preview":
-                    var preview = new Preview().size(PREVIEW_WIDTH, PREVIEW_HEIGHT);
+                    var preview = new Preview(session).size(PREVIEW_WIDTH, PREVIEW_HEIGHT);
                     for (int index = 0; index < COLUMNS * ROWS; index++) preview.child(
                         new Pattern(session, index).pos(index % COLUMNS * CELL, index / COLUMNS * CELL)
                             .size(CELL));
@@ -96,7 +102,10 @@ public final class NativeCraftingInterfacePages {
                             .getInt("rows"),
                             offset = session.state()
                                 .getInt("offset");
-                        return rows == 0 ? Component.translatable("gui.neoecoae.crafting_interface.preview.no_results")
+                        return rows == 0 ? Component.translatable(
+                            session.state()
+                                .getInt("searchProbe") != 0 ? "gui.neoecoae.crafting_interface.preview.searching"
+                                    : "gui.neoecoae.crafting_interface.preview.no_results")
                             : Component.translatable(
                                 "gui.neoecoae.crafting_interface.preview.rows",
                                 offset + 1,
@@ -184,8 +193,9 @@ public final class NativeCraftingInterfacePages {
         }
     }
 
-    private static TextFieldWidget search(NativePatternInterfaceSession session, boolean output) {
+    private static TextFieldWidget search(boolean output) {
         return new TextFieldWidget().setMaxLength(128)
+            .autoUpdateOnChange(true)
             .setTextColor(0xffffffff)
             .background(IDrawable.EMPTY)
             .disableHoverBackground()
@@ -195,7 +205,7 @@ public final class NativeCraftingInterfacePages {
                     .translatable("gui.neoecoae.crafting_interface.preview.search." + (output ? "output" : "inputs"))
                     .getString())
             .hintColor(0xffa0a0a0)
-            .value(new StringSyncValue(() -> session.search(output), query -> session.search(output, query)))
+            .syncHandler("crafting.search." + (output ? "outputs" : "inputs"))
             .tooltipDynamic(
                 lines -> lines.add(
                     Component.translatable(
@@ -206,8 +216,9 @@ public final class NativeCraftingInterfacePages {
     /** Draw the continuous grid in the viewport pass, after MUI's sibling background pass. */
     private static final class Preview extends ParentWidget<Preview> implements IViewport {
 
-        Preview() {
+        Preview(NativePatternInterfaceSession session) {
             background(IDrawable.EMPTY).disableHoverBackground();
+            onUpdateListener(widget -> session.matchClientSearch());
         }
 
         @Override
@@ -320,12 +331,8 @@ public final class NativeCraftingInterfacePages {
             if (entry.getInt("token") == 0) return;
             var stack = ItemStacks.parseOptional(RegistryAccess.EMPTY, entry.getCompound("display"));
             if (!ItemStacks.isEmpty(stack)) NativeUiDraw.item(stack, 1, 1, context.getCurrentDrawingZ());
-            if (!ItemStacks.isEmpty(stack) && (!session.search(false)
-                .trim()
-                .isEmpty()
-                || !session.search(true)
-                    .trim()
-                    .isEmpty())) {
+            if (!ItemStacks.isEmpty(stack) && session.state()
+                .getBoolean("searching")) {
                 GuiDraw.drawRect(0, 0, CELL, 1, 0xffffd95a);
                 GuiDraw.drawRect(0, CELL - 1, CELL, 1, 0xffffd95a);
                 GuiDraw.drawRect(0, 0, 1, CELL, 0xffffd95a);
