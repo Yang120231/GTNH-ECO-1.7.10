@@ -54,9 +54,13 @@ public final class U126 implements Comparable<U126> {
         return hi == 0L && lo >= 0L;
     }
 
-    public long highWord() { return hi; }
+    public long highWord() {
+        return hi;
+    }
 
-    public long lowWord() { return lo; }
+    public long lowWord() {
+        return lo;
+    }
 
     /** Only valid when {@link #fitsLong()}. */
     public long longValue() {

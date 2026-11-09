@@ -15,6 +15,7 @@ import java.util.Objects;
  * This arithmetic source is shared unchanged by the four supported Minecraft branches and uses only Java 8 APIs.
  */
 public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
+
     // Match BigInteger's supported bit range instead of imposing a smaller storage limit.
     private static final int MAX_LIMBS = (Integer.MAX_VALUE >>> 6) + 1;
     public static final UnsignedLongArray ZERO = new UnsignedLongArray(new long[0], true);
@@ -23,21 +24,20 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
 
     private UnsignedLongArray(long[] limbs, boolean normalized) {
         this.limbs = normalized ? limbs : normalize(limbs);
-        if (this.limbs.length > MAX_LIMBS
-            || this.limbs.length == MAX_LIMBS && this.limbs[MAX_LIMBS - 1] < 0) {
+        if (this.limbs.length > MAX_LIMBS || this.limbs.length == MAX_LIMBS && this.limbs[MAX_LIMBS - 1] < 0) {
             throw new ArithmeticException("Unsigned integer exceeds BigInteger's supported range");
         }
     }
 
     public static UnsignedLongArray fromLong(long value) {
         if (value < 0) throw new IllegalArgumentException("Value must be non-negative: " + value);
-        return value == 0 ? ZERO : new UnsignedLongArray(new long[] {value}, true);
+        return value == 0 ? ZERO : new UnsignedLongArray(new long[] { value }, true);
     }
 
     /** Both arguments are unsigned word bit patterns, including negative Java long values. */
     public static UnsignedLongArray fromParts(long high, long low) {
-        if (high != 0) return new UnsignedLongArray(new long[] {low, high}, true);
-        return low == 0 ? ZERO : new UnsignedLongArray(new long[] {low}, true);
+        if (high != 0) return new UnsignedLongArray(new long[] { low, high }, true);
+        return low == 0 ? ZERO : new UnsignedLongArray(new long[] { low }, true);
     }
 
     public static UnsignedLongArray fromLimbs(long[] limbs) {
@@ -69,7 +69,9 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
         return new BigInteger(1, bytes);
     }
 
-    public long[] toLongArray() { return limbs.clone(); }
+    public long[] toLongArray() {
+        return limbs.clone();
+    }
 
     /** Zero-extends the magnitude when reading an absent high limb. */
     public long limb(int index) {
@@ -78,11 +80,13 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
     }
 
     public int bitLength() {
-        return isZero() ? 0 : (limbs.length - 1) * Long.SIZE
-            + Long.SIZE - Long.numberOfLeadingZeros(limbs[limbs.length - 1]);
+        return isZero() ? 0
+            : (limbs.length - 1) * Long.SIZE + Long.SIZE - Long.numberOfLeadingZeros(limbs[limbs.length - 1]);
     }
 
-    public boolean isZero() { return limbs.length == 0; }
+    public boolean isZero() {
+        return limbs.length == 0;
+    }
 
     public UnsignedLongArray add(long value) {
         if (value < 0) throw new IllegalArgumentException("Value must be non-negative: " + value);
@@ -90,9 +94,8 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
         if (limbs.length == 0) return fromLong(value);
         if (limbs.length == 1) {
             long sum = limbs[0] + value;
-            return Long.compareUnsigned(sum, limbs[0]) < 0
-                ? new UnsignedLongArray(new long[] {sum, 1}, true)
-                : new UnsignedLongArray(new long[] {sum}, true);
+            return Long.compareUnsigned(sum, limbs[0]) < 0 ? new UnsignedLongArray(new long[] { sum, 1 }, true)
+                : new UnsignedLongArray(new long[] { sum }, true);
         }
 
         long[] result = limbs.clone();
@@ -142,7 +145,7 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
         }
         if (limbs.length == 1) {
             long difference = limbs[0] - value;
-            return difference == 0 ? ZERO : new UnsignedLongArray(new long[] {difference}, true);
+            return difference == 0 ? ZERO : new UnsignedLongArray(new long[] { difference }, true);
         }
         int length = limbs.length;
         if (limbs[length - 1] == 1 && lowerPartLessThan(length - 1, value)) length--;
@@ -151,8 +154,8 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
         for (int i = 0; i < length; i++) {
             long left = limbs[i], right = i == 0 ? value : 0;
             result[i] = left - right - borrow;
-            boolean borrowOut = borrow == 0
-                ? Long.compareUnsigned(left, right) < 0 : Long.compareUnsigned(left, right) <= 0;
+            boolean borrowOut = borrow == 0 ? Long.compareUnsigned(left, right) < 0
+                : Long.compareUnsigned(left, right) <= 0;
             borrow = borrowOut ? 1 : 0;
         }
         return new UnsignedLongArray(result, true);
@@ -168,8 +171,8 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
         for (int i = 0; i < result.length; i++) {
             long left = result[i], right = other.limb(i);
             result[i] = left - right - borrow;
-            boolean borrowOut = borrow == 0
-                ? Long.compareUnsigned(left, right) < 0 : Long.compareUnsigned(left, right) <= 0;
+            boolean borrowOut = borrow == 0 ? Long.compareUnsigned(left, right) < 0
+                : Long.compareUnsigned(left, right) <= 0;
             borrow = borrowOut ? 1 : 0;
         }
         return new UnsignedLongArray(result, false);
@@ -206,8 +209,8 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
 
     @Override
     public boolean equals(Object other) {
-        return other == this || other instanceof UnsignedLongArray
-            && Arrays.equals(limbs, ((UnsignedLongArray) other).limbs);
+        return other == this
+            || other instanceof UnsignedLongArray && Arrays.equals(limbs, ((UnsignedLongArray) other).limbs);
     }
 
     /** Same magnitude hash as BigInteger, without allocating a temporary BigInteger. */
@@ -222,5 +225,7 @@ public final class UnsignedLongArray implements Comparable<UnsignedLongArray> {
     }
 
     @Override
-    public String toString() { return toBigInteger().toString(); }
+    public String toString() {
+        return toBigInteger().toString();
+    }
 }
