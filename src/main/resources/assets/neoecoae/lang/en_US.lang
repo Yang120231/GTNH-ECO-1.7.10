@@ -1328,6 +1328,7 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.title=Automatic Upload
 gui.neoecoae.pattern_upload.button.auto.tooltip.target=Target machine: %s (%s)
 gui.neoecoae.pattern_upload.button.auto.tooltip.circuit=Virtual circuit: %s
 gui.neoecoae.pattern_upload.target.eco=ECO Pattern Domain
+gui.neoecoae.pattern_upload.target.eco_workstation=ECO Large Integrated Workstation
 gui.neoecoae.pattern_upload.target.ae2=ME Interface
 gui.neoecoae.pattern_upload.target.ae2_dual=ME 2-in-1 Interface
 gui.neoecoae.pattern_upload.target.gt_assembly=Pattern Input Assembly (ME)

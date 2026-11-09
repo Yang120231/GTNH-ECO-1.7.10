@@ -13,8 +13,8 @@ import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.util.IInterfaceViewable;
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
-import cn.dancingsnow.neoecoae.compat.proghatches.upload.ProgrammableHatchUpload;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternRouteProbe;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
@@ -65,6 +65,11 @@ public final class Ae2UploadDiscovery {
         try {
             IGridHost machine = node.getMachine();
             if (machine == null || !seen.add(machine)) return;
+            if (machine instanceof ECOLargeIntegratedWorkingStationInterfaceBlockEntity workstation) {
+                if (!workstation.shouldDisplay()) return;
+                result.add(new Ae2InterfaceTarget(workstation, node, routes));
+                return;
+            }
             if (machine instanceof ECOMachineInterfaceBlockEntity) {
                 ECOMachineInterfaceBlockEntity<?> host = (ECOMachineInterfaceBlockEntity<?>) machine;
                 Object cluster = host.getCluster();
@@ -78,7 +83,7 @@ public final class Ae2UploadDiscovery {
                 } else target.preferHost(host);
                 return;
             }
-            // Other ECO hosts (such as the large workstation) need their own adapter and are not targets.
+            // Pattern buses belong to the domain above; other ECO components have no upload inventory.
             if (machine.getClass()
                 .getName()
                 .startsWith("cn.dancingsnow.neoecoae.")) return;
@@ -88,9 +93,8 @@ public final class Ae2UploadDiscovery {
             // AE2 names an unnamed interface "Nothing" when no machine is next to it (DualityInterface
             // #getRawTermName): it is used as storage or I/O, not as a pattern provider, so it is not a target.
             if (NO_ADJACENT_MACHINE.equals(viewable.getRawName())) return;
-            // GT pattern hatches hide themselves from crafting lists but remain valid upload inventories.
-            if (!viewable.shouldDisplay() && routes.kind(viewable) == null
-                && !ProgrammableHatchUpload.isHatch(viewable)) return;
+            // Respect the host's terminal visibility for every interface and pattern hatch.
+            if (!viewable.shouldDisplay()) return;
             result.add(new Ae2InterfaceTarget(viewable, node, routes));
         } catch (RuntimeException rebuilding) {
             // A host can disappear while the grid is rebuilt; skip only that node.

@@ -19,6 +19,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.util.IInterfaceViewable;
 import appeng.helpers.IInterfaceHost;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.compat.ae2fc.upload.DualInterfaceUpload;
 import cn.dancingsnow.neoecoae.compat.gtnl.upload.SuperInputHatchUpload;
 import cn.dancingsnow.neoecoae.compat.proghatches.upload.ProgrammableHatchUpload;
@@ -48,6 +49,7 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
     }
 
     private static Kind kindOf(IInterfaceViewable viewable, PatternRouteProbe probe) {
+        if (viewable instanceof ECOLargeIntegratedWorkingStationInterfaceBlockEntity) return Kind.ECO_WORKSTATION;
         if (ProgrammableHatchUpload.isHatch(viewable)) return Kind.PROGRAMMABLE_HATCH;
         if (SuperInputHatchUpload.isHatch(viewable)) return Kind.GTNL_SUPER_INPUT;
         Kind probed = probe.kind(viewable);
@@ -125,7 +127,16 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
 
     @Override
     public boolean isPresent(IGrid grid) {
+        // Recheck live visibility so a target hidden after discovery cannot receive an upload.
+        if (!viewable.shouldDisplay()) return false;
         TileEntity tile = tile();
+        if (viewable instanceof ECOLargeIntegratedWorkingStationInterfaceBlockEntity workstation
+            && (!workstation.isFormed() || workstation.getCluster() == null
+                || workstation.getCluster()
+                    .isDestroyed()
+                || workstation.getCluster()
+                    .getController() == null))
+            return false;
         return node.isActive() && node.getGrid() == grid
             && tile != null
             && !tile.isInvalid()
@@ -150,6 +161,32 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
 
     @Override
     public MatchResult match(PatternContext context) {
+        if (viewable instanceof ECOLargeIntegratedWorkingStationInterfaceBlockEntity workstation) {
+            if (context.details.isInputOnly()) return MatchResult
+                .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.tunnel_interface");
+            if (context.inputError != null) return MatchResult.of(MatchResult.Level.INCOMPATIBLE, context.inputError);
+            // Use the same non-mutating recipe check as the workstation's advertised pattern catalog.
+            if (!workstation.getWorkstationProvider()
+                .accepts(context.pattern))
+                return MatchResult.of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.recipe");
+            String category = !context.processing ? "ae2:crafting"
+                : context.hint != null && !context.hint.getCategoryId()
+                    .isEmpty() ? context.hint.getCategoryId() : "neoecoae:large_workstation";
+            String selection = !context.processing ? "-"
+                : NativeGregTech.isAvailable()
+                    ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
+                    : context.hint == null ? "-" : context.hint.selectionKey();
+            return new MatchResult(
+                context.processing ? MatchResult.Level.ROUTED : MatchResult.Level.EXACT,
+                null,
+                null,
+                workstation.getRawName(),
+                workstation.getDisplayRep(),
+                "neoecoae:large_workstation",
+                false,
+                category,
+                selection);
+        }
         boolean plainInterface = kind == Kind.AE2_INTERFACE || kind == Kind.AE2_DUAL_INTERFACE;
         if (context.details.isInputOnly()) return plainInterface
             ? MatchResult.of(MatchResult.Level.ACCEPTED, "gui.neoecoae.pattern_upload.reason.tunnel_definition")

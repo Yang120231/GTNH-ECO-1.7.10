@@ -18,7 +18,8 @@ public interface PatternUploadTarget {
         GT_CRAFTING_INPUT_BUS("gt_bus", 2),
         GTNL_SUPER_INPUT("gtnl", 2),
         AE2_DUAL_INTERFACE("ae2_dual", 3),
-        AE2_INTERFACE("ae2", 3);
+        AE2_INTERFACE("ae2", 3),
+        ECO_WORKSTATION("eco_workstation", 0);
 
         public final String key;
         public final int priority;

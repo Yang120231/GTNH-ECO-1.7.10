@@ -1328,6 +1328,7 @@ gui.neoecoae.pattern_upload.button.auto.tooltip.title=自动上传
 gui.neoecoae.pattern_upload.button.auto.tooltip.target=目标机器：%s（%s）
 gui.neoecoae.pattern_upload.button.auto.tooltip.circuit=虚拟电路：%s
 gui.neoecoae.pattern_upload.target.eco=ECO 样板域
+gui.neoecoae.pattern_upload.target.eco_workstation=ECO 大型集成工作站
 gui.neoecoae.pattern_upload.target.ae2=ME 接口
 gui.neoecoae.pattern_upload.target.ae2_dual=ME 二合一接口
 gui.neoecoae.pattern_upload.target.gt_assembly=样板输入总成（ME）
