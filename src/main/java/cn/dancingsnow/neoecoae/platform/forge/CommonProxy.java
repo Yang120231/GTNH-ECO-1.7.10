@@ -58,6 +58,10 @@ public class CommonProxy {
             .registries()
             .interfaceTerminal()
             .register(cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines.Interface.class);
+        appeng.api.AEApi.instance()
+            .registries()
+            .interfaceTerminal()
+            .register(cn.dancingsnow.neoecoae.platform.registry.CraftingMachines.CraftingPatternBus.class);
         cn.dancingsnow.neoecoae.platform.recipe.StorageRecipes.register();
         cn.dancingsnow.neoecoae.platform.structurelib.NEStructureLib.init();
         // The callback is named, not referenced, so WAILA's classes load only when it is installed.

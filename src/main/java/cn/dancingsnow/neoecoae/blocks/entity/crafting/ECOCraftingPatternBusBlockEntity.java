@@ -34,7 +34,7 @@ import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCluster, ECOCraftingPatternBusBlockEntity>
     implements ManagedHolder, InternalInventoryHost, ECOJobAwareCraftingProvider, ECOFastPathDispatchProvider,
-    appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium {
+    appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium, appeng.api.util.IInterfaceViewable {
 
     private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
         .getLogger(cn.dancingsnow.neoecoae.NeoECOAE.MODID);
@@ -79,6 +79,67 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
 
     public AppEngInternalInventory getInternalInventory() {
         return inventory;
+    }
+
+    @Override
+    public appeng.api.util.DimensionalCoord getLocation() {
+        return new appeng.api.util.DimensionalCoord(this);
+    }
+
+    @Override
+    public int rows() {
+        return (inventory.size() + rowSize() - 1) / rowSize();
+    }
+
+    @Override
+    public int rowSize() {
+        return 9;
+    }
+
+    @Override
+    public int numSlots() {
+        return inventory.size();
+    }
+
+    @Override
+    public net.minecraft.inventory.IInventory getPatterns() {
+        return inventory;
+    }
+
+    @Override
+    public String getName() {
+        return net.minecraft.util.StatCollector.translateToLocal(getRawName());
+    }
+
+    @Override
+    public String getRawName() {
+        return "block.neoecoae.crafting_pattern_bus.name";
+    }
+
+    @Override
+    public net.minecraft.tileentity.TileEntity getTileEntity() {
+        return this;
+    }
+
+    @Override
+    public boolean shouldDisplay() {
+        return true;
+    }
+
+    @Override
+    public boolean isCraftingPatternProvider() {
+        return true;
+    }
+
+    @Override
+    public net.minecraft.item.ItemStack getSelfRep() {
+        return getItemFromBlockEntity();
+    }
+
+    @Override
+    public net.minecraft.item.ItemStack getDisplayRep() {
+        var controller = getCraftingController();
+        return controller == null ? getSelfRep() : controller.getItemFromBlockEntity();
     }
 
     public ECOCraftingSystemBlockEntity getCraftingController() {
