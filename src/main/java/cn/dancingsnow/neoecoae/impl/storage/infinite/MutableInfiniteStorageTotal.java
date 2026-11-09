@@ -4,7 +4,7 @@ import java.math.BigInteger;
 
 /**
  * Server-thread statistic; large totals accumulate small transfers without allocating on every operation.
- * Past Long.MAX_VALUE the exact base is a {@link HugeAmount}: U126 below 2^126, BigInteger only beyond.
+ * Past Long.MAX_VALUE the exact base is a {@link HugeAmount}: U126 below 2^126, segmented magnitudes beyond.
  */
 final class MutableInfiniteStorageTotal {
 
