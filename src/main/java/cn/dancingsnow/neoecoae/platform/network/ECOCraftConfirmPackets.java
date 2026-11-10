@@ -52,6 +52,8 @@ public final class ECOCraftConfirmPackets {
 
     public static void sync(EntityPlayerMP player, int windowId, ECOCraftConfirmState state,
         ECOCraftConfirmReport report) {
+        // Publish the small final-plan summary before encoding/sending the potentially large material table.
+        if (report != null) CHANNEL.sendTo(new Sync(windowId, state, null), player);
         CHANNEL.sendTo(new Sync(windowId, state, report), player);
     }
 

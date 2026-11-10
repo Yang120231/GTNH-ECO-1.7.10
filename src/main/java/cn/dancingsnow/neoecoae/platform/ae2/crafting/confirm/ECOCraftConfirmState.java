@@ -64,6 +64,15 @@ public final class ECOCraftConfirmState {
     public final boolean bigOrderCpuAvailable;
     /** Inputs the network could no longer supply when the start was rejected; empty unless one was. */
     public final List<GenericStack> shortages;
+    public final Summary summary;
+
+    @com.github.bsideup.jabel.Desugar
+    public record Summary(boolean hasByteEstimate, boolean completeByteEstimate, int patterns, int cycles) {
+
+        public Summary {
+            if (patterns < 0 || cycles < 0) throw new IllegalArgumentException("Negative report statistics");
+        }
+    }
 
     public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
         boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
@@ -115,6 +124,32 @@ public final class ECOCraftConfirmState {
         String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
         @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable,
         @Nullable List<GenericStack> shortages) {
+        this(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            bigOrderCpuAvailable,
+            shortages,
+            new Summary(reportReady && status == null, reportReady && status == null, 0, 0));
+    }
+
+    public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
+        boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
+        String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
+        @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable,
+        @Nullable List<GenericStack> shortages, Summary summary) {
+        this.summary = Objects.requireNonNull(summary);
         this.plannerAvailable = plannerAvailable;
         this.reportReady = reportReady;
         this.cyclePlanningEnabled = cyclePlanningEnabled;
@@ -154,7 +189,8 @@ public final class ECOCraftConfirmState {
             error,
             errorDetail,
             bigOrderCpuAvailable,
-            shortages);
+            shortages,
+            summary);
     }
 
     public ECOCraftConfirmState withBigOrderCpu(boolean available) {
@@ -175,7 +211,8 @@ public final class ECOCraftConfirmState {
             error,
             errorDetail,
             available,
-            shortages);
+            shortages,
+            summary);
     }
 
     public ECOCraftConfirmState withError(@Nullable ECOCraftConfirmError error, String detail) {
@@ -200,7 +237,29 @@ public final class ECOCraftConfirmState {
             error,
             error == null ? "" : detail,
             bigOrderCpuAvailable,
-            shortages);
+            shortages,
+            summary);
+    }
+
+    public ECOCraftConfirmState withSummary(Summary value) {
+        return new ECOCraftConfirmState(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            bigOrderCpuAvailable,
+            shortages,
+            value);
     }
 
     /** Bytes shown in the header: the exact planner estimate when present, otherwise AE2's long total. */
@@ -229,6 +288,10 @@ public final class ECOCraftConfirmState {
             AEKey.writeKey(data, shortage.what());
             data.writeVarLong(shortage.amount());
         }
+        data.writeBoolean(summary.hasByteEstimate());
+        data.writeBoolean(summary.completeByteEstimate());
+        data.writeVarInt(summary.patterns());
+        data.writeVarInt(summary.cycles());
     }
 
     public static ECOCraftConfirmState read(RegistryFriendlyByteBuf data) {
@@ -255,6 +318,7 @@ public final class ECOCraftConfirmState {
             long amount = data.readVarLong();
             if (key != null && amount > 0) shortages.add(new GenericStack(key, amount));
         }
+        Summary summary = new Summary(data.readBoolean(), data.readBoolean(), data.readVarInt(), data.readVarInt());
         return new ECOCraftConfirmState(
             plannerAvailable,
             reportReady,
@@ -271,7 +335,8 @@ public final class ECOCraftConfirmState {
             error,
             errorDetail,
             bigOrderCpuAvailable,
-            shortages);
+            shortages,
+            summary);
     }
 
     private static <T> @Nullable T byOrdinal(T[] values, int code) {
@@ -302,7 +367,8 @@ public final class ECOCraftConfirmState {
             && error == state.error
             && errorDetail.equals(state.errorDetail)
             && bigOrderCpuAvailable == state.bigOrderCpuAvailable
-            && shortages.equals(state.shortages);
+            && shortages.equals(state.shortages)
+            && summary.equals(state.summary);
     }
 
     @Override
@@ -323,6 +389,7 @@ public final class ECOCraftConfirmState {
             error,
             errorDetail,
             bigOrderCpuAvailable,
-            shortages);
+            shortages,
+            summary);
     }
 }

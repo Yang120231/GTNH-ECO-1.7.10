@@ -161,6 +161,14 @@ public final class ECOCraftConfirmReports {
             version,
             null,
             "");
+        if (result != null) state = state.withSummary(
+            new ECOCraftConfirmState.Summary(
+                snapshot.hasMaterialDetails(),
+                snapshot.hasCompleteByteEstimate(),
+                snapshot.summary()
+                    .patternNodes(),
+                snapshot.summary()
+                    .cycleGroups()));
         return new Built(state, new ECOCraftConfirmReport(version, rows, cycles));
     }
 

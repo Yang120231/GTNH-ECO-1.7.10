@@ -72,6 +72,34 @@ public record CraftingGraphSnapshot(int rootNodeId, List<MaterialNode> nodes, Li
         }
     }
 
+    /** A diagnostic root alone is not a material calculation or a known zero-byte estimate. */
+    public boolean hasMaterialDetails() {
+        return nodes.stream()
+            .anyMatch(
+                node -> node.fromInventoryBigInteger()
+                    .signum() > 0
+                    || node.toCraftBigInteger()
+                        .signum() > 0
+                    || node.missingBigInteger()
+                        .signum() > 0);
+    }
+
+    public boolean hasCompleteByteEstimate() {
+        boolean shortage = summary.planningStatus()
+            .equals("MISSING_ITEMS")
+            || summary.planningStatus()
+                .equals("PLANNED_BUT_AMOUNT_UNREPRESENTABLE");
+        return hasMaterialDetails() && cycleGroups.stream()
+            .allMatch(
+                cycle -> cycle.status()
+                    .equals("SOLVED")
+                    || cycle.status()
+                        .equals("NOT_REQUIRED")
+                    || shortage && cycle.status()
+                        .equals("INSUFFICIENT_EXTERNAL_INPUT")
+                        && cycle.executionCountKnowledge() == ExecutionCountKnowledge.EXACT);
+    }
+
     private void writeRaw(RegistryFriendlyByteBuf data) {
         data.writeVarInt(rootNodeId);
         writeList(data, nodes, MaterialNode::write);

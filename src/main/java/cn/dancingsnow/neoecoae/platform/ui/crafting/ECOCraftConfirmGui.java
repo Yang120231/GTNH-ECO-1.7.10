@@ -199,6 +199,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private SortDir filteredDir;
     @Nullable
     private List<String> tooltip;
+    private List<ProcessingTooltip.Row> reportTooltip;
     @Nullable
     private ItemStack hoveredStack;
 
@@ -538,6 +539,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         refresh();
         cpuTable.drawScreen();
         tooltip = null;
+        reportTooltip = null;
         hoveredStack = null;
         super.drawScreen(mouseX, mouseY, partialTicks);
         if (tooltip == null && treeMode && state.error == null) {
@@ -563,7 +565,9 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
                     .split("\n"));
             tooltip = lines;
         }
-        if (tooltip != null && !tooltip.isEmpty()) {
+        if (reportTooltip != null && !reportTooltip.isEmpty()) {
+            ProcessingTooltip.draw(fontRendererObj, reportTooltip, mouseX, mouseY, width, height);
+        } else if (tooltip != null && !tooltip.isEmpty()) {
             drawHoveringText(tooltip, mouseX, mouseY, fontRendererObj);
             GL11.glDisable(GL11.GL_LIGHTING);
         }
@@ -687,7 +691,9 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     }
 
     private void drawHeader(int localX, int localY) {
-        boolean ready = state.reportReady && report != null;
+        boolean ready = state.reportReady;
+        String byteKey = state.summary.completeByteEstimate() ? "gui.neoecoae.crafting_report.bytes_only"
+            : "gui.neoecoae.crafting_report.bytes_partial";
         String bytes;
         if (!ready) bytes = I18n.format("gui.neoecoae.crafting_report.bytes_pending");
         else if (unknownBytes()) bytes = I18n.format("gui.neoecoae.crafting_report.bytes_unknown");
@@ -696,9 +702,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             String amount = HostText.fitHugeAmount(
                 state.displayedBytes(),
                 86,
-                text -> fontRendererObj
-                    .getStringWidth(I18n.format("gui.neoecoae.crafting_report.bytes_only", byteUnit(text))));
-            bytes = I18n.format("gui.neoecoae.crafting_report.bytes_only", byteUnit(amount));
+                text -> fontRendererObj.getStringWidth(I18n.format(byteKey, byteUnit(text))));
+            bytes = I18n.format(byteKey, byteUnit(amount));
         }
         float scale = Math.min(1.15F, 98F / Math.max(1, fontRendererObj.getStringWidth(bytes) + 1));
         GL11.glPushMatrix();
@@ -714,41 +719,54 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             Gui.drawRect(54, 19, 54 + fill, 20, 0xFF3D9B62);
         }
         if (localX >= HEADER_LEFT && localX < HEADER_RIGHT && localY >= HEADER_TOP && localY < HEADER_BOTTOM)
-            tooltip = headerTooltip(ready, bytes);
+            reportTooltip = headerCard(ready, bytes);
     }
 
-    private List<String> headerTooltip(boolean ready, String bytes) {
-        List<String> lines = new ArrayList<>();
+    private List<ProcessingTooltip.Row> headerCard(boolean ready, String bytes) {
+        List<ProcessingTooltip.Row> rows = new ArrayList<>();
+        rows.add(ProcessingTooltip.Row.header(card("title"), "", ProcessingTooltip.ACCENT));
+        rows.add(ProcessingTooltip.Row.separator());
         if (!ready) {
-            lines.add(
-                I18n.format(
-                    state.reportReady ? "gui.neoecoae.crafting_report.loading_details"
-                        : "gui.neoecoae.crafting_report.calculating"));
-            lines.add(bytes);
-            return lines;
+            rows.add(ProcessingTooltip.Row.text(I18n.format("gui.neoecoae.crafting_report.calculating")));
+            return rows;
         }
-        lines.add(
-            I18n.format(
-                "gui.neoecoae.crafting_report.elapsed",
-                DisplayNumbers.grouped(
-                    BigDecimal.valueOf(state.calculationNanos, 6)
-                        .toPlainString())));
-        if (unknownBytes()) lines.add(bytes);
-        else {
-            // Keep the exact BigInteger here, including values beyond the compact formatter's units.
-            String exact = DisplayNumbers.grouped(
-                state.displayedBytes()
-                    .toString());
-            if (exact.length() <= 32) lines.add(I18n.format("gui.neoecoae.crafting_report.bytes_only", exact + " B"));
-            else {
-                lines.add(I18n.format("gui.neoecoae.crafting_report.bytes_only", ""));
-                for (int from = 0; from < exact.length(); from += 32) {
-                    int to = Math.min(exact.length(), from + 32);
-                    lines.add(exact.substring(from, to) + (to == exact.length() ? " B" : ""));
-                }
-            }
+        String elapsed = BigDecimal.valueOf(state.calculationNanos, 6)
+            .setScale(isShiftKeyDown() ? 6 : 3, java.math.RoundingMode.HALF_UP)
+            .stripTrailingZeros()
+            .toPlainString();
+        rows.add(ProcessingTooltip.Row.text(card("elapsed"), DisplayNumbers.grouped(elapsed) + " ms"));
+        String label = card(state.summary.completeByteEstimate() ? "bytes" : "bytes_partial");
+        if (unknownBytes()) rows.add(ProcessingTooltip.Row.value(label, card("unknown"), ProcessingTooltip.CYAN));
+        else if (isShiftKeyDown()) {
+            rows.add(ProcessingTooltip.Row.section(label, "", ProcessingTooltip.CYAN));
+            rows.add(
+                ProcessingTooltip.Row.text(
+                    DisplayNumbers.grouped(
+                        state.displayedBytes()
+                            .toString())
+                        + " B"));
+        } else rows.add(
+            ProcessingTooltip.Row.value(
+                label,
+                BigNumberFormatter.format(state.displayedBytes(), 1, false) + " B",
+                ProcessingTooltip.CYAN));
+        rows.add(
+            ProcessingTooltip.Row
+                .text(card("patterns"), DisplayNumbers.grouped(Integer.toString(state.summary.patterns()))));
+        rows.add(
+            ProcessingTooltip.Row
+                .text(card("cycles"), DisplayNumbers.grouped(Integer.toString(state.summary.cycles()))));
+        if (!state.summary.completeByteEstimate()) {
+            rows.add(ProcessingTooltip.Row.separator());
+            rows.add(ProcessingTooltip.Row.text(card("incomplete")));
+            rows.add(ProcessingTooltip.Row.text(card("incomplete_hint")));
         }
-        return lines;
+        rows.add(ProcessingTooltip.Row.hint(card(isShiftKeyDown() ? "exact_shown" : "exact_hint")));
+        return rows;
+    }
+
+    private static String card(String key) {
+        return I18n.format("gui.neoecoae.crafting_report.card." + key);
     }
 
     private static String byteUnit(String amount) {
@@ -817,7 +835,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
                 && localY >= cellY
                 && localY < cellY + CELL_HEIGHT) {
                 hover(row.key);
-                tooltip = materialTooltip(row);
+                reportTooltip = materialTooltip(row);
             }
         }
     }
@@ -850,24 +868,54 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         return GuiText.Missing.getLocal() + ": " + amount;
     }
 
-    private List<String> materialTooltip(ECOCraftConfirmReport.Row row) {
-        List<String> lines = keyTooltip(row.key);
-        if (row.stored.signum() > 0) lines.add(GuiText.FromStorage.getLocal() + ": " + full(row.key, row.stored));
-        float percent = usedPercent(row);
-        if (percent >= 0) lines.add(percentLine(percent));
+    private List<ProcessingTooltip.Row> materialTooltip(ECOCraftConfirmReport.Row row) {
+        List<String> nativeLines = keyTooltip(row.key);
+        List<ProcessingTooltip.Row> lines = new ArrayList<>();
+        String name = nativeLines.get(0);
+        String source = nativeLines.size() > 1 ? nativeLines.get(nativeLines.size() - 1) : "";
+        lines.add(ProcessingTooltip.Row.iconHeader(row.key.toNative(1), name, source));
+        lines.add(ProcessingTooltip.Row.separator());
+        boolean fluid = row.key instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
+        lines.add(
+            ProcessingTooltip.Row.section(card(fluid ? "fluid_request" : "item_request"), "", ProcessingTooltip.MUTED));
+        materialAmount(lines, card("available"), row.key, row.stored, ProcessingTooltip.PRIMARY);
         if (row.missing.signum() > 0) {
-            lines.add(missingLine(row.key, full(row.key, row.missing)));
-            if (report.isEstimatedStartupSeed(row.key))
-                lines.add(I18n.format("gui.neoecoae.crafting_report.seed_shortfall_estimate_hint"));
+            materialAmount(
+                lines,
+                report.isEstimatedStartupSeed(row.key) ? card("missing_estimate")
+                    : report.isMissingStartupSeed(row.key)
+                        ? I18n.format("gui.neoecoae.crafting_report.missing_startup_seed")
+                        : card("missing"),
+                row.key,
+                row.missing,
+                ProcessingTooltip.WARN);
         }
-        if (row.craft.signum() > 0) lines.add(GuiText.ToCraft.getLocal() + ": " + full(row.key, row.craft));
-        if (row.rounds.signum() > 0)
-            lines.add(GuiText.ToCraftRequests.getLocal() + ": " + BigNumberFormatter.format(row.rounds, 1, true));
-        if (row.requested.signum() > 0) lines.add(
-            I18n.format(
-                "gui.neoecoae.crafting_report.requested_exact",
-                BigNumberFormatter.format(row.requested, 1, true)));
+        if (row.craft.signum() > 0)
+            materialAmount(lines, card("to_craft"), row.key, row.craft, ProcessingTooltip.PRIMARY);
+        if (row.rounds.signum() > 0) lines.add(
+            ProcessingTooltip.Row.text(
+                GuiText.ToCraftRequests.getLocal(),
+                isShiftKeyDown() ? DisplayNumbers.grouped(row.rounds.toString())
+                    : BigNumberFormatter.format(row.rounds, 1, false)));
+        if (row.requested.signum() > 0) {
+            lines.add(ProcessingTooltip.Row.separator());
+            materialAmount(lines, card("requested"), row.key, row.requested, ProcessingTooltip.ACCENT);
+        }
+        if (report.isEstimatedStartupSeed(row.key)) lines
+            .add(ProcessingTooltip.Row.text(I18n.format("gui.neoecoae.crafting_report.seed_shortfall_estimate_hint")));
+        for (int i = 1; i < nativeLines.size() - 1; i++) lines.add(ProcessingTooltip.Row.text(nativeLines.get(i)));
+        lines.add(ProcessingTooltip.Row.separator());
+        lines.add(ProcessingTooltip.Row.hint(card(isShiftKeyDown() ? "exact_shown" : "exact_hint")));
         return lines;
+    }
+
+    private void materialAmount(List<ProcessingTooltip.Row> rows, String label, AEKey key, BigInteger amount,
+        int color) {
+        String unit = key instanceof cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey ? " L" : "";
+        if (isShiftKeyDown()) {
+            rows.add(ProcessingTooltip.Row.section(label, "", color));
+            rows.add(ProcessingTooltip.Row.text(DisplayNumbers.grouped(amount.toString()) + unit));
+        } else rows.add(ProcessingTooltip.Row.value(label, compact(key, amount) + unit, color));
     }
 
     private void drawCycleItems(int localX, int localY) {
@@ -1002,14 +1050,9 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         return BigNumberFormatter.format(amount, Math.max(1, key.getAmountPerDisplayUnit()), false);
     }
 
-    private static String full(AEKey key, BigInteger amount) {
-        return BigNumberFormatter.format(amount, Math.max(1, key.getAmountPerDisplayUnit()), true);
-    }
-
     private boolean unknownBytes() {
-        if (state.status == PlanningStatus.CYCLE_UNRESOLVED)
-            return state.reportReady && (report == null || report.materials.isEmpty());
-        return isDiagnosticShell();
+        return !state.summary.hasByteEstimate() || !state.summary.completeByteEstimate() && state.displayedBytes()
+            .signum() <= 0;
     }
 
     private boolean isDiagnosticShell() {
