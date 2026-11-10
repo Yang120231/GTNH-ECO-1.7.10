@@ -117,6 +117,9 @@ final class PatternUploadScreen extends GuiScreen {
         if (firstOrNewCategory || next.event == PatternUploadPackets.EVENT_MAPPING) {
             mappingMode = false;
             prefill = text(next.category);
+            // Material orders target a container rather than the multiblock named by the NEI page.
+            if (cn.dancingsnow.neoecoae.crafting.upload.RouteHint.MATERIAL_ORDER_CATEGORY.equals(next.categoryId))
+                prefill = "";
             if (next.mappingEnabled) for (Row row : next.rows) if (row.token == next.mappingToken) {
                 prefill = hostName(row);
                 break;

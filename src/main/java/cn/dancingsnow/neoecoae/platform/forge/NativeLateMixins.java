@@ -58,6 +58,9 @@ public final class NativeLateMixins implements ILateMixinLoader {
             .isClient() && loadedMods.contains("blockrenderer6343")) mixins.add("StructurePreviewChannelsMixin");
         if (FMLLaunchHandler.side()
             .isClient() && loadedMods.contains("guidenh")) mixins.add("GuideStructureBlockStatsMixin");
+        if (FMLLaunchHandler.side()
+            .isClient() && loadedMods.contains("blockrenderer6343")
+            && loadedMods.contains("neenergistics")) mixins.add("StructureMaterialOrderMixin");
         return mixins;
     }
 }

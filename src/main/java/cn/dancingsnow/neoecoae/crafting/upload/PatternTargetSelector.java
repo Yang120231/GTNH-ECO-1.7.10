@@ -97,6 +97,7 @@ public final class PatternTargetSelector {
 
     public static final Comparator<Evaluation> ORDER = Comparator
         .<Evaluation>comparingInt(evaluation -> evaluation.state == SlotState.OFFLINE ? 1 : 0)
+        .thenComparingInt(PatternTargetSelector::craftingPriority)
         .thenComparingInt(evaluation -> evaluation.match.level.rank())
         .thenComparingInt(evaluation -> evaluation.state.ordinal())
         .thenComparingInt(evaluation -> evaluation.target.kind().priority)
@@ -104,6 +105,17 @@ public final class PatternTargetSelector {
         .thenComparing(evaluation -> evaluation.positionKey);
 
     private PatternTargetSelector() {}
+
+    /** Crafting destinations: ECO F domain, GTNL matrix, then molecular assemblers. */
+    private static int craftingPriority(Evaluation evaluation) {
+        if (!"ae2:crafting".equals(evaluation.match.categoryId)) return 3;
+        return switch (evaluation.target.kind()) {
+            case ECO_PATTERN_DOMAIN -> 0;
+            case GTNL_ASSEMBLER_MATRIX -> 1;
+            case CRAFTING_ASSEMBLER, AE2_INTERFACE, AE2_DUAL_INTERFACE -> 2;
+            default -> 3;
+        };
+    }
 
     public static Evaluation evaluate(PatternUploadTarget target, PatternContext context, IGrid grid) {
         try {
@@ -169,6 +181,14 @@ public final class PatternTargetSelector {
             return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.no_exact");
         }
         Set<String> signatures = new HashSet<>();
+        if (routes.stream()
+            .allMatch(evaluation -> "ae2:crafting".equals(evaluation.match.categoryId))) {
+            int priority = routes.stream()
+                .mapToInt(PatternTargetSelector::craftingPriority)
+                .min()
+                .orElse(3);
+            routes.removeIf(evaluation -> craftingPriority(evaluation) != priority);
+        }
         for (Evaluation evaluation : routes) signatures.add(evaluation.match.routeSignature);
         if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
         // Full, duplicate and offline receivers still participate in identity resolution.

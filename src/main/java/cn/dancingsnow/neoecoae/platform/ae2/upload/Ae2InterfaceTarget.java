@@ -13,12 +13,13 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import com.gtnewhorizon.gtnhlib.capability.Capabilities;
 
-import appeng.api.AEApi;
 import appeng.api.crafting.ICraftingIconProvider;
+import appeng.api.implementations.tiles.ICraftingMachine;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.util.IInterfaceViewable;
 import appeng.helpers.IInterfaceHost;
+import appeng.util.InventoryAdaptor;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.compat.ae2fc.upload.DualInterfaceUpload;
 import cn.dancingsnow.neoecoae.compat.gtnl.upload.SuperInputHatchUpload;
@@ -28,6 +29,7 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternContext;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternRouteProbe;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternSlotAccess;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
+import cn.dancingsnow.neoecoae.crafting.upload.RouteHint;
 import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
 
 /** Any host listed by AE2's interface terminal: ME interfaces, 2-in-1 interfaces and GT/addon pattern hatches. */
@@ -54,6 +56,12 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
         if (SuperInputHatchUpload.isHatch(viewable)) return Kind.GTNL_SUPER_INPUT;
         Kind probed = probe.kind(viewable);
         if (probed != null) return probed;
+        if (viewable.isCraftingPatternProvider()) {
+            for (Class<?> type = viewable.getClass(); type != null; type = type.getSuperclass())
+                if ("com.science.gtnl.common.machine.multiblock.AssemblerMatrix".equals(type.getName()))
+                    return Kind.GTNL_ASSEMBLER_MATRIX;
+            if (!(viewable instanceof IInterfaceHost)) return Kind.CRAFTING_ASSEMBLER;
+        }
         return DualInterfaceUpload.isDualInterface(viewable) ? Kind.AE2_DUAL_INTERFACE : Kind.AE2_INTERFACE;
     }
 
@@ -161,7 +169,10 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
 
     @Override
     public MatchResult match(PatternContext context) {
+        boolean materialOrder = context.hint != null && context.hint.isMaterialOrder();
         if (viewable instanceof ECOLargeIntegratedWorkingStationInterfaceBlockEntity workstation) {
+            if (materialOrder) return MatchResult
+                .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.material_machine");
             if (context.details.isInputOnly()) return MatchResult
                 .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.tunnel_interface");
             if (context.inputError != null) return MatchResult.of(MatchResult.Level.INCOMPATIBLE, context.inputError);
@@ -192,10 +203,30 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
             ? MatchResult.of(MatchResult.Level.ACCEPTED, "gui.neoecoae.pattern_upload.reason.tunnel_definition")
             : MatchResult.of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.tunnel_interface");
         if (context.inputError != null) return MatchResult.of(MatchResult.Level.UNVERIFIED, context.inputError);
+        if (materialOrder) {
+            if (!plainInterface || viewable.isCraftingPatternProvider()
+                || facesMolecularAssembler()
+                || probe.match(viewable, context, false) != null)
+                return MatchResult
+                    .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.material_machine");
+            return facesContainer(viewable)
+                ? new MatchResult(
+                    MatchResult.Level.ACCEPTED,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "material_order",
+                    false,
+                    RouteHint.MATERIAL_ORDER_CATEGORY,
+                    "-")
+                : MatchResult
+                    .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.material_container");
+        }
         if (!context.processing) {
-            if (!plainInterface) return MatchResult
+            if (!plainInterface && !viewable.isCraftingPatternProvider()) return MatchResult
                 .of(MatchResult.Level.INCOMPATIBLE, "gui.neoecoae.pattern_upload.reason.processing_only");
-            return facesMolecularAssembler()
+            return viewable.isCraftingPatternProvider() || facesMolecularAssembler()
                 ? new MatchResult(
                     MatchResult.Level.EXACT,
                     null,
@@ -300,13 +331,38 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
     }
 
     private boolean facesMolecularAssembler() {
-        ItemStack display = viewable.getDisplayRep();
-        ItemStack assembler = AEApi.instance()
-            .definitions()
-            .blocks()
-            .molecularAssembler()
-            .maybeStack(1)
-            .orNull();
-        return display != null && assembler != null && display.isItemEqual(assembler);
+        if (!(viewable instanceof IInterfaceHost host)) return false;
+        TileEntity tile = host.getTileEntity();
+        var targets = host.getTargets();
+        if (tile == null || tile.getWorldObj() == null || targets == null) return false;
+        for (ForgeDirection direction : targets) {
+            if (direction == null || direction == ForgeDirection.UNKNOWN) continue;
+            TileEntity adjacent = tile.getWorldObj()
+                .getTileEntity(
+                    tile.xCoord + direction.offsetX,
+                    tile.yCoord + direction.offsetY,
+                    tile.zCoord + direction.offsetZ);
+            if (adjacent instanceof ICraftingMachine machine && machine.acceptsPlans()) return true;
+        }
+        return false;
+    }
+
+    /** Use AE2's insertion adapter so sided and modded containers follow the native interface's rules. */
+    static boolean facesContainer(IInterfaceViewable viewable) {
+        if (!(viewable instanceof IInterfaceHost host)) return false;
+        TileEntity tile = host.getTileEntity();
+        var targets = host.getTargets();
+        if (tile == null || tile.getWorldObj() == null || targets == null) return false;
+        for (ForgeDirection direction : targets) {
+            if (direction == null || direction == ForgeDirection.UNKNOWN) continue;
+            TileEntity adjacent = tile.getWorldObj()
+                .getTileEntity(
+                    tile.xCoord + direction.offsetX,
+                    tile.yCoord + direction.offsetY,
+                    tile.zCoord + direction.offsetZ);
+            if (adjacent != null && !(adjacent instanceof IInterfaceHost)
+                && InventoryAdaptor.getAdaptor(adjacent, direction.getOpposite()) != null) return true;
+        }
+        return false;
     }
 }

@@ -16,6 +16,8 @@ import net.minecraft.item.ItemStack;
  */
 public final class RouteHint {
 
+    public static final String MATERIAL_ORDER_CATEGORY = "neoecoae:multiblock_materials";
+
     private static final int MAX_LENGTH = 128;
 
     private final String recipeMapId;
@@ -112,6 +114,10 @@ public final class RouteHint {
     /** True when the hint names a recipe map and may therefore take part in route matching. */
     public boolean hasRecipeMap() {
         return !recipeMapId.isEmpty();
+    }
+
+    public boolean isMaterialOrder() {
+        return MATERIAL_ORDER_CATEGORY.equals(categoryId);
     }
 
     public boolean isEmpty() {

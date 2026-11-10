@@ -90,9 +90,9 @@ public final class Ae2UploadDiscovery {
             if (!(machine instanceof IInterfaceViewable)) return;
             IInterfaceViewable viewable = (IInterfaceViewable) machine;
             if (viewable.getPatterns() == null) return;
-            // AE2 names an unnamed interface "Nothing" when no machine is next to it (DualityInterface
-            // #getRawTermName): it is used as storage or I/O, not as a pattern provider, so it is not a target.
-            if (NO_ADJACENT_MACHINE.equals(viewable.getRawName())) return;
+            // A missing display icon does not rule out a usable container or a native crafting provider.
+            if (NO_ADJACENT_MACHINE.equals(viewable.getRawName()) && !viewable.isCraftingPatternProvider()
+                && !Ae2InterfaceTarget.facesContainer(viewable)) return;
             // Respect the host's terminal visibility for every interface and pattern hatch.
             if (!viewable.shouldDisplay()) return;
             result.add(new Ae2InterfaceTarget(viewable, node, routes));

@@ -1539,3 +1539,9 @@ gui.neoecoae.pattern_upload.reason.bec_role=This is a BEC array role. Processing
 gui.neoecoae.pattern_upload.mapping.legacy_ambiguous=The old group mapping names several independent receivers. Bind one concrete receiver.
 gui.neoecoae.pattern_upload.mapping.ambiguous=Several enabled bindings fit this pattern. Supply its source or disable conflicting bindings.
 gui.neoecoae.pattern_upload.reason.fluid_input=This input bus cannot receive the fluid inputs declared by the pattern.
+
+gui.neoecoae.pattern_upload.target.assembler_matrix=Assembler Matrix
+gui.neoecoae.pattern_upload.target.crafting_assembler=Molecular Assembler
+gui.neoecoae.pattern_upload.material_order=Multiblock material order
+gui.neoecoae.pattern_upload.reason.material_machine=Material orders belong in a container interface, not a recipe machine
+gui.neoecoae.pattern_upload.reason.material_container=No receiving container is connected to this interface

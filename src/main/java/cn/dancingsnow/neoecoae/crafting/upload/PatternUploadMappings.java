@@ -104,6 +104,8 @@ public final class PatternUploadMappings {
         if (!context.processing) return new Scope("ae2:crafting", "-", "gui.neoecoae.pattern_upload.crafting");
         if (context.hint == null || context.hint.getCategoryId()
             .isEmpty()) return null;
+        if (context.hint.isMaterialOrder())
+            return new Scope(RouteHint.MATERIAL_ORDER_CATEGORY, "-", context.hint.getCategory());
         String selection = NativeGregTech.isAvailable()
             ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
             : context.hint.selectionKey();

@@ -75,7 +75,13 @@ public final class PatternUploadService {
         if (container == null) return;
         Ae2TerminalSource source = Ae2TerminalSource.of(container);
         if (source == null) return;
-        if (mode == PatternUploadPackets.ENCODE_AND_OPEN) {
+        if (!source.canEdit(player)) {
+            notify(player, "gui.neoecoae.pattern_upload.reason.no_permission", true);
+            return;
+        }
+        // The upload buttons also work directly from an unencoded terminal draft.
+        if (mode == PatternUploadPackets.ENCODE_AND_OPEN || source.slots()
+            .get(source.slot()) == null) {
             ItemStack before = copy(
                 source.slots()
                     .get(source.slot()));
@@ -90,11 +96,8 @@ public final class PatternUploadService {
             ItemStack after = source.slots()
                 .get(source.slot());
             // A failed encode keeps the terminal state and never opens the list for an older pattern.
-            if (after == null || PatternStacks.sameStack(before, after)) return;
-        }
-        if (!source.canEdit(player)) {
-            notify(player, "gui.neoecoae.pattern_upload.reason.no_permission", true);
-            return;
+            if (mode == PatternUploadPackets.ENCODE_AND_OPEN
+                && (after == null || PatternStacks.sameStack(before, after))) return;
         }
         PatternUploadSession session = session(player, container, source);
         session.message("", false);
