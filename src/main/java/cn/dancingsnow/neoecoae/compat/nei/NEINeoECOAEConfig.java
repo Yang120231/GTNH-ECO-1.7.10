@@ -1,22 +1,27 @@
 package cn.dancingsnow.neoecoae.compat.nei;
 
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.Tags;
 import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftConfirmGui;
 import codechicken.nei.api.API;
 import codechicken.nei.api.IConfigureNEI;
 import codechicken.nei.event.NEIRegisterHandlerInfosEvent;
+import codechicken.nei.guihook.GuiContainerManager;
+import codechicken.nei.guihook.IContainerObjectHandler;
 import codechicken.nei.recipe.HandlerInfo;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 
 /** Discovered by NEI on the client after native recipes have been installed. */
-public final class NEINeoECOAEConfig implements IConfigureNEI {
+public final class NEINeoECOAEConfig implements IConfigureNEI, IContainerObjectHandler {
 
     @Override
     public void loadConfig() {
+        GuiContainerManager.addObjectHandler(this);
         for (var kind : WorkstationRecipeHandler.Kind.values()) {
             var handler = new WorkstationRecipeHandler(kind);
             API.registerRecipeHandler(handler);
@@ -60,6 +65,32 @@ public final class NEINeoECOAEConfig implements IConfigureNEI {
                 .setShowOverlayButton(kind != WorkstationRecipeHandler.Kind.COOLING)
                 .build());
     }
+
+    @Override
+    public boolean shouldShowTooltip(GuiContainer gui) {
+        // Like AE2's native confirmation screen, ECO draws its own tooltip for the hovered material.
+        return !(gui instanceof ECOCraftConfirmGui confirm) || confirm.getHoveredStack() == null;
+    }
+
+    @Override
+    public ItemStack getStackUnderMouse(GuiContainer gui, int mouseX, int mouseY) {
+        // AE2 already supplies the hovered stack for NEI recipes, usages and bookmarks.
+        return null;
+    }
+
+    @Override
+    public boolean objectUnderMouse(GuiContainer gui, int mouseX, int mouseY) {
+        return false;
+    }
+
+    @Override
+    public void guiTick(GuiContainer gui) {}
+
+    @Override
+    public void refresh(GuiContainer gui) {}
+
+    @Override
+    public void load(GuiContainer gui) {}
 
     @Override
     public String getName() {
