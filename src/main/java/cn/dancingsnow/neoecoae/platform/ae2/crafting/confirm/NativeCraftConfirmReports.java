@@ -2,7 +2,10 @@ package cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,6 +13,7 @@ import org.apache.logging.log4j.Logger;
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.networking.crafting.ICraftingJob;
+import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
@@ -40,12 +44,14 @@ public final class NativeCraftConfirmReports {
     /** Admission metadata is independent of the native inventory and its client-only item definitions. */
     static ECOCraftConfirmState state(ICraftingJob job, boolean cyclePlanningEnabled, long version) {
         boolean simulation = job.isSimulation();
+        // A native shortage simulation still has a byte total. Missing inputs do not mean an unresolved ECO graph.
+        // Native jobs expose neither calculation duration nor ECO cycle groups; keep those statistics unknown.
         return new ECOCraftConfirmState(
             true,
             true,
             cyclePlanningEnabled,
             false,
-            0L,
+            -1L,
             BigInteger.ZERO,
             simulation
                 ? NativeForcedCraftingJob.supports(job) ? PlanningStatus.MISSING_ITEMS : PlanningStatus.UNSUPPORTED
@@ -56,7 +62,17 @@ public final class NativeCraftConfirmReports {
             job.getByteTotal(),
             version,
             null,
-            "");
+            "").withSummary(new ECOCraftConfirmState.Summary(true, true, patternCount(job), -1));
+    }
+
+    private static int patternCount(ICraftingJob<?> job) {
+        Set<ICraftingPatternDetails> patterns = Collections.newSetFromMap(new IdentityHashMap<>());
+        try {
+            return NativePlanExport.nativeTasks(job, (pattern, times) -> patterns.add(pattern)) ? patterns.size() : -1;
+        } catch (RuntimeException | LinkageError failure) {
+            LOGGER.warn("[craft-confirm] Native plan pattern statistics unavailable", failure);
+            return -1;
+        }
     }
 
     /** One row per planned stack, with the amounts GTNH's own page shows. */

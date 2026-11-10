@@ -97,7 +97,7 @@ final class NativePlanExport {
 
     /** Pattern executions of the job, as the native plan tree reads them; false when the job hides them. */
     @SuppressWarnings({ "rawtypes" })
-    private static boolean nativeTasks(ICraftingJob<?> job, ObjLongConsumer<ICraftingPatternDetails> sink) {
+    static boolean nativeTasks(ICraftingJob<?> job, ObjLongConsumer<ICraftingPatternDetails> sink) {
         if (job instanceof CraftingJobV2 v2) {
             CraftingContext context = v2.getContext();
             if (context == null) return false;

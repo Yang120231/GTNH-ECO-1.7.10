@@ -46,6 +46,7 @@ public final class ECOCraftConfirmState {
     public final boolean reportReady;
     public final boolean cyclePlanningEnabled;
     public final boolean cycleDetected;
+    /** Calculation duration, or -1 when the planner does not expose it. */
     public final long calculationNanos;
     public final BigInteger theoreticalBytes;
     @Nullable
@@ -66,11 +67,12 @@ public final class ECOCraftConfirmState {
     public final List<GenericStack> shortages;
     public final Summary summary;
 
+    /** Pattern and cycle counts use -1 when the planner does not expose them. */
     @com.github.bsideup.jabel.Desugar
     public record Summary(boolean hasByteEstimate, boolean completeByteEstimate, int patterns, int cycles) {
 
         public Summary {
-            if (patterns < 0 || cycles < 0) throw new IllegalArgumentException("Negative report statistics");
+            if (patterns < -1 || cycles < -1) throw new IllegalArgumentException("Invalid report statistics");
         }
     }
 
@@ -154,7 +156,7 @@ public final class ECOCraftConfirmState {
         this.reportReady = reportReady;
         this.cyclePlanningEnabled = cyclePlanningEnabled;
         this.cycleDetected = cycleDetected;
-        this.calculationNanos = Math.max(0L, calculationNanos);
+        this.calculationNanos = Math.max(-1L, calculationNanos);
         this.theoreticalBytes = theoreticalBytes == null || theoreticalBytes.signum() < 0 ? BigInteger.ZERO
             : theoreticalBytes;
         this.status = status;

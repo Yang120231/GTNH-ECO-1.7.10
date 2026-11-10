@@ -730,11 +730,14 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             rows.add(ProcessingTooltip.Row.text(I18n.format("gui.neoecoae.crafting_report.calculating")));
             return rows;
         }
-        String elapsed = BigDecimal.valueOf(state.calculationNanos, 6)
-            .setScale(isShiftKeyDown() ? 6 : 3, java.math.RoundingMode.HALF_UP)
-            .stripTrailingZeros()
-            .toPlainString();
-        rows.add(ProcessingTooltip.Row.text(card("elapsed"), DisplayNumbers.grouped(elapsed) + " ms"));
+        String elapsed = state.calculationNanos < 0 ? card("unknown")
+            : DisplayNumbers.grouped(
+                BigDecimal.valueOf(state.calculationNanos, 6)
+                    .setScale(isShiftKeyDown() ? 6 : 3, java.math.RoundingMode.HALF_UP)
+                    .stripTrailingZeros()
+                    .toPlainString())
+                + " ms";
+        rows.add(ProcessingTooltip.Row.text(card("elapsed"), elapsed));
         String label = card(state.summary.completeByteEstimate() ? "bytes" : "bytes_partial");
         if (unknownBytes()) rows.add(ProcessingTooltip.Row.value(label, card("unknown"), ProcessingTooltip.CYAN));
         else if (isShiftKeyDown()) {
@@ -751,11 +754,15 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
                 BigNumberFormatter.format(state.displayedBytes(), 1, false) + " B",
                 ProcessingTooltip.CYAN));
         rows.add(
-            ProcessingTooltip.Row
-                .text(card("patterns"), DisplayNumbers.grouped(Integer.toString(state.summary.patterns()))));
+            ProcessingTooltip.Row.text(
+                card("patterns"),
+                state.summary.patterns() < 0 ? card("unknown")
+                    : DisplayNumbers.grouped(Integer.toString(state.summary.patterns()))));
         rows.add(
-            ProcessingTooltip.Row
-                .text(card("cycles"), DisplayNumbers.grouped(Integer.toString(state.summary.cycles()))));
+            ProcessingTooltip.Row.text(
+                card("cycles"),
+                state.summary.cycles() < 0 ? card("unknown")
+                    : DisplayNumbers.grouped(Integer.toString(state.summary.cycles()))));
         if (!state.summary.completeByteEstimate()) {
             rows.add(ProcessingTooltip.Row.separator());
             rows.add(ProcessingTooltip.Row.text(card("incomplete")));
