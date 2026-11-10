@@ -1,11 +1,11 @@
 package cn.dancingsnow.neoecoae.crafting.planner.compile;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 
 @com.github.bsideup.jabel.Desugar
 public record CompiledNetwork(AEKey goal, Map<AEKey, List<CompiledPattern>> producers, Set<AEKey> emittable,
@@ -24,8 +24,8 @@ public record CompiledNetwork(AEKey goal, Map<AEKey, List<CompiledPattern>> prod
     }
 
     public CompiledNetwork {
-        Map<AEKey, List<CompiledPattern>> all = new LinkedHashMap<>();
-        Map<AEKey, List<CompiledPattern>> fast = new LinkedHashMap<>();
+        Map<AEKey, List<CompiledPattern>> all = new Object2ObjectLinkedOpenHashMap<>(producers.size());
+        Map<AEKey, List<CompiledPattern>> fast = new Object2ObjectLinkedOpenHashMap<>(producers.size());
         multiplePaths = false;
         for (var entry : producers.entrySet()) {
             List<CompiledPattern> patterns = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat

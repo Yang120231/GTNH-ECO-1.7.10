@@ -2,8 +2,6 @@ package cn.dancingsnow.neoecoae.crafting.planner.solve;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,6 +14,11 @@ import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledPattern;
 import cn.dancingsnow.neoecoae.crafting.planner.semantic.PatternSemantics;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
+import it.unimi.dsi.fastutil.objects.Object2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 /**
  * Proof-only relaxation: recipes and slots receive independent stock, alternatives may mix,
@@ -79,7 +82,7 @@ final class OptimisticSupplyModel {
         this.goal = network.goal();
         this.keys = keys;
         this.emitted = network.emittable();
-        this.variableKeys = new java.util.HashSet<>();
+        this.variableKeys = new ObjectOpenHashSet<>();
         network.fastProducers()
             .forEach((key, choices) -> { if (choices.size() > 1) variableKeys.add(key); });
         this.recipes = recipes;
@@ -89,25 +92,28 @@ final class OptimisticSupplyModel {
 
     static @Nullable OptimisticSupplyModel compile(CompiledNetwork network, ECOCancellation cancellation)
         throws InterruptedException {
-        Set<AEKey> keys = new LinkedHashSet<>(network.keys());
+        Set<AEKey> keys = new ObjectLinkedOpenHashSet<>(network.keys());
         keys.add(network.goal());
         List<Recipe> recipes = new ArrayList<>();
-        Map<AEKey, List<Production>> producers = new HashMap<>();
-        Map<AEKey, Set<AEKey>> dependents = new HashMap<>();
-        Map<CompiledPattern, Map<AEKey, Integer>> indexed = new java.util.LinkedHashMap<>();
+        Map<AEKey, List<Production>> producers = new Object2ObjectOpenHashMap<>(keys.size());
+        Map<AEKey, Set<AEKey>> dependents = new Object2ObjectOpenHashMap<>(keys.size());
+        Map<CompiledPattern, Map<AEKey, Integer>> indexed = new Object2ObjectLinkedOpenHashMap<>(
+            network.reachablePatternCount());
         for (var entry : network.producers()
             .entrySet()) {
             List<CompiledPattern> fast = network.fastProducersOf(entry.getKey());
             for (CompiledPattern pattern : entry.getValue()) {
                 cancellation.checkpoint();
-                indexed.computeIfAbsent(pattern, ignored -> new java.util.LinkedHashMap<>())
+                indexed.computeIfAbsent(pattern, ignored -> new Object2IntLinkedOpenHashMap<>(1))
                     .put(entry.getKey(), pattern.fastSupported() ? fast.indexOf(pattern) : -1);
             }
         }
         for (var indexedEntry : indexed.entrySet()) {
             CompiledPattern pattern = indexedEntry.getKey();
             cancellation.checkpoint();
-            Map<AEKey, BigInteger> outputs = new HashMap<>();
+            Map<AEKey, BigInteger> outputs = new Object2ObjectOpenHashMap<>(
+                pattern.grossOutputs()
+                    .size());
             for (GenericStack output : pattern.grossOutputs()) {
                 if (output != null && output.what() != null && output.amount() > 0)
                     outputs.merge(output.what(), BigInteger.valueOf(output.amount()), BigInteger::add);
@@ -189,7 +195,7 @@ final class OptimisticSupplyModel {
             keys.addAll(outputs.keySet());
             for (InputGroup input : inputs) for (Alternative alternative : input.alternatives()) {
                 keys.add(alternative.key());
-                dependents.computeIfAbsent(alternative.key(), ignored -> new LinkedHashSet<>())
+                dependents.computeIfAbsent(alternative.key(), ignored -> new ObjectLinkedOpenHashSet<>())
                     .addAll(outputs.keySet());
             }
             outputs.forEach(

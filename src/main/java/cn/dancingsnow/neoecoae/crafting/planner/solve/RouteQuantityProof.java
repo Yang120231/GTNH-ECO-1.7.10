@@ -2,9 +2,6 @@ package cn.dancingsnow.neoecoae.crafting.planner.solve;
 
 import java.math.BigInteger;
 import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -14,11 +11,15 @@ import cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOCancellation;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledNetwork;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 /** Optimistic, exact-quantity proofs; unknown capacity always means infinity, never zero. */
 final class RouteQuantityProof {
 
     private static final int MAX_REVISIONS = 65_536;
+    private static final int MAX_BRANCH_PROOFS = 256;
 
     private RouteQuantityProof() {}
 
@@ -47,13 +48,16 @@ final class RouteQuantityProof {
 
         private final OptimisticSupplyModel model;
         private final PlannerInventorySnapshot inventory;
-        private final Map<AEKey, BigInteger> stock = new HashMap<>();
-        private final Map<Branch, Boolean> branchProofs = new LinkedHashMap<>();
+        private final Map<AEKey, BigInteger> stock;
+        private final Map<Branch, Boolean> branchProofs = new Object2ObjectOpenHashMap<>(MAX_BRANCH_PROOFS);
 
         private Prepared(OptimisticSupplyModel model, PlannerInventorySnapshot inventory, ECOCancellation cancellation)
             throws InterruptedException {
             this.model = model;
             this.inventory = inventory;
+            this.stock = new Object2ObjectOpenHashMap<>(
+                inventory.amounts()
+                    .size());
             for (var entry : inventory.toKeyCounter()) {
                 cancellation.checkpoint();
                 if (entry.getLongValue() > 0) stock.put(entry.getKey(), BigInteger.valueOf(entry.getLongValue()));
@@ -63,15 +67,18 @@ final class RouteQuantityProof {
         boolean rejectsBranch(long requested, Map<AEKey, Integer> choices, Set<AEKey> fixed,
             ECOCancellation cancellation) throws InterruptedException {
             cancellation.checkpoint();
-            Map<AEKey, Integer> signature = new HashMap<>();
+            var signature = new Object2IntOpenHashMap<AEKey>(Math.min(model.variableKeys.size(), fixed.size()));
             for (AEKey key : model.variableKeys) {
-                if (fixed.contains(key)) signature.put(key, choices.getOrDefault(key, 0));
+                if (fixed.contains(key)) signature.put(
+                    key,
+                    choices.getOrDefault(key, 0)
+                        .intValue());
             }
             Branch branch = new Branch(requested, signature);
             Boolean cached = branchProofs.get(branch);
             if (cached != null) return cached;
             boolean rejected = insufficientOutput(requested, choices, fixed, cancellation) != null;
-            if (branchProofs.size() < 256) branchProofs.put(
+            if (branchProofs.size() < MAX_BRANCH_PROOFS) branchProofs.put(
                 new Branch(requested, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapCopyOf(signature)),
                 rejected);
             return rejected;
@@ -81,9 +88,9 @@ final class RouteQuantityProof {
         PlannerAmount insufficientOutput(long requested, Map<AEKey, Integer> choices, Set<AEKey> fixed,
             ECOCancellation cancellation) throws InterruptedException {
             if (requested <= 0) return null;
-            Map<AEKey, BigInteger> finite = new HashMap<>();
+            Map<AEKey, BigInteger> finite = new Object2ObjectOpenHashMap<>(model.keys.size());
             ArrayDeque<AEKey> queue = new ArrayDeque<>(model.keys);
-            Set<AEKey> queued = new HashSet<>(model.keys);
+            Set<AEKey> queued = new ObjectOpenHashSet<>(model.keys);
             BigInteger target = BigInteger.valueOf(requested);
             int revisions = 0;
             while (!queue.isEmpty() && revisions++ < MAX_REVISIONS) {
