@@ -13,6 +13,7 @@ public record ECOProcessingProgress(float progress, boolean hasProgress, State s
     boolean refreshing, List<Machine> machines) {
 
     public static final int DETAIL_PAGE_SIZE = 3;
+    public static final int SHORT_CYCLE_TICKS = 5;
     public static final ECOProcessingProgress EMPTY = new ECOProcessingProgress(
         0,
         false,
@@ -29,15 +30,17 @@ public record ECOProcessingProgress(float progress, boolean hasProgress, State s
 
     public static ECOProcessingProgress summarize(List<Machine> machines) {
         double progress = 0, duration = 0;
-        boolean running = false, waiting = false, paused = false;
+        boolean running = false, waiting = false, paused = false, unavailable = false;
         for (var machine : machines) {
             progress += machine.progressTicks();
             duration += machine.durationTicks();
             running |= machine.state() == State.RUNNING;
             waiting |= machine.state() == State.WAITING;
             paused |= machine.state() == State.PAUSED;
+            unavailable |= machine.state() == State.UNAVAILABLE;
         }
-        State state = waiting ? State.WAITING : running ? State.RUNNING : paused ? State.PAUSED : State.QUEUED;
+        State state = waiting ? State.WAITING
+            : running ? State.RUNNING : paused ? State.PAUSED : unavailable ? State.UNAVAILABLE : State.QUEUED;
         return new ECOProcessingProgress(
             duration == 0 ? 0 : (float) (progress / duration),
             duration > 0,
@@ -71,6 +74,45 @@ public record ECOProcessingProgress(float progress, boolean hasProgress, State s
 
     public int pages() {
         return Math.max(1, (machineCount + DETAIL_PAGE_SIZE - 1) / DETAIL_PAGE_SIZE);
+    }
+
+    /** Keep short-cycle identity/state without transmitting tick counters that finish between samples. */
+    public ECOProcessingProgress forStatusSync() {
+        long duration = 0;
+        int count = 0;
+        java.util.ArrayList<Machine> trimmed = null;
+        for (int index = 0; index < machines.size(); index++) {
+            var machine = machines.get(index);
+            if (machine.durationTicks() > 0) {
+                duration += machine.durationTicks();
+                count++;
+            }
+            if (machine.durationTicks() > 0 && machine.durationTicks() <= SHORT_CYCLE_TICKS) {
+                if (trimmed == null) trimmed = new java.util.ArrayList<>(machines);
+                trimmed.set(
+                    index,
+                    new Machine(
+                        machine.name(),
+                        machine.location(),
+                        machine.recipe(),
+                        0,
+                        0,
+                        machine.parallel(),
+                        machine.state(),
+                        machine.reason()));
+            }
+        }
+        boolean shortCycle = hasProgress && count > 0 && (double) duration / count <= SHORT_CYCLE_TICKS;
+        float rounded = shortCycle ? 0 : Math.round(progress * 100) / 100.0F;
+        if (trimmed == null && !shortCycle && rounded == progress) return this;
+        return new ECOProcessingProgress(
+            rounded,
+            hasProgress && !shortCycle,
+            state,
+            machineCount,
+            detailPage,
+            refreshing,
+            trimmed == null ? machines : trimmed);
     }
 
     public CompoundTag write() {

@@ -1,9 +1,14 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -55,6 +60,7 @@ public final class ECOCraftingStatusTracker {
     /** Ticks between processing samples; the monitor drops a survey nobody sampled for 20 ticks. */
     private static final int PROCESSING_INTERVAL = 5;
     private static final int MAX_PROCESSING_ENTRIES = 512;
+    private static final int BACKGROUND_REQUESTS = 16, CANDIDATE_INTERVAL = 10;
 
     private ECOCraftingStatusTracker() {}
 
@@ -74,6 +80,16 @@ public final class ECOCraftingStatusTracker {
         long nextProcessingTick = Long.MIN_VALUE;
         /** The last processing payload sent; an empty tag means the client holds none. */
         CompoundTag processing = new CompoundTag();
+        final Map<AEKey, ECOProcessingProgress> sentProgress = new LinkedHashMap<>();
+        Set<AEKey> visible = Collections.emptySet();
+        int visibleSerial = -1;
+        List<AEKey> candidates = Collections.emptyList();
+        Set<AEKey> candidateSet = Collections.emptySet();
+        int candidateCursor;
+        long nextCandidateTick = Long.MIN_VALUE;
+        IGrid eligibilityGrid;
+        boolean eligible;
+        long nextEligibilityTick = Long.MIN_VALUE;
 
         Tracked(ContainerCraftingStatus container) {
             this.container = container;
@@ -115,9 +131,15 @@ public final class ECOCraftingStatusTracker {
     private static void update(EntityPlayerMP player, Tracked tracked) {
         ContainerCraftingStatus container = tracked.container;
         IGrid grid = grid(container);
-        ECOComputationSystemBlockEntity host = grid == null ? null
-            : NativeECOPlanning.settings(grid, IActionSource.of(actionSource(player, container)));
-        boolean eco = host != null && host.isFastPlannerEnabled();
+        long tick = player.worldObj.getTotalWorldTime();
+        if (grid != tracked.eligibilityGrid || tick >= tracked.nextEligibilityTick) {
+            ECOComputationSystemBlockEntity host = grid == null ? null
+                : NativeECOPlanning.settings(grid, IActionSource.of(actionSource(player, container)));
+            tracked.eligible = host != null && host.isFastPlannerEnabled();
+            tracked.eligibilityGrid = grid;
+            tracked.nextEligibilityTick = tick + CANDIDATE_INTERVAL;
+        }
+        boolean eco = tracked.eligible;
         ICraftingCPU cpu = selectedCpu(container);
         int tier = eco ? ECOCraftConfirmTracker.tier(cpu) : 0;
         ICraftingPlan plan = eco ? runningPlan(cpu) : null;
@@ -142,58 +164,117 @@ public final class ECOCraftingStatusTracker {
         if (runtime == null) {
             if (!tracked.processing.isEmpty()) {
                 tracked.processing = new CompoundTag();
+                tracked.sentProgress.clear();
+                tracked.candidates = Collections.emptyList();
+                tracked.candidateSet = Collections.emptySet();
+                tracked.nextProcessingTick = Long.MIN_VALUE;
                 ECOCraftConfirmPackets.syncStatusProcessing(player, tracked.container.windowId, tracked.processing);
             }
             return;
         }
         var logic = runtime.cpu()
             .getLogic();
-        if (tracked.detailKey != null) logic.getProcessingProgress(tracked.detailKey, true);
+        int serial = tracked.container.getCPUTable().selectedCpuSerial;
+        var jobId = logic.getProcessingJobId();
+        String job = jobId == null ? "" : jobId.toString();
+        boolean reset = !tracked.processing.getBoolean("eco") || tracked.processing.getInt("cpuSerial") != serial
+            || !job.equals(tracked.processing.getString("job"));
         // Scans advance a few coordinates per tick; the samples below only queue and publish them.
         logic.refreshProcessingProgress();
         long tick = player.worldObj.getTotalWorldTime();
-        if (tick < tracked.nextProcessingTick) return;
+        if (!reset && tick < tracked.nextProcessingTick) return;
         tracked.nextProcessingTick = tick + PROCESSING_INTERVAL;
-        KeyCounter active = new KeyCounter();
-        runtime.getItems(active, CraftingItemList.ACTIVE);
-        // Admission-blocked tasks belong in the right column before their first successful dispatch.
-        runtime.getItems(active, CraftingItemList.PENDING);
-        ListTag entries = new ListTag();
-        for (var entry : active) {
-            if (entries.size() >= MAX_PROCESSING_ENTRIES) break;
-            AEKey key = entry.getKey();
-            ECOProcessingProgress progress = logic.getProcessingProgress(key);
-            if (progress.machineCount() == 0 && !progress.refreshing()) continue;
+        if (reset || tick >= tracked.nextCandidateTick) {
+            KeyCounter active = new KeyCounter();
+            runtime.getItems(active, CraftingItemList.ACTIVE);
+            runtime.getItems(active, CraftingItemList.PENDING);
+            tracked.candidateSet = new LinkedHashSet<>(active.keySet());
+            tracked.candidates = new ArrayList<>(tracked.candidateSet);
+            tracked.nextCandidateTick = tick + CANDIDATE_INTERVAL;
+            if (reset) tracked.candidateCursor = 0;
+        }
+        Set<AEKey> visible = tracked.visibleSerial == serial ? tracked.visible : Collections.emptySet();
+        var requested = new LinkedHashSet<AEKey>();
+        if (tracked.detailKey != null && tracked.candidateSet.contains(tracked.detailKey))
+            requested.add(tracked.detailKey);
+        for (AEKey key : visible) if (tracked.candidateSet.contains(key)) requested.add(key);
+        for (int remaining = Math.min(BACKGROUND_REQUESTS, tracked.candidates.size()); remaining > 0; remaining--) {
+            if (tracked.candidateCursor >= tracked.candidates.size()) tracked.candidateCursor = 0;
+            requested.add(tracked.candidates.get(tracked.candidateCursor++));
+        }
+        var next = reset ? new LinkedHashMap<AEKey, ECOProcessingProgress>()
+            : new LinkedHashMap<>(tracked.sentProgress);
+        next.keySet()
+            .retainAll(tracked.candidateSet);
+        next.replaceAll(
+            (key, progress) -> progress.detailPage() >= 0 && !key.equals(tracked.detailKey) ? progress.page(-1)
+                : progress);
+        for (AEKey key : requested) {
+            boolean detailed = key.equals(tracked.detailKey);
+            ECOProcessingProgress progress = logic.getProcessingProgress(key, detailed || visible.contains(key));
+            next.remove(key);
+            if (progress.machineCount() > 0 || progress.refreshing()) next.put(
+                key,
+                progress.forStatusSync()
+                    .page(detailed ? tracked.detailPage : -1));
+        }
+        for (Iterator<AEKey> it = next.keySet()
+            .iterator(); next.size() > MAX_PROCESSING_ENTRIES && it.hasNext();) {
+            AEKey key = it.next();
+            if (!visible.contains(key) && !key.equals(tracked.detailKey)) it.remove();
+        }
+        ListTag entries = new ListTag(), removed = new ListTag();
+        next.forEach((key, progress) -> {
+            if (!reset && progress.equals(tracked.sentProgress.get(key))) return;
             CompoundTag row = new CompoundTag();
             row.put("key", key.toTagGeneric(RegistryAccess.EMPTY));
-            row.put(
-                "progress",
-                progress.page(key.equals(tracked.detailKey) ? tracked.detailPage : -1)
-                    .write());
+            row.put("progress", progress.write());
             entries.add(row);
+        });
+        if (!reset) for (AEKey key : tracked.sentProgress.keySet()) {
+            if (!next.containsKey(key)) removed.add(key.toTagGeneric(RegistryAccess.EMPTY));
         }
+        boolean deliveryBlocked = logic.isFinalOutputDeliveryBlocked();
+        if (!reset && entries.isEmpty()
+            && removed.isEmpty()
+            && deliveryBlocked == tracked.processing.getBoolean("deliveryBlocked")) return;
         CompoundTag payload = new CompoundTag();
         payload.putBoolean("eco", true);
-        payload.putInt("cpuSerial", tracked.container.getCPUTable().selectedCpuSerial);
-        payload.putBoolean("deliveryBlocked", logic.isFinalOutputDeliveryBlocked());
-        var job = logic.getProcessingJobId();
-        payload.putString("job", job == null ? "" : job.toString());
+        payload.putInt("cpuSerial", serial);
+        payload.putBoolean("deliveryBlocked", deliveryBlocked);
+        payload.putString("job", job);
+        if (!reset) payload.putBoolean("delta", true);
         payload.put("entries", entries);
-        if (payload.nativeTag()
-            .equals(tracked.processing.nativeTag())) return;
+        if (!removed.isEmpty()) payload.put("removed", removed);
+        tracked.sentProgress.clear();
+        tracked.sentProgress.putAll(next);
         tracked.processing = payload;
         ECOCraftConfirmPackets.syncStatusProcessing(player, tracked.container.windowId, payload);
     }
 
     /** Client request: the hovered output's machine details, or none when {@code key} is null. */
-    public static void requestDetail(EntityPlayerMP player, int windowId, @Nullable AEKey key, int page) {
+    public static void requestDetail(EntityPlayerMP player, int windowId, int serial, @Nullable AEKey key, int page,
+        @Nullable List<AEKey> visible) {
         if (!(player.openContainer instanceof ContainerCraftingStatus container) || container.windowId != windowId)
             return;
         Tracked tracked = TRACKED.get(player);
         if (tracked == null || tracked.container != container) return;
+        if (serial >= 0 && serial != container.getCPUTable().selectedCpuSerial) return;
+        if (visible != null) {
+            if (visible.size() > ECOCraftConfirmPackets.MAX_VISIBLE_PROCESSING) return;
+            tracked.visible = new LinkedHashSet<>(visible);
+            tracked.visibleSerial = container.getCPUTable().selectedCpuSerial;
+        }
+        if (Objects.equals(tracked.detailKey, key) && tracked.detailPage == Math.max(0, page) && visible == null)
+            return;
         tracked.detailKey = key;
         tracked.detailPage = Math.max(0, page);
         tracked.nextProcessingTick = Long.MIN_VALUE;
+    }
+
+    /** Existing integrations may still request a tooltip without a viewport extension. */
+    public static void requestDetail(EntityPlayerMP player, int windowId, @Nullable AEKey key, int page) {
+        requestDetail(player, windowId, -1, key, page, null);
     }
 
     static @Nullable ECOCraftingNativeRuntime ecoRuntime(@Nullable ICraftingCPU cpu) {

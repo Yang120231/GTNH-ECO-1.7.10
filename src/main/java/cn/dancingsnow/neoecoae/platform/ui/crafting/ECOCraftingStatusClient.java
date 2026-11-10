@@ -1,5 +1,9 @@
 package cn.dancingsnow.neoecoae.platform.ui.crafting;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import net.minecraft.inventory.Container;
 import net.minecraftforge.client.event.GuiOpenEvent;
 
@@ -11,7 +15,11 @@ import appeng.api.storage.ITerminalHost;
 import appeng.client.gui.implementations.GuiCraftingStatus;
 import appeng.container.implementations.ContainerCraftingStatus;
 import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
@@ -57,18 +65,42 @@ public final class ECOCraftingStatusClient {
 
         final int windowId;
         final CompoundTag tag;
+        final Map<AEKey, ECOProcessingProgress> values;
 
         Processing(int windowId, CompoundTag tag) {
+            this(windowId, tag, Collections.emptyMap());
+        }
+
+        Processing(int windowId, CompoundTag tag, Map<AEKey, ECOProcessingProgress> values) {
             this.windowId = windowId;
             this.tag = tag;
+            this.values = Collections.unmodifiableMap(values);
         }
     }
 
     private static volatile Processing processing = Processing.NONE;
 
-    /** Network thread: the payload is replaced whole; the screen parses it when it changes. */
-    public static void acceptProcessing(int windowId, CompoundTag tag) {
-        processing = new Processing(windowId, tag);
+    /** Merge every packet before publishing; multiple deltas received between frames must not be lost. */
+    public static synchronized void acceptProcessing(int windowId, CompoundTag tag) {
+        Processing previous = processing;
+        boolean delta = tag.getBoolean("delta");
+        if (delta && (previous.windowId != windowId || previous.tag.getInt("cpuSerial") != tag.getInt("cpuSerial")
+            || !previous.tag.getString("job")
+                .equals(tag.getString("job"))))
+            return;
+        Map<AEKey, ECOProcessingProgress> values = delta ? new LinkedHashMap<>(previous.values) : new LinkedHashMap<>();
+        var removed = tag.getList("removed", Tag.TAG_COMPOUND);
+        for (int i = 0; i < removed.size(); i++) {
+            AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, removed.getCompound(i));
+            if (key != null) values.remove(key);
+        }
+        var entries = tag.getList("entries", Tag.TAG_COMPOUND);
+        for (int i = 0; i < entries.size(); i++) {
+            var row = entries.getCompound(i);
+            AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, row.getCompound("key"));
+            if (key != null) values.put(key, ECOProcessingProgress.read(row.getCompound("progress")));
+        }
+        processing = new Processing(windowId, tag, values);
     }
 
     static Processing processing(Container container) {

@@ -62,10 +62,7 @@ import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
 import cn.dancingsnow.neoecoae.crafting.display.format.NEByteFormatter;
 import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
-import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
-import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -150,6 +147,12 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private boolean ecoLayout;
     private boolean taskLayout;
     private final CraftingStatusTaskOrder<AEKey> taskOrder = new CraftingStatusTaskOrder<>();
+    private boolean tasksDirty = true;
+    private Map<AEKey, CraftingCpuEntry> taskEntries = Collections.emptyMap();
+    private List<AEKey> taskKeys = Collections.emptyList();
+    private final Set<AEKey> visibleProcessingKeys = new java.util.LinkedHashSet<>();
+    private Set<AEKey> requestedVisibleKeys = Collections.emptySet();
+    private int requestedVisibleSerial = -1;
     private String taskJob = "", shownTaskJob = "";
     private int taskSerial = -1;
     private int processingSerial = -1;
@@ -271,6 +274,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         processingTooltip = null;
         hoveredEntry = null;
         hoveredItem = null;
+        visibleProcessingKeys.clear();
         super.drawScreen(mouseX, mouseY, partialTicks);
         requestDetails();
         if (itemMenu.isOpen()) {
@@ -417,6 +421,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
     @Override
     public void postVisualEntryUpdate(CraftingCpuEntry[] updates, boolean clearFirst, int remainingOperations) {
+        tasksDirty = true;
         // Mirrors AE2's visual state, whose own copy is private; AE2's update then refreshes the scrollbar.
         if (clearFirst) {
             entries.clear();
@@ -433,6 +438,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
     @Override
     public void clearItems() {
+        tasksDirty = true;
         entries.clear();
         taskOrder.clear();
         super.clearItems();
@@ -578,6 +584,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             int index = first + i;
             if (index >= shown.size()) break;
             CraftingCpuEntry entry = shown.get(index);
+            observeVisible(entry);
             int cellX = TABLE_X + (i % COLUMNS) * (CELL_WIDTH + 1);
             int cellY = TABLE_Y + (i / COLUMNS) * ROW_PITCH;
             boolean hovered = localX >= cellX && localX < cellX + CELL_WIDTH
@@ -640,23 +647,18 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     }
 
     private void refreshProcessing() {
-        CompoundTag tag = ECOCraftingStatusClient.processing(inventorySlots).tag;
+        var received = ECOCraftingStatusClient.processing(inventorySlots);
+        CompoundTag tag = received.tag;
         int serial = ecoCpuTable.getContainer().selectedCpuSerial;
         if (tag == processingSource && serial == processingSerial) return;
         processingSerial = serial;
         processingSource = tag;
+        tasksDirty = true;
         boolean current = tag.contains("cpuSerial") && tag.getInt("cpuSerial") == serial;
         finalOutputDeliveryBlocked = current && tag.getBoolean("deliveryBlocked");
         processingMonitored = current && tag.getBoolean("eco");
         taskJob = current ? tag.getString("job") : "";
-        Map<AEKey, ECOProcessingProgress> parsed = new HashMap<>();
-        ListTag entries = tag.getList("entries", Tag.TAG_COMPOUND);
-        for (int i = 0; i < entries.size(); i++) {
-            CompoundTag row = entries.getCompound(i);
-            AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, row.getCompound("key"));
-            if (current && key != null) parsed.put(key, ECOProcessingProgress.read(row.getCompound("progress")));
-        }
-        processing = parsed;
+        processing = current ? received.values : Collections.emptyMap();
     }
 
     /**
@@ -673,15 +675,35 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             detailKey = key;
             detailPage = 0;
         }
-        if (detailRequested && Objects.equals(detailKey, requestedDetailKey) && detailPage == requestedDetailPage)
-            return;
+        int serial = ecoCpuTable.getContainer().selectedCpuSerial;
+        boolean viewportChanged = serial != requestedVisibleSerial
+            || !visibleProcessingKeys.equals(requestedVisibleKeys);
+        if (!viewportChanged && detailRequested
+            && Objects.equals(detailKey, requestedDetailKey)
+            && detailPage == requestedDetailPage) return;
         long now = System.currentTimeMillis();
         if (now < nextDetailRequest) return;
-        ECOCraftConfirmPackets.requestProcessingDetail(inventorySlots.windowId, detailKey, detailPage);
+        ECOCraftConfirmPackets.requestProcessingDetail(
+            inventorySlots.windowId,
+            serial,
+            detailKey,
+            detailPage,
+            viewportChanged ? new ArrayList<>(visibleProcessingKeys) : null);
+        if (viewportChanged) {
+            requestedVisibleKeys = new java.util.LinkedHashSet<>(visibleProcessingKeys);
+            requestedVisibleSerial = serial;
+        }
         detailRequested = true;
         requestedDetailKey = detailKey;
         requestedDetailPage = detailPage;
         nextDetailRequest = now + 250;
+    }
+
+    private void observeVisible(CraftingCpuEntry entry) {
+        if (visibleProcessingKeys.size() >= ECOCraftConfirmPackets.MAX_VISIBLE_PROCESSING
+            || (!entry.hasActiveAmount() && !entry.hasPendingAmount())) return;
+        AEKey key = AEKey.fromNative(entry.getStack());
+        if (key != null) visibleProcessingKeys.add(key);
     }
 
     private static void amountLine(String label, long amount, List<String> lines, List<String> details) {
@@ -836,25 +858,32 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
     /** The right column shares the existing resource entries and interactions, independently of search/hide-stored. */
     private void drawRunningTasks(int localX, int localY) {
-        Map<AEKey, CraftingCpuEntry> active = new LinkedHashMap<>();
-        for (CraftingCpuEntry entry : entries.values()) {
-            ECOProcessingProgress progress = progressOf(entry);
-            if (!entry.hasActiveAmount() && !(entry.hasPendingAmount() && progress.machineCount() > 0
-                && progress.state() == ECOProcessingProgress.State.WAITING)) continue;
-            AEKey key = AEKey.fromNative(entry.getStack());
-            if (key != null) active.put(key, entry);
-        }
         int serial = ecoCpuTable.getContainer().selectedCpuSerial;
         if (serial != taskSerial || !Objects.equals(taskJob, shownTaskJob)) {
             taskScroll.setRange(0, 0, 1);
             taskSerial = serial;
             shownTaskJob = taskJob;
+            tasksDirty = true;
         }
-        List<AEKey> tasks = taskOrder.update(serial, taskJob, new ArrayList<>(active.keySet()));
+        if (tasksDirty) {
+            Map<AEKey, CraftingCpuEntry> active = new LinkedHashMap<>();
+            for (CraftingCpuEntry entry : entries.values()) {
+                ECOProcessingProgress progress = progressOf(entry);
+                if (!entry.hasActiveAmount() && !(entry.hasPendingAmount() && progress.machineCount() > 0
+                    && progress.state() == ECOProcessingProgress.State.WAITING)) continue;
+                AEKey key = AEKey.fromNative(entry.getStack());
+                if (key != null) active.put(key, entry);
+            }
+            taskEntries = active;
+            taskKeys = taskOrder.update(serial, taskJob, new ArrayList<>(active.keySet()));
+            tasksDirty = false;
+        }
+        List<AEKey> tasks = taskKeys;
         taskScroll.setRange(0, Math.max(0, tasks.size() - rows), 1);
         int first = taskScroll.getCurrentScroll();
         for (int row = 0; row < rows && first + row < tasks.size(); row++) {
-            CraftingCpuEntry entry = active.get(tasks.get(first + row));
+            CraftingCpuEntry entry = taskEntries.get(tasks.get(first + row));
+            observeVisible(entry);
             ECOProcessingProgress progress = progressOf(entry);
             int y = TABLE_Y + row * ROW_PITCH;
             int rgb = switch (progress.state()) {
@@ -875,12 +904,16 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
                 TASK_X + 3,
                 y + 9);
             drawTaskText(
-                progress.hasProgress() && progress.state() != ECOProcessingProgress.State.WAITING
-                    ? Math.round(progress.progress() * 100) + "%"
-                    : I18n.format(
-                        "gui.neoecoae.crafting_status.processing.state." + progress.state()
-                            .name()
-                            .toLowerCase(Locale.ROOT)),
+                progress.machineCount() == 0
+                    ? I18n.format(
+                        progress.refreshing() ? "gui.neoecoae.crafting_status.processing.refreshing"
+                            : "gui.neoecoae.crafting_status.processing.state.unavailable")
+                    : progress.hasProgress() && progress.state() != ECOProcessingProgress.State.WAITING
+                        ? Math.round(progress.progress() * 100) + "%"
+                        : I18n.format(
+                            "gui.neoecoae.crafting_status.processing.state." + progress.state()
+                                .name()
+                                .toLowerCase(Locale.ROOT)),
                 TASK_X + 3,
                 y + 15);
             if (localX >= TASK_X && localX < TASK_X + CELL_WIDTH && localY >= y && localY < y + CELL_HEIGHT) {

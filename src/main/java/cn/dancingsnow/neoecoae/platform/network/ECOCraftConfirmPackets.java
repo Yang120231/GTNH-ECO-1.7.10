@@ -26,6 +26,8 @@ import io.netty.buffer.ByteBuf;
  */
 public final class ECOCraftConfirmPackets {
 
+    public static final int MAX_VISIBLE_PROCESSING = 192;
+
     private static final SimpleNetworkWrapper CHANNEL = NetworkRegistry.INSTANCE.newSimpleChannel("neoecoae_confirm");
     private static boolean registered;
 
@@ -66,6 +68,16 @@ public final class ECOCraftConfirmPackets {
     /** Asks for the machine details of the hovered output; {@code null} stops the detail sampling. */
     public static void requestProcessingDetail(int windowId, @Nullable AEKey key, int page) {
         CHANNEL.sendToServer(new ProcessingDetail(windowId, key, page));
+    }
+
+    public static void requestProcessingDetail(int windowId, int serial, @Nullable AEKey key, int page,
+        @Nullable java.util.List<AEKey> visible) {
+        var request = new ProcessingDetail(windowId, key, page);
+        if (visible != null && visible.size() > MAX_VISIBLE_PROCESSING)
+            throw new IllegalArgumentException("Invalid processing viewport size");
+        request.serial = serial;
+        request.visible = visible;
+        CHANNEL.sendToServer(request);
     }
 
     /** Status cell right-click menu: inspect an output, or open one of the places the inspection reported. */
@@ -477,6 +489,9 @@ public final class ECOCraftConfirmPackets {
         @Nullable
         AEKey key;
         int page;
+        int serial = -1;
+        @Nullable
+        java.util.List<AEKey> visible;
 
         public ProcessingDetail() {}
 
@@ -492,6 +507,16 @@ public final class ECOCraftConfirmPackets {
             windowId = data.readVarInt();
             key = data.readBoolean() ? AEKey.readKey(data) : null;
             page = data.readVarInt();
+            if (buf.isReadable()) {
+                serial = data.readVarInt();
+                int count = data.readVarInt();
+                if (count < -1 || count > MAX_VISIBLE_PROCESSING)
+                    throw new IllegalArgumentException("Invalid processing viewport size");
+                if (count >= 0) {
+                    visible = new java.util.ArrayList<>(count);
+                    for (int i = 0; i < count; i++) visible.add(AEKey.readKey(data));
+                }
+            }
         }
 
         @Override
@@ -501,6 +526,9 @@ public final class ECOCraftConfirmPackets {
             data.writeBoolean(key != null);
             if (key != null) AEKey.writeKey(data, key);
             data.writeVarInt(page);
+            data.writeVarInt(serial);
+            data.writeVarInt(visible == null ? -1 : visible.size());
+            if (visible != null) for (AEKey entry : visible) AEKey.writeKey(data, entry);
         }
     }
 
@@ -511,7 +539,13 @@ public final class ECOCraftConfirmPackets {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
                 .execute(
-                    () -> ECOCraftingStatusTracker.requestDetail(player, message.windowId, message.key, message.page));
+                    () -> ECOCraftingStatusTracker.requestDetail(
+                        player,
+                        message.windowId,
+                        message.serial,
+                        message.key,
+                        message.page,
+                        message.visible));
             return null;
         }
     }

@@ -31,7 +31,7 @@ import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
 
     private static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath("neoecoae", "processing_monitor");
-    static final int READS_PER_CPU_TICK = 32, READS_PER_SERVER_TICK = 256, REFRESH_INTERVAL = 10;
+    static final int READS_PER_CPU_TICK = 32, READS_PER_SERVER_TICK = 256, REFRESH_INTERVAL = 5;
     private static final Map<MinecraftServer, Budget> SERVER_BUDGETS = new WeakHashMap<>();
     private final Map<AEKey, LinkedHashSet<Target>> providerTargets = new LinkedHashMap<>();
     private final Map<AEKey, LinkedHashSet<Target>> targets = new LinkedHashMap<>();
@@ -149,7 +149,17 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
             }
         }
         advance(level, tick);
-        return survey.published.refreshing(survey.scan != null);
+        if (survey.scan != null && !survey.hasCompleteSample && survey.previewTick != tick) {
+            survey.published = ECOProcessingProgress.summarize(survey.scan.machines());
+            survey.previewTick = tick;
+        }
+        return cachedProgress(output);
+    }
+
+    /** Reads the latest observation without starting another world traversal. */
+    public ECOProcessingProgress cachedProgress(AEKey output) {
+        var survey = surveys.get(output);
+        return survey == null ? ECOProcessingProgress.EMPTY : survey.published.refreshing(survey.scan != null);
     }
 
     /** Actual successful dispatchers, retained even if the network's pattern catalog is rebuilt afterwards. */
@@ -202,6 +212,7 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 if (survey.scan.complete()) {
                     survey.machineTargets = survey.scan.machineTargets();
                     survey.published = ECOProcessingProgress.summarize(survey.scan.machines());
+                    survey.hasCompleteSample = true;
                     survey.scan = null;
                     survey.nextTick = tick + REFRESH_INTERVAL;
                 } else {
@@ -333,9 +344,9 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
         ECOGregTechMachineStatus.Scan scan;
         ECOProcessingProgress published = ECOProcessingProgress.EMPTY;
         List<Target> machineTargets = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf();
-        long nextTick, requestedTick;
+        long nextTick, requestedTick, previewTick = Long.MIN_VALUE;
         long priorityUntilTick = Long.MIN_VALUE;
-        boolean queued;
+        boolean queued, hasCompleteSample;
 
         Survey(AEKey output) {
             this.output = output;
