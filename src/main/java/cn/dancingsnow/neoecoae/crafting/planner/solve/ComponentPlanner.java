@@ -1112,12 +1112,41 @@ public final class ComponentPlanner {
             cancellation);
     }
 
+    @FunctionalInterface
+    public interface CandidateValidator {
+
+        boolean accept(Outcome outcome) throws InterruptedException;
+    }
+
     /** Preserve supplied producer choices; recover unavailable combinations independently of cycle support. */
     public Outcome planWithRouteFallback(CompiledNetwork network, CondensationGraph universe,
         ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
         long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
         throws InterruptedException {
+        return planWithRouteFallback(
+            network,
+            universe,
+            activeSelection,
+            inventory,
+            snapshot,
+            amount,
+            cyclePlanningEnabled,
+            ignorePatternSubstitutions,
+            cancellation,
+            outcome -> outcome.status() == PlanningStatus.SUCCESS);
+    }
+
+    public Outcome planWithRouteFallback(CompiledNetwork network, CondensationGraph universe,
+        ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
+        long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
+        CandidateValidator validator) throws InterruptedException {
         if (!(cancellation instanceof ECOPlanningBudget)) cancellation = new ECOPlanningBudget(cancellation);
+        ECOPlanningBudget routeBudget = (ECOPlanningBudget) cancellation;
+        CandidateValidator boundedValidator = outcome -> {
+            if (!validator.accept(outcome)) return false;
+            routeBudget.beginOptimization();
+            return true;
+        };
         // Seeds of self-growing cycles are structural: route choice must not decide whether they survive. Every
         // route and joint model below plans with the stock without them; planned cycles borrow them back.
         SeedFloors seeds = seedFloors(network, universe.cycles(), snapshot, cyclePlanningEnabled, cancellation);
@@ -1132,7 +1161,8 @@ public final class ComponentPlanner {
             cyclePlanningEnabled,
             ignorePatternSubstitutions,
             cancellation,
-            seeds);
+            seeds,
+            boundedValidator);
         seeds.report(outcome.trace());
         return outcome;
     }
@@ -1145,7 +1175,7 @@ public final class ComponentPlanner {
     private Outcome planWithRouteFallback(CompiledNetwork network, CondensationGraph universe,
         ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
         PlannerInventorySnapshot owned, long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions,
-        ECOCancellation cancellation, SeedFloors seeds) throws InterruptedException {
+        ECOCancellation cancellation, SeedFloors seeds, CandidateValidator validator) throws InterruptedException {
         // The ordinary route plan always runs first: it is fast and follows AE's producer order. The joint model is
         // a recovery for orders that plan does not complete (or a short, optional improvement), never a prefix.
         CycleFailureCache failures = new CycleFailureCache(cycleSolver);
@@ -1164,6 +1194,8 @@ public final class ComponentPlanner {
             seeds,
             false);
         try {
+            boolean executable = preferred.status() == PlanningStatus.SUCCESS && validator.accept(preferred);
+            if (executable && (!cancellation.improveCompletedPlans() || !network.multiplePaths())) return preferred;
             // Preserve the completed route's material report if this proof itself exhausts the session.
             // It runs before the heavyweight joint model and whole-route alternatives.
             if (preferred.status() != PlanningStatus.SUCCESS
@@ -1215,14 +1247,23 @@ public final class ComponentPlanner {
                     return preferred;
                 }
             }
-            if (maxRouteAttempts == 0) preferred = new JointRouteOptimizer()
-                .optimize(network, snapshot, amount, preferred, cyclePlanningEnabled, cancellation);
-            if (preferred.status() == PlanningStatus.SUCCESS) return preferred;
+            if (maxRouteAttempts == 0) {
+                Outcome proposal = new JointRouteOptimizer()
+                    .optimize(network, snapshot, amount, preferred, cyclePlanningEnabled, cancellation);
+                if (proposal != preferred && proposal.status() == PlanningStatus.SUCCESS
+                    && validator.accept(proposal)) {
+                    preferred = proposal;
+                    executable = true;
+                }
+            }
+            if (executable && (!cancellation.improveCompletedPlans() || !network.multiplePaths())) return preferred;
             // Alternatives are speculative. Give them a bounded share of the session so a failing order reports its
             // material shortage instead of trying producer combinations until the whole allowance is gone.
-            ECOCancellation alternatives = ((ECOPlanningBudget) cancellation).slice(
-                Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxWork / ALTERNATIVE_ROUTE_SHARE),
-                Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxMillis) * 1_000_000L / ALTERNATIVE_ROUTE_SHARE);
+            ECOCancellation alternatives = executable ? cancellation
+                : ((ECOPlanningBudget) cancellation).slice(
+                    Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxWork / ALTERNATIVE_ROUTE_SHARE),
+                    Math.max(1L, PlanningSettings.Crafting.ecoPlanningMaxMillis) * 1_000_000L
+                        / ALTERNATIVE_ROUTE_SHARE);
             return searchAlternativeRoutes(
                 network,
                 universe,
@@ -1237,7 +1278,9 @@ public final class ComponentPlanner {
                 preferred,
                 externalDemandPlanner,
                 supply,
-                seeds);
+                seeds,
+                validator,
+                executable);
         } catch (cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudget.Exhausted exhausted) {
             // The interrupted alternative is speculative. The completed route still owns a valid
             // material report and cycle diagnostics; never replace those with an empty shell.
@@ -1255,7 +1298,8 @@ public final class ComponentPlanner {
         ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
         long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
         CycleFailureCache failures, Outcome preferred, ExternalDemandPlanner externalDemandPlanner,
-        RouteQuantityProof.Prepared supply, SeedFloors seeds) throws InterruptedException {
+        RouteQuantityProof.Prepared supply, SeedFloors seeds, CandidateValidator validator, boolean executable)
+        throws InterruptedException {
         Map<AEKey, Integer> baseline = new Object2ObjectLinkedOpenHashMap<>();
         // The numeric pass can retry an acyclic producer, while cycle-owned keys are deliberately
         // absent from SolveState.selected because their work is deferred to the cycle transaction.
@@ -1315,13 +1359,24 @@ public final class ComponentPlanner {
                     externalDemandPlanner,
                     seeds,
                     true);
-                if (alternative.status() == PlanningStatus.SUCCESS) {
+                if (alternative.status() == PlanningStatus.SUCCESS
+                    && (!executable || betterRoute(alternative, preferred))
+                    && validator.accept(alternative)) {
+                    preferred = alternative;
+                    executable = true;
                     success = true;
                     resultTrace = alternative.trace();
-                    return alternative;
+                    if (!cancellation.improveCompletedPlans() || !network.multiplePaths()) return alternative;
                 }
             }
             return preferred;
+        } catch (ECOPlanningBudget.Exhausted exhausted) {
+            preferred.trace()
+                .addDiagnostic(
+                    new PlannerDiagnostic(
+                        PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED,
+                        exhausted.getMessage() + "; retaining the completed route"));
+            return incompleteSearch(preferred);
         } finally {
             if (routes.prunedBranches() > 0) resultTrace.addDiagnostic(
                 new PlannerDiagnostic(
@@ -1344,6 +1399,31 @@ public final class ComponentPlanner {
                     + " cycleReuses="
                     + failures.reusedFailures());
         }
+    }
+
+    private static boolean betterRoute(Outcome candidate, Outcome current) {
+        if (current.status() != PlanningStatus.SUCCESS) return true;
+        var candidateCost = candidate.state()
+            .plannerPatternTimes()
+            .values()
+            .stream()
+            .reduce(
+                cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount.ZERO,
+                cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount::add);
+        var currentCost = current.state()
+            .plannerPatternTimes()
+            .values()
+            .stream()
+            .reduce(
+                cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount.ZERO,
+                cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount::add);
+        int cost = candidateCost.compareTo(currentCost);
+        return cost < 0 || cost == 0 && candidate.state()
+            .plannerBytes()
+            .compareTo(
+                current.state()
+                    .plannerBytes())
+            < 0;
     }
 
     private static Outcome incompleteSearch(Outcome preferred) {

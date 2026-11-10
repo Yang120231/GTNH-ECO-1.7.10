@@ -26,7 +26,7 @@ public final class ECOPlanningResult {
     private final List<CycleDiagnostic> cycles;
     private final List<ComponentPlanningResult> components;
     private final List<Integer> executionComponentOrder;
-    private final long calculationNanos;
+    private long calculationNanos;
     private BigInteger theoreticalBytes = BigInteger.ZERO;
     private java.util.Map<IPatternDetails, PlannerAmount> exactPatternTimes;
     private java.util.Map<cn.dancingsnow.neoecoae.platform.ae2.key.AEKey, PlannerAmount> exactUsedItems = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
@@ -189,6 +189,11 @@ public final class ECOPlanningResult {
 
     public long calculationNanos() {
         return calculationNanos;
+    }
+
+    /** Record total elapsed time before final publication without rebuilding the validated execution plan. */
+    public void finishCalculation(long elapsedNanos) {
+        calculationNanos = Math.max(calculationNanos, elapsedNanos);
     }
 
     public BigInteger theoreticalBytes() {

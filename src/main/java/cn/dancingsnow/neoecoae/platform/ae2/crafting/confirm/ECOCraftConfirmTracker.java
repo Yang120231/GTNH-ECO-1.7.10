@@ -5,7 +5,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -134,7 +133,7 @@ public final class ECOCraftConfirmTracker {
                 session.display(ECOCraftConfirmReports.resolve(ecoJob.sourcePlan()));
                 return build(container, ecoJob, session, version);
             });
-            if (job == null) adoptImprovedPlan(container, ecoJob, session);
+
         } else if (result != null) {
             session.observeResult(
                 result,
@@ -181,32 +180,6 @@ public final class ECOCraftConfirmTracker {
             return;
         }
         if (exported != null) CraftingPlanExport.onNativePlanReady(player, view, exported.plan, exported.tasksKnown);
-    }
-
-    /**
-     * While the page is open, a better complete plan from the background search replaces the displayed one
-     * (1.21's adoptImprovedPlan). It goes through AE2's own result path, so the container's bytes, CPU table and
-     * summary follow it and the next tick rebuilds the ECO report under a new version; a start keeps submitting
-     * the displayed result until then.
-     */
-    private static void adoptImprovedPlan(ContainerCraftConfirm container, NativeECOCraftingJob displayed,
-        ECOCraftConfirmSession session) {
-        IGrid grid = container.getGrid();
-        ECOPlanningResult better = session.improvement(
-            improvements -> grid != null && displayed.belongsToGrid(grid)
-                && improvements.belongsTo(
-                    GridView.of(grid)
-                        .getCraftingService()));
-        if (better == null || better.plan() == null) return;
-        LOGGER.info(
-            "[craft-confirm] Adopting an improved ECO plan: container={}, output={}, bytes={} -> {}",
-            container.windowId,
-            better.plan()
-                .finalOutput(),
-            displayed.getByteTotal(),
-            better.plan()
-                .bytes());
-        container.setJob(CompletableFuture.completedFuture(displayed.improved(better.plan())));
     }
 
     private static ECOCraftConfirmReports.Built build(ContainerCraftConfirm container, NativeECOCraftingJob job,

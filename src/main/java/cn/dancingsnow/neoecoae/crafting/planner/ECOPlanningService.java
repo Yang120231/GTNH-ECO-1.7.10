@@ -1,11 +1,6 @@
 package cn.dancingsnow.neoecoae.crafting.planner;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import net.minecraft.world.World;
 
@@ -44,72 +39,27 @@ public final class ECOPlanningService {
 
     static Future<ICraftingPlan> begin(ECOCraftingPlannerService.Session session, long amount,
         CalculationStrategy strategy) {
-        var cancelled = new AtomicBoolean();
-        var improvements = new AtomicReference<ECOPlanningImprovements>();
-        Future<ICraftingPlan> foreground = ECOPlanningExecutor.submit(() -> {
-            ECOCancellation cancellation = ECOCancellation.firstSolution(() -> {
-                checkpoint();
-                if (cancelled.get()) throw new InterruptedException("ECO planning request cancelled");
-            });
-            ECOPlanningResult first = calculate(session, amount, strategy, cancellation);
-            var optional = startImprovements(session, first);
-            if (optional != null) {
-                improvements.set(optional);
-                if (cancelled.get()) optional.close();
-            }
-            return first.plan();
+        return ECOPlanningExecutor.submit(() -> {
+            ECOPlanningResult result = calculate(session, amount, strategy, ECOPlanningService::checkpoint);
+            startImprovements(session, result);
+            return result.plan();
         });
-        return new Future<>() {
-
-            @Override
-            public boolean cancel(boolean interrupt) {
-                cancelled.set(true);
-                var optional = improvements.get();
-                if (optional != null) optional.close();
-                return foreground.cancel(interrupt);
-            }
-
-            @Override
-            public boolean isCancelled() {
-                return foreground.isCancelled();
-            }
-
-            @Override
-            public boolean isDone() {
-                return foreground.isDone();
-            }
-
-            @Override
-            public ICraftingPlan get() throws InterruptedException, ExecutionException {
-                return foreground.get();
-            }
-
-            @Override
-            public ICraftingPlan get(long timeout, TimeUnit unit)
-                throws InterruptedException, ExecutionException, TimeoutException {
-                return foreground.get(timeout, unit);
-            }
-        };
     }
 
-    /** Also used after AE2 selects the final result of an explicitly tagged ECO calculation. */
+    /** Attach only the frozen recipe context for CPU remaining-work searches; confirmation work is complete. */
     public static @Nullable ECOPlanningImprovements startImprovements(ECOCraftingPlannerService.Session session,
         ECOPlanningResult first) {
         if (!isExecutableSuccess(first) || !session.isStructureCurrent()) return null;
         if (first.improvements() != null) return first.improvements();
         var optional = new ECOPlanningImprovements(session, first);
         first.setImprovements(optional);
-        optional.start();
+        // Retain the frozen recipe context for CPU remaining-work searches. The confirmation is final.
         return optional;
     }
 
     static ICraftingPlan plan(ECOCraftingPlannerService.Session session, AEKey goal, long requestedAmount,
         CalculationStrategy strategy) throws InterruptedException {
-        return calculate(
-            session,
-            requestedAmount,
-            strategy,
-            ECOCancellation.firstSolution(ECOPlanningService::checkpoint)).plan();
+        return calculate(session, requestedAmount, strategy, ECOPlanningService::checkpoint).plan();
     }
 
     private static ECOPlanningResult calculate(ECOCraftingPlannerService.Session session, long requestedAmount,

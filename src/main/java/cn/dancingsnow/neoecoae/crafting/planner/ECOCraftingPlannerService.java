@@ -97,7 +97,7 @@ public final class ECOCraftingPlannerService {
                 if (planningBudget == null) planningBudget = new ECOPlanningBudget(ECOCancellation.NONE);
             }
             ECOPlanningBudget sharedBudget = planningBudget;
-            cancellation = new ECOCancellation() {
+            ECOCancellation searchCancellation = new ECOCancellation() {
 
                 @Override
                 public void checkpoint() throws InterruptedException {
@@ -110,7 +110,9 @@ public final class ECOCraftingPlannerService {
                     return callerCancellation.improveCompletedPlans();
                 }
             };
+            cancellation = searchCancellation;
             long startedNanos = System.nanoTime();
+            ECOPlanningResult[] accepted = { null };
             String budgetStage = "structural_initialization";
             try (var ignored = ECOPlanningStageLogger
                 .open(PlanningSettings.Crafting.ecoPlanningStageDebug, planningRequestId, goal, amount, simulation)) {
@@ -136,7 +138,20 @@ public final class ECOCraftingPlannerService {
                             amount,
                             cyclePlanningEnabled,
                             ignorePatternSubstitutions,
-                            cancellation);
+                            cancellation,
+                            candidate -> {
+                                ECOPlanningResult ready = buildResult(
+                                    candidate,
+                                    amount,
+                                    simulation,
+                                    startedNanos,
+                                    accepted[0] == null ? callerCancellation : searchCancellation);
+                                if (!ECOPlanningImprovements.executable(ready)) return false;
+                                if (accepted[0] == null || ECOPlanningImprovements.better(ready, accepted[0]))
+                                    accepted[0] = ready;
+                                sharedBudget.beginOptimization();
+                                return true;
+                            });
                     } catch (InterruptedException | RuntimeException e) {
                         ECOPlanningStageLogger.finish(
                             "component_planning",
@@ -150,87 +165,19 @@ public final class ECOCraftingPlannerService {
                         componentStarted,
                         solved.status() == PlanningStatus.SUCCESS,
                         ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
-                    long validationStarted = ECOPlanningStageLogger.start();
-                    // Search may have exhausted its allowance while retaining a completed route.
-                    // Publishing that report must still honor cancellation, but must not spend search budget.
                     callerCancellation.checkpoint();
-                    if (compiledContractGeneration != PatternRuntime.reloadGeneration()) {
-                        throw new IllegalStateException("PATTERN_CONTRACT_CHANGED_DURING_PLANNING");
+                    ECOPlanningResult result = accepted[0] != null ? accepted[0]
+                        : buildResult(solved, amount, simulation, startedNanos, callerCancellation);
+                    if (accepted[0] != null) {
+                        java.util.Set<PlannerDiagnostic> seen = new java.util.HashSet<>(
+                            result.trace()
+                                .diagnostics());
+                        for (var diagnostic : solved.trace()
+                            .diagnostics())
+                            if (seen.add(diagnostic)) result.trace()
+                                .addDiagnostic(diagnostic);
                     }
-                    solved = rejectUnclosedSuccess(solved, amount);
-                    ECOPlanningStageLogger.finish(
-                        "material_closure_validation",
-                        validationStarted,
-                        solved.status() == PlanningStatus.SUCCESS,
-                        ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
-                    boolean multiplePaths = compiled.multiplePaths();
-                    long bridgeStarted = ECOPlanningStageLogger.start();
-                    var plan = switch (solved.status()) {
-                        case SUCCESS, MISSING_ITEMS -> bridge.success(
-                            goal,
-                            amount,
-                            simulation || solved.status() != PlanningStatus.SUCCESS,
-                            multiplePaths,
-                            solved.state());
-                        case PARTIAL, CYCLE_UNRESOLVED -> bridge.partial(goal, amount, multiplePaths, solved.state());
-                        case CYCLE_UNSUPPORTED, CANCELLED, AMOUNT_OVERFLOW -> bridge.unsupported(goal, amount);
-                        // Keep the AE2 menu lifecycle alive with a simulation-only shell. The exact
-                        // planner result is attached to this shell and rendered by the ECO screen.
-                        case PLANNED_BUT_AMOUNT_UNREPRESENTABLE -> bridge.unsupported(goal, amount);
-                        default -> bridge.unsupported(goal, amount);
-                    };
-                    ECOPlanningStageLogger.finish(
-                        "ae2_plan_bridge",
-                        bridgeStarted,
-                        plan != null,
-                        plan == null ? "Bridge returned no plan"
-                            : solved.status()
-                                .name());
-                    var result = new ECOPlanningResult(
-                        solved.status(),
-                        plan,
-                        solved.trace(),
-                        solved.cycles(),
-                        solved.components(),
-                        solved.executionComponentOrder(),
-                        elapsedSince(startedNanos),
-                        solved.state()
-                            .executionProvenance());
-                    result.setTheoreticalBytes(
-                        solved.state()
-                            .plannerBytes());
-                    result.setExactPatternTimes(
-                        solved.state()
-                            .plannerPatternTimes());
-                    result.setExactMaterials(
-                        solved.state()
-                            .usedAmounts(),
-                        solved.state()
-                            .emittedAmounts(),
-                        solved.state()
-                            .missingAmounts());
-                    result.setFuzzyPlanningItemIds(fuzzyPlanningItemIds);
-                    long executionPlanStarted = ECOPlanningStageLogger.start();
-                    String executionPlanError = result.status() == PlanningStatus.SUCCESS
-                        && ECOPlanningResultRegistry.cycleExpected(result) ? result.executionPlanError() : null;
-                    ECOPlanningStageLogger.finish(
-                        "execution_plan_validation",
-                        executionPlanStarted,
-                        executionPlanError == null,
-                        executionPlanError);
-                    if (result.status() == PlanningStatus.SUCCESS && ECOPlanningResultRegistry.cycleExpected(result)
-                        && executionPlanError != null) {
-                        // Phase generation failed or produced an empty schedule while the plan is cycle-expected.
-                        // Publishing this would create the illegal combination cycleExpected=true + phaseCount=0.
-                        // Convert to an explicit FAILED result instead and let the native fallback take over.
-                        ECOPlanningResult rejected = rejectExecutionPlanFailure(
-                            result,
-                            amount,
-                            simulation,
-                            startedNanos);
-                        logTotal(startedNanos, rejected);
-                        return rejected;
-                    }
+                    result.finishCalculation(elapsedSince(startedNanos));
                     callerCancellation.checkpoint();
                     attach(result);
                     logTotal(startedNanos, result);
@@ -253,6 +200,12 @@ public final class ECOCraftingPlannerService {
                     logTotal(startedNanos, result);
                     return result;
                 } catch (ECOPlanningBudget.Exhausted exhausted) {
+                    callerCancellation.checkpoint();
+                    if (accepted[0] != null) {
+                        accepted[0].finishCalculation(elapsedSince(startedNanos));
+                        attach(accepted[0]);
+                        return accepted[0];
+                    }
                     ECOPlanTrace trace = new ECOPlanTrace();
                     trace.addDiagnostic(
                         new PlannerDiagnostic(
@@ -270,6 +223,18 @@ public final class ECOCraftingPlannerService {
                     logTotal(startedNanos, result);
                     return result;
                 } catch (RuntimeException e) {
+                    callerCancellation.checkpoint();
+                    if (accepted[0] != null) {
+                        accepted[0].trace()
+                            .addDiagnostic(
+                                new PlannerDiagnostic(
+                                    PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED,
+                                    "Optional optimization failed: " + e.getClass()
+                                        .getSimpleName() + "; retaining the validated plan"));
+                        accepted[0].finishCalculation(elapsedSince(startedNanos));
+                        attach(accepted[0]);
+                        return accepted[0];
+                    }
                     LOGGER.error(
                         "[ECO-PLANNER] calculation failed goal={} amount={} simulation={} "
                             + "cyclePlanningEnabled={} ignorePatternSubstitutions={} fuzzyItems={}",
@@ -300,6 +265,88 @@ public final class ECOCraftingPlannerService {
                     return result;
                 }
             }
+        }
+
+        private ECOPlanningResult buildResult(ComponentPlanner.Outcome solved, long amount, boolean simulation,
+            long startedNanos, ECOCancellation validationCancellation) throws InterruptedException {
+            long validationStarted = ECOPlanningStageLogger.start();
+            // Search may have exhausted its allowance while retaining a completed route.
+            // Publishing that report must still honor cancellation, but must not spend search budget.
+            validationCancellation.checkpoint();
+            if (compiledContractGeneration != PatternRuntime.reloadGeneration()) {
+                throw new IllegalStateException("PATTERN_CONTRACT_CHANGED_DURING_PLANNING");
+            }
+            solved = rejectUnclosedSuccess(solved, amount);
+            ECOPlanningStageLogger.finish(
+                "material_closure_validation",
+                validationStarted,
+                solved.status() == PlanningStatus.SUCCESS,
+                ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
+            boolean multiplePaths = compiled.multiplePaths();
+            long bridgeStarted = ECOPlanningStageLogger.start();
+            var plan = switch (solved.status()) {
+                case SUCCESS, MISSING_ITEMS -> bridge.success(
+                    goal,
+                    amount,
+                    simulation || solved.status() != PlanningStatus.SUCCESS,
+                    multiplePaths,
+                    solved.state());
+                case PARTIAL, CYCLE_UNRESOLVED -> bridge.partial(goal, amount, multiplePaths, solved.state());
+                case CYCLE_UNSUPPORTED, CANCELLED, AMOUNT_OVERFLOW -> bridge.unsupported(goal, amount);
+                // Keep the AE2 menu lifecycle alive with a simulation-only shell. The exact
+                // planner result is attached to this shell and rendered by the ECO screen.
+                case PLANNED_BUT_AMOUNT_UNREPRESENTABLE -> bridge.unsupported(goal, amount);
+                default -> bridge.unsupported(goal, amount);
+            };
+            ECOPlanningStageLogger.finish(
+                "ae2_plan_bridge",
+                bridgeStarted,
+                plan != null,
+                plan == null ? "Bridge returned no plan"
+                    : solved.status()
+                        .name());
+            var result = new ECOPlanningResult(
+                solved.status(),
+                plan,
+                solved.trace()
+                    .copy(),
+                solved.cycles(),
+                solved.components(),
+                solved.executionComponentOrder(),
+                elapsedSince(startedNanos),
+                solved.state()
+                    .executionProvenance());
+            result.setTheoreticalBytes(
+                solved.state()
+                    .plannerBytes());
+            result.setExactPatternTimes(
+                solved.state()
+                    .plannerPatternTimes());
+            result.setExactMaterials(
+                solved.state()
+                    .usedAmounts(),
+                solved.state()
+                    .emittedAmounts(),
+                solved.state()
+                    .missingAmounts());
+            result.setFuzzyPlanningItemIds(fuzzyPlanningItemIds);
+            long executionPlanStarted = ECOPlanningStageLogger.start();
+            String executionPlanError = result.status() == PlanningStatus.SUCCESS
+                && ECOPlanningResultRegistry.cycleExpected(result) ? result.executionPlanError() : null;
+            ECOPlanningStageLogger.finish(
+                "execution_plan_validation",
+                executionPlanStarted,
+                executionPlanError == null,
+                executionPlanError);
+            if (result.status() == PlanningStatus.SUCCESS && ECOPlanningResultRegistry.cycleExpected(result)
+                && executionPlanError != null) {
+                // Phase generation failed or produced an empty schedule while the plan is cycle-expected.
+                // Publishing this would create the illegal combination cycleExpected=true + phaseCount=0.
+                // Convert to an explicit FAILED result instead and let the native fallback take over.
+                ECOPlanningResult rejected = rejectExecutionPlanFailure(result, amount, simulation, startedNanos);
+                return rejected;
+            }
+            return result;
         }
 
         private void ensureCompiled(ECOCancellation cancellation) throws InterruptedException {
