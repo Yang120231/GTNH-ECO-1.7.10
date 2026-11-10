@@ -25,6 +25,15 @@ public final class SourceFluidIngredient {
     }
 
     public static SourceFluidIngredient of(Fluid fluid) {
+        if (SourceFluids.isCryotheum(fluid)) {
+            List<Fluid> alternatives = new ArrayList<>();
+            alternatives.add(fluid);
+            for (String name : new String[] { "neoecoae:cryotheum_solution", "cryotheum" }) {
+                Fluid other = FluidRegistry.getFluid(name);
+                if (other != null && !alternatives.contains(other)) alternatives.add(other);
+            }
+            return new SourceFluidIngredient(alternatives);
+        }
         return new SourceFluidIngredient(Collections.singletonList(java.util.Objects.requireNonNull(fluid)));
     }
 

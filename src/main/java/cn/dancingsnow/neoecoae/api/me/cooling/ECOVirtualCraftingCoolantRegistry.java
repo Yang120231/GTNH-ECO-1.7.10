@@ -8,7 +8,7 @@ import cn.dancingsnow.neoecoae.platform.fluid.FluidStack;
 import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 
 /**
- * Additional fluids allowed to fund virtual crafting. Cryotheum Solution is always allowed.
+ * Additional fluids allowed to fund virtual crafting. ECO and GTNH cryotheum are always allowed.
  *
  * <p>
  * Register fluid IDs during common setup; the fluids need not be resolved yet. Registration only grants
@@ -19,16 +19,17 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 public final class ECOVirtualCraftingCoolantRegistry {
 
     public static final ResourceLocation CRYOTHEUM_SOLUTION = ResourceLocation.parse("neoecoae:cryotheum_solution");
+    private static final ResourceLocation GTNH_CRYOTHEUM = ResourceLocation.parse("minecraft:cryotheum");
     private static final CopyOnWriteArraySet<ResourceLocation> CUSTOM_COOLANTS = new CopyOnWriteArraySet<>();
 
     private ECOVirtualCraftingCoolantRegistry() {}
 
     public static void register(ResourceLocation fluidId) {
         Objects.requireNonNull(fluidId, "fluidId");
-        if (!CRYOTHEUM_SOLUTION.equals(fluidId)) CUSTOM_COOLANTS.add(fluidId);
+        if (!CRYOTHEUM_SOLUTION.equals(fluidId) && !GTNH_CRYOTHEUM.equals(fluidId)) CUSTOM_COOLANTS.add(fluidId);
     }
 
-    /** Removes a custom registration. The built-in Cryotheum Solution remains allowed. */
+    /** Removes a custom registration. Both built-in cryotheum fluids remain allowed. */
     public static void unregister(ResourceLocation fluidId) {
         if (fluidId != null) CUSTOM_COOLANTS.remove(fluidId);
     }
@@ -37,6 +38,7 @@ public final class ECOVirtualCraftingCoolantRegistry {
     public static List<ResourceLocation> registeredFluidIds() {
         var ids = new java.util.ArrayList<ResourceLocation>();
         ids.add(CRYOTHEUM_SOLUTION);
+        ids.add(GTNH_CRYOTHEUM);
         CUSTOM_COOLANTS.stream()
             .sorted()
             .forEach(ids::add);
@@ -53,6 +55,7 @@ public final class ECOVirtualCraftingCoolantRegistry {
                         .getName()
                     : "minecraft:" + fluid.getFluid()
                         .getName());
-        return CRYOTHEUM_SOLUTION.equals(id) || CUSTOM_COOLANTS.contains(id);
+        return cn.dancingsnow.neoecoae.platform.recipe.SourceFluids.isCryotheum(fluid.getFluid())
+            || CUSTOM_COOLANTS.contains(id);
     }
 }

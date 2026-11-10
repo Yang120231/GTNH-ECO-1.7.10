@@ -1432,13 +1432,10 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         if (activeCooling && !preheating && temperature > 0) {
             RecipeHolder<CoolingRecipe> holder = getCoolingRecipeForInput();
             // Only the real cryotheum fluid can clear the safety latch, even with custom cooling recipes.
-            boolean recoveryFluid = ResourceLocation.fromNamespaceAndPath("neoecoae", "cryotheum_solution")
-                .equals(
-                    getInputTank().getFluid() == null ? null
-                        : cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.tryParse(
-                            getInputTank().getFluid()
-                                .getFluid()
-                                .getName()));
+            boolean recoveryFluid = cn.dancingsnow.neoecoae.platform.recipe.SourceFluids.isCryotheum(
+                getInputTank().getFluid() == null ? null
+                    : getInputTank().getFluid()
+                        .getFluid());
             if (!overheated || recoveryFluid) {
                 CoolingTickPlan plan = prepareCoolingTick(holder);
                 if (plan != null && consumeCoolingTick(plan)) {

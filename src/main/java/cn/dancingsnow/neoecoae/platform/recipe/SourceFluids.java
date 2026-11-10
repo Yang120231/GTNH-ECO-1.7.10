@@ -30,6 +30,12 @@ public final class SourceFluids {
         return cryotheum;
     }
 
+    /** Both saved fluid identities belong to the same coolant family. */
+    public static boolean isCryotheum(Fluid fluid) {
+        return fluid != null
+            && ("neoecoae:cryotheum_solution".equals(fluid.getName()) || "cryotheum".equals(fluid.getName()));
+    }
+
     public static Fluid fluid(String id) {
         if (id.equals("minecraft:water")) return FluidRegistry.WATER;
         if (id.equals("minecraft:lava")) return FluidRegistry.LAVA;

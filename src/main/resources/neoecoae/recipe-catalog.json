@@ -271,7 +271,7 @@
     },
     {
       "path": "data/neoecoae/recipe/cryotheum_crystal.json",
-      "sha256": "2c315b6df08f96bbccf24ad55e3f606eeb800f6f34a7eb42df1f8764b69197d1"
+      "sha256": "5f4e8f278318bb1ddd6dc5d629aa5b0d1e44ea3697e25baea2fe34373d96e524"
     },
     {
       "path": "data/neoecoae/recipe/crystal_matrix.json",
@@ -642,6 +642,10 @@
     {
       "path": "data/c/tags/item/dusts/black_tungsten_alloy.json",
       "sha256": "45842cfa004957f1b5fafd28b478567cc7ff85fef2597a197d33a9f25130c292"
+    },
+    {
+      "path": "data/c/tags/item/dusts/cryotheum.json",
+      "sha256": "50d1101cb3f9c223fcf88cbc501ab227a8f139629611c8630dc72bcc6e40a67d"
     },
     {
       "path": "data/c/tags/item/dusts/energized_crystal.json",
