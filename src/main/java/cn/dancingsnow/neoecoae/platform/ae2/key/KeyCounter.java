@@ -10,12 +10,33 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
 
     private final Object2LongOpenHashMap<AEKey> amounts = new Object2LongOpenHashMap<>();
+    private boolean frozen;
+    private java.util.List<Object2LongMap.Entry<AEKey>> frozenEntries;
+
+    /** Shared snapshots expose neither setters nor mutable map entries. Copies remain writable. */
+    public KeyCounter freeze() {
+        if (!frozen) {
+            java.util.List<Object2LongMap.Entry<AEKey>> entries = new java.util.ArrayList<>(amounts.size());
+            for (var entry : amounts.object2LongEntrySet()) entries.add(
+                new it.unimi.dsi.fastutil.objects.AbstractObject2LongMap.BasicEntry<>(
+                    entry.getKey(),
+                    entry.getLongValue()));
+            frozenEntries = java.util.Collections.unmodifiableList(entries);
+        }
+        frozen = true;
+        return this;
+    }
+
+    private void writable() {
+        if (frozen) throw new UnsupportedOperationException("Immutable inventory snapshot");
+    }
 
     public long get(AEKey key) {
         return amounts.getLong(key);
     }
 
     public void set(AEKey key, long amount) {
+        writable();
         java.util.Objects.requireNonNull(key);
         if (amount == 0) amounts.removeLong(key);
         else amounts.put(key, amount);
@@ -34,6 +55,7 @@ public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
     }
 
     public void remove(AEKey key) {
+        writable();
         amounts.removeLong(key);
     }
 
@@ -46,11 +68,18 @@ public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
             .getType() == key.getType()
             && entry.getKey()
                 .getPrimaryKey() == key.getPrimaryKey())
-            matches.add(entry);
+            matches
+                .add(
+                    frozen
+                        ? new it.unimi.dsi.fastutil.objects.AbstractObject2LongMap.BasicEntry<>(
+                            entry.getKey(),
+                            entry.getLongValue())
+                        : entry);
         return matches;
     }
 
     public void clear() {
+        writable();
         amounts.clear();
     }
 
@@ -59,6 +88,7 @@ public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
     }
 
     public void removeZeros() {
+        writable();
         amounts.object2LongEntrySet()
             .removeIf(entry -> entry.getLongValue() == 0);
     }
@@ -79,6 +109,9 @@ public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
 
     @Override
     public Iterator<Object2LongMap.Entry<AEKey>> iterator() {
+        if (frozen) {
+            return frozenEntries.iterator();
+        }
         return amounts.object2LongEntrySet()
             .iterator();
     }

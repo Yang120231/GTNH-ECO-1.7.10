@@ -89,8 +89,10 @@ public abstract class NetworkInventoryHandlerMixin
         allow = 1)
     private IItemList neoecoae$listAllowedSources(appeng.api.storage.IMEInventoryHandler inventory, IItemList out,
         int iteration, java.util.Optional filter) {
-        return cn.dancingsnow.neoecoae.platform.ae2.storage.NativeTransferFilters.excluded(inventory) ? out
-            : inventory.getAvailableItems(out, iteration, filter);
+        if (cn.dancingsnow.neoecoae.platform.ae2.storage.NativeTransferFilters.excluded(inventory)) return out;
+        IItemList listed = inventory.getAvailableItems(out, iteration, filter);
+        NativeStackAmounts.capture(inventory, listed);
+        return listed;
     }
 
     @Redirect(

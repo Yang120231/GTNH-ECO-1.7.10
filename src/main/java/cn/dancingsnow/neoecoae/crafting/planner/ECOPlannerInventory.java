@@ -20,11 +20,20 @@ public final class ECOPlannerInventory {
     private ECOPlannerInventory() {}
 
     public static PlannerInventorySnapshot capture(GridView grid) {
-        var inventory = grid.getStorageService()
-            .getInventory()
-            .getAvailableStacks();
+        var storage = grid.getStorageService();
+        var inventory = storage.getCachedInventory();
         Set<AEKey> unbounded = collectUnboundedKeys(grid);
-        return PlannerInventorySnapshot.of(inventory, unbounded);
+        var amounts = new java.util.LinkedHashMap<AEKey, cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount>();
+        for (var entry : inventory) if (entry.getLongValue() > 0)
+            amounts.put(entry.getKey(), cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount.of(entry.getLongValue()));
+        storage.getExactAmounts()
+            .forEach((key, amount) -> {
+                if (amount.infinite()) {
+                    amounts.remove(key);
+                    unbounded.add(key);
+                } else amounts.put(key, cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount.of(amount.value()));
+            });
+        return PlannerInventorySnapshot.exact(amounts, unbounded);
     }
 
     /**

@@ -11,12 +11,24 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 
 /** An actual native inventory viewed through the upstream key/amount API. */
 @SuppressWarnings({ "rawtypes", "unchecked" })
-public class NativeInventoryStorage implements MEStorage {
+public class NativeInventoryStorage implements MEStorage, DelegatingStorage {
 
     protected final IMEInventory nativeInventory;
 
     public NativeInventoryStorage(IMEInventory inventory) {
         nativeInventory = java.util.Objects.requireNonNull(inventory);
+    }
+
+    @Override
+    public MEStorage neoecoae$getDelegate() {
+        IMEInventory current = nativeInventory;
+        java.util.Set<IMEInventory> visited = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        while (current != null && visited.add(current)) {
+            if (current instanceof DelegatingStorage) return ((DelegatingStorage) current).neoecoae$getDelegate();
+            if (!(current instanceof appeng.api.storage.IMEInventoryHandler)) break;
+            current = ((appeng.api.storage.IMEInventoryHandler) current).getInternal();
+        }
+        return null;
     }
 
     @Override
@@ -54,6 +66,7 @@ public class NativeInventoryStorage implements MEStorage {
      * handler of the network, and worker threads must not read the list the server thread maintains.
      */
     private IItemList cachedNetworkList() {
+        if (cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter.isActive()) return null;
         return nativeInventory instanceof appeng.api.storage.IMEMonitor
             && cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()
                 ? ((appeng.api.storage.IMEMonitor) nativeInventory).getStorageList()

@@ -22,7 +22,33 @@ import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 
 /** Keeps rv3's cached network list current from posted changes; see {@link NativeIncrementalStorageList}. */
 @Mixin(value = NetworkMonitor.class, remap = false)
-public abstract class NetworkMonitorMixin {
+public abstract class NetworkMonitorMixin implements NativeNetworkReads.Listing {
+
+    @Unique
+    private long neoecoae$listingVersion;
+    @Unique
+    private long neoecoae$fullListingVersion;
+    @Unique
+    private final java.util.Map<cn.dancingsnow.neoecoae.platform.ae2.key.AEKey, Long> neoecoae$listingChanges = new java.util.HashMap<>();
+
+    @Override
+    public long neoecoae$listingVersion() {
+        return neoecoae$listingVersion;
+    }
+
+    @Override
+    public boolean neoecoae$listingChangesSince(long version,
+        java.util.Set<cn.dancingsnow.neoecoae.platform.ae2.key.AEKey> changed) {
+        if (version < neoecoae$fullListingVersion || version > neoecoae$listingVersion) return false;
+        neoecoae$listingChanges.forEach((key, revision) -> { if (revision > version) changed.add(key); });
+        return true;
+    }
+
+    @Unique
+    private void neoecoae$invalidateSnapshot() {
+        neoecoae$fullListingVersion = ++neoecoae$listingVersion;
+        neoecoae$listingChanges.clear();
+    }
 
     @Shadow
     private boolean hasChanged;
@@ -82,6 +108,14 @@ public abstract class NetworkMonitorMixin {
     @Inject(method = "notifyListenersOfChange", at = @At("HEAD"), require = 1)
     private void neoecoae$captureChanges(Iterable<?> diff, BaseActionSource source, CallbackInfo ci) {
         neoecoae$changes = diff;
+        long revision = ++neoecoae$listingVersion;
+        for (Object value : diff) {
+            if (!(value instanceof appeng.api.storage.data.IAEStack)) continue;
+            var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEKey
+                .fromNative((appeng.api.storage.data.IAEStack) value);
+            if (key != null) neoecoae$listingChanges.put(key, revision);
+        }
+        if (neoecoae$listingChanges.size() > 4096) neoecoae$invalidateSnapshot();
     }
 
     @Redirect(
@@ -108,6 +142,7 @@ public abstract class NetworkMonitorMixin {
     @Inject(method = "getStorageList", at = @At("HEAD"), require = 1)
     private void neoecoae$rebuildResetsRepair(CallbackInfoReturnable<IItemList<?>> cir) {
         if (hasChanged) {
+            neoecoae$invalidateSnapshot();
             neoecoae$appliedSinceRebuild = false;
             neoecoae$ticksSinceRebuild = 0;
         }

@@ -18,4 +18,8 @@ public final class StorageServiceView {
     public KeyCounter getCachedInventory() {
         return inventory.getAvailableStacks();
     }
+
+    public java.util.Map<cn.dancingsnow.neoecoae.platform.ae2.key.AEKey, cn.dancingsnow.neoecoae.crafting.amount.ExactAmount> getExactAmounts() {
+        return inventory.exactAmounts();
+    }
 }

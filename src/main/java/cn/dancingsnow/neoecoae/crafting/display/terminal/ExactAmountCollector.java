@@ -115,7 +115,7 @@ public final class ExactAmountCollector {
         if (repaired) contribution.removeZeros();
     }
 
-    static Map<AEKey, ExactAmount> sourceAmounts(MEStorage storage) {
+    public static Map<AEKey, ExactAmount> sourceAmounts(MEStorage storage) {
         ExactAmountSource source = findExactSource(storage);
         if (source == null) return cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf();
         Map<AEKey, ExactAmount> amounts = new HashMap<>();
