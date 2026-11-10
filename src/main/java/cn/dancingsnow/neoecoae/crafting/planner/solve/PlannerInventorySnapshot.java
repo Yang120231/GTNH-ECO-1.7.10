@@ -9,12 +9,28 @@ public final class PlannerInventorySnapshot {
 
     private final AEKey[] keys;
     private final PlannerAmount[] amounts;
+    private final java.util.Map<AEKey, PlannerAmount> exactAmounts;
     private final java.util.Set<AEKey> unboundedKeys;
 
-    private PlannerInventorySnapshot(AEKey[] keys, PlannerAmount[] amounts, java.util.Set<AEKey> unboundedKeys) {
-        this.keys = keys;
-        this.amounts = amounts;
-        this.unboundedKeys = unboundedKeys;
+    private PlannerInventorySnapshot(java.util.Map<AEKey, PlannerAmount> inventory,
+        java.util.Set<AEKey> unboundedKeys) {
+        java.util.Map<AEKey, PlannerAmount> positive = new java.util.LinkedHashMap<>();
+        inventory.forEach((key, amount) -> {
+            java.util.Objects.requireNonNull(key);
+            java.util.Objects.requireNonNull(amount);
+            if (amount.signum() < 0) throw new IllegalArgumentException("Negative inventory amount");
+            if (amount.signum() > 0) positive.put(key, amount);
+        });
+        inventory = positive;
+        this.keys = new AEKey[inventory.size()];
+        this.amounts = new PlannerAmount[inventory.size()];
+        this.unboundedKeys = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setCopyOf(unboundedKeys);
+        int index = 0;
+        for (var entry : inventory.entrySet()) {
+            keys[index] = entry.getKey();
+            amounts[index++] = entry.getValue();
+        }
+        this.exactAmounts = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapCopyOf(inventory);
     }
 
     public static PlannerInventorySnapshot of(KeyCounter inventory) {
@@ -22,17 +38,29 @@ public final class PlannerInventorySnapshot {
     }
 
     public static PlannerInventorySnapshot of(KeyCounter inventory, java.util.Set<AEKey> unboundedKeys) {
-        java.util.List<AEKey> keys = new java.util.ArrayList<>();
-        java.util.List<PlannerAmount> amounts = new java.util.ArrayList<>();
+        var amounts = new java.util.LinkedHashMap<AEKey, PlannerAmount>();
         for (var entry : inventory) {
             if (entry.getLongValue() <= 0) continue;
-            keys.add(entry.getKey());
-            amounts.add(PlannerAmount.of(entry.getLongValue()));
+            amounts.put(entry.getKey(), PlannerAmount.of(entry.getLongValue()));
         }
-        return new PlannerInventorySnapshot(
-            keys.toArray(new AEKey[0]),
-            amounts.toArray(new PlannerAmount[0]),
-            unboundedKeys);
+        return new PlannerInventorySnapshot(amounts, unboundedKeys);
+    }
+
+    public static PlannerInventorySnapshot exact(java.util.Map<AEKey, PlannerAmount> inventory,
+        java.util.Set<AEKey> unboundedKeys) {
+        return new PlannerInventorySnapshot(inventory, unboundedKeys);
+    }
+
+    public java.util.Map<AEKey, PlannerAmount> amounts() {
+        return exactAmounts;
+    }
+
+    public PlannerAmount amountOf(AEKey key) {
+        return exactAmounts.getOrDefault(key, PlannerAmount.ZERO);
+    }
+
+    public java.util.Set<AEKey> unboundedKeys() {
+        return unboundedKeys;
     }
 
     void initialize(PlannerCounter target) {
@@ -47,21 +75,26 @@ public final class PlannerInventorySnapshot {
     /** The same stock with {@code reserved} amounts set aside; unbounded keys stay unbounded. */
     PlannerInventorySnapshot withoutReserved(java.util.Map<AEKey, PlannerAmount> reserved) {
         if (reserved.isEmpty()) return this;
-        PlannerAmount[] remaining = amounts.clone();
+        var remaining = new java.util.LinkedHashMap<AEKey, PlannerAmount>();
         for (int i = 0; i < keys.length; i++) {
             PlannerAmount held = reserved.get(keys[i]);
+            PlannerAmount amount = amounts[i];
             if (held != null && !unboundedKeys.contains(keys[i])) {
-                remaining[i] = remaining[i].subtract(held)
+                amount = amount.subtract(held)
                     .max(PlannerAmount.ZERO);
             }
+            remaining.put(keys[i], amount);
         }
-        return new PlannerInventorySnapshot(keys.clone(), remaining, unboundedKeys);
+        return new PlannerInventorySnapshot(remaining, unboundedKeys);
     }
 
-    /** Independent AE2 counter for APIs that still require long-valued stock. */
+    /** Independent bounded projection for APIs that still require long-valued stock. */
     public KeyCounter toKeyCounter() {
         KeyCounter result = new KeyCounter();
-        for (int i = 0; i < keys.length; i++) result.set(keys[i], amounts[i].longValueExact());
+        for (int i = 0; i < keys.length; i++) result.set(
+            keys[i],
+            amounts[i].min(PlannerAmount.of(Long.MAX_VALUE))
+                .longValueExact());
         unboundedKeys.forEach(key -> result.set(key, Long.MAX_VALUE));
         return result;
     }

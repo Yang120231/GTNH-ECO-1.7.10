@@ -154,8 +154,9 @@ public final class JointRouteOptimizer {
         // Presence closure removes seed-free and unavailable branches without asserting numeric feasibility.
         Set<AEKey> available = new LinkedHashSet<>(network.emittable());
         available.remove(network.goal());
-        for (var entry : inventory.toKeyCounter()) if (!entry.getKey()
-            .equals(network.goal())) available.add(entry.getKey());
+        for (AEKey key : inventory.amounts()
+            .keySet()) if (!key.equals(network.goal())) available.add(key);
+        for (AEKey key : inventory.unboundedKeys()) if (!key.equals(network.goal())) available.add(key);
         Set<CompiledPattern> reachable = new LinkedHashSet<>();
         boolean changed;
         do {
@@ -311,9 +312,7 @@ public final class JointRouteOptimizer {
             }
         }
         if (state == null || !state.executionAmountIssues()
-            .isEmpty()
-            || ECOPlanMaterialValidator.firstDeficit(state, network.goal(), amount, inventory.toKeyCounter(), network)
-                != null)
+            .isEmpty() || ECOPlanMaterialValidator.firstDeficit(state, network.goal(), amount, null, network) != null)
             return null;
         state.executionProvenance()
             .requireComplete();
@@ -384,7 +383,10 @@ public final class JointRouteOptimizer {
         Map<AEKey, Integer> ranks = new LinkedHashMap<>();
         network.emittable()
             .forEach(key -> ranks.put(key, 0));
-        for (var entry : inventory.toKeyCounter()) if (entry.getLongValue() > 0) ranks.put(entry.getKey(), 0);
+        inventory.amounts()
+            .forEach((key, quantity) -> { if (quantity.signum() > 0) ranks.put(key, 0); });
+        inventory.unboundedKeys()
+            .forEach(key -> ranks.put(key, 0));
         boolean changed;
         do {
             changed = false;
