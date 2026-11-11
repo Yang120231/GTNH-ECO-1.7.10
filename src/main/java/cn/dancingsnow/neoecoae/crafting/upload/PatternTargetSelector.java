@@ -183,23 +183,55 @@ public final class PatternTargetSelector {
         Set<String> signatures = new HashSet<>();
         if (routes.stream()
             .allMatch(evaluation -> "ae2:crafting".equals(evaluation.match.categoryId))) {
-            int priority = routes.stream()
-                .mapToInt(PatternTargetSelector::craftingPriority)
-                .min()
-                .orElse(3);
-            routes.removeIf(evaluation -> craftingPriority(evaluation) != priority);
+            // The best crafting tier wins; a tier whose receivers are all full hands over to the next one.
+            List<Evaluation> tier = routes;
+            for (int priority = 0; priority <= 3; priority++) {
+                List<Evaluation> candidates = new ArrayList<>();
+                boolean full = true;
+                for (Evaluation evaluation : routes) if (craftingPriority(evaluation) == priority) {
+                    candidates.add(evaluation);
+                    full &= evaluation.state == SlotState.FULL;
+                }
+                if (candidates.isEmpty()) continue;
+                tier = candidates;
+                if (!full) break;
+            }
+            routes = tier;
         }
         for (Evaluation evaluation : routes) signatures.add(evaluation.match.routeSignature);
         if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
-        // Full, duplicate and offline receivers still participate in identity resolution.
-        if (receiverCount(routes) != 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
-        return available(routes.get(0), false);
+        return pick(routes);
     }
 
-    /** Explicit bindings are authoritative, including a full, missing or reconfigured destination. */
+    /**
+     * One receiver is used as is. Several verified receivers of the same route are interchangeable: the first free
+     * one in list order takes the pattern, unless one of them already holds it.
+     */
+    private static AutoChoice pick(List<Evaluation> routes) {
+        if (receiverCount(routes) == 1) return available(routes.get(0), false);
+        for (Evaluation evaluation : routes) if (!evaluation.match.allowsAuto())
+            return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
+        Evaluation free = null;
+        for (Evaluation evaluation : routes) {
+            if (evaluation.state == SlotState.DUPLICATE)
+                return new AutoChoice(null, SlotState.DUPLICATE.translationKey());
+            if (free == null && evaluation.state == SlotState.FREE) free = evaluation;
+        }
+        return free != null ? new AutoChoice(free, null) : new AutoChoice(null, rejection(routes.get(0)));
+    }
+
+    /**
+     * A player's binding is authoritative for a missing or reconfigured destination; a full one spills into an
+     * equivalent receiver. A binding remembered by auto-upload is only a preference and yields to normal selection.
+     */
     public static AutoChoice choose(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {
         if (mapping == null || !mapping.enabled) return choose(sorted);
         if (mapping.conflict) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.ambiguous");
+        AutoChoice bound = bound(sorted, mapping);
+        return bound.selected == null && mapping.auto ? choose(sorted) : bound;
+    }
+
+    private static AutoChoice bound(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {
         List<Evaluation> owned = new ArrayList<>();
         for (Evaluation evaluation : sorted) if (mapping.owns(evaluation)) owned.add(evaluation);
         if (owned.isEmpty()) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_missing");
@@ -209,7 +241,27 @@ public final class PatternTargetSelector {
         if (target.state == SlotState.OFFLINE) return new AutoChoice(null, target.state.translationKey());
         if (!target.match.allowsMapping()) return new AutoChoice(null, rejection(target));
         if (!mapping.matches(target)) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.target_changed");
+        if (target.state == SlotState.FULL && !mapping.auto) {
+            Evaluation spill = overflow(sorted, target);
+            if (spill != null) return new AutoChoice(spill, null);
+        }
         return available(target, true);
+    }
+
+    /** A free verified receiver of the same kind and route as the full bound one, or null. */
+    private static Evaluation overflow(List<Evaluation> sorted, Evaluation bound) {
+        if (!bound.match.allowsAuto() || bound.match.routeSignature.isEmpty()) return null;
+        Evaluation free = null;
+        for (Evaluation evaluation : sorted) {
+            if (sameReceiver(evaluation, bound) || !evaluation.match.allowsAuto()
+                || evaluation.target.kind() != bound.target.kind()
+                || evaluation.match.programmingCover != bound.match.programmingCover
+                || !evaluation.match.routeSignature.equals(bound.match.routeSignature)
+                || !evaluation.match.categoryId.equals(bound.match.categoryId)) continue;
+            if (evaluation.state == SlotState.DUPLICATE) return null;
+            if (free == null && evaluation.state == SlotState.FREE) free = evaluation;
+        }
+        return free;
     }
 
     private static AutoChoice available(Evaluation target, boolean mapped) {

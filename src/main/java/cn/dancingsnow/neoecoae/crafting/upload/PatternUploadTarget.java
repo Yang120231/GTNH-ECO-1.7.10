@@ -59,6 +59,11 @@ public interface PatternUploadTarget {
     /** Stable position key including the part side, used for sorting and duplicate host detection. */
     String positionKey();
 
+    /** Whether a saved binding position still names this target after its canonical position moved. */
+    default boolean ownsPosition(String positionKey) {
+        return positionKey().equals(positionKey);
+    }
+
     /** Actual shared inventory ownership; aliases of the same inventory are one upload object. */
     default Object storageIdentity() {
         return null;

@@ -39,6 +39,8 @@ public final class PatternUploadMappings {
         public final Scope scope;
         public final String positionKey, signature, kind, name, nameSuffix;
         public final boolean enabled, legacy, conflict;
+        /** Remembered by a successful auto-upload rather than chosen by the player. */
+        public final boolean auto;
         private final String legacyGroup;
         private final boolean programming;
 
@@ -53,6 +55,7 @@ public final class PatternUploadMappings {
             programming = tag.getBoolean("programming");
             legacyGroup = tag.getString("group");
             legacy = positionKey.isEmpty() && !legacyGroup.isEmpty();
+            auto = !legacy && tag.getBoolean("auto");
             conflict = false;
         }
 
@@ -60,12 +63,17 @@ public final class PatternUploadMappings {
             scope = null;
             positionKey = signature = kind = name = nameSuffix = legacyGroup = "";
             enabled = conflict = true;
-            legacy = programming = false;
+            legacy = programming = auto = false;
         }
 
         public boolean owns(Evaluation evaluation) {
-            return legacy ? legacyGroup.equals(PatternTargetGroups.legacyMappingKey(evaluation))
-                : positionKey.equals(evaluation.positionKey);
+            if (legacy) return legacyGroup.equals(PatternTargetGroups.legacyMappingKey(evaluation));
+            if (positionKey.equals(evaluation.positionKey)) return true;
+            try {
+                return evaluation.target.ownsPosition(positionKey);
+            } catch (RuntimeException rebuilding) {
+                return false;
+            }
         }
 
         public boolean matches(Evaluation evaluation) {
@@ -173,8 +181,11 @@ public final class PatternUploadMappings {
         return disabled.size() == 1 ? disabled.get(0) : null;
     }
 
-    /** Call only after re-reading a receiver selected by its server-issued list token. */
-    public static boolean put(EntityPlayer player, Scope scope, Evaluation evaluation) {
+    /**
+     * Call only after re-reading a receiver selected by its server-issued list token. {@code auto} marks a preference
+     * remembered by auto-upload, which later yields to normal selection when its receiver cannot take a pattern.
+     */
+    public static boolean put(EntityPlayer player, Scope scope, Evaluation evaluation, boolean auto) {
         if (scope == null || scope.categoryId.isEmpty()
             || !evaluation.match.allowsMapping()
             || !scope.categoryId.equals(evaluation.match.categoryId)
@@ -211,6 +222,7 @@ public final class PatternUploadMappings {
                 + evaluation.target.z()
                 + ")");
         tag.setBoolean("enabled", true);
+        tag.setBoolean("auto", auto);
         data(player, true).setTag(scope.key(), tag);
         return true;
     }

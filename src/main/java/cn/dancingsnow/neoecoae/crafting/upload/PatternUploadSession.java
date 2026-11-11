@@ -159,7 +159,7 @@ public final class PatternUploadSession {
                     .equals(PatternTargetGroups.mappingKey(member)))
                 continue;
             PatternUploadMappings.Scope scope = PatternUploadMappings.scope(context, current);
-            boolean saved = PatternUploadMappings.put(player, scope, current);
+            boolean saved = PatternUploadMappings.put(player, scope, current, false);
             message(
                 saved ? "gui.neoecoae.pattern_upload.mapping.saved" : "gui.neoecoae.pattern_upload.mapping.save_failed",
                 !saved);
@@ -223,6 +223,7 @@ public final class PatternUploadSession {
         IGrid grid = source.grid();
         PatternTargetSelector.Evaluation evaluation;
         PatternUploadMappings.Mapping binding = null;
+        boolean remember = false;
         if (automatic) {
             PatternTargetSelector.Evaluation expected = null;
             for (PatternTargetSelector.Evaluation previous : evaluations) if (previous.target == target) {
@@ -243,6 +244,9 @@ public final class PatternUploadSession {
             evaluation = choice.selected;
             target = evaluation.target;
             binding = mapping();
+            // An auto-remembered preference follows the receiver that normal selection fell back to.
+            remember = binding == null
+                || binding.enabled && (binding.legacy || binding.auto && !binding.conflict && !choice.mapped);
         } else {
             evaluation = PatternTargetSelector.evaluate(target, context, grid);
             if (!evaluation.canUploadManually()) return fail(PatternTargetSelector.rejection(evaluation));
@@ -254,12 +258,12 @@ public final class PatternUploadSession {
         if (result.succeeded()) {
             PatternUploadSessions
                 .remember(player, new UploadReceipt(source.identity(), physical, context.pattern, target));
-            // The first successful unique route becomes sticky. Existing disabled or explicit bindings stay
+            // The first successful route is remembered as a preference. Existing disabled or explicit bindings stay
             // authoritative.
-            if (automatic && evaluation.match.allowsAuto() && (binding == null || binding.legacy && binding.enabled)) {
+            if (remember && evaluation.match.allowsAuto()) {
                 PatternUploadMappings.Scope scope = binding == null ? PatternUploadMappings.scope(context, evaluation)
                     : binding.scope;
-                if (PatternUploadMappings.put(player, scope, evaluation) && binding != null && binding.legacy)
+                if (PatternUploadMappings.put(player, scope, evaluation, true) && binding != null && binding.legacy)
                     PatternUploadMappings.remove(player, binding);
             }
             message(

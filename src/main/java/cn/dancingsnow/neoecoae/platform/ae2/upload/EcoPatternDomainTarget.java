@@ -115,6 +115,25 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
         return "eco:" + dimension() + ":" + x() + ":" + y() + ":" + z();
     }
 
+    /** A binding saved at any bus of this domain keeps naming it when buses are added or removed elsewhere. */
+    @Override
+    public boolean ownsPosition(String positionKey) {
+        if (positionKey == null || !positionKey.startsWith("eco:")) return false;
+        for (ECOCraftingPatternBusBlockEntity bus : buses()) {
+            if (bus.getWorldObj() == null) continue;
+            if (positionKey.equals(
+                "eco:" + bus.getWorldObj().provider.dimensionId
+                    + ":"
+                    + bus.xCoord
+                    + ":"
+                    + bus.yCoord
+                    + ":"
+                    + bus.zCoord))
+                return true;
+        }
+        return positionKey.equals(positionKey());
+    }
+
     @Override
     public Object storageIdentity() {
         return domain;
