@@ -25,6 +25,7 @@ public final class SourceItems {
         var p = definitions.parts();
         AE.put("256k_crafting_storage", b.craftingStorage256k());
         AE.put("advanced_card", m.advCard());
+        AE.put("wireless_receiver", m.wireless());
         AE.put("calculation_processor", m.calcProcessor());
         AE.put("calculation_processor_press", m.calcProcessorPress());
         AE.put("cell_component_256k", m.cell256kPart());

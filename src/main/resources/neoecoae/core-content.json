@@ -13,6 +13,16 @@
   ],
   "items": [
     {
+      "field": "NETWORK_PULL_CARD",
+      "factory": "Item",
+      "id": "network_pull_card",
+      "kind": "material",
+      "rarity": "COMMON",
+      "stack_limit": 64,
+      "creative": true,
+      "enabled": true
+    },
+    {
       "field": "INTEGRATED_WORKING_STATION_MODULE_EMPTY",
       "line": 58,
       "factory": "Item",

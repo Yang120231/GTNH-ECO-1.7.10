@@ -1566,3 +1566,12 @@ gui.neoecoae.crafting_report.card.item_request=Item request
 gui.neoecoae.crafting_report.card.resource_request=Resource request
 gui.neoecoae.crafting_report.card.exact_hint=Hold Shift to view complete exact values
 gui.neoecoae.crafting_report.card.exact_shown=Showing complete exact values
+
+item.neoecoae.network_pull_card.name=Network Pull Card
+gui.neoecoae.fluid_input_hatch.selected=Filter
+gui.neoecoae.fluid_input_hatch.stored=Stored: %s L
+gui.neoecoae.fluid_input_hatch.target=Target (L)
+gui.neoecoae.fluid_input_hatch.active=ME stock and return: every second
+gui.neoecoae.fluid_input_hatch.install=Install a Network Pull Card for ME stock
+gui.neoecoae.fluid_input_hatch.upgrade=Network Pull Card
+gui.neoecoae.fluid_input_hatch.filter_hint=Left-click a fluid container to select; right-click to clear. Supports NEI drag and drop.

@@ -2,6 +2,10 @@
   "source_commit": "f6003889a1352ea0d7e2e23a3868eb69943789ca",
   "recipes": [
     {
+      "path": "data/neoecoae/recipe/network_pull_card.json",
+      "sha256": "0b5d02b1843149d9a57926807aa08cb389d0bec4bfa23e6f36fe98e2350bad53"
+    },
+    {
       "path": "data/neoecoae/recipe/aluminum_alloy_axe_smithing.json",
       "sha256": "2ac5f0baced546182b18368a4652a3c8852ef7a592585af1a3ae71101bc11bde"
     },

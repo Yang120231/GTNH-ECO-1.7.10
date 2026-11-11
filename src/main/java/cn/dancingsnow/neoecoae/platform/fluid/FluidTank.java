@@ -6,7 +6,11 @@ public class FluidTank {
     private final net.minecraftforge.fluids.FluidTank tank;
 
     public FluidTank(int capacity) {
-        tank = new net.minecraftforge.fluids.FluidTank(capacity);
+        this(new net.minecraftforge.fluids.FluidTank(capacity));
+    }
+
+    protected FluidTank(net.minecraftforge.fluids.FluidTank tank) {
+        this.tank = java.util.Objects.requireNonNull(tank);
     }
 
     public net.minecraftforge.fluids.FluidTank nativeTank() {

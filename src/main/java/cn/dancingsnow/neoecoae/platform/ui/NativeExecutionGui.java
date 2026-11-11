@@ -32,9 +32,9 @@ public interface NativeExecutionGui extends IGuiHolder<PosGuiData> {
                 sync);
         if (this instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity)
             return cn.dancingsnow.neoecoae.platform.ui.crafting.NativeFluidHatchPages.create(
-                (net.minecraft.tileentity.TileEntity) this,
-                ((cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity) this).tank,
-                true);
+                (cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidInputHatchBlockEntity) this,
+                data.getPlayer(),
+                sync);
         if (this instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOFluidOutputHatchBlockEntity)
             return cn.dancingsnow.neoecoae.platform.ui.crafting.NativeFluidHatchPages.create(
                 (net.minecraft.tileentity.TileEntity) this,

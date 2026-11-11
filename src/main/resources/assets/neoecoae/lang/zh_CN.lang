@@ -1566,3 +1566,12 @@ gui.neoecoae.crafting_report.card.item_request=物品请求
 gui.neoecoae.crafting_report.card.resource_request=资源请求
 gui.neoecoae.crafting_report.card.exact_hint=按住 Shift 查看完整精确数值
 gui.neoecoae.crafting_report.card.exact_shown=已显示完整精确数值
+
+item.neoecoae.network_pull_card.name=网络拉取卡
+gui.neoecoae.fluid_input_hatch.selected=标记
+gui.neoecoae.fluid_input_hatch.stored=仓内：%s L
+gui.neoecoae.fluid_input_hatch.target=目标数量 (L)
+gui.neoecoae.fluid_input_hatch.active=每秒从 ME 补货，超额回存
+gui.neoecoae.fluid_input_hatch.install=安装网络拉取卡以启用 ME 补货
+gui.neoecoae.fluid_input_hatch.upgrade=网络拉取卡
+gui.neoecoae.fluid_input_hatch.filter_hint=手持流体容器左键标记，右键清除；支持 NEI 拖放
