@@ -19,7 +19,8 @@ public final class PlanningSettingsGuiFactory implements SimpleGuiFactory {
     public static final class Screen extends SimpleGuiConfig {
 
         public Screen(GuiScreen parent) throws ConfigException {
-            super(parent, NeoECOAE.MODID, "Neo ECO AE Extension", PlanningSettings.CATEGORIES);
+            // Categorized, so each category shows its localized name and tooltip as a sub-screen.
+            super(parent, NeoECOAE.MODID, "Neo ECO AE Extension", true, PlanningSettings.CATEGORIES);
         }
     }
 }

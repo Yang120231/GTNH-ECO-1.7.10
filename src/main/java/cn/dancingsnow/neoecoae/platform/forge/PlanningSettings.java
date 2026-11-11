@@ -26,6 +26,7 @@ public final class PlanningSettings {
     }
 
     @Config(modid = NeoECOAE.MODID, category = "keyReuse")
+    @Config.LangKey("neoecoae.configuration.keyReuse")
     public static final class KeyReuse {
 
         @Config.Comment("Reuse immutable ECO keys for resources without NBT; retain raw metadata and value equality. / 复用无 NBT 资源的不可变 key，保留原始 metadata、值相等和旧存档格式。")
@@ -35,47 +36,56 @@ public final class PlanningSettings {
     }
 
     @Config(modid = NeoECOAE.MODID, category = "multiblock")
+    @Config.LangKey("neoecoae.configuration.structure")
     public static final class Multiblock {
 
         @Config.Comment("Maximum storage-system length")
         @Config.DefaultInt(15)
         @Config.RangeInt(min = 4, max = Integer.MAX_VALUE)
+        @Config.LangKey("neoecoae.configuration.storageSystemMaxLength")
         public static int storageSystemMaxLength = 15;
 
         @Config.Comment("Maximum allowed length of the crafting system multiblock, measured in blocks")
         @Config.DefaultInt(15)
         @Config.RangeInt(min = 5, max = Integer.MAX_VALUE)
+        @Config.LangKey("neoecoae.configuration.craftingSystemMaxLength")
         public static int craftingSystemMaxLength = 15;
 
         @Config.Comment("Maximum allowed length of the computation system multiblock, measured in blocks")
         @Config.DefaultInt(15)
         @Config.RangeInt(min = 5, max = Integer.MAX_VALUE)
+        @Config.LangKey("neoecoae.configuration.computationSystemMaxLength")
         public static int computationSystemMaxLength = 15;
     }
 
     @Config(modid = NeoECOAE.MODID, category = "storage")
+    @Config.LangKey("neoecoae.configuration.storage")
     public static final class Storage {
 
         @Config.Comment("Ticks between storage interface output attempts; large stacks can flush early. / 存储接口输出间隔，达到数量阈值时提前输出。")
         @Config.DefaultInt(1)
         @Config.RangeInt(min = 1, max = 20)
+        @Config.LangKey("neoecoae.configuration.storageOutputTransferIntervalTicks")
         public static int storageOutputTransferIntervalTicks = 1;
 
         @Config.Comment("Per-resource amount that flushes before the output interval expires. / 单种资源提前输出的数量阈值。")
         @Config.DefaultInt(64)
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        @Config.LangKey("neoecoae.configuration.storageOutputFlushThreshold")
         public static int storageOutputFlushThreshold = 64;
 
         @Config.Comment({
             "Apply AE2 network storage changes to the cached network list instead of re-listing every storage of the "
                 + "network after each change. Networks that read other networks through storage buses keep AE2's behaviour." })
         @Config.DefaultBoolean(true)
+        @Config.LangKey("neoecoae.configuration.incrementalNetworkStorageList")
         public static boolean incrementalNetworkStorageList = true;
 
         @Config.Comment("After incremental updates, rebuild the cached network list at most this often to absorb inaccurate "
             + "change reports from other mods")
         @Config.DefaultInt(200)
         @Config.RangeInt(min = 20, max = 72_000)
+        @Config.LangKey("neoecoae.configuration.networkStorageListRepairTicks")
         public static int networkStorageListRepairTicks = 200;
 
         @Config.Comment("Time budget per tick, in microseconds, for migrating finite cells into infinite storage; at least one "
@@ -83,86 +93,104 @@ public final class PlanningSettings {
             + "每 tick 至少仍迁移一种资源。")
         @Config.DefaultInt(2000)
         @Config.RangeInt(min = 1, max = 1_000_000)
+        @Config.LangKey("neoecoae.configuration.infiniteMigrationMicrosPerTick")
         public static int infiniteMigrationMicrosPerTick = 2000;
 
         @Config.Comment("Maximum resource types migrated into infinite storage per tick, shared by all drives of a host. / "
             + "每 tick 最多迁移到无限存储的资源种类数，由同一主机的所有驱动器共享。")
         @Config.DefaultInt(512)
         @Config.RangeInt(min = 1, max = 1_000_000)
+        @Config.LangKey("neoecoae.configuration.infiniteMigrationKeysPerTick")
         public static int infiniteMigrationKeysPerTick = 512;
     }
 
     @Config(modid = NeoECOAE.MODID, category = "crafting")
+    @Config.LangKey("neoecoae.configuration.crafting")
     public static final class Crafting {
 
         @Config.Comment("Shared planning session time budget in milliseconds")
         @Config.DefaultInt(120_000)
         @Config.RangeInt(min = 1, max = 600_000)
+        @Config.LangKey("neoecoae.configuration.ecoPlanningMaxMillis")
         public static int ecoPlanningMaxMillis = 120_000;
 
         @Config.Comment("Shared checkpoint work budget")
         @Config.DefaultInt(50_000_000)
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        @Config.LangKey("neoecoae.configuration.ecoPlanningMaxWork")
         public static int ecoPlanningMaxWork = 50_000_000;
 
         @Config.Comment("Retained cycle-solving memory budget in MiB")
         @Config.DefaultInt(64)
         @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        @Config.LangKey("neoecoae.configuration.ecoPlanningMaxMemoryMiB")
         public static int ecoPlanningMaxMemoryMiB = 64;
 
         @Config.Comment("Log planning stages")
         @Config.DefaultBoolean(false)
+        @Config.LangKey("neoecoae.configuration.ecoPlanningStageDebug")
         public static boolean ecoPlanningStageDebug;
 
         @Config.Comment("Log source dispatch runtime diagnostics")
         @Config.DefaultBoolean(false)
+        @Config.LangKey("neoecoae.configuration.ecoDispatchWatchdogDebug")
         public static boolean ecoDispatchWatchdogDebug;
 
         @Config.Comment("Log blocked worker output delivery diagnostics")
         @Config.DefaultBoolean(false)
+        @Config.LangKey("neoecoae.configuration.ecoCraftingOutputDeliveryDebug")
         public static boolean ecoCraftingOutputDeliveryDebug;
 
         // Unloaded settings (unit tests) keep the hard ceiling; the configured default is lower.
         @Config.Comment("Ordinary CPU dispatch safety limit; source algorithm applies its per-tick budget")
         @Config.DefaultInt(200_000)
         @Config.RangeInt(min = 1, max = MAX_ECO_CPU_PUSH_TICK_LIMIT)
+        @Config.LangKey("neoecoae.configuration.ecoCpuPushTickLimit")
         public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
 
         // Unloaded settings (unit tests) keep the guard disabled so native operation counts stay deterministic.
         @Config.Comment("Per-CPU wall-clock budget in milliseconds for AE2-planned (vanilla) job execution each tick; 0 disables")
         @Config.DefaultInt(10)
         @Config.RangeInt(min = 0, max = 1_000)
+        @Config.LangKey("neoecoae.configuration.vanillaCpuTickTimeBudgetMs")
         public static int vanillaCpuTickTimeBudgetMs = 0;
 
         @Config.Comment("Verified source recipe cache limit")
         @Config.DefaultInt(512)
         @Config.RangeInt(min = 16, max = 16_384)
+        @Config.LangKey("neoecoae.configuration.ecoFastPathCacheSize")
         public static int ecoFastPathCacheSize = 512;
 
         @Config.Comment("Post native crafting events; source rules then disable FastPath batching")
         @Config.DefaultBoolean(false)
+        @Config.LangKey("neoecoae.configuration.postCraftingEvent")
         public static boolean postCraftingEvent;
     }
 
     @Config(modid = NeoECOAE.MODID, category = "workstation")
+    @Config.LangKey("neoecoae.configuration.workstation")
     public static final class Workstation {
 
         @Config.Comment("Enable large-workstation preheating and temperature protection; disabled uses coolant tiers instead")
         @Config.DefaultBoolean(true)
+        @Config.LangKey("neoecoae.configuration.largeWorkstationTemperatureEnabled")
         public static boolean largeWorkstationTemperatureEnabled = true;
     }
 
     @Config(modid = NeoECOAE.MODID, category = "pattern_upload")
+    @Config.LangKey("neoecoae.configuration.patternUpload")
     public static final class PatternUpload {
 
         @Config.Comment("Horizontal placement of the upload buttons; 51 aligns with the terminal's right-side buttons")
         @Config.DefaultInt(51)
         @Config.RangeInt(min = -512, max = 512)
+        @Config.LangKey("neoecoae.configuration.patternUploadButtonOffsetX")
         public static int patternUploadButtonOffsetX = 51;
 
         @Config.Comment("Vertical offset of the upload buttons from the pattern terminal encode button")
         @Config.DefaultInt(9)
         @Config.RangeInt(min = -512, max = 512)
+        @Config.LangKey("neoecoae.configuration.patternUploadButtonOffsetY")
         public static int patternUploadButtonOffsetY = 9;
     }
 }
