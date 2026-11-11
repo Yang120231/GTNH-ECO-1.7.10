@@ -130,6 +130,14 @@ public interface ECOInfiniteStorageEngine {
         return 0L;
     }
 
+    default long listingVersion() {
+        return cn.dancingsnow.neoecoae.impl.storage.StorageListingVersion.UNKNOWN;
+    }
+
+    default boolean visitListingChanges(long since, long current, java.util.function.ObjLongConsumer<AEKey> visitor) {
+        return false;
+    }
+
     default boolean reserveRestore(AEKey key, UUID transaction) {
         return false;
     }

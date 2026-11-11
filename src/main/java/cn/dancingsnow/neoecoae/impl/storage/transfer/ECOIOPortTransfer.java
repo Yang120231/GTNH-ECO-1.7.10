@@ -1,33 +1,55 @@
 package cn.dancingsnow.neoecoae.impl.storage.transfer;
 
-import java.util.ArrayDeque;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Predicate;
 
 import appeng.api.config.Actionable;
+import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountCollector;
+import cn.dancingsnow.neoecoae.impl.storage.NetworkInventoryCache;
+import cn.dancingsnow.neoecoae.impl.storage.StorageInterfaceFilter;
+import cn.dancingsnow.neoecoae.impl.storage.StorageListingDelta;
+import cn.dancingsnow.neoecoae.impl.storage.StorageListingVersion;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.StorageHelper;
+import it.unimi.dsi.fastutil.objects.Object2LongMaps;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
-/**
- * AE2 ME IO Port-style full-key transfer with a small round-robin key budget.
- * <p>
- * The source is listed once per round (every queued key visited once), not every tick: a host domain or network can
- * hold 100k keys while only five move per tick. Amounts come from that round's listing; a stale amount only bounds
- * what one attempt moves, because insertion is simulated and extraction reports what actually left the source.
- */
+/** AE2 ME IO Port-style full-key transfer with a small round-robin key budget. */
 public final class ECOIOPortTransfer {
 
     private static final int KEYS_PER_TICK = 5;
-    private final ArrayDeque<AEKey> queue = new ArrayDeque<>();
-    private final Set<AEKey> queued = new HashSet<>();
+    private final ObjectLinkedOpenHashSet<AEKey> queue = new ObjectLinkedOpenHashSet<>();
     private MEStorage previousSource;
-    private KeyCounter round;
-    private int keysUntilRelist;
+    private MEStorage previousDestination;
+    private long nextOutputTick = Long.MIN_VALUE;
+    private long lastOutputTick = Long.MIN_VALUE;
+    private boolean transferring;
+    private final KeyCounter outputListing = new KeyCounter();
+    private MEStorage listedSource;
+    private Object listedIdentity;
+    private long listedVersion = StorageListingVersion.UNKNOWN;
+    private boolean listedBusScope;
+    private Predicate<AEKey> previousFilter;
+    private NetworkInventoryCache mountListing;
+    private final Object2LongOpenHashMap<AEKey> listedAmounts = new Object2LongOpenHashMap<>();
+
+    /** Only candidate keys are buffered; all resources remain in the source's authoritative inventory. */
+    public void reset() {
+        queue.clear();
+        previousSource = listedSource = null;
+        listedIdentity = null;
+        listedVersion = StorageListingVersion.UNKNOWN;
+        previousFilter = null;
+        outputListing.clear();
+        mountListing = null;
+        listedAmounts.clear();
+        previousDestination = null;
+        nextOutputTick = lastOutputTick = Long.MIN_VALUE;
+    }
 
     public long transfer(GridView grid, MEStorage hostStorage, boolean fillHost, IActionSource source) {
         return transfer(grid, hostStorage, fillHost, false, source);
@@ -45,61 +67,122 @@ public final class ECOIOPortTransfer {
 
     public long transfer(GridView grid, MEStorage hostStorage, boolean fillHost, boolean ignoreCreativeInput,
         boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter) {
-        return StorageBusTransferFilter.transfer(
+        return transfer(
+            grid,
+            hostStorage,
+            fillHost,
+            ignoreCreativeInput,
             excludeStorageBuses,
-            () -> transferContents(
-                grid,
-                hostStorage,
-                fillHost,
-                ignoreCreativeInput,
+            source,
+            filter,
+            Long.MIN_VALUE,
+            1,
+            Long.MAX_VALUE);
+    }
+
+    /** Output batching retains all resources in the host's existing authoritative storage. */
+    public long transfer(GridView grid, MEStorage hostStorage, boolean fillHost, boolean ignoreCreativeInput,
+        boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter, long tick, int outputIntervalTicks,
+        long outputFlushThreshold) {
+        if (transferring) return 0;
+        transferring = true;
+        try {
+            return StorageBusTransferFilter.transfer(
                 excludeStorageBuses,
-                source,
-                filter));
+                () -> transferContents(
+                    grid,
+                    hostStorage,
+                    fillHost,
+                    ignoreCreativeInput,
+                    excludeStorageBuses,
+                    source,
+                    filter,
+                    tick,
+                    Math.max(1, Math.min(20, outputIntervalTicks)),
+                    Math.max(1, outputFlushThreshold)));
+        } finally {
+            transferring = false;
+        }
     }
 
     private long transferContents(GridView grid, MEStorage hostStorage, boolean fillHost, boolean ignoreCreativeInput,
-        boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter) {
+        boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter, long tick, int outputIntervalTicks,
+        long outputFlushThreshold) {
         MEStorage networkStorage = grid.getStorageService()
             .getInventory();
-        MEStorage from = fillHost ? networkStorage : hostStorage;
-        MEStorage destination = fillHost ? hostStorage : networkStorage;
+        MEStorage from;
+        MEStorage destination;
+        KeyCounter available;
+        boolean discoverAll = true;
+        boolean stableFilter = filter instanceof StorageInterfaceFilter && filter == previousFilter;
+        from = fillHost ? networkStorage : hostStorage;
+        destination = fillHost ? hostStorage : networkStorage;
+        boolean scheduled = !fillHost && tick != Long.MIN_VALUE && outputIntervalTicks > 1;
+        if (destination != previousDestination || tick < lastOutputTick) nextOutputTick = Long.MIN_VALUE;
+        previousDestination = destination;
+        lastOutputTick = tick;
+        boolean outputDue = !scheduled || tick >= nextOutputTick;
         if (from != previousSource) {
             previousSource = from;
+            nextOutputTick = Long.MIN_VALUE;
+            outputDue = true;
+            listedSource = null;
             queue.clear();
-            queued.clear();
-            round = null;
+            stableFilter = false;
+            if (mountListing != null) mountListing.invalidate();
         }
-        if (round == null || keysUntilRelist <= 0) {
-            if (!fillHost) {
-                round = new KeyCounter();
-                hostStorage.getAvailableStacks(round);
-            } else if (excludeStorageBuses) {
+
+        if (from instanceof NetworkInventoryCache.Mounts mounts && refreshMountListing(mounts, stableFilter, filter)) {
+            available = null;
+            discoverAll = false;
+        } else if (fillHost && !(from instanceof StorageListingVersion)) {
+            if (excludeStorageBuses) {
                 // The shared cache includes bus inventories and must stay unchanged for ordinary network users.
-                round = new KeyCounter();
-                networkStorage.getAvailableStacks(round);
+                available = new KeyCounter();
+                networkStorage.getAvailableStacks(available);
             } else {
-                round = grid.getStorageService()
+                available = grid.getStorageService()
                     .getCachedInventory();
             }
-            for (var entry : round) {
-                if (entry.getLongValue() > 0L && filter.test(entry.getKey()) && queued.add(entry.getKey())) {
-                    queue.addLast(entry.getKey());
+        } else {
+            available = null;
+            discoverAll = refreshOutputListing(from, stableFilter, filter);
+        }
+        if (discoverAll || !stableFilter) {
+            int listed = 0;
+            Iterable<it.unimi.dsi.fastutil.objects.Object2LongMap.Entry<AEKey>> entries = available == null
+                ? Object2LongMaps.fastIterable(listedAmounts)
+                : available;
+            for (var entry : entries) {
+                if (entry.getLongValue() > 0L) {
+                    listed++;
+                    if (filter.test(entry.getKey())) queue.add(entry.getKey());
                 }
             }
-            keysUntilRelist = Math.max(1, queue.size());
+            // High key churn must not leave an unbounded backlog of vanished candidate IDs.
+            if (queue.size() > listed) queue.removeIf(key -> availableAmount(available, key) <= 0);
         }
-        KeyCounter available = round;
+        previousFilter = filter;
 
         long moved = 0L;
+        boolean attempted = false;
         int keysRemaining = Math.min(KEYS_PER_TICK, queue.size());
-        while (keysRemaining-- > 0) {
-            var key = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.removeFirst(queue);
-            queued.remove(key);
-            keysUntilRelist--;
+        while (keysRemaining-- > 0 && !queue.isEmpty()) {
+            var key = queue.first();
             // Also recheck pending keys after a filter or interface change.
-            if (!filter.test(key)) continue;
-            long amount = available.get(key);
-            if (amount <= 0L) continue;
+            if (!filter.test(key)) {
+                queue.removeFirst();
+                continue;
+            }
+            long amount = availableAmount(available, key);
+            if (amount <= 0L) {
+                queue.removeFirst();
+                continue;
+            }
+            // Keep the queue position while waiting: rotating on skipped ticks can starve some keys.
+            if (!outputDue && amount < outputFlushThreshold) break;
+            queue.removeFirst();
+            attempted = true;
 
             long possible = destination.insert(key, amount, Actionable.SIMULATE, source);
             if (possible <= 0L) {
@@ -107,10 +190,20 @@ public final class ECOIOPortTransfer {
                 continue;
             }
 
+            // Do not remove stock from a possibly extract-only source just to discover there is no power.
+            // poweredInsert still rechecks power and acceptance after extraction, as required by AE2.
+            possible = StorageHelper.poweredAmount(grid.getEnergyService(), key, possible);
+            if (possible <= 0) {
+                enqueue(key);
+                break;
+            }
+
             long extracted = fillHost && ignoreCreativeInput
                 ? ECOCreativeExtractionFilter.extract(from, key, possible, source)
                 : from.extract(key, possible, Actionable.MODULATE, source);
             if (extracted <= 0L) {
+                // Listing versions describe quantities, not whether an extraction is temporarily permitted.
+                enqueue(key);
                 continue;
             }
 
@@ -121,15 +214,72 @@ public final class ECOIOPortTransfer {
             if (inserted > 0L) {
                 moved = inserted > Long.MAX_VALUE - moved ? Long.MAX_VALUE : moved + inserted;
             }
-            if (inserted < amount) {
-                enqueue(key);
-            }
+            // Keep a candidate until the next refreshed listing says it is empty. Consumption and
+            // replenishment can restore the same total before then, producing no aggregate delta.
+            enqueue(key);
         }
+        if (scheduled && attempted)
+            nextOutputTick = tick > Long.MAX_VALUE - outputIntervalTicks ? Long.MAX_VALUE : tick + outputIntervalTicks;
         return moved;
     }
 
     private void enqueue(AEKey key) {
-        if (queued.add(key)) queue.addLast(key);
+        queue.add(key);
+    }
+
+    private long availableAmount(KeyCounter external, AEKey key) {
+        return external == null ? listedAmounts.getLong(key) : external.get(key);
+    }
+
+    private boolean refreshMountListing(NetworkInventoryCache.Mounts mounts, boolean discoverChanges,
+        Predicate<AEKey> filter) {
+        if (mountListing == null) {
+            mountListing = new NetworkInventoryCache(false, true);
+        }
+        return mountListing.refresh(mounts, listedAmounts, (key, amount) -> {
+            if (amount <= 0) queue.remove(key);
+            else if (discoverChanges && filter.test(key)) enqueue(key);
+        });
+    }
+
+    private boolean refreshOutputListing(MEStorage source, boolean discoverChanges, Predicate<AEKey> filter) {
+        StorageListingVersion versioned = source instanceof StorageListingVersion value ? value : null;
+        long version = versioned == null ? StorageListingVersion.UNKNOWN : versioned.neoecoae$listingVersion();
+        Object identity = versioned == null ? source : versioned.neoecoae$listingIdentity();
+        boolean busScope = StorageBusTransferFilter.isActive();
+        boolean sameView = source == listedSource && identity == listedIdentity
+            && busScope == listedBusScope
+            && !ExactAmountCollector.isActive();
+        if (sameView && version != StorageListingVersion.UNKNOWN) {
+            if (version == listedVersion) return false;
+            if (version >= 0 && listedVersion >= 0
+                && source instanceof StorageListingDelta delta
+                && delta.neoecoae$visitListingChanges(listedVersion, version, (key, amount) -> {
+                    if (amount == 0) {
+                        listedAmounts.removeLong(key);
+                        queue.remove(key);
+                    } else listedAmounts.put(key, amount);
+                    if (discoverChanges && amount > 0 && filter.test(key)) enqueue(key);
+                })) {
+                listedVersion = version;
+                return false;
+            }
+        }
+        outputListing.clear();
+        source.getAvailableStacks(outputListing);
+        outputListing.removeZeros();
+        listedAmounts.clear();
+        for (var entry : outputListing) listedAmounts.put(entry.getKey(), entry.getLongValue());
+        // Known delta sources do not need to retain another full grouped quantity mirror.
+        if (source instanceof StorageListingDelta && version >= 0) {
+            outputListing.clear();
+        }
+        listedSource = source;
+        listedIdentity = identity;
+        listedBusScope = busScope;
+        // A scoped listing must not become the next ordinary caller's versioned baseline.
+        listedVersion = ExactAmountCollector.isActive() ? StorageListingVersion.UNKNOWN : version;
+        return true;
     }
 
 }

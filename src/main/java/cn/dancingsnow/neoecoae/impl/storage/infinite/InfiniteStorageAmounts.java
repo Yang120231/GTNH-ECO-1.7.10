@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+import cn.dancingsnow.neoecoae.impl.storage.StorageListingChanges;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
@@ -13,6 +14,15 @@ final class InfiniteStorageAmounts {
 
     private final Object2LongOpenHashMap<AEKey> amounts = new Object2LongOpenHashMap<>();
     private final Map<AEKey, HugeAmount> overflow = new Object2ObjectOpenHashMap<>();
+    private final StorageListingChanges changes = new StorageListingChanges();
+
+    long contentRevision() {
+        return changes.version();
+    }
+
+    boolean visitChangedSince(long since, java.util.function.Consumer<AEKey> visitor) {
+        return changes.visitSince(since, changes.version(), visitor);
+    }
 
     int size() {
         return amounts.size();
@@ -33,6 +43,7 @@ final class InfiniteStorageAmounts {
         else amounts.put(key, amount.toLongSaturated());
         if (amount.isBig()) overflow.put(key, amount);
         else overflow.remove(key);
+        changes.record(key);
     }
 
     void add(AEKey key, long amount) {
@@ -40,6 +51,7 @@ final class InfiniteStorageAmounts {
     }
 
     void add(AEKey key, long current, long amount) {
+        if (amount <= 0) return;
         if (amount <= Long.MAX_VALUE - current) {
             amounts.put(key, current + amount);
         } else {
@@ -47,6 +59,7 @@ final class InfiniteStorageAmounts {
             overflow.put(key, (big == null ? HugeAmount.of(current) : big).add(amount));
             amounts.put(key, Long.MAX_VALUE);
         }
+        changes.record(key);
     }
 
     void add(AEKey key, BigInteger amount) {
@@ -59,6 +72,8 @@ final class InfiniteStorageAmounts {
 
     /** Returns the new long projection, including a possible downgrade from the overflow table. */
     long subtract(AEKey key, long current, long amount) {
+        if (amount <= 0) return current;
+        changes.record(key);
         HugeAmount big = current == Long.MAX_VALUE ? overflow.get(key) : null;
         if (big != null) {
             HugeAmount next = big.subtract(amount);

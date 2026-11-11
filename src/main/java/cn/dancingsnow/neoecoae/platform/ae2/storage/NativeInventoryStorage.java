@@ -57,6 +57,14 @@ public class NativeInventoryStorage implements MEStorage, DelegatingStorage {
             .nativeChannel() != nativeInventory.getChannel()) return 0;
         IAEStack request = key.toNative(1);
         IItemList cached = cachedNetworkList();
+        if (cached == null && cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter.isActive()) {
+            // The native point query bypasses the scoped storage-bus listing filter.
+            cached = nativeInventory.getAvailableItems(
+                nativeInventory.getChannel()
+                    .createList(),
+                appeng.util.IterationCounter.fetchNewId(),
+                java.util.Optional.of((java.util.function.Predicate<IAEStack>) stack -> stack.isSameType(request)));
+        }
         IAEStack found = cached != null ? cached.findPrecise(request) : nativeInventory.getAvailableItem(request);
         return found == null ? 0 : Math.max(0L, found.getStackSize());
     }

@@ -56,6 +56,16 @@ public final class PlanningSettings {
     @Config(modid = NeoECOAE.MODID, category = "storage")
     public static final class Storage {
 
+        @Config.Comment("Ticks between storage interface output attempts; large stacks can flush early. / 存储接口输出间隔，达到数量阈值时提前输出。")
+        @Config.DefaultInt(1)
+        @Config.RangeInt(min = 1, max = 20)
+        public static int storageOutputTransferIntervalTicks = 1;
+
+        @Config.Comment("Per-resource amount that flushes before the output interval expires. / 单种资源提前输出的数量阈值。")
+        @Config.DefaultInt(64)
+        @Config.RangeInt(min = 1, max = Integer.MAX_VALUE)
+        public static int storageOutputFlushThreshold = 64;
+
         @Config.Comment({
             "Apply AE2 network storage changes to the cached network list instead of re-listing every storage of the "
                 + "network after each change. Networks that read other networks through storage buses keep AE2's behaviour." })

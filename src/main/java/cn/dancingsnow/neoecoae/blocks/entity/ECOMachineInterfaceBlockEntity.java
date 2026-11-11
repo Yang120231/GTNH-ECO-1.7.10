@@ -109,13 +109,17 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
     }
 
     public boolean acceptsStorageResource(AEKey key) {
+        return storageResourceFilter().test(key);
+    }
+
+    public StorageInterfaceFilter storageResourceFilter() {
         if (storageResourceFilter == null || cachedStorageResourceFilters != storageResourceFilters) {
             var registries = level == null ? cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY
                 : level.registryAccess();
             storageResourceFilter = new StorageInterfaceFilter(storageResourceFilters, registries);
             cachedStorageResourceFilters = storageResourceFilters;
         }
-        return storageResourceFilter.test(key);
+        return storageResourceFilter;
     }
 
     public void setStorageResourceFilter(int slot, @Nullable AEKey key) {

@@ -9,6 +9,7 @@ import cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
 import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
 import cn.dancingsnow.neoecoae.crafting.display.terminal.CombinedExactAmountSource;
 import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell;
+import cn.dancingsnow.neoecoae.impl.storage.StorageListingDelta;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
@@ -19,7 +20,8 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.registry.NativeStorageCellItem;
 import it.unimi.dsi.fastutil.objects.Object2ByteLinkedOpenHashMap;
 
-public final class ECOInfiniteStorage implements MEStorage, CombinedExactAmountSource, ECOBigIntegerStorage {
+public final class ECOInfiniteStorage
+    implements MEStorage, CombinedExactAmountSource, ECOBigIntegerStorage, StorageListingDelta {
 
     private static final int ADMISSION_CACHE_LIMIT = 512;
     private static final BigInteger MAX_LONG = BigInteger.valueOf(Long.MAX_VALUE);
@@ -34,6 +36,19 @@ public final class ECOInfiniteStorage implements MEStorage, CombinedExactAmountS
         this.engine = engine;
         this.description = description;
         this.allowInsert = allowInsert;
+    }
+
+    @Override
+    public long neoecoae$listingVersion() {
+        return allowInsert.getAsBoolean() ? engine.listingVersion() : -1L;
+    }
+
+    @Override
+    public boolean neoecoae$visitListingChanges(long since, long current,
+        java.util.function.ObjLongConsumer<AEKey> visitor) {
+        return allowInsert.getAsBoolean() && since >= 0
+            && current >= 0
+            && engine.visitListingChanges(since, current, visitor);
     }
 
     @Override

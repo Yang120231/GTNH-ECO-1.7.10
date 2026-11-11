@@ -2,21 +2,56 @@ package cn.dancingsnow.neoecoae.platform.ae2.storage;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.storage.IStorageGrid;
+import cn.dancingsnow.neoecoae.impl.storage.StorageListingChanges;
+import cn.dancingsnow.neoecoae.impl.storage.StorageListingDelta;
+import cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 
 /** Both native monitors belong to the same actual grid; no secondary inventory or ledger. */
-public final class NativeNetworkStorage implements MEStorage {
+public final class NativeNetworkStorage implements MEStorage, StorageListingDelta {
 
     private final IStorageGrid grid;
     private final ChannelSnapshot items = new ChannelSnapshot();
     private final ChannelSnapshot fluids = new ChannelSnapshot();
     private KeyCounter snapshot;
+    private final StorageListingChanges changes = new StorageListingChanges();
 
     public NativeNetworkStorage(IStorageGrid grid) {
         this.grid = grid;
+    }
+
+    private void refreshChannels() {
+        if (StorageBusTransferFilter.isActive()) {
+            StorageBusTransferFilter.withoutExclusion(this::refreshChannels);
+            return;
+        }
+        boolean changed = items.update(grid.getItemInventory(), changes);
+        changed |= fluids.update(grid.getFluidInventory(), changes);
+        if (changed) snapshot = null;
+    }
+
+    @Override
+    public long neoecoae$listingVersion() {
+        if (!cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) return UNKNOWN;
+        refreshChannels();
+        return changes.version();
+    }
+
+    @Override
+    public boolean neoecoae$visitListingChanges(long since, long current,
+        java.util.function.ObjLongConsumer<AEKey> visitor) {
+        if (neoecoae$listingVersion() != current || current == UNKNOWN) return false;
+        return changes.visitSince(
+            since,
+            current,
+            key -> visitor.accept(
+                key,
+                StorageBusTransferFilter.isActive() ? getAvailableAmount(key)
+                    : (key.getType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? items
+                        : fluids).amounts.get(key)));
     }
 
     private MEStorage channel(AEKey key) {
@@ -42,8 +77,7 @@ public final class NativeNetworkStorage implements MEStorage {
 
     @Override
     public void getAvailableStacks(KeyCounter out) {
-        if (cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter.isActive()
-            || !cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) {
+        if (StorageBusTransferFilter.isActive() || !cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) {
             new NativeInventoryStorage(grid.getItemInventory()).getAvailableStacks(out);
             new NativeInventoryStorage(grid.getFluidInventory()).getAvailableStacks(out);
             return;
@@ -54,15 +88,13 @@ public final class NativeNetworkStorage implements MEStorage {
 
     @Override
     public KeyCounter getAvailableStacks() {
-        if (cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter.isActive()
-            || !cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) {
+        if (StorageBusTransferFilter.isActive() || !cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) {
             KeyCounter result = new KeyCounter();
             getAvailableStacks(result);
             return result;
         }
-        boolean changed = items.update(grid.getItemInventory());
-        changed |= fluids.update(grid.getFluidInventory());
-        if (snapshot == null || changed) {
+        refreshChannels();
+        if (snapshot == null) {
             KeyCounter next = items.amounts.copy();
             next.addAll(fluids.amounts);
             snapshot = next.freeze();
@@ -91,7 +123,7 @@ public final class NativeNetworkStorage implements MEStorage {
         private KeyCounter amounts = new KeyCounter();
         private final java.util.Map<AEKey, cn.dancingsnow.neoecoae.crafting.amount.ExactAmount> exact = new java.util.HashMap<>();
 
-        boolean update(appeng.api.storage.IMEMonitor current) {
+        boolean update(appeng.api.storage.IMEMonitor current, StorageListingChanges changes) {
             // getStorageList also processes full invalidations and periodic repair of third-party listings.
             appeng.api.storage.data.IItemList listed = current.getStorageList();
             NativeNetworkReads.Listing revisions = current instanceof NativeNetworkReads.Listing
@@ -104,6 +136,7 @@ public final class NativeNetworkStorage implements MEStorage {
             boolean delta = monitor == current && revisions != null
                 && revisions.neoecoae$listingChangesSince(version, changed);
             if (!delta) {
+                changes.invalidate();
                 amounts = new KeyCounter();
                 exact.clear();
                 for (Object value : listed) {
@@ -119,6 +152,7 @@ public final class NativeNetworkStorage implements MEStorage {
                     appeng.api.storage.data.IAEStack stack = listed.findPrecise(key.toNative(1));
                     amounts.set(key, stack == null ? 0 : Math.max(0L, stack.getStackSize()));
                     exact.remove(key);
+                    changes.record(key);
                 }
             }
             monitor = current;

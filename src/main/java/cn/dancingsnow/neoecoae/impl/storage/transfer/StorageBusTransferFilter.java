@@ -20,6 +20,17 @@ public final class StorageBusTransferFilter {
         return Boolean.TRUE.equals(ACTIVE.get());
     }
 
+    /** Shared native monitor caches always describe the ordinary network, even during a scoped transfer. */
+    public static void withoutExclusion(Runnable action) {
+        Boolean previous = ACTIVE.get();
+        ACTIVE.remove();
+        try {
+            action.run();
+        } finally {
+            if (previous != null) ACTIVE.set(previous);
+        }
+    }
+
     public static boolean excludes(MEStorage storage) {
         return Boolean.TRUE.equals(ACTIVE.get()) && storage instanceof StorageBusInventory;
     }

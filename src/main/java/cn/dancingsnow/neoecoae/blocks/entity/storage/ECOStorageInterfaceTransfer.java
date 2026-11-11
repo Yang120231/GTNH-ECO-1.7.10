@@ -14,14 +14,21 @@ import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
 import cn.dancingsnow.neoecoae.crafting.display.terminal.CombinedExactAmountSource;
 import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountCollector;
+import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell;
+import cn.dancingsnow.neoecoae.impl.storage.NetworkInventoryCache;
 import cn.dancingsnow.neoecoae.impl.storage.SaturatingStackAccumulator;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageEngine;
 import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOIOPortTransfer;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
+import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
+import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 
 /** Moves storage contents in full-key batches using AE2 ME IO Port transfer semantics. */
 final class ECOStorageInterfaceTransfer {
@@ -31,6 +38,7 @@ final class ECOStorageInterfaceTransfer {
     private ECOInfiniteStorageEngine cachedStorageEngine;
     private MEStorage cachedInfiniteStorage;
     private CombinedStorage cachedCombinedStorage;
+    private final List<MEStorage> candidateCells = new ArrayList<>();
 
     ECOStorageInterfaceTransfer(ECOStorageSystemBlockEntity host) {
         this.host = host;
@@ -39,6 +47,9 @@ final class ECOStorageInterfaceTransfer {
     void invalidateInfiniteStorageView() {
         cachedStorageEngine = null;
         cachedInfiniteStorage = null;
+        cachedCombinedStorage = null;
+        candidateCells.clear();
+        ioPortTransfer.reset();
     }
 
     long transferStorageInterfaceContents(ECOMachineInterfaceBlockEntity<NEStorageCluster> storageInterface) {
@@ -59,7 +70,12 @@ final class ECOStorageInterfaceTransfer {
             storageInterface.isIgnoringCreativeStorageInput(),
             storageInterface.isExcludingStorageBusContainers(),
             IActionSource.ofMachine(storageInterface),
-            storageInterface::acceptsStorageResource);
+            storageInterface.storageResourceFilter(),
+            host.getLevel() == null ? 0L
+                : host.getLevel()
+                    .getGameTime(),
+            PlanningSettings.Storage.storageOutputTransferIntervalTicks,
+            PlanningSettings.Storage.storageOutputFlushThreshold);
         if (moved > 0L) {
             host.setChanged();
             host.markForUpdate();
@@ -75,7 +91,8 @@ final class ECOStorageInterfaceTransfer {
                 .isInfiniteState() && (host.isInfiniteExitRequested() || !host.canUseHostDomainStorage())) {
             return null;
         }
-        List<MEStorage> cells = new ArrayList<>();
+        List<MEStorage> cells = candidateCells;
+        cells.clear();
         if (host.canUseHostDomainStorage()) {
             ECOInfiniteStorageEngine engine = host.getInfiniteEngine();
             if (engine != cachedStorageEngine) {
@@ -98,11 +115,10 @@ final class ECOStorageInterfaceTransfer {
             cachedCombinedStorage = null;
             return null;
         }
-        if (cachedCombinedStorage == null || !cachedCombinedStorage.inventories()
-            .equals(cells)) {
+        if (cachedCombinedStorage == null || !cachedCombinedStorage.hasInventories(cells)) {
             cachedCombinedStorage = new CombinedStorage(
                 cells,
-                cn.dancingsnow.neoecoae.platform.minecraft.Component.literal(
+                Component.literal(
                     host.getBlockState()
                         .getBlock()
                         .getLocalizedName()),
@@ -112,12 +128,52 @@ final class ECOStorageInterfaceTransfer {
         return cachedCombinedStorage;
     }
 
-    @com.github.bsideup.jabel.Desugar
-    record CombinedStorage(List<MEStorage> inventories,
-        cn.dancingsnow.neoecoae.platform.minecraft.Component description, BooleanSupplier allowAccess)
-        implements MEStorage, CombinedExactAmountSource {
+    static final class CombinedStorage implements MEStorage, CombinedExactAmountSource, NetworkInventoryCache.Mounts {
 
-        CombinedStorage(List<MEStorage> inventories, cn.dancingsnow.neoecoae.platform.minecraft.Component description) {
+        private final List<MEStorage> inventories;
+        private final Component description;
+        private final BooleanSupplier allowAccess;
+        private final List<MEStorage> itemInserts;
+        private final List<MEStorage> fluidInserts;
+
+        CombinedStorage(List<MEStorage> inventories, Component description, BooleanSupplier allowAccess) {
+            this.inventories = java.util.Collections.unmodifiableList(new ArrayList<>(inventories));
+            this.description = description;
+            this.allowAccess = allowAccess;
+            itemInserts = insertCandidates(AEKeyType.items());
+            fluidInserts = insertCandidates(AEKeyType.fluids());
+        }
+
+        boolean hasInventories(List<MEStorage> current) {
+            if (inventories.size() != current.size()) return false;
+            for (int i = 0; i < inventories.size(); i++) if (inventories.get(i) != current.get(i)) return false;
+            return true;
+        }
+
+        private List<MEStorage> insertCandidates(AEKeyType requested) {
+            List<MEStorage> result = new ArrayList<>();
+            for (MEStorage inventory : inventories) {
+                if (inventory.getClass() == ECOStorageCell.class) {
+                    var type = ((ECOStorageCell) inventory).getKeyType();
+                    if ((type == AEKeyType.items() || type == AEKeyType.fluids()) && type != requested) continue;
+                }
+                result.add(inventory);
+            }
+            return result;
+        }
+
+        @Override
+        public long neoecoae$mountGeneration() {
+            return allowAccess.getAsBoolean() ? 0L : 1L;
+        }
+
+        @Override
+        public boolean neoecoae$withMounts(java.util.function.Consumer<List<MEStorage>> action) {
+            action.accept(allowAccess.getAsBoolean() ? inventories : java.util.Collections.emptyList());
+            return true;
+        }
+
+        CombinedStorage(List<MEStorage> inventories, Component description) {
             this(inventories, description, () -> true);
         }
 
@@ -125,7 +181,9 @@ final class ECOStorageInterfaceTransfer {
         public long insert(AEKey key, long amount, appeng.api.config.Actionable mode, IActionSource source) {
             if (!allowAccess.getAsBoolean()) return 0L;
             long inserted = 0L;
-            for (MEStorage inventory : inventories) {
+            var candidates = key instanceof AEItemKey ? itemInserts
+                : key instanceof AEFluidKey ? fluidInserts : inventories;
+            for (MEStorage inventory : candidates) {
                 if (inserted >= amount) break;
                 inserted += inventory.insert(key, amount - inserted, mode, source);
             }
@@ -185,7 +243,7 @@ final class ECOStorageInterfaceTransfer {
         }
 
         @Override
-        public cn.dancingsnow.neoecoae.platform.minecraft.Component getDescription() {
+        public Component getDescription() {
             return description;
         }
     }

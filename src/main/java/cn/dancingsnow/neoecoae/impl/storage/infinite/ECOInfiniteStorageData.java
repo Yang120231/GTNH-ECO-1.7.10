@@ -67,6 +67,8 @@ public final class ECOInfiniteStorageData extends SavedData {
     // Written by the IO worker when an asynchronous snapshot write fails; the next save retries.
     private volatile String writeFailure;
     private long revision;
+    private long listingChanges;
+    private long listingBarrier;
     // Last sequence of the retired write-ahead journal already folded into this snapshot.
     private long journalSequence;
     private KeyCodec codec;
@@ -375,8 +377,26 @@ public final class ECOInfiniteStorageData extends SavedData {
     @Override
     public void setDirty() {
         revision++;
+        listingChanges++;
+        listingBarrier = listingVersion();
         refreshMountedStorageAvailability();
         super.setDirty();
+    }
+
+    /** Ordinary key additions/removals remain fully described by the quantity change log. */
+    void keyPresenceChanged() {
+        revision++;
+        refreshMountedStorageAvailability();
+        super.setDirty();
+    }
+
+    public long listingVersion() {
+        return amounts.contentRevision() + listingChanges;
+    }
+
+    boolean visitListingChangesSince(long version, java.util.function.Consumer<AEKey> visitor) {
+        if (unreadable || version < listingBarrier || version > listingVersion()) return false;
+        return amounts.visitChangedSince(version - listingChanges, visitor);
     }
 
     private void refreshMountedStorageAvailability() {

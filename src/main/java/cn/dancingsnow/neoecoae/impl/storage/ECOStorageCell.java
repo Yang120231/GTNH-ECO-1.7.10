@@ -36,7 +36,15 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
-public class ECOStorageCell implements IECOStorageMigrationCell {
+public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingVersion {
+
+    @Override
+    public long neoecoae$listingVersion() {
+        // Custom cell subclasses may expose dynamic resources independently of this quantity table.
+        if (getClass() != ECOStorageCell.class) return UNKNOWN;
+        return cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack) ? -1L
+            : contentRevision;
+    }
 
     private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
 
