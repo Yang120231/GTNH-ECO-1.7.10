@@ -15,9 +15,10 @@ import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchExecutor;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchMode;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOFastPathStacks;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.AEProcessingPattern;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeProviderAdapters;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
@@ -134,10 +135,7 @@ final class ECOProcessingPatternDispatcher {
         boolean offerAll = isUnboundedTarget(provider);
         // A plain-blocking interface takes exactly one push per empty target: that push carries the learned size.
         boolean singlePush = isSinglePushTarget(provider);
-        long transportLimit = offerAll
-            ? cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
-                .unboundedHatchCopyLimit(request.inputs())
-            : Long.MAX_VALUE;
+        long transportLimit = ((NativeCraftingProvider) provider).scaledProcessingCopyLimit(request.inputs());
 
         ProbeState state = states.computeIfAbsent(provider, x -> new Reference2ObjectOpenHashMap<>())
             .computeIfAbsent(request.pattern(), x -> new ProbeState());
@@ -277,7 +275,8 @@ final class ECOProcessingPatternDispatcher {
     }
 
     private static boolean isProcessingPattern(Object pattern) {
-        return pattern instanceof AEProcessingPattern;
+        return pattern instanceof NativePatternDetails
+            && ((NativePatternDetails) pattern).supportsPushInputsToExternalInventory();
     }
 
     private static Object providerLogic(ICraftingProvider provider) {

@@ -21,6 +21,7 @@ import appeng.util.inv.MEInventoryCrafting;
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
 import cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider;
+import cn.dancingsnow.neoecoae.compat.proghatches.ProgrammableHatchCrafting;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
@@ -43,6 +44,7 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         this.medium = java.util.Objects.requireNonNull(medium);
         this.patterns = Collections.unmodifiableList(new ArrayList<>(patterns));
         this.unboundedPatternHatch = UNBOUNDED_HATCH_TYPES.get(medium.getClass());
+        this.programmablePatternHatch = ProgrammableHatchCrafting.supportsScaledProcessing(medium);
     }
 
     public ICraftingMedium nativeMedium() {
@@ -134,12 +136,13 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     }
 
     /**
-     * GT's ME crafting input hatches, and AE2 interfaces of every host (block, part, AE2FC dual interface, P2P
-     * interface tunnel). An interface with any crafting-lock mode keeps one copy per push: pulse/redstone locks meter
+     * GT's ME crafting input hatches, ordinary Programmable Hatches pattern hatches, and AE2 interfaces of every host
+     * (block, part, AE2FC dual interface, P2P interface tunnel). An interface with any crafting-lock mode keeps one
+     * copy per push: pulse/redstone locks meter
      * pushes on purpose, and LOCK_UNTIL_RESULT unlocks on one copy's outputs.
      */
     public boolean supportsScaledProcessing() {
-        if (isUnboundedPatternHatch()) return true;
+        if (isUnboundedPatternHatch() || programmablePatternHatch) return true;
         return medium instanceof appeng.helpers.DualityInterface
             && !hasCraftingLock((appeng.helpers.DualityInterface) medium);
     }
@@ -200,6 +203,16 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
 
     /** Copies one hatch push may carry for these one-copy inputs; never below one copy. */
     public static long unboundedHatchCopyLimit(KeyCounter[] perCraftInputs) {
+        return copyLimit(perCraftInputs, UNBOUNDED_HATCH_STACKS_PER_PUSH * Integer.MAX_VALUE);
+    }
+
+    /** Older programmable hatches read int-sized item/fluid views; never let a scaled push truncate them. */
+    public long scaledProcessingCopyLimit(KeyCounter[] perCraftInputs) {
+        if (unboundedPatternHatch) return unboundedHatchCopyLimit(perCraftInputs);
+        return programmablePatternHatch ? copyLimit(perCraftInputs, Integer.MAX_VALUE) : Long.MAX_VALUE;
+    }
+
+    private static long copyLimit(KeyCounter[] perCraftInputs, long perResource) {
         var totals = new java.util.HashMap<AEKey, Long>();
         try {
             for (var counter : perCraftInputs) for (var entry : counter) {
@@ -208,14 +221,13 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         } catch (ArithmeticException overflow) {
             return 1L;
         }
-        long perResource = UNBOUNDED_HATCH_STACKS_PER_PUSH * Integer.MAX_VALUE;
         long limit = Long.MAX_VALUE;
         for (long amount : totals.values()) limit = Math.min(limit, perResource / amount);
         return Math.max(1L, limit);
     }
 
     public boolean isScaledProcessingFullyInserted() {
-        if (unboundedPatternHatch) return true;
+        if (unboundedPatternHatch || programmablePatternHatch) return true;
         return medium instanceof appeng.helpers.DualityInterface
             && NativeProcessingAccess.isSendBufferEmpty((appeng.helpers.DualityInterface) medium);
     }
@@ -231,6 +243,7 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         }
     };
     private final boolean unboundedPatternHatch;
+    private final boolean programmablePatternHatch;
 
     @Override
     public boolean pushPattern(IPatternDetails pattern, KeyCounter[] inputHolder) {
@@ -238,7 +251,7 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             ? ((cn.dancingsnow.neoecoae.compat.ae2.ECOProcessingExecutionPattern) pattern).providerLookupPattern()
             : pattern;
         if (!(physical instanceof NativePatternDetails) || !patterns.contains(physical)) return false;
-        if (physical != pattern && (!supportsScaledProcessing() || !(physical instanceof AEProcessingPattern)))
+        if (physical != pattern && (!supportsScaledProcessing() || !physical.supportsPushInputsToExternalInventory()))
             return false;
         var nativePattern = (NativePatternDetails) physical;
         if (inputHolder.length != pattern.getInputs().length)
