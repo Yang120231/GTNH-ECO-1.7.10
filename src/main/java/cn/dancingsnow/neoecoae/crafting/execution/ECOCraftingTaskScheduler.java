@@ -181,13 +181,20 @@ final class ECOCraftingTaskScheduler {
                 break;
             }
 
-            int start = resumeIndex(candidates);
+            // The preferred pattern takes only the first inspection slot. The rest of the bounded window follows
+            // the scan cursor, so a pattern that keeps accepting cannot pin the window and starve later candidates.
+            int size = candidates.size();
+            int preferred = preferredIndex(candidates);
+            int cursor = cursorIndex(candidates);
             blockedOrderedPhases.clear();
             boolean acceptedInPass = false;
             int inspected = 0;
-            for (int offset = 0; offset < candidates.size()
-                && inspected < MAX_CANDIDATE_INSPECTIONS_PER_EXECUTE; offset++) {
-                int candidateIndex = (start + offset) % candidates.size();
+            int step = preferred >= 0 ? -1 : 0;
+            for (; step < size && inspected < MAX_CANDIDATE_INSPECTIONS_PER_EXECUTE; step++) {
+                // Only candidates reached through the cursor may move it.
+                boolean fromCursor = step >= 0;
+                int candidateIndex = fromCursor ? (cursor + step) % size : preferred;
+                if (fromCursor && candidateIndex == preferred) continue;
                 var candidate = candidates.get(candidateIndex);
                 inspected++;
                 if (blockedOrderedPhases.get(candidate.phaseIndex())) continue;
@@ -387,14 +394,19 @@ final class ECOCraftingTaskScheduler {
                         .dispatchCandidate(request, providers, budget, energyService, stallDiagnostics, provider -> {
                             providerAttempted[0] = true;
                             providerCursor.advanceAfter(pattern, provider);
-                        }, () -> resumeDispatchPattern = nextCandidatePattern(candidates, candidateIndex), normalPush);
+                        },
+                            () -> {
+                                if (fromCursor)
+                                    resumeDispatchPattern = nextCandidatePattern(candidates, candidateIndex);
+                            },
+                            normalPush);
                 }
                 if (dispatch.accepted()) {
                     totalPushed = addPushed(totalPushed, dispatch.acceptedCrafts());
                     // Rebuild legal candidates and inputs after every acceptance. There is no
                     // streak cap; callback/tick budgets still bound the work.
                     preferredDispatchPattern = progress.value > 0L ? pattern : null;
-                    resumeDispatchPattern = nextCandidatePattern(candidates, candidateIndex);
+                    if (fromCursor) resumeDispatchPattern = nextCandidatePattern(candidates, candidateIndex);
                     acceptedDispatches++;
                     acceptedInPass = true;
                     if (failedCandidateKey != null) missingInputFailures.remove(failedCandidateKey);
@@ -408,10 +420,10 @@ final class ECOCraftingTaskScheduler {
                 if (providerAttempted[0]) releasePreferredPattern(pattern);
                 if (candidate.blocksOrderedPhase()) blockedOrderedPhases.set(candidate.phaseIndex());
             }
-            if (!acceptedInPass && inspected > 0 && inspected < candidates.size()) {
+            if (!acceptedInPass && step >= 0 && step < size) {
                 // Preserve progress through a stalled candidate set. This is deliberately
                 // separate from provider round-robin state: no provider was accepted.
-                resumeDispatchPattern = candidates.get((start + inspected) % candidates.size())
+                resumeDispatchPattern = candidates.get((cursor + step) % size)
                     .pattern();
             }
             if (!acceptedInPass) break;
@@ -456,15 +468,20 @@ final class ECOCraftingTaskScheduler {
         if (pattern.equals(preferredDispatchPattern)) preferredDispatchPattern = null;
     }
 
-    private int resumeIndex(List<ECOExecutionRuntime.DispatchCandidate> candidates) {
-        if (preferredDispatchPattern != null) {
-            for (int i = 0; i < candidates.size(); i++) {
-                if (candidates.get(i)
-                    .pattern()
-                    .equals(preferredDispatchPattern)) return i;
-            }
-            preferredDispatchPattern = null;
+    /** Index of the last accepted pattern that still has work, or -1. */
+    private int preferredIndex(List<ECOExecutionRuntime.DispatchCandidate> candidates) {
+        if (preferredDispatchPattern == null) return -1;
+        for (int i = 0; i < candidates.size(); i++) {
+            if (candidates.get(i)
+                .pattern()
+                .equals(preferredDispatchPattern)) return i;
         }
+        preferredDispatchPattern = null;
+        return -1;
+    }
+
+    /** Where the bounded scan continues, independent of the preferred pattern. */
+    private int cursorIndex(List<ECOExecutionRuntime.DispatchCandidate> candidates) {
         if (resumeDispatchPattern == null) return 0;
         for (int i = 0; i < candidates.size(); i++) {
             if (candidates.get(i)
