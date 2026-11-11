@@ -83,7 +83,8 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
                 if (cluster.shouldPublishPlaceholder())
                     craftingCPUClusters.add((CraftingCPUCluster) cluster.nativeCPU(cluster.getFakeCPU()));
                 for (var cpu : cluster.getActiveCPUs()) {
-                    UUID jobId = cpu.getLogic().getProcessingJobId();
+                    UUID jobId = cpu.getLogic()
+                        .getProcessingJobId();
                     if (jobId != null) neoecoae$cpusByJob.put(jobId, cpu);
                     CraftingCPUCluster nativeCpu = (CraftingCPUCluster) cluster.nativeCPU(cpu);
                     craftingCPUClusters.add(nativeCpu);
@@ -99,7 +100,9 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
         if (jobId == null || key == null || amount <= 0L) return 0L;
         ECOCraftingCPU owner = neoecoae$findCpuForJob(jobId);
-        return owner == null ? 0L : owner.getLogic().insertForJob(jobId, key, amount, mode);
+        return owner == null ? 0L
+            : owner.getLogic()
+                .insertForJob(jobId, key, amount, mode);
     }
 
     @Override
@@ -107,7 +110,9 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
         if (jobId == null || key == null || amount.signum() <= 0) return BigInteger.ZERO;
         ECOCraftingCPU owner = neoecoae$findCpuForJob(jobId);
-        return owner == null ? BigInteger.ZERO : owner.getLogic().insertExactForJob(jobId, key, amount, mode);
+        return owner == null ? BigInteger.ZERO
+            : owner.getLogic()
+                .insertExactForJob(jobId, key, amount, mode);
     }
 
     @Unique
@@ -115,7 +120,8 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
     private ECOCraftingCPU neoecoae$findCpuForJob(UUID jobId) {
         ECOCraftingCPU cached = neoecoae$cpusByJob.get(jobId);
         if (cached != null) {
-            if (cached.getLogic().hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cached)) return cached;
+            if (cached.getLogic()
+                .hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cached)) return cached;
             neoecoae$cpusByJob.remove(jobId);
         }
         // New and restored CPUs may receive output before the native cache publishes their identities.
@@ -126,7 +132,8 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
                 NEComputationCluster cluster = ((ECOComputationSystemBlockEntity) node.getMachine()).getCluster();
                 if (cluster == null || !visited.add(cluster)) continue;
                 for (ECOCraftingCPU cpu : cluster.getAllocatedCPUs()) {
-                    if (cpu.getLogic().hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cpu)) {
+                    if (cpu.getLogic()
+                        .hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cpu)) {
                         neoecoae$cpusByJob.put(jobId, cpu);
                         return cpu;
                     }

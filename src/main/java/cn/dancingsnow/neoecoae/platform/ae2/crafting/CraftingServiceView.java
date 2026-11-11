@@ -24,7 +24,8 @@ import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Frozen pattern contracts captured on the owning server thread; revision reads stay lock-free for the planner. */
-public final class CraftingServiceView implements ICraftingService, ECOCraftingProviderRevision, ECOCraftingOutputRouter {
+public final class CraftingServiceView
+    implements ICraftingService, ECOCraftingProviderRevision, ECOCraftingOutputRouter {
 
     private static final Logger LOGGER = LogManager.getLogger("neoecoae.crafting");
     private static final Set<String> REJECTED_TYPES = ConcurrentHashMap.newKeySet();
@@ -162,14 +163,16 @@ public final class CraftingServiceView implements ICraftingService, ECOCraftingP
     public long neoecoae$insertIntoCpuForJob(java.util.UUID jobId, AEKey key, long amount,
         appeng.api.config.Actionable mode) {
         return crafting instanceof ECOCraftingOutputRouter router
-            ? router.neoecoae$insertIntoCpuForJob(jobId, key, amount, mode) : 0L;
+            ? router.neoecoae$insertIntoCpuForJob(jobId, key, amount, mode)
+            : 0L;
     }
 
     @Override
     public java.math.BigInteger neoecoae$insertExactIntoCpuForJob(java.util.UUID jobId, AEKey key,
         java.math.BigInteger amount, appeng.api.config.Actionable mode) {
         return crafting instanceof ECOCraftingOutputRouter router
-            ? router.neoecoae$insertExactIntoCpuForJob(jobId, key, amount, mode) : java.math.BigInteger.ZERO;
+            ? router.neoecoae$insertExactIntoCpuForJob(jobId, key, amount, mode)
+            : java.math.BigInteger.ZERO;
     }
 
     @Override
