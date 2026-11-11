@@ -180,7 +180,17 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         // job's materials (native mergeJob restores its backup inventory for the same reason).
         var staged = new ListCraftingInventory(ignored -> {});
         if (cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper
-            .tryExtractInitialItems(plan, grid, staged, src) != null) return null;
+            .tryExtractInitialItems(plan, grid, staged, src) != null) {
+            // Whatever the rollback could not put back into the network stays in this CPU's custody.
+            boolean kept = false;
+            for (var entry : staged.list) {
+                if (entry.getLongValue() <= 0) continue;
+                inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+                kept = true;
+            }
+            if (kept) markCpuDirty();
+            return null;
+        }
         if (!cpu.getCluster()
             .replaceMergedPlan(cpu, merged)) {
             var storage = grid.getStorageService()

@@ -32,7 +32,65 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 public final class NativeECOCpu extends CraftingCPUCluster
     implements cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter {
 
+    /**
+     * Offline notifications of identities that were already released. AE2 keeps every registered map until the
+     * server stops, so a per-job identity hands its leftovers to this single map instead of staying registered.
+     */
+    private static final Map<String, java.util.List<CraftNotification>> RELEASED_NOTIFICATIONS = new java.util.HashMap<>();
+    private static boolean releasedNotificationsRegistered;
+
     private final NativeECOCpuRuntime runtime;
+    private boolean released;
+
+    /**
+     * AE2 unregisters with {@code List.remove(map)}, i.e. by {@code Map.equals}: an empty map would evict whichever
+     * empty map was registered first, possibly a native CPU's. A unique key makes the removal hit exactly this map.
+     */
+    private static void unregisterNotifications(Map<String, java.util.List<CraftNotification>> map) {
+        String marker = "\u0000neoecoae:" + UUID.randomUUID();
+        map.put(marker, Collections.emptyList());
+        try {
+            appeng.hooks.CraftingNotificationManager.unregister(map);
+        } finally {
+            map.remove(marker);
+        }
+    }
+
+    /** AE2 drops every registered map when the server stops; forget ours with it. */
+    public static void serverStopped() {
+        RELEASED_NOTIFICATIONS.clear();
+        releasedNotificationsRegistered = false;
+    }
+
+    /**
+     * Ends this identity's registration with AE2's login notifier. Notifications still waiting for an offline player
+     * stay deliverable through the shared map. Safe to call more than once.
+     */
+    public void release() {
+        if (!released) {
+            released = true;
+            unregisterNotifications(unreadNotifications);
+        }
+        handOverNotifications();
+    }
+
+    /** The notifications are persisted elsewhere (parked CPU data) and must not be delivered from this identity. */
+    public void releaseWithoutNotifications() {
+        unreadNotifications.clear();
+        release();
+    }
+
+    private void handOverNotifications() {
+        if (unreadNotifications.isEmpty()) return;
+        for (var entry : unreadNotifications.entrySet())
+            RELEASED_NOTIFICATIONS.computeIfAbsent(entry.getKey(), ignored -> new java.util.ArrayList<>())
+                .addAll(entry.getValue());
+        unreadNotifications.clear();
+        if (!releasedNotificationsRegistered) {
+            appeng.hooks.CraftingNotificationManager.register(RELEASED_NOTIFICATIONS);
+            releasedNotificationsRegistered = true;
+        }
+    }
 
     public NativeECOCpu(NativeECOCpuRuntime runtime) {
         super(new WorldCoord(0, 0, 0), new WorldCoord(0, 0, 0));
@@ -95,6 +153,8 @@ public final class NativeECOCpu extends CraftingCPUCluster
             craftCompleteListeners = initializeDefaultOnCompleteListener();
             craftCancelListeners.clear();
             craftUpdateListeners.clear();
+            // A released identity is no longer registered; a notification queued just now must still be delivered.
+            if (released) handOverNotifications();
             markDirty();
         }
     }
@@ -385,6 +445,8 @@ public final class NativeECOCpu extends CraftingCPUCluster
 
         private NativeJobPlan(net.minecraft.world.World world) {
             super(new WorldCoord(0, 0, 0), new WorldCoord(0, 0, 0));
+            // A plan collector never completes a job; do not leave its map with AE2's login notifier.
+            unregisterNotifications(unreadNotifications);
             this.world = world;
         }
 

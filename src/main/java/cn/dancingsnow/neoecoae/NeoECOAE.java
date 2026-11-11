@@ -69,6 +69,7 @@ public class NeoECOAE {
     public void stopped(cpw.mods.fml.common.event.FMLServerStoppedEvent event) {
         cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.invalidate();
         cn.dancingsnow.neoecoae.platform.forge.PlanningLifecycle.stopped();
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu.serverStopped();
         cn.dancingsnow.neoecoae.platform.forge.StorageLifecycle.stopped();
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.stopped();
     }

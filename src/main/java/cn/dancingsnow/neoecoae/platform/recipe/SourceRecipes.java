@@ -202,10 +202,8 @@ public final class SourceRecipes {
                 return;
             }
             case "minecraft:blasting": {
-                BlastingRecipes.install(
-                    cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation.parse("neoecoae:" + id),
-                    definition);
-                STATUS.put(id, "installed:blasting_directory");
+                // 1.7.10 has no blast furnace; every source blasting recipe ships a "_smelting" twin installed above.
+                STATUS.put(id, "excluded:no_blast_furnace");
                 return;
             }
             case "ae2:transform": {

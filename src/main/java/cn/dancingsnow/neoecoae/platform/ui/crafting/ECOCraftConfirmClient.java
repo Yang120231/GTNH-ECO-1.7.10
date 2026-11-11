@@ -73,6 +73,8 @@ public final class ECOCraftConfirmClient {
 
     public static void clear() {
         latest = null;
+        // The plan graph belongs to the same confirmation window and holds its container and the decoded graph.
+        ECOCraftingGraphClient.clear();
     }
 
     @SubscribeEvent
@@ -82,19 +84,19 @@ public final class ECOCraftConfirmClient {
         Entry entry = latest;
         if (entry == null) return;
         if (mc.thePlayer == null) {
-            latest = null;
+            clear();
             return;
         }
         Container open = cn.dancingsnow.neoecoae.platform.ui.NativeUiAccess.clientContainer();
         if (entry.bound == null) {
             if (open instanceof ContainerCraftConfirm && open.windowId == entry.windowId) entry.bound = open;
             else if (++entry.unboundTicks > UNBOUND_TICKS) {
-                latest = null;
+                clear();
                 return;
             }
         } else if (open != entry.bound) {
             // The confirmation closed; window ids are reused, so the state must not outlive its container.
-            latest = null;
+            clear();
             return;
         }
         route(mc, entry);

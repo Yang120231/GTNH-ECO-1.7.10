@@ -231,8 +231,6 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
         BlockState newState = state;
         if (state.hasProperty(NativeMachineBlock.FORMED)) {
             newState = state.setValue(NativeMachineBlock.FORMED, formed);
-        } else if (state.hasProperty(NativeMachineBlock.FORMED)) {
-            newState = state.setValue(NativeMachineBlock.FORMED, formed);
         }
         if (newState != state) {
             level.setBlock(worldPosition, newState, 2);

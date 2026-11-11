@@ -195,7 +195,22 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
         // host (tile invalidation destroys the cluster and neighbors recalculate), keeping its running jobs.
         if (!world.isRemote && tile instanceof IAEMultiBlock && !isNetworkSwitch(tile))
             ((IAEMultiBlock<?>) tile).breakCluster();
+        if (!world.isRemote && dropsContentsOnBreak()
+            && tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) {
+            java.util.ArrayList<ItemStack> drops = new java.util.ArrayList<>();
+            ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile)
+                .addAdditionalDrops(WorldView.of(world), new BlockPos(x, y, z), drops);
+            appeng.util.Platform.spawnDrops(world, x, y, z, drops);
+        }
         super.breakBlock(world, x, y, z, block, metadata);
+    }
+
+    /**
+     * Whether {@link #breakBlock} spawns the tile's owned items (installed cells, components). Blocks that already
+     * hand them out through {@code getDrops} while the tile is still alive return false.
+     */
+    protected boolean dropsContentsOnBreak() {
+        return true;
     }
 
     @Override

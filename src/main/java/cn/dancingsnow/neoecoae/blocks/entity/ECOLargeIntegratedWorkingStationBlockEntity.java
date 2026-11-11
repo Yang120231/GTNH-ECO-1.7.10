@@ -189,6 +189,14 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     public void setFormed(boolean value) {
         if (formed == value) return;
         formed = value;
+        if (value && level != null && !level.isClientSide)
+            cn.dancingsnow.neoecoae.achievement.ECOAchievements.awardNearest(
+                level.nativeWorld(),
+                worldPosition.getX(),
+                worldPosition.getY(),
+                worldPosition.getZ(),
+                16,
+                "large_integrated_formed");
         PendingBatch first = pendingBatches.peekFirst();
         setProcessingTime(value && first != null ? first.progress : 0);
         super.onChangeTank();

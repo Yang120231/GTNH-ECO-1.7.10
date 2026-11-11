@@ -98,6 +98,8 @@ public class ECOComputationThreadingCoreBlockEntity extends
                     CompoundTag tag = new CompoundTag();
                     cpu.writeToNBT(tag, registries);
                     deferredInit[i] = tag;
+                    // The parked data now owns the offline notifications; the restored CPU delivers them.
+                    discardNativeIdentity(cpu);
                     previous.deactivate(cpu.getPlan());
                     cpus[i] = null;
                 }
@@ -123,11 +125,13 @@ public class ECOComputationThreadingCoreBlockEntity extends
                             deferredInit[i] = null;
                             cluster.pickup(cpu.getPlan(), cpu);
                         } else {
+                            discardNativeIdentity(cpu);
                             LOGGER.error(
                                 "Deferred ECO crafting CPU at {} has no valid plan; keeping it quarantined for retry",
                                 worldPosition);
                         }
                     } catch (RuntimeException e) {
+                        discardNativeIdentity(cpu);
                         LOGGER.error(
                             "Unable to restore deferred ECO crafting CPU at {}; keeping its data for retry",
                             worldPosition,
@@ -289,6 +293,15 @@ public class ECOComputationThreadingCoreBlockEntity extends
                 LOGGER.warn("Non-item CPU custody is preserved by the portable core snapshot at {}", pos);
             }
         }
+    }
+
+    /**
+     * Ends the AE2 identity of a CPU whose state stays in {@link #deferredInit}: its offline notifications are
+     * persisted there, so the identity must neither stay registered with AE2 nor deliver them a second time.
+     */
+    private static void discardNativeIdentity(ECOCraftingCPU cpu) {
+        if (cpu.boundNativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+            bridge.releaseWithoutNotifications();
     }
 
     public void deactivate(ECOCraftingCPU cpu) {

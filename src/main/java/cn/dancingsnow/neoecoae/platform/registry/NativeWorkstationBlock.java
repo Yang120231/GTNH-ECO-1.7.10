@@ -47,6 +47,12 @@ public final class NativeWorkstationBlock extends NativeMachineBlock {
         return drops;
     }
 
+    /** The carrier item from {@link #getDrops} already holds the whole tile, inventories included. */
+    @Override
+    protected boolean dropsContentsOnBreak() {
+        return false;
+    }
+
     @Override
     public void onBlockPlacedBy(World world, int x, int y, int z, EntityLivingBase entity, ItemStack stack) {
         super.onBlockPlacedBy(world, x, y, z, entity, stack);

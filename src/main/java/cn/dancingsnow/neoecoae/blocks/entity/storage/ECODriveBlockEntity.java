@@ -3,6 +3,8 @@ package cn.dancingsnow.neoecoae.blocks.entity.storage;
 import java.util.List;
 import java.util.UUID;
 
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
 
 import org.jetbrains.annotations.Nullable;
@@ -39,7 +41,8 @@ import cn.dancingsnow.neoecoae.util.ICellHost;
 
 public class ECODriveBlockEntity extends
     cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity<cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster, ECODriveBlockEntity>
-    implements ManagedHolder, IStorageProvider, ICellHost, ISaveProvider, appeng.api.storage.ICellContainer {
+    implements ManagedHolder, IStorageProvider, ICellHost, ISaveProvider, appeng.api.storage.ICellContainer,
+    ISidedInventory {
 
     private static final String RESTORE_RECEIPTS_TAG = "neoecoae_restore_receipts";
 
@@ -110,7 +113,6 @@ public class ECODriveBlockEntity extends
             }
         }
         updateState();
-        this.cellStack = cellStack;
         setChanged();
         if (controller != null) controller.notifyStorageConfigurationChanged();
     }
@@ -455,6 +457,111 @@ public class ECODriveBlockEntity extends
         if (custom.isEmpty()) CellComponents.clearCustomData(cellStack);
         else CellComponents.writeCustomData(cellStack, CustomData.of(custom));
         setChanged();
+    }
+
+    // --- Automation: the source exposes HANDLER as the block's item capability; 1.7.10 pipes and hoppers use
+    // ISidedInventory. One slot holding the installed cell, same validation and locks as manual interaction.
+
+    private static final int[] CELL_SLOT = { 0 };
+
+    @Override
+    public int getSizeInventory() {
+        return 1;
+    }
+
+    @Override
+    public ItemStack getStackInSlot(int slot) {
+        return slot == 0 ? getCellStack() : null;
+    }
+
+    @Override
+    public ItemStack decrStackSize(int slot, int amount) {
+        return slot == 0 ? HANDLER.extractItem(0, amount, false) : null;
+    }
+
+    @Override
+    public ItemStack getStackInSlotOnClosing(int slot) {
+        return null;
+    }
+
+    /** IInventory cannot refuse a write, so anything the drive does not take is ejected instead of voided. */
+    @Override
+    public void setInventorySlotContents(int slot, ItemStack stack) {
+        if (level == null || level.isClientSide()) return;
+        if (stack != null && stack.stackSize <= 0) stack = null;
+        if (slot != 0) {
+            eject(stack);
+            return;
+        }
+        if (stack == cellStack) {
+            setChanged();
+            return;
+        }
+        if (cellStack != null) {
+            // Overwrite or removal: the caller already holds the previous cell.
+            setCellStack(null);
+            if (cellStack != null) {
+                eject(stack);
+                return;
+            }
+        }
+        if (stack == null) return;
+        ItemStack rest = HANDLER.insertItem(0, stack, false);
+        if (rest != null && rest.stackSize > 0) eject(rest);
+    }
+
+    private void eject(@Nullable ItemStack stack) {
+        if (stack == null || stack.stackSize <= 0 || worldObj == null || worldObj.isRemote) return;
+        java.util.List<ItemStack> drops = new java.util.ArrayList<>();
+        drops.add(stack.copy());
+        appeng.util.Platform.spawnDrops(worldObj, xCoord, yCoord, zCoord, drops);
+    }
+
+    @Override
+    public String getInventoryName() {
+        return "block.neoecoae.eco_drive.name";
+    }
+
+    @Override
+    public boolean hasCustomInventoryName() {
+        return false;
+    }
+
+    @Override
+    public int getInventoryStackLimit() {
+        return 1;
+    }
+
+    @Override
+    public boolean isUseableByPlayer(EntityPlayer player) {
+        return worldObj != null && worldObj.getTileEntity(xCoord, yCoord, zCoord) == this
+            && player.getDistanceSq(xCoord + .5, yCoord + .5, zCoord + .5) <= 64;
+    }
+
+    @Override
+    public void openInventory() {}
+
+    @Override
+    public void closeInventory() {}
+
+    @Override
+    public boolean isItemValidForSlot(int slot, ItemStack stack) {
+        return slot == 0 && cellStack == null && stack != null && isItemValid(stack);
+    }
+
+    @Override
+    public int[] getAccessibleSlotsFromSide(int side) {
+        return CELL_SLOT.clone();
+    }
+
+    @Override
+    public boolean canInsertItem(int slot, ItemStack stack, int side) {
+        return isItemValidForSlot(slot, stack);
+    }
+
+    @Override
+    public boolean canExtractItem(int slot, ItemStack stack, int side) {
+        return slot == 0 && cellStack != null && canExtractCell();
     }
 
     public FieldManagedStorage getSyncStorage() {

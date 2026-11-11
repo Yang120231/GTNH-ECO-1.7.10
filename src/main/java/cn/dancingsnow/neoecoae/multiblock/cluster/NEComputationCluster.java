@@ -140,6 +140,14 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     public void destroy() {
         NELogicalNetworkManager.detachBeforeDestroy(this);
         super.destroy();
+        // Running CPUs were parked by the threading cores above; whatever identity is left dies with this cluster.
+        for (var nativeCpu : nativeCpus.values()) releaseNativeCPU(nativeCpu);
+        nativeCpus.clear();
+    }
+
+    private static void releaseNativeCPU(@Nullable appeng.api.networking.crafting.ICraftingCPU nativeCpu) {
+        if (nativeCpu instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+            bridge.release();
     }
 
     @Override
@@ -432,7 +440,19 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
                 }
                 return CraftingSubmitResult.CPU_TOO_SMALL;
             }
-            threadingCore.deactivate(cpu);
+            if (cpu.hasRemainingItems()) {
+                // The failed admission could not roll everything back into the network. Keep the CPU as a draining
+                // one (like a cancelled CPU with leftovers) so it keeps returning those items instead of losing them.
+                cpu.getLogic()
+                    .markForDeletion();
+                putActiveCpu(job, cpu);
+                cpu.markDirty();
+                this.recalculateRemainingStorage();
+                this.updateGridForChangedCpu();
+            } else {
+                threadingCore.deactivate(cpu);
+                releaseNativeCPU(nativeCpus.remove(cpu));
+            }
             // Every local CPU sees the same grid inventory. Retrying a confirmed material deficit only repeats the
             // complete extraction/rollback transaction and can multiply external-inventory persistence work.
             if (result.errorCode() == CraftingSubmitErrorCode.MISSING_INGREDIENT) return result;
@@ -575,8 +595,12 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     private boolean releaseOrphanedNativeCPUs() {
         int expected = activeCpus.size() + (fakeCpu != null && nativeCpus.containsKey(fakeCpu) ? 1 : 0);
         if (nativeCpus.size() <= expected) return false;
-        return nativeCpus.keySet()
-            .removeIf(cpu -> cpu != fakeCpu && !activeCpus.containsValue(cpu));
+        return nativeCpus.entrySet()
+            .removeIf(entry -> {
+                if (entry.getKey() == fakeCpu || activeCpus.containsValue(entry.getKey())) return false;
+                releaseNativeCPU(entry.getValue());
+                return true;
+            });
     }
 
     /**
@@ -599,7 +623,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
 
     public void deactivate(@Nullable ICraftingPlan plan) {
         ECOCraftingCPU cpu = removeActiveCpu(plan);
-        if (cpu != null) nativeCpus.remove(cpu);
+        if (cpu != null) releaseNativeCPU(nativeCpus.remove(cpu));
         this.bigOrderPlans.remove(plan);
         this.recalculateRemainingStorage();
         this.updateGridForChangedCpu();
@@ -636,7 +660,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
             }
             removeActiveCpu(plan);
             this.bigOrderPlans.remove(plan);
-            this.nativeCpus.remove(cpu);
+            releaseNativeCPU(this.nativeCpus.remove(cpu));
         }
         if (recalculate) {
             this.recalculateRemainingStorage();

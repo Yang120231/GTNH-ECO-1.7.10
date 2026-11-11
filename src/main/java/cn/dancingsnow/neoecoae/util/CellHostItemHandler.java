@@ -35,6 +35,10 @@ public class CellHostItemHandler implements IItemHandler {
             }
             if (!simulate) {
                 host.setCellStack(cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copyWithCount(stack, 1));
+                // setCellStack may still refuse (extraction lock, controller veto); the caller keeps the item then.
+                if (host.getCellStack() == null) {
+                    return stack;
+                }
             }
             ItemStack copy = stack.copy();
             cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.shrink(copy, 1);
@@ -56,6 +60,9 @@ public class CellHostItemHandler implements IItemHandler {
         ItemStack copy = cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copyWithCount(host.getCellStack(), 1);
         if (!simulate) {
             host.setCellStack(null);
+            if (host.getCellStack() != null) {
+                return null;
+            }
         }
         return copy;
     }
