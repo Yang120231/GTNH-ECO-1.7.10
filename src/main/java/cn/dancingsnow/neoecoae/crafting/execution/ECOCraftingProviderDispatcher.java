@@ -63,9 +63,8 @@ final class ECOCraftingProviderDispatcher {
     }
 
     /**
-     * Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384). GT's ME
-     * crafting input hatches are exempt: they are never busy and store every push whole, so they always receive
-     * everything.
+     * Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384).
+     * Every native medium follows the same limit; successful probes never grant a permanent capacity exemption.
      */
     private long dispatchLimit() {
         if (owner == null || owner.cpu == null) return Long.MAX_VALUE;
@@ -82,7 +81,7 @@ final class ECOCraftingProviderDispatcher {
         ECOCraftingDispatchBudget budget, IEnergyGrid energyService, ECODispatchStallDiagnostics diagnostics,
         Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
         long cappedLimit = dispatchLimit();
-        var cappedRequest = originalRequest.allowedCrafts() <= cappedLimit ? originalRequest
+        var request = originalRequest.allowedCrafts() <= cappedLimit ? originalRequest
             : new ECOCraftingDispatchRequest(
                 originalRequest.job(),
                 originalRequest.candidate(),
@@ -96,21 +95,22 @@ final class ECOCraftingProviderDispatcher {
         double singlePower = CraftingCpuHelper.calculatePatternPower(originalRequest.inputs());
 
         for (var provider : providers) {
-            boolean uncapped = isUnboundedHatch(provider);
-            long limit = uncapped ? Long.MAX_VALUE : cappedLimit;
-            var request = uncapped ? originalRequest : cappedRequest;
-
             boolean blocking = NativeProviderAdapters.isEnabled(provider);
             if (!blocking && request.job().exactOrder) {
-                var exact = limit == Long.MAX_VALUE
+                var exact = cappedLimit == Long.MAX_VALUE
                     ? fastPath.tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt)
-                    : fastPath
-                        .tryExactDispatch(request, provider, singlePower, energyService, markProviderAttempt, limit);
+                    : fastPath.tryExactDispatch(
+                        request,
+                        provider,
+                        singlePower,
+                        energyService,
+                        markProviderAttempt,
+                        cappedLimit);
                 if (exact != null) return Result
                     .accepted(cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(exact), true);
                 if (request.job().suspended) return Result.none();
             }
-            // Blocking interfaces join the scaled lane too (smart doubling); eligibility excludes crafting locks.
+            // Blocking media join the scaled lane too; eligibility still excludes known crafting locks.
             boolean scaledProvider = processing.supportsScaledDispatchCached(request, provider);
             if (scaledProvider) {
                 if (processing.isScaledAttemptBudgetExhausted(request.pattern())) {
@@ -312,12 +312,6 @@ final class ECOCraftingProviderDispatcher {
         }
         diagnostics.progress(TickClock.currentTick());
         return Result.accepted(accepted, false);
-    }
-
-    private static boolean isUnboundedHatch(ICraftingProvider provider) {
-        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
-            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
-                .isUnboundedPatternHatch();
     }
 
     private static void failAmbiguousDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,

@@ -17,19 +17,23 @@ public final class ProgrammableHatchCrafting {
 
         @Override
         protected Boolean computeValue(Class<?> type) {
-            try {
-                // Subclasses with different acceptance/accounting semantics need their own integration.
-                return HATCH.equals(
-                    type.getMethod("pushPattern", ICraftingPatternDetails.class, InventoryCrafting.class)
-                        .getDeclaringClass()
-                        .getName())
-                    && HATCH.equals(
-                        type.getMethod("isBusy")
+            for (Class<?> parent = type; parent != null; parent = parent.getSuperclass()) {
+                if (!HATCH.equals(parent.getName())) continue;
+                try {
+                    // Keep the existing exclusion for programmable variants with special per-push semantics.
+                    return HATCH.equals(
+                        type.getMethod("pushPattern", ICraftingPatternDetails.class, InventoryCrafting.class)
                             .getDeclaringClass()
-                            .getName());
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
-                return false;
+                            .getName())
+                        && HATCH.equals(
+                            type.getMethod("isBusy")
+                                .getDeclaringClass()
+                                .getName());
+                } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+                    return false;
+                }
             }
+            return true;
         }
     };
     private static final ClassValue<MultiplierFields> MULTIPLIERS = new ClassValue<>() {
@@ -55,19 +59,16 @@ public final class ProgrammableHatchCrafting {
         return SCALED_HATCHES.get(medium.getClass());
     }
 
-    /** Recognizes only positive linear multipliers around an explicitly supported processing contract. */
-    public static boolean isMultipliedProcessingPattern(ICraftingPatternDetails pattern,
-        Predicate<ICraftingPatternDetails> acceptsDelegate) {
-        if (!MULTIPLIER.equals(
-            pattern.getClass()
-                .getName()))
-            return false;
+    /** Applies ordinary processing exclusions to the pattern and every known multiplier delegate. */
+    public static boolean supportsScaledProcessingPattern(ICraftingPatternDetails pattern,
+        Predicate<ICraftingPatternDetails> acceptsPattern) {
         try {
             for (int depth = 0; depth < 128; depth++) {
+                if (!acceptsPattern.test(pattern)) return false;
                 if (!MULTIPLIER.equals(
                     pattern.getClass()
                         .getName()))
-                    return acceptsDelegate.test(pattern);
+                    return true;
                 MultiplierFields fields = MULTIPLIERS.get(pattern.getClass());
                 if (fields.pattern() == null || fields.multiplier()
                     .getInt(pattern) <= 0) return false;

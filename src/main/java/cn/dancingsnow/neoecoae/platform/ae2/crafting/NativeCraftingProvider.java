@@ -43,8 +43,6 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     public NativeCraftingProvider(ICraftingMedium medium, List<? extends IPatternDetails> patterns) {
         this.medium = java.util.Objects.requireNonNull(medium);
         this.patterns = Collections.unmodifiableList(new ArrayList<>(patterns));
-        this.unboundedPatternHatch = UNBOUNDED_HATCH_TYPES.get(medium.getClass());
-        this.programmablePatternHatch = ProgrammableHatchCrafting.supportsScaledProcessing(medium);
     }
 
     public ICraftingMedium nativeMedium() {
@@ -136,15 +134,13 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     }
 
     /**
-     * GT's ME crafting input hatches, ordinary Programmable Hatches pattern hatches, and AE2 interfaces of every host
-     * (block, part, AE2FC dual interface, P2P interface tunnel). An interface with any crafting-lock mode keeps one
-     * copy per push: pulse/redstone locks meter
-     * pushes on purpose, and LOCK_UNTIL_RESULT unlocks on one copy's outputs.
+     * Native processing media participate in adaptive probing by default. Known programmable variants and
+     * crafting-lock modes retain their single-copy semantics: pulse/redstone locks meter pushes, and
+     * LOCK_UNTIL_RESULT unlocks on one copy's outputs.
      */
     public boolean supportsScaledProcessing() {
-        if (isUnboundedPatternHatch() || programmablePatternHatch) return true;
-        return medium instanceof appeng.helpers.DualityInterface
-            && !hasCraftingLock((appeng.helpers.DualityInterface) medium);
+        return ProgrammableHatchCrafting.supportsScaledProcessing(medium)
+            && (!(medium instanceof DualityInterface) || !hasCraftingLock((DualityInterface) medium));
     }
 
     static boolean hasCraftingLock(appeng.helpers.DualityInterface medium) {
@@ -159,11 +155,10 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     }
 
     /**
-     * Smart doubling for blocking interfaces: AE2's own pushPattern still decides whether the target counts as empty
-     * (advanced blocking card, GT ignored items, smart-blocking hash), ECO only sizes the single push.
+     * The medium's own pushPattern decides whether the target is empty; ECO only sizes the single push.
      */
     public boolean allowsScaledWhileBlocking() {
-        return medium instanceof appeng.helpers.DualityInterface && supportsScaledProcessing();
+        return supportsScaledProcessing();
     }
 
     /** Plain blocking accepts one push per empty target; smart blocking keeps accepting the same pattern. */
@@ -180,39 +175,14 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return reason == appeng.util.ScheduledReason.BLOCKING_MODE || reason == appeng.util.ScheduledReason.LOCK_MODE;
     }
 
-    /**
-     * GT's ME crafting input bus/buffer (and subclasses): never busy, and every push is stored whole in the
-     * pattern's internal slot, so one push may carry any number of copies.
-     */
-    public boolean isUnboundedPatternHatch() {
-        return unboundedPatternHatch;
-    }
-
     /** Mirrors GTNH CraftingCPUCluster: only a DualityInterface medium carrying the fake crafting card qualifies. */
     public boolean isFakeCraftingMode() {
         return medium instanceof appeng.helpers.DualityInterface
             && ((appeng.helpers.DualityInterface) medium).isFakeCraftingMode();
     }
 
-    /**
-     * GT's hatch stores any long amount by splitting it into Integer.MAX_VALUE-sized stacks (GT 5.09.54.264
-     * {@code PatternSlot.insertItem/insertFluid}), so its real bound is the saved stack list, not a copy count.
-     * One push may add at most this many split stacks per resource.
-     */
-    public static final long UNBOUNDED_HATCH_STACKS_PER_PUSH = 16L;
-
-    /** Copies one hatch push may carry for these one-copy inputs; never below one copy. */
-    public static long unboundedHatchCopyLimit(KeyCounter[] perCraftInputs) {
-        return copyLimit(perCraftInputs, UNBOUNDED_HATCH_STACKS_PER_PUSH * Integer.MAX_VALUE);
-    }
-
-    /** Older programmable hatches read int-sized item/fluid views; never let a scaled push truncate them. */
+    /** Unknown media may read int-sized item/fluid views, so bound aggregate amounts before probing. */
     public long scaledProcessingCopyLimit(KeyCounter[] perCraftInputs) {
-        if (unboundedPatternHatch) return unboundedHatchCopyLimit(perCraftInputs);
-        return programmablePatternHatch ? copyLimit(perCraftInputs, Integer.MAX_VALUE) : Long.MAX_VALUE;
-    }
-
-    private static long copyLimit(KeyCounter[] perCraftInputs, long perResource) {
         var totals = new java.util.HashMap<AEKey, Long>();
         try {
             for (var counter : perCraftInputs) for (var entry : counter) {
@@ -222,28 +192,15 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             return 1L;
         }
         long limit = Long.MAX_VALUE;
-        for (long amount : totals.values()) limit = Math.min(limit, perResource / amount);
+        for (long amount : totals.values()) limit = Math.min(limit, Integer.MAX_VALUE / amount);
         return Math.max(1L, limit);
     }
 
+    /** Successful native pushes drive the probe; AE2 additionally exposes unfinished outgoing transfers. */
     public boolean isScaledProcessingFullyInserted() {
-        if (unboundedPatternHatch || programmablePatternHatch) return true;
-        return medium instanceof appeng.helpers.DualityInterface
-            && NativeProcessingAccess.isSendBufferEmpty((appeng.helpers.DualityInterface) medium);
+        return !(medium instanceof DualityInterface)
+            || NativeProcessingAccess.isSendBufferEmpty((DualityInterface) medium);
     }
-
-    private static final String GT_CRAFTING_INPUT_HATCH = "gregtech.common.tileentities.machines.MTEHatchCraftingInputME";
-    private static final ClassValue<Boolean> UNBOUNDED_HATCH_TYPES = new ClassValue<>() {
-
-        @Override
-        protected Boolean computeValue(Class<?> type) {
-            for (Class<?> c = type; c != null; c = c.getSuperclass())
-                if (GT_CRAFTING_INPUT_HATCH.equals(c.getName())) return true;
-            return false;
-        }
-    };
-    private final boolean unboundedPatternHatch;
-    private final boolean programmablePatternHatch;
 
     @Override
     public boolean pushPattern(IPatternDetails pattern, KeyCounter[] inputHolder) {

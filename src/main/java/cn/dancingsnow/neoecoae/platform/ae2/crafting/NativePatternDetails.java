@@ -13,13 +13,10 @@ import java.util.Set;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
-import com.glodblock.github.util.FluidPatternDetails;
-
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.helpers.PatternHelper;
-import appeng.helpers.UltimatePatternHelper;
 import appeng.items.misc.ItemTunnelPattern;
 import appeng.me.cache.CraftingGridCache;
 import appeng.util.TunnelPatternExpander;
@@ -53,8 +50,8 @@ public class NativePatternDetails implements IPatternDetails {
         IAEStack<?>[] nativeSparse, IAEStack<?>[] nativeInputs) {
         nativePattern = Objects.requireNonNull(pattern);
         // Keep the multiplied native details and their IO intact; only establish eligibility here.
-        linearProcessing = !pattern.isCraftable() && (isPlainProcessingPattern(pattern) || ProgrammableHatchCrafting
-            .isMultipliedProcessingPattern(pattern, NativePatternDetails::isPlainProcessingPattern));
+        linearProcessing = ProgrammableHatchCrafting
+            .supportsScaledProcessingPattern(pattern, NativePatternDetails::isPlainProcessingPattern);
         definition = AEItemKey.of(pattern.getPattern());
         if (nativeSparse == null) throw new IllegalArgumentException("Null native sparse inputs");
         boolean dropEmpty = mightHaveEmptyInputs(pattern);
@@ -196,11 +193,9 @@ public class NativePatternDetails implements IPatternDetails {
         return nativePattern;
     }
 
-    /** Native AE2/AE2FC processing formats expose fixed IO; subclasses may add special execution semantics. */
+    /** Processing IO is probed without a class whitelist; known per-push patterns remain single-copy. */
     private static boolean isPlainProcessingPattern(ICraftingPatternDetails pattern) {
-        Class<?> type = pattern.getClass();
-        if (pattern.isCraftable() || (type != PatternHelper.class && type != UltimatePatternHelper.class
-            && type != FluidPatternDetails.class)) return false;
+        if (pattern.isCraftable() || mightHaveEmptyInputs(pattern)) return false;
         // Programmable Hatches counts chance rolls per push rather than from the supplied material amount.
         ItemStack encoded = pattern.getPattern();
         return encoded != null && (!encoded.hasTagCompound() || !encoded.getTagCompound()
