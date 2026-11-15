@@ -44,6 +44,7 @@ public class CommonProxy {
     }
 
     public void init(FMLInitializationEvent event) {
+        cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.registerNativeTypes();
         cn.dancingsnow.neoecoae.crafting.execution.ECOProcessingMonitor.initialize();
         appeng.api.AEApi.instance()
             .registries()

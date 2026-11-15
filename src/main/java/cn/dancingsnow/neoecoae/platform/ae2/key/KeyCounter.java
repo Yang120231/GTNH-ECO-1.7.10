@@ -66,15 +66,15 @@ public final class KeyCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
         var matches = new java.util.ArrayList<Object2LongMap.Entry<AEKey>>();
         for (var entry : amounts.object2LongEntrySet()) if (entry.getKey()
             .getType() == key.getType()
-            && entry.getKey()
-                .getPrimaryKey() == key.getPrimaryKey())
-            matches
-                .add(
-                    frozen
-                        ? new it.unimi.dsi.fastutil.objects.AbstractObject2LongMap.BasicEntry<>(
-                            entry.getKey(),
-                            entry.getLongValue())
-                        : entry);
+            && (entry.getKey()
+                .getPrimaryKey() == key.getPrimaryKey() || entry.getKey()
+                    .equals(key)))
+            matches.add(
+                frozen
+                    ? new it.unimi.dsi.fastutil.objects.AbstractObject2LongMap.BasicEntry<>(
+                        entry.getKey(),
+                        entry.getLongValue())
+                    : entry);
         return matches;
     }
 
