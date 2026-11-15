@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.blocks.entity;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
@@ -43,6 +44,7 @@ import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
+import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.recipe.WorkstationRecipes;
 import cn.dancingsnow.neoecoae.platform.sync.DescSynced;
@@ -87,6 +89,8 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     private int processingTime;
     private final EnumSet<RelativeSide> allowOutputs = EnumSet.allOf(RelativeSide.class);
     private WorkstationRecipes.Match cachedTask;
+    private Map<ResourceLocation, IntegratedWorkingStationRecipe> cachedRecipes;
+    private Map<ResourceLocation, IntegratedWorkingStationRecipe> refreshedRecipes;
     private cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation taskId;
     private boolean dirty = true;
 
@@ -206,14 +210,29 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     }
 
     public IntegratedWorkingStationRecipe getTask() {
-        if (dirty) {
+        var recipes = WorkstationRecipes.getAll();
+        if (dirty || cachedRecipes != recipes) {
             var next = WorkstationRecipes.find(inputItems(), getInputTank().getFluid());
-            if (next == null || (taskId != null && !taskId.equals(next.id()))) processingTime = 0;
+            if (next == null || (taskId != null && !taskId.equals(next.id()))
+                || (cachedTask != null && cachedTask.recipe() != next.recipe())) processingTime = 0;
             cachedTask = next;
+            cachedRecipes = recipes;
             taskId = next == null ? null : next.id();
             dirty = false;
         }
         return cachedTask == null ? null : cachedTask.recipe();
+    }
+
+    /** Tile ticks still run while the AE2 processing service sleeps waiting for a matching recipe. */
+    @appeng.tile.TileEvent(appeng.tile.events.TileEventType.TICK)
+    public void refreshRecipes() {
+        if (worldObj == null || worldObj.isRemote) return;
+        var recipes = WorkstationRecipes.getAll();
+        if (refreshedRecipes != recipes) {
+            refreshedRecipes = recipes;
+            getTask();
+            changed();
+        }
     }
 
     protected List<ItemStack> inputItems() {

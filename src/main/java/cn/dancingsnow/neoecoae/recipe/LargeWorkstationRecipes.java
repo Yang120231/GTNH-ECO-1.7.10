@@ -31,7 +31,7 @@ public final class LargeWorkstationRecipes {
     private LargeWorkstationRecipes() {}
 
     public static synchronized List<LargeWorkstationRecipe> getAll(World level) {
-        var nativeRecipes = WorkstationRecipes.getAll();
+        var nativeRecipes = WorkstationRecipes.getDefaults();
         if (cachedCount != nativeRecipes.size()) {
             List<LargeWorkstationRecipe> result = new ArrayList<>();
             for (var entry : nativeRecipes.entrySet()) {

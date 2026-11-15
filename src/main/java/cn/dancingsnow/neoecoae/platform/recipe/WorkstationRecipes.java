@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
@@ -19,6 +20,9 @@ import cn.dancingsnow.neoecoae.recipe.IntegratedWorkingStationRecipe;
 public final class WorkstationRecipes {
 
     private static final Map<ResourceLocation, IntegratedWorkingStationRecipe> RECIPES = new LinkedHashMap<>();
+    private static final Map<ResourceLocation, IntegratedWorkingStationRecipe> DEFAULT_RECIPES = Collections
+        .unmodifiableMap(RECIPES);
+    private static volatile Map<ResourceLocation, IntegratedWorkingStationRecipe> activeRecipes = DEFAULT_RECIPES;
     private static final Map<ResourceLocation, CoolingRecipe> COOLING = new LinkedHashMap<>();
 
     private WorkstationRecipes() {}
@@ -87,16 +91,47 @@ public final class WorkstationRecipes {
     }
 
     public static Map<ResourceLocation, IntegratedWorkingStationRecipe> getAll() {
-        return Collections.unmodifiableMap(RECIPES);
+        return activeRecipes;
+    }
+
+    /** The large workstation inherits built-ins, independently of single-block script edits. */
+    public static Map<ResourceLocation, IntegratedWorkingStationRecipe> getDefaults() {
+        return DEFAULT_RECIPES;
+    }
+
+    public static synchronized Runnable addScriptRecipe(ResourceLocation id, IntegratedWorkingStationRecipe recipe) {
+        if (activeRecipes.containsKey(id))
+            throw new IllegalArgumentException("Duplicate integrated workstation recipe " + id);
+        Map<ResourceLocation, IntegratedWorkingStationRecipe> next = new LinkedHashMap<>(activeRecipes);
+        next.put(id, recipe);
+        return replaceScriptRecipes(next);
+    }
+
+    public static synchronized Runnable removeScriptRecipes(
+        BiPredicate<ResourceLocation, IntegratedWorkingStationRecipe> filter) {
+        Map<ResourceLocation, IntegratedWorkingStationRecipe> next = new LinkedHashMap<>(activeRecipes);
+        next.entrySet()
+            .removeIf(entry -> filter.test(entry.getKey(), entry.getValue()));
+        return replaceScriptRecipes(next);
+    }
+
+    private static Runnable replaceScriptRecipes(Map<ResourceLocation, IntegratedWorkingStationRecipe> next) {
+        Map<ResourceLocation, IntegratedWorkingStationRecipe> before = activeRecipes;
+        activeRecipes = Collections.unmodifiableMap(next);
+        return () -> {
+            synchronized (WorkstationRecipes.class) {
+                activeRecipes = before;
+            }
+        };
     }
 
     public static IntegratedWorkingStationRecipe getById(ResourceLocation id) {
-        return RECIPES.get(id);
+        return getAll().get(id);
     }
 
     public static Match find(List<ItemStack> items, FluidStack fluid) {
         var input = new IntegratedWorkingStationRecipe.Input(items, fluid);
-        for (var entry : RECIPES.entrySet()) if (entry.getValue()
+        for (var entry : getAll().entrySet()) if (entry.getValue()
             .matches(input, null)) return new Match(entry.getKey(), entry.getValue());
         return null;
     }
