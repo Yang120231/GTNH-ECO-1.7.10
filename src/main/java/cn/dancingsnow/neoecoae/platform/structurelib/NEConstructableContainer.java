@@ -111,7 +111,7 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
     private static void rebuild(TileEntity host) {
         // Preview worlds (BlockRenderer6343) are neither remote nor a WorldServer; never form a multiblock there.
         if (!(host.getWorldObj() instanceof net.minecraft.world.WorldServer)) return;
-        if (host instanceof NEBlockEntity) ((NEBlockEntity<?, ?>) host).rebuildMultiblock();
+        if (host instanceof NEBlockEntity<?, ?>member) member.requestMultiblockCheck();
         else if (host instanceof ECOLargeIntegratedWorkingStationBlockEntity)
             ((ECOLargeIntegratedWorkingStationBlockEntity) host).rebuildMultiblock();
     }

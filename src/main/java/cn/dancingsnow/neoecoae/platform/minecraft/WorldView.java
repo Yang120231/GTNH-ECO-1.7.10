@@ -63,8 +63,16 @@ public class WorldView {
 
     public BlockState getBlockState(BlockPos pos) {
         if (!hasChunkAt(pos)) return BlockState.defaultState(net.minecraft.init.Blocks.air);
+        return getLoadedBlockState(pos, world.getTileEntity(pos.getX(), pos.getY(), pos.getZ()));
+    }
+
+    public BlockState getBlockState(BlockPos pos, TileEntity tile) {
+        return hasChunkAt(pos) ? getLoadedBlockState(pos, tile)
+            : BlockState.defaultState(net.minecraft.init.Blocks.air);
+    }
+
+    private BlockState getLoadedBlockState(BlockPos pos, TileEntity tile) {
         var block = world.getBlock(pos.getX(), pos.getY(), pos.getZ());
-        TileEntity tile = getBlockEntity(pos);
         if (tile instanceof NativeStateHolder) {
             BlockState state = ((NativeStateHolder) tile).nativeBlockState();
             if (state != null && state.is(block)) return state;

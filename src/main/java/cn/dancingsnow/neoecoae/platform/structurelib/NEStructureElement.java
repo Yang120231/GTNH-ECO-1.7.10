@@ -18,14 +18,24 @@ import com.gtnewhorizon.structurelib.structure.IStructureElement;
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts;
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockRequirement;
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockRequirements;
+import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationCoolingControllerBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationNetworkSwitchBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationParallelCoreBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.network.NENetworkSwitchUtil;
 import cn.dancingsnow.neoecoae.multiblock.placement.WorldPlannedBlock;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockStateProperties;
 import cn.dancingsnow.neoecoae.platform.minecraft.NativeStateBlock;
 import cn.dancingsnow.neoecoae.platform.minecraft.NativeStateHolder;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.multiblock.NativePlacementPlatform;
+import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
 
 /**
  * One already-rotated structure slot. It places the exact target state itself, because ItemBlock placement
@@ -49,7 +59,7 @@ final class NEStructureElement implements IStructureElement<TileEntity> {
 
     @Override
     public boolean check(TileEntity host, World world, int x, int y, int z) {
-        return accepts(world, x, y, z);
+        return accepts(host, world, x, y, z);
     }
 
     @Override
@@ -61,7 +71,7 @@ final class NEStructureElement implements IStructureElement<TileEntity> {
     /** Creative builds and BlockRenderer6343 previews; an obstruction is left alone without aborting the walk. */
     @Override
     public boolean placeBlock(TileEntity host, World world, int x, int y, int z, ItemStack trigger) {
-        if (accepts(world, x, y, z)) return true;
+        if (accepts(host, world, x, y, z)) return true;
         Block existing = world.getBlock(x, y, z);
         if (!existing.isAir(world, x, y, z) && !existing.isReplaceable(world, x, y, z)) return true;
         world.setBlock(x, y, z, target.getBlock(), metadata(target), 3);
@@ -93,7 +103,7 @@ final class NEStructureElement implements IStructureElement<TileEntity> {
     @Override
     public PlaceResult survivalPlaceBlock(TileEntity host, World world, int x, int y, int z, ItemStack trigger,
         AutoPlaceEnvironment env) {
-        if (accepts(world, x, y, z)) return PlaceResult.SKIP;
+        if (accepts(host, world, x, y, z)) return PlaceResult.SKIP;
         WorldView level = WorldView.of(world);
         if (!(level instanceof ServerWorldView server) || !(env.getActor() instanceof EntityPlayerMP player))
             return PlaceResult.REJECT;
@@ -124,14 +134,63 @@ final class NEStructureElement implements IStructureElement<TileEntity> {
         return PlaceResult.ACCEPT;
     }
 
-    private boolean accepts(World world, int x, int y, int z) {
+    private boolean accepts(TileEntity host, World world, int x, int y, int z) {
         WorldView level = WorldView.of(world);
         BlockPos pos = new BlockPos(x, y, z);
-        BlockState actual = level.getBlockState(pos);
-        Boolean role = ECOMultiblockParts.acceptsExpected(ECOMultiblockParts.context(level, pos), target);
-        return ECOMultiblockRequirements.accepts(
-            new ECOMultiblockRequirements.Context(level, pos, target, actual),
-            role == null ? requirement.accepts(actual) : role);
+        var part = ECOMultiblockParts.context(level, pos);
+        BlockState actual = part.state();
+        boolean accepted;
+        if (host instanceof ECOComputationSystemBlockEntity controller) {
+            if (!(part.blockEntity() instanceof NEBlockEntity<?, ?>member)
+                || !(member.getCalculator() instanceof NEComputationClusterCalculator)
+                || member.isInvalid()) return false;
+            if (member instanceof ECOComputationNetworkSwitchBlockEntity) {
+                return NENetworkSwitchUtil.canUseNetworkSwitch(controller.getTier()) && requirement.alternatives()
+                    .stream()
+                    .anyMatch(state -> actual.is(state.getBlock()));
+            }
+            if (target.getBlock() instanceof NativeMachineBlock block && block.partRole() != null) {
+                accepted = acceptsComputationPart(controller, part, block.partRole());
+            } else {
+                accepted = requirement.accepts(actual);
+            }
+        } else {
+            Boolean role = ECOMultiblockParts.acceptsExpected(part, target);
+            accepted = role == null ? requirement.accepts(actual) : role;
+        }
+        return ECOMultiblockRequirements
+            .accepts(new ECOMultiblockRequirements.Context(level, pos, target, actual), accepted);
+    }
+
+    private boolean acceptsComputationPart(ECOComputationSystemBlockEntity controller, ECOMultiblockParts.Context part,
+        ECOMultiblockParts.Role role) {
+        Class<? extends TileEntity> tiered = switch (role) {
+            case COMPUTATION_THREADING_CORE -> ECOComputationThreadingCoreBlockEntity.class;
+            case COMPUTATION_PARALLEL_CORE -> ECOComputationParallelCoreBlockEntity.class;
+            case COOLING_CONTROLLER -> ECOComputationCoolingControllerBlockEntity.class;
+            default -> null;
+        };
+        if (tiered != null) return ECOMultiblockParts.matchesTiered(
+            part,
+            role,
+            controller.getTier(),
+            part.state()
+                .getBlock() instanceof NativeMachineBlock,
+            target.getValue(BlockStateProperties.HORIZONTAL_FACING),
+            tiered);
+        if (role == ECOMultiblockParts.Role.CASING || role == ECOMultiblockParts.Role.INTERFACE)
+            return ECOMultiblockParts.matches(
+                part,
+                role,
+                part.state()
+                    .is(target.getBlock())
+                    || requirement.alternatives()
+                        .stream()
+                        .anyMatch(
+                            state -> part.state()
+                                .is(state.getBlock())));
+        Boolean matchesRole = ECOMultiblockParts.acceptsExpected(part, target);
+        return matchesRole == null ? requirement.accepts(part.state()) : matchesRole;
     }
 
     private static int metadata(BlockState state) {

@@ -17,8 +17,8 @@ import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 
 public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
 
-    private final BlockPos boundMin;
-    private final BlockPos boundMax;
+    private BlockPos boundMin;
+    private BlockPos boundMax;
     protected final List<TileEntity> blockEntities = new ArrayList<>();
 
     private boolean destroyed = false;
@@ -28,6 +28,10 @@ public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
     }
 
     public NECluster(BlockPos boundMin, BlockPos boundMax) {
+        setBounds(boundMin, boundMax);
+    }
+
+    protected final void setBounds(BlockPos boundMin, BlockPos boundMax) {
         this.boundMin = boundMin;
         this.boundMax = boundMax;
     }

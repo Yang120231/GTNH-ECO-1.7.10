@@ -45,8 +45,8 @@ public final class NativeECOPlanning {
             if (ECOComputationSystemBlockEntity.class.isAssignableFrom(type))
                 for (IGridNode node : grid.getMachines(type)) {
                     var host = (ECOComputationSystemBlockEntity) node.getMachine();
-                    if (host.getCluster() != null && !host.getCluster()
-                        .isDestroyed() && node.isActive()) hosts.add(host);
+                    if (host.getCluster() != null && host.getCluster()
+                        .isActive()) hosts.add(host);
                 }
         hosts.sort(
             Comparator.comparingInt(

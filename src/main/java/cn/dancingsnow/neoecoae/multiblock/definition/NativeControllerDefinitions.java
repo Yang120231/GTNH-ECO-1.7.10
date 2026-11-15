@@ -6,6 +6,7 @@ import java.util.Map;
 import net.minecraft.block.Block;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMachineKind;
+import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockRequirement;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
@@ -69,13 +70,23 @@ public final class NativeControllerDefinitions {
                     : CraftingMachines.COMPUTATION_PARALLEL_CORE_L9;
         BlockState casing = state(crafting ? CraftingMachines.CRAFTING_CASING : CraftingMachines.COMPUTATION_CASING);
         MultiBlockDefinition.Builder builder = MultiBlockDefinition.builder(main);
-        for (int x = 0; x <= 2; x++) for (int y = 0; y <= 2; y++) for (int z = 0; z <= 1; z++) builder.setBlock(
-            new BlockPos(x, y, z),
-            x == 1 && y == 1 && z == 0 ? state(main)
-                : x == 2 && y == 1 && z == 1
-                    ? state(crafting ? CraftingMachines.CRAFTING_INTERFACE : CraftingMachines.COMPUTATION_INTERFACE)
-                    : crafting && x == 2 && y == 0 && z == 1 ? state(CraftingMachines.OUTPUT_HATCH)
-                        : crafting && x == 2 && y == 2 && z == 1 ? state(CraftingMachines.INPUT_HATCH) : casing);
+        for (int x = 0; x <= 2; x++) for (int y = 0; y <= 2; y++) for (int z = 0; z <= 1; z++) {
+            BlockPos position = new BlockPos(x, y, z);
+            if (!crafting && x == 2 && y == 1 && z == 0) {
+                builder.setRequirement(
+                    position,
+                    ECOMultiblockRequirement.of(
+                        casing,
+                        state(CraftingMachines.COMPUTATION_NETWORK_SWITCH),
+                        state(CraftingMachines.COMPUTATION_HIGH_ENERGY_NETWORK_SWITCH)));
+            } else builder.setBlock(
+                position,
+                x == 1 && y == 1 && z == 0 ? state(main)
+                    : x == 2 && y == 1 && z == 1
+                        ? state(crafting ? CraftingMachines.CRAFTING_INTERFACE : CraftingMachines.COMPUTATION_INTERFACE)
+                        : crafting && x == 2 && y == 0 && z == 1 ? state(CraftingMachines.OUTPUT_HATCH)
+                            : crafting && x == 2 && y == 2 && z == 1 ? state(CraftingMachines.INPUT_HATCH) : casing);
+        }
         builder.setBlockRepeatable(
             new BlockPos(-1, 1, 0),
             Direction.WEST,

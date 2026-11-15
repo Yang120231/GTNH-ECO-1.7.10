@@ -300,8 +300,11 @@ public class ECOComputationThreadingCoreBlockEntity extends
      * persisted there, so the identity must neither stay registered with AE2 nor deliver them a second time.
      */
     private static void discardNativeIdentity(ECOCraftingCPU cpu) {
-        if (cpu.boundNativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
+        if (cpu
+            .boundNativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge) {
+            if (bridge.getLastCraftingLink() instanceof appeng.crafting.CraftingLink link) link.setNexus(null);
             bridge.releaseWithoutNotifications();
+        }
     }
 
     public void deactivate(ECOCraftingCPU cpu) {

@@ -77,7 +77,8 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
             for (IGridNode node : grid.getMachines(type)) {
                 ECOComputationSystemBlockEntity host = (ECOComputationSystemBlockEntity) node.getMachine();
                 var cluster = host.getCluster();
-                if (cluster == null || cluster.isDestroyed() || !seen.add(cluster)) continue;
+                if (cluster == null || cluster.isDestroyed() || cluster.getController() != host || !seen.add(cluster))
+                    continue;
                 cluster.pruneInactiveCPUs();
                 // Same rule as 1.21's getCpus: the representative lists its placeholder while a thread is free.
                 if (cluster.shouldPublishPlaceholder())

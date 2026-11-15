@@ -88,7 +88,9 @@ public class ECOComputationSystemBlockEntity
     }
 
     public void setNetworkFrequency(int value) {
-        networkFrequency = NEFrequencyAllocator.normalize(value);
+        int next = NEFrequencyAllocator.normalize(value);
+        if (next == networkFrequency) return;
+        networkFrequency = next;
         setChanged();
         markForClientUpdate();
         if (cluster != null) NELogicalNetworkManager.refresh(cluster);
@@ -126,8 +128,10 @@ public class ECOComputationSystemBlockEntity
         if (!current.is(getBlockState().getBlock())) return;
         super.updateState(exposed);
         current = level.getBlockState(getBlockPos());
-        if (current.is(getBlockState().getBlock()) && current.hasProperty(NativeMachineBlock.MIRRORED))
-            level.setBlock(getBlockPos(), current.setValue(NativeMachineBlock.MIRRORED, formed && mirrored), 2);
+        if (current.is(getBlockState().getBlock()) && current.hasProperty(NativeMachineBlock.MIRRORED)) {
+            var next = current.setValue(NativeMachineBlock.MIRRORED, formed && mirrored);
+            if (next != current) level.setBlock(getBlockPos(), next, 2);
+        }
     }
 
     public boolean isIgnoringPatternSubstitutions() {
@@ -244,9 +248,7 @@ public class ECOComputationSystemBlockEntity
     @Override
     public void onMainNodeStateChanged(cn.dancingsnow.neoecoae.platform.ae2.grid.NodeListener.State reason) {
         super.onMainNodeStateChanged(reason);
-        adoptGridPlannerSettings();
         if (cluster != null) {
-            cluster.notifyGridCpuChange();
             NELogicalNetworkManager.refreshAfterGridChange(cluster);
         }
     }
@@ -254,8 +256,10 @@ public class ECOComputationSystemBlockEntity
     @Override
     protected void onMainNodeGridChanged() {
         super.onMainNodeGridChanged();
-        adoptGridPlannerSettings();
-        if (cluster != null) NELogicalNetworkManager.refreshAfterGridChange(cluster);
+        if (cluster != null) {
+            cluster.notifyGridCpuChange();
+            NELogicalNetworkManager.refreshAfterGridChange(cluster);
+        }
     }
 
     /**
@@ -263,25 +267,16 @@ public class ECOComputationSystemBlockEntity
      * a host that comes online in a grid with other active hosts adopts their values instead of overriding the
      * grid whenever it happens to sort first.
      */
-    void adoptGridPlannerSettings() {
-        if (level == null || level.isClientSide() || !getMainNode().isOnline()) return;
-        var grid = getMainNode().getGrid();
-        if (grid == null) return;
-        for (var other : cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning
-            .hosts(grid.nativeGrid())) {
-            if (other == this) continue;
-            boolean changed = ignorePatternSubstitutions != other.ignorePatternSubstitutions
-                || cyclePlanningEnabled != other.cyclePlanningEnabled
-                || fastPlannerEnabled != other.fastPlannerEnabled
-                || smartDoublingEnabled != other.smartDoublingEnabled;
-            if (changed) {
-                ignorePatternSubstitutions = other.ignorePatternSubstitutions;
-                cyclePlanningEnabled = other.cyclePlanningEnabled;
-                fastPlannerEnabled = other.fastPlannerEnabled;
-                smartDoublingEnabled = other.smartDoublingEnabled;
-                setChanged();
-            }
-            return;
+    public void adoptGridPlannerSettings(ECOComputationSystemBlockEntity other) {
+        if (this != other && (ignorePatternSubstitutions != other.ignorePatternSubstitutions
+            || cyclePlanningEnabled != other.cyclePlanningEnabled
+            || fastPlannerEnabled != other.fastPlannerEnabled
+            || smartDoublingEnabled != other.smartDoublingEnabled)) {
+            ignorePatternSubstitutions = other.ignorePatternSubstitutions;
+            cyclePlanningEnabled = other.cyclePlanningEnabled;
+            fastPlannerEnabled = other.fastPlannerEnabled;
+            smartDoublingEnabled = other.smartDoublingEnabled;
+            setChanged();
         }
     }
 

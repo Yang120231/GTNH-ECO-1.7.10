@@ -39,6 +39,18 @@ public final class PlanningSettings {
     @Config.LangKey("neoecoae.configuration.structure")
     public static final class Multiblock {
 
+        public enum ComputationTopologyMode {
+            LEGACY,
+            BATCHED,
+            STRUCTURE_LIB,
+            OPTIMIZED
+        }
+
+        @Config.Comment("Computation multiblocks: LEGACY scans on member load, BATCHED coalesces checks, STRUCTURE_LIB also shares the build definition, OPTIMIZED also reduces AE2 nodes.")
+        @Config.DefaultEnum("OPTIMIZED")
+        @Config.RequiresWorldRestart
+        public static ComputationTopologyMode computationTopologyMode = ComputationTopologyMode.OPTIMIZED;
+
         @Config.Comment("Maximum storage-system length")
         @Config.DefaultInt(15)
         @Config.RangeInt(min = 4, max = Integer.MAX_VALUE)

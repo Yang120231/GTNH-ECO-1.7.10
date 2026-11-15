@@ -69,6 +69,13 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
                     IGridMultiblock service = mainNode == null ? null : mainNode.service(IGridMultiblock.class);
                     return service == null ? super.getMultiblockNodes() : service.getMultiblockNodes();
                 }
+
+                @Override
+                public void readFromNBT(NBTTagCompound tag) {
+                    super.readFromNBT(
+                        tag != null && !tag.hasKey("proxy", 10)
+                            && (defersGridNode() || tag.hasKey("neoecoae_grid_owner", 99)) ? null : tag);
+                }
             }
             : new AENetworkProxy(this, "proxy", null, true);
     }
@@ -150,12 +157,39 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
         if (state.getBlock() instanceof NativeStateBlock)
             state = mergeFacing(state, ((NativeStateBlock) state.getBlock()).fromMetadata(getBlockMetadata()));
         getProxy().setVisualRepresentation(getItemFromBlockEntity());
-        super.onReady();
-        if (pendingOwnerId >= 0) {
-            adoptOwner(pendingOwnerId);
-            pendingOwnerId = UNOWNED;
+        if (!defersGridNode()) {
+            super.onReady();
+            applyPendingOwner();
         }
         mainNode.ready(true);
+    }
+
+    protected boolean defersGridNode() {
+        return false;
+    }
+
+    public final boolean setDeferredGridNode(boolean enabled) {
+        if (!defersGridNode()) return getProxy().isReady();
+        if (enabled && mainNode.isReady() && !isInvalid()) {
+            if (!getProxy().isReady()) {
+                getProxy().setValidSides(EnumSet.noneOf(ForgeDirection.class));
+                getProxy().onReady();
+                applyPendingOwner();
+            }
+        } else if (getProxy().isReady()) {
+            pendingOwnerId = getOwnerPlayerId();
+            getProxy().invalidate();
+        }
+        return getProxy().isReady();
+    }
+
+    private void applyPendingOwner() {
+        IGridNode node = getProxy().getNode();
+        if (node != null && pendingOwnerId >= 0) {
+            if (node.getPlayerID() < 0) node.setPlayerID(pendingOwnerId);
+            pendingOwnerId = UNOWNED;
+            markDirty();
+        }
     }
 
     /** AE2's "no owner" player id. */
@@ -174,7 +208,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
     public int getOwnerPlayerId() {
         if (worldObj == null || worldObj.isRemote) return UNOWNED;
         IGridNode node = getProxy().getNode();
-        return node != null ? node.getPlayerID() : pendingOwnerId;
+        return node != null && node.getPlayerID() >= 0 ? node.getPlayerID() : pendingOwnerId;
     }
 
     /** Records {@code player} as owner if this node has none yet. Server side only. */
@@ -186,13 +220,14 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
                 .getPlayerID(player.getGameProfile()));
     }
 
-    /** Sets the AE2 owner id unless one is already recorded; persisted with the node NBT. */
+    /** Sets the AE2 owner id unless one is already recorded. */
     public boolean adoptOwner(int playerId) {
         if (playerId < 0 || worldObj == null || worldObj.isRemote) return false;
         IGridNode node = getProxy().getNode();
         if (node == null) {
             if (pendingOwnerId >= 0) return false;
             pendingOwnerId = playerId;
+            markDirty();
             return true;
         }
         if (node.getPlayerID() >= 0) return false;
@@ -210,7 +245,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
     public void securityBreak() {
         if (worldObj == null) return;
         long now = worldObj.getTotalWorldTime();
-        if (now - lastSecurityBreakLog >= 200) {
+        if (lastSecurityBreakLog == Long.MIN_VALUE || now - lastSecurityBreakLog >= 200) {
             lastSecurityBreakLog = now;
             LOGGER.warn(
                 "AE2 refused a grid connection for {} at {} {} {} (dim {}, owner id {}); the block is kept but stays "
@@ -239,6 +274,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
     public void onChunkUnloaded() {
         mainNode.ready(false);
         if (this instanceof appeng.me.cluster.IAEMultiBlock) ((appeng.me.cluster.IAEMultiBlock) this).disconnect(false);
+        if (defersGridNode() && getProxy().isReady()) pendingOwnerId = getOwnerPlayerId();
         super.onChunkUnload();
     }
 
@@ -249,8 +285,12 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
 
     public void setRemoved() {
         mainNode.ready(false);
-        if (this instanceof appeng.me.cluster.IAEMultiBlock) ((appeng.me.cluster.IAEMultiBlock) this).disconnect(false);
+        disconnectOnRemoval();
         super.invalidate();
+    }
+
+    protected void disconnectOnRemoval() {
+        if (this instanceof appeng.me.cluster.IAEMultiBlock) ((appeng.me.cluster.IAEMultiBlock) this).disconnect(false);
     }
 
     @Override
@@ -266,7 +306,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
     public void nativeBootingChanged(MENetworkBootingStatusChange event) {
         // Repathing can leave channel counts unchanged. In that case AE2 sends no channel
         // event, but isActive() still changes and logical exchange groups must be rebuilt.
-        getMainNode().stateChanged(NodeListener.State.GRID_BOOT);
+        if (!event.isBooting || !defersGridNode()) getMainNode().stateChanged(NodeListener.State.GRID_BOOT);
         refreshStorageAfterNodeStateChange();
     }
 
@@ -327,6 +367,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
         if (front == ForgeDirection.UNKNOWN || front == ForgeDirection.UP
             || front == ForgeDirection.DOWN
             || top != ForgeDirection.UP) throw new IllegalArgumentException("ECO host orientation must be horizontal");
+        if (defersGridNode() && front == getForward() && top == getUp()) return;
         super.setOrientation(front, top);
         if (state != null && state.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) {
             state = state.setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.fromNative(front));
@@ -393,12 +434,18 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
     @appeng.tile.TileEvent(appeng.tile.events.TileEventType.WORLD_NBT_READ)
     public void readNativeFields(NBTTagCompound tag) {
         readState(tag.getCompoundTag("neoecoae_state"));
+        if (defersGridNode() || tag.hasKey("neoecoae_grid_owner", 99)) {
+            NBTTagCompound proxy = tag.getCompoundTag("proxy");
+            pendingOwnerId = tag.hasKey("neoecoae_grid_owner", 99) ? tag.getInteger("neoecoae_grid_owner")
+                : proxy.hasKey("p", 99) ? proxy.getInteger("p") : UNOWNED;
+        }
         loadTag(new CompoundTag(tag), RegistryAccess.EMPTY);
     }
 
     @appeng.tile.TileEvent(appeng.tile.events.TileEventType.WORLD_NBT_WRITE)
     public void writeNativeFields(NBTTagCompound tag) {
         tag.setTag("neoecoae_state", writeState());
+        if (defersGridNode()) tag.setInteger("neoecoae_grid_owner", getOwnerPlayerId());
         saveAdditional(new CompoundTag(tag), RegistryAccess.EMPTY);
     }
 

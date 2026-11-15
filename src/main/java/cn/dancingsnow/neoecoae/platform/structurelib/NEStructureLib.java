@@ -16,6 +16,8 @@ import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlo
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingSystemBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
+import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
+import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.registry.ComputationSystemL4;
 import cn.dancingsnow.neoecoae.platform.registry.ComputationSystemL6;
 import cn.dancingsnow.neoecoae.platform.registry.ComputationSystemL9;
@@ -33,7 +35,7 @@ import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
 /**
  * StructureLib owns ECO multiblock construction: the hologram projector shows and builds the structure, and
  * BlockRenderer6343 previews it in NEI. Registration goes through IMultiblockInfoContainer because
- * BlockRenderer6343 only scans that registry; formation detection stays with the ECO calculators.
+ * BlockRenderer6343 only scans that registry. The computation calculator also checks the same compiled shapes.
  */
 public final class NEStructureLib {
 
@@ -69,6 +71,14 @@ public final class NEStructureLib {
     private static void register(Class<? extends TileEntity> type, net.minecraft.block.Block controller,
         Function<TileEntity, MultiBlockDefinition> definitions) {
         IMultiblockInfoContainer.registerTileClass(type, new NEConstructableContainer(controller, definitions));
+    }
+
+    public static boolean check(TileEntity host, MultiBlockDefinition definition, int repeats, Direction facing,
+        boolean mirrored, BlockPos min, BlockPos max) {
+        return definition != null && repeats >= definition.getExpandMin()
+            && repeats <= definition.getExpandMax()
+            && NEStructureShape.of(definition, repeats, facing, mirrored)
+                .check(host, min, max);
     }
 
     /** Builds the whole structure without consuming items, clamping the length to the definition's range. */

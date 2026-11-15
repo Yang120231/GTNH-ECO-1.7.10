@@ -47,15 +47,19 @@ public final class ManagedNode {
     }
 
     public void setIdlePowerUsage(double power) {
-        owner.getProxy()
-            .setIdlePowerUsage(power);
+        var proxy = owner.getProxy();
+        if (Double.compare(proxy.getIdlePowerUsage(), power) != 0) proxy.setIdlePowerUsage(power);
     }
 
     public void setExposedOnSides(java.util.Set<Direction> sides) {
+        updateExposedOnSides(sides, true);
+    }
+
+    public void updateExposedOnSides(java.util.Set<Direction> sides, boolean force) {
         EnumSet<ForgeDirection> nativeSides = EnumSet.noneOf(ForgeDirection.class);
         sides.forEach(side -> nativeSides.add(side.nativeSide()));
-        owner.getProxy()
-            .setValidSides(nativeSides);
+        var proxy = owner.getProxy();
+        if (force || !nativeSides.equals(proxy.getConnectableSides())) proxy.setValidSides(nativeSides);
     }
 
     public boolean isReady() {

@@ -257,10 +257,8 @@ public class NEComputationNetworkCluster {
         ICraftingRequester requestingMachine) {
         boolean anyActive = false;
         for (NEComputationCluster member : members) {
-            if (member.isActive()) {
-                anyActive = true;
-                break;
-            }
+            if (member.hasUnvalidatedRemoval()) return CraftingSubmitResult.CPU_OFFLINE;
+            anyActive |= member.isActive();
         }
         if (!anyActive) {
             return CraftingSubmitResult.CPU_OFFLINE;

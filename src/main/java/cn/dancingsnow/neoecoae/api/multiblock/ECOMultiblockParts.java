@@ -88,7 +88,8 @@ public final class ECOMultiblockParts {
     }
 
     public static Context context(WorldView level, BlockPos pos) {
-        return new Context(level, pos.immutable(), level.getBlockState(pos), level.getBlockEntity(pos));
+        TileEntity tile = level.getBlockEntity(pos);
+        return new Context(level, pos.immutable(), level.getBlockState(pos, tile), tile);
     }
 
     public static boolean matches(Context context, Role role, boolean fallback) {

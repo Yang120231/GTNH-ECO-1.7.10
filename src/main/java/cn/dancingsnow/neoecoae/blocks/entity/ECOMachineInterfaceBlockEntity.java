@@ -157,6 +157,8 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
     }
 
     public boolean isTargetOnline() {
+        if (cluster instanceof cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster computation
+            && computation.usesCompactGrid()) return computation.isActive();
         return getMainNode().isOnline() && getMainNode().getGrid() != null;
     }
 

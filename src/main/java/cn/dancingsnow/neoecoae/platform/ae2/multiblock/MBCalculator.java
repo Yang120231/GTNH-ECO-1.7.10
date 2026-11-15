@@ -1,5 +1,9 @@
 package cn.dancingsnow.neoecoae.platform.ae2.multiblock;
 
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import net.minecraft.tileentity.TileEntity;
 
 import cn.dancingsnow.neoecoae.impl.storage.StorageFaults;
@@ -8,17 +12,17 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 
 /**
- * Adapts AE2's rectangular discovery protocol. Dimensions, accepted parts and formation rules are supplied by
- * the imported calculators. Every probe checks chunk presence before touching the native world.
- * <p>
- * A deliberate fork of {@code appeng.me.cluster.MBCalculator} rather than a subclass; it differs in three ways:
- * probes never load chunks, a resized structure releases its old cluster before attaching the new one (members
- * park and restore running CPUs on that transition), and a cluster that is being destroyed is never rebuilt
- * from inside its own teardown.
+ * Discovers rectangular ECO structures without loading chunks. A drained batch validates each discovered
+ * structure once; the calculator decides how to validate its layout and whether it can retain the live cluster.
  */
 public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAECluster> {
 
     private static final ThreadLocal<IAECluster> MODIFICATION = new ThreadLocal<>();
+    private static final Map<ServerWorldView, Map<BlockPos, MBCalculator<?, ?>>> PENDING = new IdentityHashMap<>();
+    private static final Direction[] MIN_SIDES = { Direction.WEST, Direction.DOWN, Direction.NORTH };
+    private static final Direction[] MAX_SIDES = { Direction.EAST, Direction.UP, Direction.SOUTH };
+    private static final long CHECK_BUDGET_NANOS = 5_000_000L;
+    private static final boolean PROFILE_CHECKS = Boolean.getBoolean("neoecoae.profileMultiblocks");
     protected final T target;
     private final StorageFaults faults = new StorageFaults();
 
@@ -36,16 +40,100 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
     }
 
     public void calculateMultiblock(ServerWorldView level, BlockPos location) {
+        calculateMultiblock(level, location, null);
+    }
+
+    public void requestMultiblockCheck(ServerWorldView level, BlockPos location) {
+        if (target.isValid() && !level.getServer()
+            .isStopped()) {
+            PENDING.computeIfAbsent(level, ignored -> new LinkedHashMap<>())
+                .put(location.immutable(), this);
+        }
+    }
+
+    public static void tick(ServerWorldView level) {
+        Map<BlockPos, MBCalculator<?, ?>> remaining = PENDING.remove(level);
+        if (remaining == null || level.getServer()
+            .isStopped()) return;
+        pauseGridRebuilds();
+        long started = System.nanoTime();
+        int queued = remaining.size();
+        int checked = 0;
+        try {
+            while (!remaining.isEmpty()) {
+                var entry = remaining.entrySet()
+                    .iterator()
+                    .next();
+                BlockPos position = entry.getKey();
+                MBCalculator<?, ?> calculator = entry.getValue();
+                remaining.remove(position);
+                if (level.getBlockEntity(position) == calculator.target) {
+                    checked++;
+                    calculator.calculateMultiblock(level, position, remaining);
+                }
+                if (System.nanoTime() - started >= CHECK_BUDGET_NANOS) break;
+            }
+        } finally {
+            if (!remaining.isEmpty()) {
+                Map<BlockPos, MBCalculator<?, ?>> newRequests = PENDING.put(level, remaining);
+                if (newRequests != null) remaining.putAll(newRequests);
+            }
+            resumeGridRebuilds();
+            if (PROFILE_CHECKS) cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
+                "ECO structure batch tick={} queued={} checked={} deferred={} total_us={}",
+                level.getGameTime(),
+                queued,
+                checked,
+                remaining.size(),
+                (System.nanoTime() - started) / 1_000);
+        }
+    }
+
+    public static void clearPending(ServerWorldView level) {
+        PENDING.remove(level);
+    }
+
+    public static boolean hasPendingChecks(ServerWorldView level) {
+        return PENDING.containsKey(level);
+    }
+
+    public static void clearPending() {
+        PENDING.clear();
+    }
+
+    protected boolean deferNeighborChecks() {
+        return false;
+    }
+
+    protected int maxDiscoverySpan() {
+        return Integer.MAX_VALUE;
+    }
+
+    private void calculateMultiblock(ServerWorldView level, BlockPos location,
+        Map<BlockPos, MBCalculator<?, ?>> remaining) {
         if (isModificationInProgress() || !target.isValid() || !level.hasChunkAt(location)) return;
         // A cluster that is still tearing down must not be rebuilt from inside its own destruction.
         C current = target.getCluster();
         if (current != null && current.isDestroyed()) return;
         // Members join or leave the grid one node at a time; see pauseGridRebuilds.
         pauseGridRebuilds();
+        var profiler = level.getServer()
+            .nativeServer().theProfiler;
+        long started = PROFILE_CHECKS ? System.nanoTime() : 0;
+        profiler.startSection("ecoStructureCheck");
         try {
-            calculate(level, location);
+            calculate(level, location, remaining);
         } finally {
+            profiler.endSection();
             resumeGridRebuilds();
+            if (PROFILE_CHECKS) cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
+                "ECO structure check tick={} calculator={} pos={}, {}, {} elapsed_us={}",
+                level.getGameTime(),
+                getClass().getSimpleName(),
+                location.getX(),
+                location.getY(),
+                location.getZ(),
+                (System.nanoTime() - started) / 1_000);
         }
     }
 
@@ -63,54 +151,106 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
         appeng.me.cache.CraftingGridCache.unpauseRebuilds();
     }
 
-    private void calculate(ServerWorldView level, BlockPos location) {
+    private void calculate(ServerWorldView level, BlockPos location, Map<BlockPos, MBCalculator<?, ?>> remaining) {
+        MBCalculator<T, C> calculator = this;
         try {
             BlockPos min = location, max = location;
-            for (Direction side : new Direction[] { Direction.WEST, Direction.DOWN, Direction.NORTH })
-                while (validAt(level, min.relative(side))) min = min.relative(side);
-            for (Direction side : new Direction[] { Direction.EAST, Direction.UP, Direction.SOUTH })
-                while (validAt(level, max.relative(side))) max = max.relative(side);
-            if (!checkMultiblockScale(min, max) || !unownedBoundary(level, min, max)
-                || !verifyInternalStructure(level, min, max)) {
-                disconnect();
-                return;
-            }
-            // Must run before members expose their sides: an unowned part fails AE2's security check against a
-            // secured neighbor network (or a member that already joined it).
-            shareOwner(level, min, max);
-            C cluster = target.getCluster();
-            if (cluster != null && (!cluster.getBoundsMin()
-                .equals(min)
-                || !cluster.getBoundsMax()
-                    .equals(max))) {
-                // Unlike AE2, release the old cluster first: members park running CPUs only when their
-                // cluster becomes null, and restore them once the replacement cluster is attached.
-                disconnect();
-                cluster = null;
-            }
-            boolean created = cluster == null;
-            if (created) {
-                cluster = createCluster(level, min, max);
-                // Same guard as AE2: member updates must not recursively recalculate this or other structures.
-                setModificationInProgress(cluster);
-                updateBlockEntities(cluster, level, min, max);
-                if (target.getCluster() != cluster) {
-                    setModificationInProgress(null);
-                    cluster.destroy();
-                    return;
-                }
-            } else {
-                setModificationInProgress(cluster);
-            }
-            cluster.updateStatus(created);
+            for (Direction side : MIN_SIDES)
+                while (span(location, min, side) < maxDiscoverySpan() && validAt(level, min.relative(side)))
+                    min = min.relative(side);
+            for (Direction side : MAX_SIDES)
+                while (span(max, min, side) < maxDiscoverySpan() && validAt(level, max.relative(side)))
+                    max = max.relative(side);
+            calculator = discoveryOwner(level, min, max);
+            calculator.applyBounds(level, min, max, remaining);
             faults.recovered("discovery");
         } catch (RuntimeException failure) {
             setModificationInProgress(null);
-            disconnect();
+            calculator.disconnect();
             faults.report("discovery", location + ": " + failure, level.getGameTime(), failure);
         } finally {
             setModificationInProgress(null);
         }
+    }
+
+    protected MBCalculator<T, C> discoveryOwner(ServerWorldView level, BlockPos min, BlockPos max) {
+        return this;
+    }
+
+    private static int span(BlockPos first, BlockPos second, Direction side) {
+        return switch (side.getAxis()) {
+            case X -> first.getX() - second.getX() + 1;
+            case Y -> first.getY() - second.getY() + 1;
+            case Z -> first.getZ() - second.getZ() + 1;
+        };
+    }
+
+    protected static boolean chunksLoaded(ServerWorldView level, BlockPos min, BlockPos max) {
+        var chunks = level.nativeWorld()
+            .getChunkProvider();
+        for (int chunkX = min.getX() >> 4; chunkX <= max.getX() >> 4; chunkX++) {
+            for (int chunkZ = min.getZ() >> 4; chunkZ <= max.getZ() >> 4; chunkZ++) {
+                if (!chunks.chunkExists(chunkX, chunkZ)) return false;
+            }
+        }
+        return true;
+    }
+
+    private void applyBounds(ServerWorldView level, BlockPos min, BlockPos max,
+        Map<BlockPos, MBCalculator<?, ?>> remaining) {
+        if (!target.isValid() || target.getCluster() != null && target.getCluster()
+            .isDestroyed()) return;
+        if (!checkMultiblockScale(min, max) || !unownedBoundary(level, min, max)) {
+            invalidateStructure();
+            return;
+        }
+        if (remaining != null && !remaining.isEmpty()) {
+            for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+                MBCalculator<?, ?> other = remaining.get(pos);
+                if (other != null && other.getClass() == getClass()
+                    && other.target instanceof TileEntity member
+                    && isValidBlockEntity(member)) remaining.remove(pos);
+            }
+        }
+        var profiler = level.getServer()
+            .nativeServer().theProfiler;
+        profiler.startSection("ecoStructureValidation");
+        boolean valid;
+        try {
+            valid = verifyInternalStructure(level, min, max);
+        } finally {
+            profiler.endSection();
+        }
+        if (!valid) {
+            invalidateStructure();
+            return;
+        }
+        // Must run before members expose their sides: an unowned part fails AE2's security check against a
+        // secured neighbor network (or a member that already joined it).
+        boolean claimedOwner = shareOwner(level, min, max);
+        C cluster = target.getCluster();
+        if (cluster != null) {
+            setModificationInProgress(cluster);
+            if (!cluster.getBoundsMin()
+                .equals(min)
+                || !cluster.getBoundsMax()
+                    .equals(max)
+                || !sameMembers(level, cluster)) {
+                if (reconcileCluster(level, cluster, min, max)) return;
+                disconnect();
+                cluster = null;
+            }
+        }
+        if (cluster == null) {
+            cluster = createCluster(level, min, max);
+            setModificationInProgress(cluster);
+            updateBlockEntities(cluster, level, min, max);
+            if (target.getCluster() != cluster) {
+                cluster.destroy();
+                return;
+            }
+            updateNewCluster(cluster);
+        } else updateExistingCluster(cluster, claimedOwner);
     }
 
     /**
@@ -118,7 +258,7 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
      * creative StructureLib builds) have no AE2 player id; the first owned member found decides, so one owned part
      * - e.g. a part re-placed or right-clicked by a player - is enough to repair an old structure.
      */
-    private static void shareOwner(ServerWorldView level, BlockPos min, BlockPos max) {
+    private static boolean shareOwner(ServerWorldView level, BlockPos min, BlockPos max) {
         int owner = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity.UNOWNED;
         boolean anyUnowned = false;
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
@@ -129,16 +269,39 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
             else if (owner < 0) owner = id;
             if (owner >= 0 && anyUnowned) break;
         }
-        if (owner < 0 || !anyUnowned) return;
+        if (owner < 0 || !anyUnowned) return false;
+        boolean changed = false;
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
             TileEntity tile = level.getBlockEntity(pos);
             if (tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity)
-                ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile).adoptOwner(owner);
+                changed |= ((cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) tile)
+                    .adoptOwner(owner);
         }
+        return changed;
+    }
+
+    protected boolean sameMembers(ServerWorldView level, C cluster) {
+        return true;
+    }
+
+    protected boolean reconcileCluster(ServerWorldView level, C cluster, BlockPos min, BlockPos max) {
+        return false;
+    }
+
+    protected void updateNewCluster(C cluster) {
+        cluster.updateStatus(true);
+    }
+
+    protected void invalidateStructure() {
+        disconnect();
+    }
+
+    protected void updateExistingCluster(C cluster, boolean claimedOwner) {
+        cluster.updateStatus(claimedOwner);
     }
 
     private boolean validAt(ServerWorldView level, BlockPos pos) {
-        return level.hasChunkAt(pos) && isValidBlockEntity(level.getBlockEntity(pos));
+        return isValidBlockEntity(level.getBlockEntity(pos));
     }
 
     private boolean unownedBoundary(ServerWorldView level, BlockPos min, BlockPos max) {
@@ -198,7 +361,10 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
                 }
             }
         }
-        if (recheck) calculateMultiblock(level, owner);
+        if (recheck) {
+            if (deferNeighborChecks()) requestMultiblockCheck(level, owner);
+            else calculateMultiblock(level, owner);
+        }
     }
 
     /**
@@ -208,18 +374,9 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
     private boolean affectsCluster(ServerWorldView level, C cluster, BlockPos pos) {
         if (!level.hasChunkAt(pos)) return false;
         TileEntity tile = level.getBlockEntity(pos);
-        if (isWithinBounds(pos, cluster.getBoundsMin(), cluster.getBoundsMax()))
-            return !(tile instanceof appeng.me.cluster.IAEMultiBlock)
-                || ((appeng.me.cluster.IAEMultiBlock) tile).getCluster() != cluster;
+        if (cluster.containsPosition(pos)) return !(tile instanceof appeng.me.cluster.IAEMultiBlock)
+            || ((appeng.me.cluster.IAEMultiBlock) tile).getCluster() != cluster;
         return isValidBlockEntity(tile);
-    }
-
-    private static boolean isWithinBounds(BlockPos pos, BlockPos min, BlockPos max) {
-        return pos.getX() >= min.getX() && pos.getY() >= min.getY()
-            && pos.getZ() >= min.getZ()
-            && pos.getX() <= max.getX()
-            && pos.getY() <= max.getY()
-            && pos.getZ() <= max.getZ();
     }
 
     public void disconnect() {

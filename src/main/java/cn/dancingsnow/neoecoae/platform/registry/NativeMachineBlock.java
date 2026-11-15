@@ -12,6 +12,9 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts;
+import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.IAEMultiBlock;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
@@ -193,8 +196,15 @@ public class NativeMachineBlock extends BlockContainer implements NativeStateBlo
         TileEntity tile = world.getTileEntity(x, y, z);
         // Network switches are not structural parts in the source: removing or swapping one only reforms the
         // host (tile invalidation destroys the cluster and neighbors recalculate), keeping its running jobs.
-        if (!world.isRemote && tile instanceof IAEMultiBlock && !isNetworkSwitch(tile))
-            ((IAEMultiBlock<?>) tile).breakCluster();
+        if (!world.isRemote && tile instanceof IAEMultiBlock<?>multiblock && !isNetworkSwitch(tile)) {
+            if (tile instanceof NEBlockEntity<?, ?>member && member.defersGridNode()
+                && member.getCluster() instanceof NEComputationCluster computation
+                && computation.usesCompactGrid()
+                && computation.getController() != member) {
+                if (member instanceof ECOComputationThreadingCoreBlockEntity core) core.prepareForPermanentRemoval();
+                computation.memberRemoved(true);
+            } else multiblock.breakCluster();
+        }
         if (!world.isRemote && dropsContentsOnBreak()
             && tile instanceof cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity) {
             java.util.ArrayList<ItemStack> drops = new java.util.ArrayList<>();

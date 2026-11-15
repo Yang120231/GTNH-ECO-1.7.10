@@ -14,7 +14,9 @@ import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlo
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
 import cn.dancingsnow.neoecoae.multiblock.network.NENetworkSwitchUtil;
+import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
+import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings.Multiblock.ComputationTopologyMode;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
@@ -22,9 +24,13 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Holder;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.registry.CraftingMachines;
+import cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
+import cn.dancingsnow.neoecoae.platform.structurelib.NEStructureLib;
 
 public class NEComputationClusterCalculator extends NEClusterCalculator<NEComputationCluster> {
+
+    private final ComputationTopologyMode topologyMode = PlanningSettings.Multiblock.computationTopologyMode;
 
     public NEComputationClusterCalculator(NEBlockEntity<NEComputationCluster, ?> t) {
         super(t);
@@ -33,6 +39,25 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
     @Override
     protected int maxLength() {
         return PlanningSettings.Multiblock.computationSystemMaxLength;
+    }
+
+    @Override
+    protected int maxDiscoverySpan() {
+        return usesStructureLib() ? maxLength() : super.maxDiscoverySpan();
+    }
+
+    public final boolean usesStructureLib() {
+        return getClass() == NEComputationClusterCalculator.class
+            && (topologyMode == ComputationTopologyMode.STRUCTURE_LIB
+                || topologyMode == ComputationTopologyMode.OPTIMIZED);
+    }
+
+    public final boolean usesCompactGrid() {
+        return usesStructureLib() && topologyMode == ComputationTopologyMode.OPTIMIZED;
+    }
+
+    public final boolean usesLegacyChecks() {
+        return topologyMode == ComputationTopologyMode.LEGACY;
     }
 
     @Override
@@ -47,6 +72,7 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
 
     @Override
     protected void onClusterAttached(NEComputationCluster cluster) {
+        if (cluster.usesCompactGrid()) cluster.refreshGrid(true);
         NELogicalNetworkManager.attach(cluster);
         // The AE2 crafting service may have already rebuilt its CPU list before the
         // multiblock calculator finished attaching all members. Publish the custom
@@ -55,10 +81,39 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
     }
 
     @Override
+    protected void updateNewCluster(NEComputationCluster cluster) {
+        if (!cluster.usesCompactGrid()) super.updateNewCluster(cluster);
+    }
+
+    @Override
+    protected void updateExistingCluster(NEComputationCluster cluster, boolean claimedOwner) {
+        super.updateExistingCluster(cluster, claimedOwner);
+        if (cluster.usesCompactGrid()) cluster.refreshValidatedGrid(claimedOwner);
+    }
+
+    @Override
+    protected boolean reconcileCluster(ServerWorldView level, NEComputationCluster cluster, BlockPos min,
+        BlockPos max) {
+        if (!cluster.usesCompactGrid()) return false;
+        var members = collectMembers(level, min, max);
+        if (members.isEmpty() || !cluster.reconcileMembers(members, min, max)) return false;
+        cluster.refreshValidatedGrid(false);
+        return true;
+    }
+
+    @Override
     public boolean checkMultiblockScale(BlockPos min, BlockPos max) {
+        if (owner instanceof ECOComputationSystemBlockEntity) return super.checkMultiblockScale(min, max);
         NEComputationClusterCalculator controller = candidateControllerCalculator(min, max);
         return controller != null && controller != this ? controller.checkMultiblockScale(min, max)
             : super.checkMultiblockScale(min, max);
+    }
+
+    @Override
+    protected MBCalculator<NEBlockEntity<NEComputationCluster, ?>, NEComputationCluster> discoveryOwner(
+        ServerWorldView level, BlockPos min, BlockPos max) {
+        var controller = candidateControllerCalculator(min, max);
+        return controller == null ? this : controller;
     }
 
     private NEComputationClusterCalculator candidateControllerCalculator(BlockPos min, BlockPos max) {
@@ -72,25 +127,9 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
             .orElse(null);
     }
 
-    private NEComputationClusterCalculator controllerCalculator(BlockPos min, BlockPos max) {
-        if (!(owner.getLevel() instanceof ServerWorldView level)) {
-            return null;
-        }
-        return findUniqueController(level, min, max, ECOComputationSystemBlockEntity.class)
-            .map(
-                context -> context.controller()
-                    .getCalculator())
-            .filter(NEComputationClusterCalculator.class::isInstance)
-            .map(NEComputationClusterCalculator.class::cast)
-            .orElse(null);
-    }
-
     @Override
     public boolean verifyInternalStructure(ServerWorldView level, BlockPos min, BlockPos max) {
-        NEComputationClusterCalculator controllerCalculator = controllerCalculator(min, max);
-        if (controllerCalculator != null && controllerCalculator != this) {
-            return controllerCalculator.verifyInternalStructure(level, min, max);
-        }
+        if (!chunksLoaded(level, min, max)) return false;
         Optional<ControllerContext<ECOComputationSystemBlockEntity>> contextResult = findUniqueController(
             level,
             min,
@@ -100,6 +139,8 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
         ControllerContext<ECOComputationSystemBlockEntity> context = contextResult
             .orElseThrow(java.util.NoSuchElementException::new);
         ECOComputationSystemBlockEntity controller = context.controller();
+        if (controller != owner && controller.getCalculator() instanceof NEComputationClusterCalculator calculator)
+            return calculator.verifyInternalStructure(level, min, max);
         BlockPos controllerPos = context.position();
         StorageTierDescriptor tier = controller.getTier();
         BlockState controllerState = context.state();
@@ -109,15 +150,30 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
         Direction down = context.down();
         Direction left = context.left();
         Direction right = context.right();
-        if (verifyStructure(level, controllerPos, tier, front, back, top, down, right, left, right, false)) {
+        boolean useBlueprint = usesStructureLib();
+        var definition = useBlueprint ? controller.getBuildDefinition() : null;
+        int repeats = Math.max(max.getX() - min.getX(), max.getZ() - min.getZ()) - 3;
+        if (useBlueprint ? NEStructureLib.check(controller, definition, repeats, front, false, min, max)
+            : verifyStructure(level, controllerPos, tier, front, back, top, down, right, left, right, false)) {
             controller.setMirrored(false);
-            setCoolingControllersMirrored(level, min, max, false);
+            setCoolingControllersMirrored(
+                level,
+                min,
+                max,
+                false,
+                useBlueprint ? controllerPos.relative(left, repeats + 2) : null);
             syncNetworkSwitchState(level, controllerPos, controllerState, false);
             return true;
         }
-        if (verifyStructure(level, controllerPos, tier, front, back, top, down, left, right, left, true)) {
+        if (useBlueprint ? NEStructureLib.check(controller, definition, repeats, front, true, min, max)
+            : verifyStructure(level, controllerPos, tier, front, back, top, down, left, right, left, true)) {
             controller.setMirrored(true);
-            setCoolingControllersMirrored(level, min, max, true);
+            setCoolingControllersMirrored(
+                level,
+                min,
+                max,
+                true,
+                useBlueprint ? controllerPos.relative(right, repeats + 2) : null);
             syncNetworkSwitchState(level, controllerPos, controllerState, true);
             return true;
         }
@@ -126,8 +182,46 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
         return false;
     }
 
+    @Override
+    protected boolean deferNeighborChecks() {
+        return !usesLegacyChecks();
+    }
+
+    @Override
+    protected void invalidateStructure() {
+        var cluster = owner.getCluster();
+        if (cluster != null && cluster.hasPermanentRemoval()) cluster.breakCluster();
+        else super.invalidateStructure();
+    }
+
+    @Override
+    public void requestMultiblockCheck(ServerWorldView level, BlockPos location) {
+        NEComputationCluster cluster = owner.getCluster();
+        var controller = cluster != null && !cluster.isDestroyed() ? cluster.getController() : null;
+        if (controller != null && controller != owner && !controller.isRemoved() && controller.getLevel() == level) {
+            controller.getCalculator()
+                .requestMultiblockCheck(level, controller.getBlockPos());
+        } else super.requestMultiblockCheck(level, location);
+    }
+
+    @Override
+    protected boolean sameMembers(ServerWorldView level, NEComputationCluster cluster) {
+        if (!usesStructureLib()) return true;
+        var members = cluster.getBlockEntities();
+        while (members.hasNext()) {
+            TileEntity member = members.next();
+            if (level.getBlockEntity(new BlockPos(member.xCoord, member.yCoord, member.zCoord)) != member) return false;
+        }
+        return true;
+    }
+
     private static void setCoolingControllersMirrored(ServerWorldView level, BlockPos min, BlockPos max,
-        boolean mirrored) {
+        boolean mirrored, BlockPos expectedCooler) {
+        if (expectedCooler != null
+            && level.getBlockEntity(expectedCooler) instanceof ECOComputationCoolingControllerBlockEntity cooler) {
+            cooler.setMirrored(mirrored);
+            return;
+        }
         for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
             if (level.getBlockEntity(pos) instanceof ECOComputationCoolingControllerBlockEntity cooler) {
                 cooler.setMirrored(mirrored);
@@ -280,27 +374,21 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
         boolean normal = switchState.is(CraftingMachines.COMPUTATION_NETWORK_SWITCH);
         boolean highEnergy = switchState.is(CraftingMachines.COMPUTATION_HIGH_ENERGY_NETWORK_SWITCH);
         NENetworkSwitchUtil.syncFormed(level, controllerPos, controllerState, mirrored);
-        level.setBlock(
-            controllerPos,
-            level.getBlockState(controllerPos)
-                .setValue(cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.NETWORK_SWITCH, normal)
-                .setValue(
-                    cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.HIGH_ENERGY_NETWORK_SWITCH,
-                    highEnergy),
-            2);
+        setSwitchFlags(level, controllerPos, normal, highEnergy);
     }
 
     private static void clearNetworkSwitchState(ServerWorldView level, BlockPos controllerPos,
         BlockState controllerState) {
         NENetworkSwitchUtil.clearFormed(level, controllerPos, controllerState);
+        setSwitchFlags(level, controllerPos, false, false);
+    }
+
+    private static void setSwitchFlags(ServerWorldView level, BlockPos controllerPos, boolean normal,
+        boolean highEnergy) {
         BlockState current = level.getBlockState(controllerPos);
-        level.setBlock(
-            controllerPos,
-            current.setValue(cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.NETWORK_SWITCH, false)
-                .setValue(
-                    cn.dancingsnow.neoecoae.platform.registry.NativeMachineBlock.HIGH_ENERGY_NETWORK_SWITCH,
-                    false),
-            2);
+        BlockState next = current.setValue(NativeMachineBlock.NETWORK_SWITCH, normal)
+            .setValue(NativeMachineBlock.HIGH_ENERGY_NETWORK_SWITCH, highEnergy);
+        if (next != current) level.setBlock(controllerPos, next, 2);
     }
 
     protected boolean validateCasingOrNetworkSwitch(ServerWorldView level, BlockPos controllerPos,

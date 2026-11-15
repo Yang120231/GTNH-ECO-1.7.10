@@ -11,11 +11,16 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.IGrid;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.events.MENetworkCraftingCpuChange;
+import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationNetworkCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingNetworkCluster;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
+import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
@@ -43,31 +48,29 @@ public final class NELogicalNetworkManager {
     private NELogicalNetworkManager() {}
 
     public static void attach(NECluster<?> cluster) {
-        if (!(cluster instanceof NECraftingCluster || cluster instanceof NEComputationCluster)) {
+        if (cluster instanceof NEComputationCluster) {
+            refreshAfterGridChange(cluster);
             return;
         }
+        if (!(cluster instanceof NECraftingCluster craftingCluster)) return;
         WorldView level = getLevel(cluster);
         if (!(level instanceof ServerWorldView serverLevel) || cluster.isDestroyed() || !cluster.isNetworkMode()) {
             detach(cluster);
             return;
         }
         LevelState state = LEVELS.computeIfAbsent(serverLevel, ignored -> new LevelState());
-        if (cluster instanceof NECraftingCluster craftingCluster) {
-            if (state.crafting.add(craftingCluster)) {
-                assignCraftingFrequencyIfNeeded(craftingCluster, state.crafting);
-                rebuildCrafting(state);
-                refreshAfterGridChange(craftingCluster);
-            }
-        } else if (cluster instanceof NEComputationCluster computationCluster) {
-            if (state.computation.add(computationCluster)) {
-                assignComputationFrequencyIfNeeded(computationCluster, state.computation);
-                rebuildComputation(state);
-                refreshAfterGridChange(computationCluster);
-            }
+        if (state.crafting.add(craftingCluster)) {
+            assignCraftingFrequencyIfNeeded(craftingCluster, state.crafting);
+            rebuildCrafting(state);
+            refreshAfterGridChange(craftingCluster);
         }
     }
 
     public static void refresh(NECluster<?> cluster) {
+        if (cluster instanceof NEComputationCluster) {
+            refreshAfterGridChange(cluster);
+            return;
+        }
         if (cluster.isDestroyed() || !cluster.isNetworkMode()) {
             detach(cluster);
             return;
@@ -82,36 +85,149 @@ public final class NELogicalNetworkManager {
             state.crafting.add(craftingCluster);
             assignCraftingFrequencyIfNeeded(craftingCluster, state.crafting);
             rebuildCrafting(state);
-        } else if (cluster instanceof NEComputationCluster computationCluster) {
-            state.computation.add(computationCluster);
-            assignComputationFrequencyIfNeeded(computationCluster, state.computation);
-            rebuildComputation(state);
         }
     }
 
     public static void refreshAfterGridChange(NECluster<?> cluster) {
         WorldView level = getLevel(cluster);
-        if (!(level instanceof ServerWorldView serverLevel) || cluster.isDestroyed() || !cluster.isNetworkMode()) {
+        if (!(level instanceof ServerWorldView serverLevel) || cluster.isDestroyed()
+            || !(cluster instanceof NEComputationCluster) && !cluster.isNetworkMode()) {
             return;
         }
         LevelState state = LEVELS.computeIfAbsent(serverLevel, ignored -> new LevelState());
         state.pendingGridRefresh.add(cluster);
+        if (cluster instanceof NEComputationCluster computation && state.awaitingCapacity.remove(computation)) {
+            state.pendingCapacity.add(computation);
+        }
+    }
+
+    public static void requestComputationGridRefresh(NEComputationCluster cluster) {
+        if (getLevel(cluster) instanceof ServerWorldView level) {
+            requestComputationGridRefresh(cluster, level.getGameTime());
+        }
+    }
+
+    public static void requestComputationGridRefresh(NEComputationCluster cluster, long tick) {
+        if (getLevel(cluster) instanceof ServerWorldView level) {
+            LEVELS.computeIfAbsent(level, ignored -> new LevelState()).pendingGridTopology
+                .merge(cluster, tick, Math::min);
+        }
+    }
+
+    public static void requestComputationCapacityRefresh(NEComputationCluster cluster) {
+        if (getLevel(cluster) instanceof ServerWorldView level) {
+            LEVELS.computeIfAbsent(level, ignored -> new LevelState()).pendingCapacity.add(cluster);
+        }
+    }
+
+    public static void requestCpuPublication(NEComputationCluster cluster, IGrid grid, IGridNode node) {
+        if (getLevel(cluster) instanceof ServerWorldView level) {
+            LEVELS.computeIfAbsent(level, ignored -> new LevelState()).pendingCpuGrids.put(grid, node);
+        }
     }
 
     /** Drain after AE2's grid update, once boot, power and channel state have settled. */
     public static void tick(ServerWorldView level) {
         LevelState state = LEVELS.get(level);
         if (state == null || level.getServer()
-            .isStopped() || state.pendingGridRefresh.isEmpty()) {
-            return;
-        }
-        List<NECluster<?>> pending = new ArrayList<>(state.pendingGridRefresh);
-        state.pendingGridRefresh.clear();
-        for (NECluster<?> cluster : pending) {
-            if (!cluster.isDestroyed() && getLevel(cluster) == level) {
-                refresh(cluster);
+            .isStopped()) return;
+        if (!state.pendingGridTopology.isEmpty()) {
+            List<NEComputationCluster> pending = new ArrayList<>();
+            long now = level.getGameTime();
+            state.pendingGridTopology.entrySet()
+                .removeIf(entry -> {
+                    if (entry.getValue() > now) return false;
+                    pending.add(entry.getKey());
+                    return true;
+                });
+            if (!pending.isEmpty()) {
+                MBCalculator.pauseGridRebuilds();
+                try {
+                    for (NEComputationCluster cluster : pending)
+                        if (!cluster.isDestroyed() && getLevel(cluster) == level) {
+                            cluster.refreshGridChanges();
+                        }
+                } finally {
+                    MBCalculator.resumeGridRebuilds();
+                }
             }
         }
+        Set<NECluster<?>> pending = new ReferenceOpenHashSet<>(state.pendingGridRefresh);
+        state.pendingGridRefresh.clear();
+        boolean computationChanged = state.computationDirty;
+        state.computationDirty = false;
+        Map<IGrid, ECOComputationSystemBlockEntity> plannerSources = new IdentityHashMap<>();
+        for (NECluster<?> cluster : pending) {
+            if (!cluster.isDestroyed() && getLevel(cluster) == level) {
+                if (cluster instanceof NEComputationCluster computation) {
+                    if (computation.getController() == null || computation.getController()
+                        .getCluster() != computation) continue;
+                    if (computation.isGridOnline()) {
+                        IGrid grid = computation.getNode()
+                            .getGrid();
+                        ECOComputationSystemBlockEntity source = plannerSources.computeIfAbsent(grid, key -> {
+                            var hosts = NativeECOPlanning.hosts(key);
+                            for (var host : hosts) if (!pending.contains(host.getCluster())) return host;
+                            return hosts.isEmpty() ? computation.getController() : hosts.get(0);
+                        });
+                        computation.getController()
+                            .adoptGridPlannerSettings(source);
+                    }
+                    NetworkGroupKey oldKey = state.computationKeys.get(computation);
+                    if (computation.isNetworkMode()) {
+                        state.computation.add(computation);
+                        assignComputationFrequencyIfNeeded(computation, state.computation);
+                        NetworkGroupKey key = computationNetworkKey(computation);
+                        if (!key.equals(oldKey)) computationChanged = true;
+                        state.computationKeys.put(computation, key);
+                    } else if (state.computation.remove(computation)) {
+                        state.computationKeys.remove(computation);
+                        computation.setNetworkCluster(null);
+                        computationChanged = true;
+                    }
+                } else refresh(cluster);
+            }
+        }
+        if (computationChanged) {
+            var profiler = level.getServer()
+                .nativeServer().theProfiler;
+            profiler.startSection("ecoComputationGroups");
+            try {
+                rebuildComputation(state);
+            } finally {
+                profiler.endSection();
+            }
+        }
+        boolean pendingStructures = MBCalculator.hasPendingChecks(level);
+        if (state.retryCapacityAfterDiscovery && !pendingStructures) {
+            state.retryCapacityAfterDiscovery = false;
+            state.pendingCapacity.addAll(state.awaitingCapacity);
+            state.awaitingCapacity.clear();
+        }
+        if (!state.pendingCapacity.isEmpty()) {
+            List<NEComputationCluster> capacity = new ArrayList<>(state.pendingCapacity);
+            state.pendingCapacity.clear();
+            for (NEComputationCluster cluster : capacity) {
+                if (cluster.isDestroyed() || cluster.getController() == null
+                    || cluster.getController()
+                        .getCluster() != cluster)
+                    continue;
+                if (cluster.canSettleCapacity(pendingStructures)) {
+                    cluster.recalculateRemainingStorage();
+                    cluster.notifyGridCpuChange();
+                } else {
+                    state.awaitingCapacity.add(cluster);
+                    state.retryCapacityAfterDiscovery |= pendingStructures;
+                }
+            }
+        }
+        if (!state.pendingCpuGrids.isEmpty()) {
+            Map<IGrid, IGridNode> publications = new IdentityHashMap<>(state.pendingCpuGrids);
+            state.pendingCpuGrids.clear();
+            publications.forEach(
+                (grid, node) -> { if (!grid.isEmpty()) grid.postEvent(new MENetworkCraftingCpuChange(node)); });
+        }
+        if (state.isEmpty()) LEVELS.remove(level, state);
     }
 
     public static void detachBeforeDestroy(NECluster<?> cluster) {
@@ -168,12 +284,17 @@ public final class NELogicalNetworkManager {
             craftingCluster.setNetworkCluster(null);
         } else if (cluster instanceof NEComputationCluster computationCluster) {
             if (state.computation.remove(computationCluster)) {
-                rebuildComputation(state);
+                state.computationDirty = true;
             }
+            state.computationKeys.remove(computationCluster);
+            state.pendingGridRefresh.remove(computationCluster);
+            state.pendingGridTopology.remove(computationCluster);
+            state.pendingCapacity.remove(computationCluster);
+            state.awaitingCapacity.remove(computationCluster);
             computationCluster.setNetworkCluster(null);
             computationCluster.notifyGridCpuChange();
         }
-        if (state.crafting.isEmpty() && state.computation.isEmpty()) {
+        if (state.isEmpty()) {
             LEVELS.remove(serverLevel);
         }
     }
@@ -235,6 +356,7 @@ public final class NELogicalNetworkManager {
             var controller = cluster.getController();
             boolean stale = cluster.isDestroyed() || controller == null || controller.getCluster() != cluster;
             if (stale) {
+                state.computationKeys.remove(cluster);
                 cluster.setNetworkCluster(null);
             }
             return stale;
@@ -360,18 +482,13 @@ public final class NELogicalNetworkManager {
         if (cluster instanceof NECraftingCluster craftingCluster) {
             var controller = craftingCluster.getController();
             if (controller != null && controller.getMainNode()
-                .isOnline()
-                && controller.getMainNode()
-                    .getGrid() != null) {
+                .isOnline()) {
                 return controller.getMainNode()
                     .getGrid();
             }
         } else if (cluster instanceof NEComputationCluster computationCluster) {
             var controller = computationCluster.getController();
-            if (controller != null && controller.getMainNode()
-                .isOnline()
-                && controller.getMainNode()
-                    .getGrid() != null) {
+            if (controller != null && computationCluster.isGridOnline()) {
                 return controller.getMainNode()
                     .getGrid();
             }
@@ -440,5 +557,22 @@ public final class NELogicalNetworkManager {
         private final Map<NetworkPartitionKey, NECraftingNetworkCluster> craftingNetworks = new HashMap<>();
         private final Map<NetworkPartitionKey, NEComputationNetworkCluster> computationNetworks = new HashMap<>();
         private final ReferenceSet<NECluster<?>> pendingGridRefresh = new ReferenceOpenHashSet<>();
+        private final Map<NEComputationCluster, Long> pendingGridTopology = new IdentityHashMap<>();
+        private final ReferenceSet<NEComputationCluster> pendingCapacity = new ReferenceOpenHashSet<>();
+        private final ReferenceSet<NEComputationCluster> awaitingCapacity = new ReferenceOpenHashSet<>();
+        private final Map<NEComputationCluster, NetworkGroupKey> computationKeys = new IdentityHashMap<>();
+        private final Map<IGrid, IGridNode> pendingCpuGrids = new IdentityHashMap<>();
+        private boolean computationDirty;
+        private boolean retryCapacityAfterDiscovery;
+
+        private boolean isEmpty() {
+            return crafting.isEmpty() && computation.isEmpty()
+                && pendingGridRefresh.isEmpty()
+                && pendingGridTopology.isEmpty()
+                && pendingCapacity.isEmpty()
+                && awaitingCapacity.isEmpty()
+                && pendingCpuGrids.isEmpty()
+                && !computationDirty;
+        }
     }
 }

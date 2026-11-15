@@ -17,7 +17,9 @@ import appeng.api.networking.IGridNode;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerProfiles;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEClusterCalculator;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECluster;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.BlockNodeListener;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.BlockOrientation;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridHelper;
@@ -114,20 +116,34 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
     @Override
     public void onReady() {
         super.onReady();
-        onGridConnectableSidesChanged();
-        if (level instanceof ServerWorldView serverLevel) {
-            calculator.calculateMultiblock(serverLevel, worldPosition);
-            // During chunk loading, neighboring block entities may not be available yet. A single
-            // immediate calculation can therefore leave a valid structure disconnected until a
-            // block update occurs. Retry after the load queue has finished restoring the chunk.
-            serverLevel.getServer()
-                .executeIfPossible(() -> {
-                    if (!isRemoved() && level == serverLevel && hasLevel() && level.hasChunkAt(worldPosition)) {
-                        calculator.calculateMultiblock(serverLevel, worldPosition);
-                    }
-                });
-        }
         applyIdlePower(ECOPowerRole.COMPONENT, 16, 0);
+        if (level instanceof ServerWorldView serverLevel) {
+            if (!(calculator instanceof NEComputationClusterCalculator computation) || computation.usesLegacyChecks()) {
+                onGridConnectableSidesChanged();
+                calculator.calculateMultiblock(serverLevel, worldPosition);
+                serverLevel.getServer()
+                    .executeIfPossible(() -> {
+                        if (!isRemoved() && level == serverLevel && serverLevel.hasChunkAt(worldPosition)) {
+                            calculator.calculateMultiblock(serverLevel, worldPosition);
+                        }
+                    });
+                return;
+            }
+            if (cluster instanceof NEComputationCluster active && active.usesCompactGrid() && defersGridNode()) {
+                active.memberChanged(this);
+            } else if (cluster != null) updateState(true);
+            calculator.requestMultiblockCheck(serverLevel, worldPosition);
+        }
+    }
+
+    @Override
+    public final boolean defersGridNode() {
+        return calculator instanceof NEComputationClusterCalculator computation && computation.usesCompactGrid();
+    }
+
+    private boolean usesNativeMemberGrid() {
+        return !defersGridNode()
+            || cluster instanceof NEComputationCluster computation && !computation.usesCompactGrid();
     }
 
     private ECOPowerRole idlePowerRole = ECOPowerRole.COMPONENT;
@@ -151,7 +167,8 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
             .resolve(new ECOPowerProfiles.Context(this, getBlockState(), tier, role, defaultBase, cellDrain));
         if (Double.compare(appliedIdlePower, resolved) != 0) {
             appliedIdlePower = resolved;
-            getMainNode().setIdlePowerUsage(resolved);
+            if (usesNativeMemberGrid()) getMainNode().setIdlePowerUsage(resolved);
+            else if (cluster instanceof NEComputationCluster computation) computation.requestGridPowerUpdate();
         }
     }
 
@@ -160,7 +177,7 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
         applyIdlePower(idlePowerRole, idleBasePower, idleCellDrain);
     }
 
-    /** The exact value last applied to the AE2 node; empty before the first power update. */
+    /** The resolved component draw, before any computation cluster aggregates it onto its controller. */
     public final java.util.OptionalDouble appliedIdlePower() {
         return Double.isNaN(appliedIdlePower) ? java.util.OptionalDouble.empty()
             : java.util.OptionalDouble.of(appliedIdlePower);
@@ -171,6 +188,9 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
             return;
         }
         if (level instanceof ServerWorldView serverLevel) {
+            if (defersGridNode() && cluster instanceof NEComputationCluster computation) {
+                computation.memberChanged(this);
+            }
             calculator.updateMultiblockAfterNeighborUpdate(serverLevel, worldPosition, changedPos);
         }
     }
@@ -180,7 +200,19 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
             return;
         }
         if (level instanceof ServerWorldView serverLevel) {
-            calculator.calculateMultiblock(serverLevel, worldPosition);
+            if (calculator instanceof NEComputationClusterCalculator computation && !computation.usesLegacyChecks())
+                calculator.requestMultiblockCheck(serverLevel, worldPosition);
+            else calculator.calculateMultiblock(serverLevel, worldPosition);
+        }
+    }
+
+    public void requestMultiblockCheck() {
+        if (getLevel() instanceof ServerWorldView serverLevel) {
+            if (!(calculator instanceof NEComputationClusterCalculator computation) || computation.usesLegacyChecks()) {
+                calculator.calculateMultiblock(serverLevel, worldPosition);
+                return;
+            }
+            calculator.requestMultiblockCheck(serverLevel, worldPosition);
         }
     }
 
@@ -236,7 +268,11 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
             level.setBlock(worldPosition, newState, 2);
         }
         refreshIdlePower();
-        if (updateExposed && getMainNode().isReady()) {
+        if (updateExposed && getMainNode().isReady() && usesNativeMemberGrid()) {
+            if (defersGridNode() && !getProxy().isReady()) {
+                getMainNode().setIdlePowerUsage(appliedIdlePower().orElse(0));
+                setDeferredGridNode(true);
+            }
             onGridConnectableSidesChanged();
         }
     }
@@ -259,6 +295,8 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
         if (cluster == null) {
             return java.util.Collections.emptyIterator();
         }
+        if (cluster instanceof NEComputationCluster computation && computation.usesCompactGrid())
+            return computation.gridNodes();
         List<IGridNode> nodes = new ArrayList<>();
         Iterator<? extends net.minecraft.tileentity.TileEntity> it = cluster.getBlockEntities();
         while (it.hasNext()) {
@@ -273,9 +311,25 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
     }
 
     public void updateCluster(@Nullable C cluster) {
+        boolean wasNativeMember = usesNativeMemberGrid();
         this.cluster = cluster;
         formed = cluster != null;
+        if (wasNativeMember && !usesNativeMemberGrid()) setDeferredGridNode(false);
         updateState(true);
+    }
+
+    @Override
+    protected void disconnectOnRemoval() {
+        if (defersGridNode() && cluster instanceof NEComputationCluster computation
+            && computation.usesCompactGrid()
+            && !computation.isDestroyed()
+            && !isServerStopping()
+            && computation.getController() != null
+            && computation.getController() != this) {
+            computation.memberRemoved(false);
+        } else {
+            super.disconnectOnRemoval();
+        }
     }
 
     protected boolean isServerStopping() {
@@ -288,9 +342,7 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
         if (this.cluster != null) {
             this.cluster.destroy();
             formed = false;
-            if (update) {
-                updateState(true);
-            }
+            if (update && !defersGridNode()) updateState(true);
         }
     }
 

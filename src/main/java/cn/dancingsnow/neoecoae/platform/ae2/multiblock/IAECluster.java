@@ -16,6 +16,15 @@ public interface IAECluster extends appeng.me.cluster.IAECluster {
 
     BlockPos getBoundsMax();
 
+    default boolean containsPosition(BlockPos position) {
+        BlockPos min = getBoundsMin(), max = getBoundsMax();
+        return position.getX() >= min.getX() && position.getX() <= max.getX()
+            && position.getY() >= min.getY()
+            && position.getY() <= max.getY()
+            && position.getZ() >= min.getZ()
+            && position.getZ() <= max.getZ();
+    }
+
     Iterator<? extends TileEntity> getBlockEntities();
 
     /** Modern AE2's teardown flag; rv3's cluster contract has no equivalent. */

@@ -40,28 +40,28 @@ public abstract class NEClusterCalculator<C extends NECluster<C>> extends MBCalc
     @SuppressWarnings("unchecked")
     @Override
     public void updateBlockEntities(C c, ServerWorldView level, BlockPos min, BlockPos max) {
-        for (BlockPos blockPos : BlockPos.betweenClosed(min, max)) {
-            TileEntity candidate = level.getBlockEntity(blockPos);
-            if (!(candidate instanceof NEBlockEntity<?, ?>) || !isValidBlockEntity(candidate)) {
-                this.disconnect();
-                return;
-            }
-            NEBlockEntity<C, ?> blockEntity = (NEBlockEntity<C, ?>) candidate;
-            c.addBlockEntity(blockEntity);
+        var members = collectMembers(level, min, max);
+        if (members.isEmpty()) {
+            this.disconnect();
+            return;
         }
-        c.getBlockEntities()
-            .forEachRemaining(it -> {
-                if (it instanceof NEBlockEntity<?, ?>blockEntity) {
-                    updateClusterUnchecked(blockEntity, c);
-                }
-            });
+        members.forEach(c::addBlockEntity);
+        members.forEach(member -> member.updateCluster(c));
         c.updateFormed(true);
         this.onClusterAttached(c);
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static void updateClusterUnchecked(NEBlockEntity<?, ?> blockEntity, NECluster<?> cluster) {
-        ((NEBlockEntity) blockEntity).updateCluster(cluster);
+    @SuppressWarnings("unchecked")
+    protected final List<NEBlockEntity<C, ?>> collectMembers(ServerWorldView level, BlockPos min, BlockPos max) {
+        List<NEBlockEntity<C, ?>> members = new java.util.ArrayList<>();
+        for (BlockPos blockPos : BlockPos.betweenClosed(min, max)) {
+            TileEntity candidate = level.getBlockEntity(blockPos);
+            if (!(candidate instanceof NEBlockEntity<?, ?>) || !isValidBlockEntity(candidate)) {
+                return java.util.Collections.emptyList();
+            }
+            members.add((NEBlockEntity<C, ?>) candidate);
+        }
+        return members;
     }
 
     protected void onClusterAttached(C cluster) {}

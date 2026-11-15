@@ -39,14 +39,20 @@ final class NEStructureShape {
     final int offsetB;
     final int offsetC;
     final List<NEStructureElement> elements;
+    private final BlockPos minOffset;
+    private final BlockPos maxOffset;
+    private final int slots;
 
     private NEStructureShape(IStructureDefinition<TileEntity> definition, int offsetA, int offsetB, int offsetC,
-        List<NEStructureElement> elements) {
+        List<NEStructureElement> elements, BlockPos minOffset, BlockPos maxOffset, int slots) {
         this.definition = definition;
         this.offsetA = offsetA;
         this.offsetB = offsetB;
         this.offsetC = offsetC;
         this.elements = elements;
+        this.minOffset = minOffset;
+        this.maxOffset = maxOffset;
+        this.slots = slots;
     }
 
     static synchronized NEStructureShape of(MultiBlockDefinition definition, int repeats, Direction facing,
@@ -64,10 +70,17 @@ final class NEStructureShape {
         List<NEStructureElement> elements = new ArrayList<>(blocks.size());
         // The controller sits at ABC (0, 0, 0) and stays outside the shape.
         int minA = 0, minB = 0, minC = 0, maxA = 0, maxB = 0, maxC = 0;
+        int minX = 0, minY = 0, minZ = 0, maxX = 0, maxY = 0, maxZ = 0;
         for (PlannedBlock block : blocks) {
             if (block.relativePos()
                 .equals(MultiBlockRotation.CONTROLLER_ANCHOR)) continue;
             BlockPos world = MultiBlockRotation.localToWorld(block.relativePos(), BlockPos.ZERO, facing, mirrored);
+            minX = Math.min(minX, world.getX());
+            minY = Math.min(minY, world.getY());
+            minZ = Math.min(minZ, world.getZ());
+            maxX = Math.max(maxX, world.getX());
+            maxY = Math.max(maxY, world.getY());
+            maxZ = Math.max(maxZ, world.getZ());
             int[] abc = new int[3];
             FRAME.getOffsetABC(new int[] { world.getX(), world.getY(), world.getZ() }, abc);
             positions.add(abc);
@@ -88,11 +101,14 @@ final class NEStructureShape {
         char[][][] grid = new char[maxC - minC + 1][maxB - minB + 1][maxA - minA + 1];
         for (char[][] layer : grid) for (char[] row : layer) java.util.Arrays.fill(row, ' ');
         StructureDefinition.Builder<TileEntity> builder = StructureDefinition.builder();
+        int slots = 1;
         for (int i = 0; i < positions.size(); i++) {
             int[] abc = positions.get(i);
             char key = (char) (FIRST_ELEMENT + i);
             // Later instructions overwrite earlier ones, matching sequential placement of the old builder.
-            grid[abc[2] - minC][abc[1] - minB][abc[0] - minA] = key;
+            char[] row = grid[abc[2] - minC][abc[1] - minB];
+            if (row[abc[0] - minA] == ' ') slots++;
+            row[abc[0] - minA] = key;
             builder.addElement(key, elements.get(i));
         }
         String[][] shape = new String[grid.length][];
@@ -101,7 +117,37 @@ final class NEStructureShape {
             for (int b = 0; b < grid[c].length; b++) shape[c][b] = new String(grid[c][b]);
         }
         builder.addShape(PIECE, shape);
-        return new NEStructureShape(builder.build(), -minA, -minB, -minC, elements);
+        return new NEStructureShape(
+            builder.build(),
+            -minA,
+            -minB,
+            -minC,
+            elements,
+            new BlockPos(minX, minY, minZ),
+            new BlockPos(maxX, maxY, maxZ),
+            slots);
+    }
+
+    boolean check(TileEntity host, BlockPos min, BlockPos max) {
+        BlockPos controller = new BlockPos(host.xCoord, host.yCoord, host.zCoord);
+        long volume = (long) (max.getX() - min.getX() + 1) * (max.getY() - min.getY() + 1)
+            * (max.getZ() - min.getZ() + 1);
+        return slots == volume && controller.offset(minOffset)
+            .equals(min)
+            && controller.offset(maxOffset)
+                .equals(max)
+            && definition.check(
+                host,
+                PIECE,
+                host.getWorldObj(),
+                FRAME,
+                host.xCoord,
+                host.yCoord,
+                host.zCoord,
+                offsetA,
+                offsetB,
+                offsetC,
+                true);
     }
 
     void hints(TileEntity host, ItemStack trigger) {
