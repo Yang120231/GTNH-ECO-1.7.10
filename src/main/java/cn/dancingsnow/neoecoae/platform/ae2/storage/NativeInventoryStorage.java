@@ -35,7 +35,7 @@ public class NativeInventoryStorage implements MEStorage, DelegatingStorage {
     public long insert(AEKey key, long amount, Actionable mode, IActionSource source) {
         if (amount <= 0 || key == null
             || key.getType()
-                .nativeChannel() != nativeInventory.getChannel())
+                .nativeType() != nativeInventory.getStackType())
             return 0;
         IAEStack remaining = nativeInventory.injectItems(key.toNative(amount), mode, source.nativeSource());
         return amount - (remaining == null ? 0 : remaining.getStackSize());
@@ -45,7 +45,7 @@ public class NativeInventoryStorage implements MEStorage, DelegatingStorage {
     public long extract(AEKey key, long amount, Actionable mode, IActionSource source) {
         if (amount <= 0 || key == null
             || key.getType()
-                .nativeChannel() != nativeInventory.getChannel())
+                .nativeType() != nativeInventory.getStackType())
             return 0;
         IAEStack extracted = nativeInventory.extractItems(key.toNative(amount), mode, source.nativeSource());
         return extracted == null ? 0 : extracted.getStackSize();
@@ -54,13 +54,13 @@ public class NativeInventoryStorage implements MEStorage, DelegatingStorage {
     @Override
     public long getAvailableAmount(AEKey key) {
         if (key == null || key.getType()
-            .nativeChannel() != nativeInventory.getChannel()) return 0;
+            .nativeType() != nativeInventory.getStackType()) return 0;
         IAEStack request = key.toNative(1);
         IItemList cached = cachedNetworkList();
         if (cached == null && cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter.isActive()) {
             // The native point query bypasses the scoped storage-bus listing filter.
             cached = nativeInventory.getAvailableItems(
-                nativeInventory.getChannel()
+                nativeInventory.getStackType()
                     .createList(),
                 appeng.util.IterationCounter.fetchNewId(),
                 java.util.Optional.of((java.util.function.Predicate<IAEStack>) stack -> stack.isSameType(request)));
@@ -85,7 +85,7 @@ public class NativeInventoryStorage implements MEStorage, DelegatingStorage {
     public void getAvailableStacks(KeyCounter output) {
         IItemList listed = cachedNetworkList();
         if (listed == null) listed = nativeInventory.getAvailableItems(
-            nativeInventory.getChannel()
+            nativeInventory.getStackType()
                 .createList());
         for (Object value : listed) {
             IAEStack stack = (IAEStack) value;

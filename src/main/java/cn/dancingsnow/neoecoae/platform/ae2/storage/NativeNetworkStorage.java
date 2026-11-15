@@ -2,6 +2,9 @@ package cn.dancingsnow.neoecoae.platform.ae2.storage;
 
 import appeng.api.config.Actionable;
 import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.data.AEStackTypeRegistry;
+import appeng.api.storage.data.IAEStackType;
 import cn.dancingsnow.neoecoae.impl.storage.StorageListingChanges;
 import cn.dancingsnow.neoecoae.impl.storage.StorageListingDelta;
 import cn.dancingsnow.neoecoae.impl.storage.transfer.StorageBusTransferFilter;
@@ -10,12 +13,11 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 
-/** Both native monitors belong to the same actual grid; no secondary inventory or ledger. */
+/** Native monitors belong to the same actual grid; no secondary inventory or ledger. */
 public final class NativeNetworkStorage implements MEStorage, StorageListingDelta {
 
     private final IStorageGrid grid;
-    private final ChannelSnapshot items = new ChannelSnapshot();
-    private final ChannelSnapshot fluids = new ChannelSnapshot();
+    private final java.util.Map<IAEStackType<?>, ChannelSnapshot> channels = new java.util.IdentityHashMap<>();
     private KeyCounter snapshot;
     private final StorageListingChanges changes = new StorageListingChanges();
 
@@ -28,8 +30,19 @@ public final class NativeNetworkStorage implements MEStorage, StorageListingDelt
             StorageBusTransferFilter.withoutExclusion(this::refreshChannels);
             return;
         }
-        boolean changed = items.update(grid.getItemInventory(), changes);
-        changed |= fluids.update(grid.getFluidInventory(), changes);
+        boolean changed = false;
+        for (IAEStackType<?> type : AEStackTypeRegistry.getAllTypes()) {
+            IMEMonitor<?> monitor = grid.getMEMonitor(type);
+            if (monitor == null) {
+                if (channels.remove(type) != null) {
+                    changes.invalidate();
+                    changed = true;
+                }
+            } else {
+                changed |= channels.computeIfAbsent(type, ignored -> new ChannelSnapshot())
+                    .update(monitor, changes);
+            }
+        }
         if (changed) snapshot = null;
     }
 
@@ -44,42 +57,51 @@ public final class NativeNetworkStorage implements MEStorage, StorageListingDelt
     public boolean neoecoae$visitListingChanges(long since, long current,
         java.util.function.ObjLongConsumer<AEKey> visitor) {
         if (neoecoae$listingVersion() != current || current == UNKNOWN) return false;
-        return changes.visitSince(
-            since,
-            current,
-            key -> visitor.accept(
+        return changes.visitSince(since, current, key -> {
+            ChannelSnapshot channel = channels.get(
+                key.getType()
+                    .nativeType());
+            visitor.accept(
                 key,
                 StorageBusTransferFilter.isActive() ? getAvailableAmount(key)
-                    : (key.getType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? items
-                        : fluids).amounts.get(key)));
+                    : channel == null ? 0 : channel.amounts.get(key));
+        });
     }
 
     private MEStorage channel(AEKey key) {
-        return new NativeInventoryStorage(
-            key.getType() == cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType.items() ? grid.getItemInventory()
-                : grid.getFluidInventory());
+        if (key == null || key.getType()
+            .nativeType() == null) return null;
+        IMEMonitor<?> monitor = grid.getMEMonitor(
+            key.getType()
+                .nativeType());
+        return monitor == null ? null : new NativeInventoryStorage(monitor);
     }
 
     @Override
     public long insert(AEKey key, long amount, Actionable mode, IActionSource source) {
-        return key == null ? 0 : channel(key).insert(key, amount, mode, source);
+        MEStorage inventory = channel(key);
+        return inventory == null ? 0 : inventory.insert(key, amount, mode, source);
     }
 
     @Override
     public long extract(AEKey key, long amount, Actionable mode, IActionSource source) {
-        return key == null ? 0 : channel(key).extract(key, amount, mode, source);
+        MEStorage inventory = channel(key);
+        return inventory == null ? 0 : inventory.extract(key, amount, mode, source);
     }
 
     @Override
     public long getAvailableAmount(AEKey key) {
-        return key == null ? 0 : channel(key).getAvailableAmount(key);
+        MEStorage inventory = channel(key);
+        return inventory == null ? 0 : inventory.getAvailableAmount(key);
     }
 
     @Override
     public void getAvailableStacks(KeyCounter out) {
         if (StorageBusTransferFilter.isActive() || !cn.dancingsnow.neoecoae.platform.network.ServerThread.isCurrent()) {
-            new NativeInventoryStorage(grid.getItemInventory()).getAvailableStacks(out);
-            new NativeInventoryStorage(grid.getFluidInventory()).getAvailableStacks(out);
+            for (IAEStackType<?> type : AEStackTypeRegistry.getAllTypes()) {
+                IMEMonitor<?> monitor = grid.getMEMonitor(type);
+                if (monitor != null) new NativeInventoryStorage(monitor).getAvailableStacks(out);
+            }
             return;
         }
         for (var entry : getAvailableStacks()) cn.dancingsnow.neoecoae.impl.storage.SaturatingStackAccumulator
@@ -95,8 +117,8 @@ public final class NativeNetworkStorage implements MEStorage, StorageListingDelt
         }
         refreshChannels();
         if (snapshot == null) {
-            KeyCounter next = items.amounts.copy();
-            next.addAll(fluids.amounts);
+            KeyCounter next = new KeyCounter();
+            for (ChannelSnapshot channel : channels.values()) next.addAll(channel.amounts);
             snapshot = next.freeze();
         }
         return snapshot;
@@ -107,11 +129,11 @@ public final class NativeNetworkStorage implements MEStorage, StorageListingDelt
         getAvailableStacks();
         // Exact-only changes can leave a saturated native projection unchanged. Re-read just those keys
         // at the planning boundary instead of assuming every third-party source posts visible deltas.
-        items.refreshExact();
-        fluids.refreshExact();
-        java.util.Map<AEKey, cn.dancingsnow.neoecoae.crafting.amount.ExactAmount> result = new java.util.HashMap<>(
-            items.exact);
-        result.putAll(fluids.exact);
+        java.util.Map<AEKey, cn.dancingsnow.neoecoae.crafting.amount.ExactAmount> result = new java.util.HashMap<>();
+        for (ChannelSnapshot channel : channels.values()) {
+            channel.refreshExact();
+            result.putAll(channel.exact);
+        }
         return java.util.Collections.unmodifiableMap(result);
     }
 
@@ -169,7 +191,7 @@ public final class NativeNetworkStorage implements MEStorage, StorageListingDelt
                 NativeStackAmounts.beginExact();
                 try {
                     appeng.api.storage.data.IItemList precise = monitor.getAvailableItems(
-                        monitor.getChannel()
+                        monitor.getStackType()
                             .createList(),
                         appeng.util.IterationCounter.fetchNewId(),
                         java.util.Optional.of(
