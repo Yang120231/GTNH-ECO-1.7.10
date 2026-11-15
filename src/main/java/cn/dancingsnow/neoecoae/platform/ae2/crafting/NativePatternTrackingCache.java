@@ -157,8 +157,8 @@ public final class NativePatternTrackingCache implements IGridCache {
             throw new IllegalStateException("Unmapped native crafting catalog");
         Set<AEKey> keys = new HashSet<>();
         // The public native listing includes emitters that have no stored stock and no crafting pattern.
-        for (var channel : appeng.api.storage.StorageChannel.values()) {
-            appeng.api.storage.data.IItemList list = channel.createList();
+        for (var type : appeng.api.storage.data.AEStackTypeRegistry.getAllTypes()) {
+            appeng.api.storage.data.IItemList list = type.createList();
             ((CraftingGridCache) crafting).getAvailableItems(list, 0, java.util.Optional.empty());
             for (Object entry : list) {
                 AEKey key = AEKey.fromNative((appeng.api.storage.data.IAEStack<?>) entry);
