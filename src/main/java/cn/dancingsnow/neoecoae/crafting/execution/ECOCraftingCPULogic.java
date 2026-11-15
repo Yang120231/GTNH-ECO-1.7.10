@@ -692,9 +692,9 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         var current = job;
         if (current == null || output == null || world == null)
             return cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY;
-        var sampled = getWaitingFor(output) > 0 || getPendingOutputs(output) > 0
-            ? processingMonitor.sample(world, output, world.getTotalWorldTime(), priority)
-            : cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY;
+        if (getWaitingFor(output) <= 0 && getPendingOutputs(output) <= 0)
+            return cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY;
+        var sampled = processingMonitor.sample(world, output, world.getTotalWorldTime(), priority);
         java.math.BigInteger total;
         java.math.BigInteger completed;
         if (current.finalOutput != null && output.equals(current.finalOutput.what())) {

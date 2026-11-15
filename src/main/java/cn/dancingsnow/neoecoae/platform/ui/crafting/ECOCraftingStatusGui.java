@@ -652,7 +652,8 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     }
 
     private ECOProcessingProgress progressOf(CraftingCpuEntry entry) {
-        if (processing.isEmpty()) return ECOProcessingProgress.EMPTY;
+        if (processing.isEmpty() || !entry.hasActiveAmount() && !entry.hasPendingAmount())
+            return ECOProcessingProgress.EMPTY;
         AEKey key = AEKey.fromNative(entry.getStack());
         ECOProcessingProgress progress = key == null ? null : processing.get(key);
         return progress == null ? ECOProcessingProgress.EMPTY : progress;
