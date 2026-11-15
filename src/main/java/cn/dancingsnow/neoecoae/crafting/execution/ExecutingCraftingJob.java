@@ -94,6 +94,10 @@ public class ExecutingCraftingJob {
     transient int tasksRevision;
     final Map<AEKey, java.math.BigInteger> deferredStock = new LinkedHashMap<>();
     final Map<AEKey, java.math.BigInteger> deferredEmitted = new LinkedHashMap<>();
+    /** Full per-output work, including intermediate products; independent of the shrinking task ledger. */
+    final Map<AEKey, java.math.BigInteger> planTotals = new LinkedHashMap<>();
+    /** Physically claimed outputs, keyed by the planned waiting entry even when an actual key is substituted. */
+    final Map<AEKey, java.math.BigInteger> producedTotals = new LinkedHashMap<>();
     /** Outputs of successful multi-craft dispatches in this job, used by the ECO status page. */
     final Set<AEKey> batchedOutputs = new HashSet<>();
     final Set<AEKey> stoppedProcessingOutputs = new HashSet<>();
@@ -206,6 +210,7 @@ public class ExecutingCraftingJob {
                     .getType());
             deferredEmitted.forEach((key, amount) -> timeTracker.addMaxItems(amount, key.getType()));
         }
+        rebuildPlanTotalsFromRemainingWork();
         if (executionPlan == null) {
             this.executionRuntime = null;
         } else {
@@ -276,6 +281,15 @@ public class ExecutingCraftingJob {
         exactOrder = data.getBoolean("exactOrder");
         readDeferred(data, "deferredStock", deferredStock, registries);
         readDeferred(data, "deferredEmitted", deferredEmitted, registries);
+        try {
+            readDeferred(data, "planTotals", planTotals, registries);
+            readDeferred(data, "producedTotals", producedTotals, registries);
+        } catch (RuntimeException invalidProgress) {
+            // Optional display history must not prevent an otherwise valid order from resuming.
+            planTotals.clear();
+            producedTotals.clear();
+        }
+        if (planTotals.isEmpty()) rebuildPlanTotalsFromRemainingWork();
         ECOExecutionRuntime restoredRuntime = null;
         boolean executionMetadataLost = data.getBoolean(NBT_EXECUTION_PERSISTENCE_FAILED)
             || exactOrder && taskDefinitionLost;
@@ -438,6 +452,8 @@ public class ExecutingCraftingJob {
         data.put("fuzzyPlanningItemIds", fuzzyItems);
         writeDeferred(data, "deferredStock", deferredStock, registries);
         writeDeferred(data, "deferredEmitted", deferredEmitted, registries);
+        writeDeferred(data, "planTotals", planTotals, registries);
+        writeDeferred(data, "producedTotals", producedTotals, registries);
         if (this.playerId != null) {
             data.putInt(NBT_PLAYER_ID, this.playerId);
         }
@@ -477,6 +493,10 @@ public class ExecutingCraftingJob {
     /** The prepared suffix has already passed binding and material/seed checks. No in-flight work is replaced. */
     void replaceRemainingPlan(ExecutingCraftingJob prepared) {
         timeTracker.replaceRemainingWork(prepared.timeTracker);
+        // Only a quiescent suffix is replaced: retain completed work and discard abandoned future work.
+        planTotals.clear();
+        planTotals.putAll(prepared.planTotals);
+        producedTotals.forEach((key, amount) -> planTotals.merge(key, amount, java.math.BigInteger::add));
         tasks.clear();
         tasks.putAll(prepared.tasks);
         tasksRevision++;
@@ -496,6 +516,8 @@ public class ExecutingCraftingJob {
         if (!vanillaExecution) throw new IllegalStateException("Only vanilla-executed jobs can merge");
         for (var entry : plan.emittedItems()) {
             waitingFor.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+            if (entry.getLongValue() > 0L) planTotals
+                .merge(entry.getKey(), java.math.BigInteger.valueOf(entry.getLongValue()), java.math.BigInteger::add);
             timeTracker.addMaxItems(
                 entry.getLongValue(),
                 entry.getKey()
@@ -507,6 +529,7 @@ public class ExecutingCraftingJob {
             var progress = tasks.computeIfAbsent(pattern, p -> new ECOExecutionTaskProgress());
             tasksRevision++;
             progress.value = NEMath.saturatingAdd(progress.value, entry.getValue());
+            addPlannedOutputs(pattern, java.math.BigInteger.valueOf(entry.getValue()));
             for (var output : pattern.getOutputs()) {
                 var amount = NEMath.saturatingMultiply(output.amount(), entry.getValue());
                 amount = NEMath.saturatingMultiply(
@@ -523,6 +546,26 @@ public class ExecutingCraftingJob {
             .amount();
         finalOutput = new GenericStack(finalOutput.what(), NEMath.saturatingAdd(finalOutput.amount(), added));
         remainingAmount = NEMath.saturatingAdd(remainingAmount, added);
+    }
+
+    /** New orders start with their full tasks; older saves without physical history start from remaining work. */
+    private void rebuildPlanTotalsFromRemainingWork() {
+        planTotals.clear();
+        tasks.forEach((pattern, progress) -> addPlannedOutputs(pattern, progress.remainingExact()));
+        for (var entry : waitingFor.list) {
+            var amount = cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory.amount(waitingFor, entry.getKey());
+            if (amount.signum() > 0) planTotals.merge(entry.getKey(), amount, java.math.BigInteger::add);
+        }
+        deferredEmitted.forEach((key, amount) -> planTotals.merge(key, amount, java.math.BigInteger::add));
+        producedTotals.forEach((key, amount) -> planTotals.merge(key, amount, java.math.BigInteger::add));
+        if (finalOutput != null && finalOutput.amount() > 0L)
+            planTotals.putIfAbsent(finalOutput.what(), java.math.BigInteger.valueOf(finalOutput.amount()));
+    }
+
+    private void addPlannedOutputs(IPatternDetails pattern, java.math.BigInteger count) {
+        if (count.signum() <= 0) return;
+        cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory.totals(pattern.getOutputs(), count)
+            .forEach((key, amount) -> planTotals.merge(key, amount, java.math.BigInteger::add));
     }
 
     /** Native task maps merge equal patterns; captured wrappers are fresh objects, so match by native pattern. */

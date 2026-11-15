@@ -7,6 +7,7 @@ import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.widget.ParentWidget;
 
+import cn.dancingsnow.neoecoae.crafting.display.format.DurationFormatter;
 import cn.dancingsnow.neoecoae.gui.common.HostText;
 import cn.dancingsnow.neoecoae.gui.crafting.CraftingControllerPanelState;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
@@ -145,7 +146,7 @@ public final class NativeCraftingArtwork extends ParentWidget<NativeCraftingArtw
                 : HostText.ae2Amount(Math.max(0, values.getLong("parallel") - values.getLong("overflow"))));
         if (values.getBoolean("virtual")) {
             stat(118, 2, "virtual_crafting_short");
-            stat(118, 3, "runtime_ticks_short", values.getInt("executionTicks"));
+            stat(118, 3, "runtime_ticks_short", DurationFormatter.format(values.getInt("executionTicks")));
         } else {
             stat(118, 2, "parallel_overflow_short", HostText.ae2Amount(values.getLong("overflow")));
             coloredStat(

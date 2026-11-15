@@ -28,6 +28,10 @@ public final class ECOProcessingExecutionPattern implements IPatternDetails, ECO
         return original;
     }
 
+    public long copies() {
+        return copies;
+    }
+
     @Override
     public IPatternDetails ecoProviderPattern() {
         return original;

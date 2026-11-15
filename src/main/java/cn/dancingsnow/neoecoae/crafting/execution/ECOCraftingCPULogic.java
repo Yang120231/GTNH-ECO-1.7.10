@@ -689,9 +689,29 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress getProcessingProgress(AEKey output,
         boolean priority) {
         var world = cpu.getLevel();
-        return job == null || (getWaitingFor(output) <= 0 && getPendingOutputs(output) <= 0) || world == null
-            ? cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY
-            : processingMonitor.sample(world, output, world.getTotalWorldTime(), priority);
+        var current = job;
+        if (current == null || output == null || world == null)
+            return cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY;
+        var sampled = getWaitingFor(output) > 0 || getPendingOutputs(output) > 0
+            ? processingMonitor.sample(world, output, world.getTotalWorldTime(), priority)
+            : cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.EMPTY;
+        java.math.BigInteger total;
+        java.math.BigInteger completed;
+        if (current.finalOutput != null && output.equals(current.finalOutput.what())) {
+            total = java.math.BigInteger.valueOf(current.finalOutput.amount());
+            completed = total.subtract(java.math.BigInteger.valueOf(Math.max(0L, current.remainingAmount)));
+        } else {
+            total = current.planTotals.get(output);
+            completed = current.producedTotals.getOrDefault(output, java.math.BigInteger.ZERO);
+        }
+        if (total == null || total.signum() <= 0) return sampled;
+        if (completed.signum() <= 0) return sampled.withGlobalProgress(0);
+        if (completed.compareTo(total) >= 0) return sampled.withGlobalProgress(1);
+        float fraction = new java.math.BigDecimal(completed)
+            .divide(new java.math.BigDecimal(total), java.math.MathContext.DECIMAL64)
+            .floatValue();
+        // Conversion to a display float must not round an incomplete exact order up to 100%.
+        return sampled.withGlobalProgress(Math.min(Math.nextDown(1.0F), fraction));
     }
 
     ECOCraftingEnergyTransaction energyTransactionForPersistence() {

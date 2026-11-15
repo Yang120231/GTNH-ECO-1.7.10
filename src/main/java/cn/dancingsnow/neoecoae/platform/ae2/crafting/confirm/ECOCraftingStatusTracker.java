@@ -188,6 +188,7 @@ public final class ECOCraftingStatusTracker {
             KeyCounter active = new KeyCounter();
             runtime.getItems(active, CraftingItemList.ACTIVE);
             runtime.getItems(active, CraftingItemList.PENDING);
+            runtime.getItems(active, CraftingItemList.STORAGE);
             tracked.candidateSet = new LinkedHashSet<>(active.keySet());
             tracked.candidates = new ArrayList<>(tracked.candidateSet);
             tracked.nextCandidateTick = tick + CANDIDATE_INTERVAL;
@@ -213,7 +214,7 @@ public final class ECOCraftingStatusTracker {
             boolean detailed = key.equals(tracked.detailKey);
             ECOProcessingProgress progress = logic.getProcessingProgress(key, detailed || visible.contains(key));
             next.remove(key);
-            if (progress.machineCount() > 0 || progress.refreshing()) next.put(
+            if (progress.machineCount() > 0 || progress.refreshing() || progress.hasGlobalProgress()) next.put(
                 key,
                 progress.forStatusSync()
                     .page(detailed ? tracked.detailPage : -1));

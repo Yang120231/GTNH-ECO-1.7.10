@@ -42,6 +42,16 @@ public final class NativeGregTech {
         return isAvailable() ? GregTechMachineAccess.sample(tile) : null;
     }
 
+    /** Called by the optional GT mixin after the native recipe check has accepted or rejected a cycle. */
+    public static void recipeChecked(Object machine, boolean successful) {
+        GregTechMachineAccess.recipeChecked(machine, successful);
+    }
+
+    /** Called by the optional GT mixin after native NBT restoration, before a new recipe check occurs. */
+    public static void recipeLoaded(Object machine) {
+        GregTechMachineAccess.recipeLoaded(machine);
+    }
+
     /** Opens a GT machine's or hatch's own GUI the way a right click would, without held-item side effects. */
     public static boolean openGui(TileEntity tile, net.minecraft.entity.player.EntityPlayer player) {
         return isAvailable() && GregTechMachineAccess.openGui(tile, player);

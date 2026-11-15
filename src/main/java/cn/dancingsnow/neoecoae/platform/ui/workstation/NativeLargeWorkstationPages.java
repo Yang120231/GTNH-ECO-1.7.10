@@ -27,6 +27,7 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.slot.FluidSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
+import cn.dancingsnow.neoecoae.crafting.display.format.DurationFormatter;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
@@ -379,8 +380,11 @@ public final class NativeLargeWorkstationPages {
                         Component.translatable(row.getString("detail"))
                             .getString());
                 lines.add(tr("progress", Math.max(0, Math.min(200, row.getInt("progress"))) / 2).getString());
-                if (row.getInt("processingTicks") > 0) lines
-                    .add(tr("task_duration", row.getInt("elapsedTicks"), row.getInt("processingTicks")).getString());
+                if (row.getInt("processingTicks") > 0) lines.add(
+                    tr(
+                        "task_duration",
+                        DurationFormatter.format(row.getInt("elapsedTicks")),
+                        DurationFormatter.format(row.getInt("processingTicks"))).getString());
                 if (row.getBoolean("returnable")) lines.add(tr("task_return_hint").getString());
             });
             onUpdateListener(widget -> widget.markTooltipDirty());

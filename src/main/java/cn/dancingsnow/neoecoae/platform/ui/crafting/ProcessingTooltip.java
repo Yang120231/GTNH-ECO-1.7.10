@@ -15,6 +15,7 @@ import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
 import appeng.api.storage.data.IAEStack;
+import cn.dancingsnow.neoecoae.crafting.display.format.DurationFormatter;
 import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
 import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State;
 import cpw.mods.fml.relauncher.Side;
@@ -167,7 +168,9 @@ public final class ProcessingTooltip {
             String reason = machine.reason()
                 .getString();
             if (!reason.isEmpty()) rows.add(Row.text(EnumChatFormatting.GOLD + I18n.format(KEY + "reason", reason)));
-            String parallel = machine.parallel() > 0 ? I18n.format(KEY + "parallel", machine.parallel()) : "";
+            String parallel = I18n.format(
+                KEY + "parallel",
+                machine.parallel() > 0 ? machine.parallel() : I18n.format("gui.neoecoae.crafting_report.card.unknown"));
             String cycle = machine.durationTicks() > 0
                 ? I18n.format(KEY + "cycle", (int) (100L * machine.progressTicks() / machine.durationTicks()))
                 : "";
@@ -176,9 +179,14 @@ public final class ProcessingTooltip {
                 rows.add(Row.progress((float) machine.progressTicks() / machine.durationTicks()));
                 rows.add(
                     Row.text(
-                        I18n.format(KEY + "time", machine.progressTicks(), machine.durationTicks()),
+                        I18n.format(
+                            KEY + "time",
+                            DurationFormatter.format(machine.progressTicks()),
+                            DurationFormatter.format(machine.durationTicks())),
                         machine.state() == State.RUNNING
-                            ? I18n.format(KEY + "remaining", machine.durationTicks() - machine.progressTicks())
+                            ? I18n.format(
+                                KEY + "remaining",
+                                DurationFormatter.formatRemaining(machine.durationTicks() - machine.progressTicks()))
                             : ""));
             }
             if (!machine.recipe()

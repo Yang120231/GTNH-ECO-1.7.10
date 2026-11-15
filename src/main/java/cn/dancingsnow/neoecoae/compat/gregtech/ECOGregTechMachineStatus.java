@@ -39,6 +39,7 @@ public final class ECOGregTechMachineStatus {
      * @param outputs           the cycle's pending ItemStack and FluidStack outputs
      * @param formed            false for an unformed multiblock controller
      * @param failure           the last recipe check's message when it failed, otherwise null
+     * @param lastParallel      the current recipe's actual parallel, or zero when it is unknown
      * @param shutdown          the machine's last shutdown reason when it was shut down, otherwise null
      * @param maintenanceIssues missing maintenance fixes of a multiblock (ideal minus repair status)
      * @param outputBlocked     a basic machine cannot empty its output slots
@@ -183,7 +184,7 @@ public final class ECOGregTechMachineStatus {
             duration = 0;
             progress = 0;
         }
-        long parallel = duration > 0 ? Math.max(1L, sample.lastParallel()) : 0;
+        long parallel = duration > 0 ? Math.max(0L, sample.lastParallel()) : 0;
         return new Machine(name, location, "", progress, duration, parallel, state, reason);
     }
 

@@ -21,6 +21,7 @@ import com.glodblock.github.common.item.ItemFluidPacket;
 
 import appeng.api.storage.data.IAEStack;
 import appeng.container.implementations.ContainerPatternTerm;
+import cn.dancingsnow.neoecoae.crafting.display.format.DurationFormatter;
 import cn.dancingsnow.neoecoae.platform.recipe.WorkstationRecipes;
 import codechicken.lib.gui.GuiDraw;
 import codechicken.nei.PositionedStack;
@@ -221,7 +222,7 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
             }
             texture("neoecoae:textures/gui/recipe/progress_bar.png", 135, 30, 6, 18);
             infoLine("neoecoae.workstation.energy", recipe.energy, 74);
-            infoLine("neoecoae.workstation.ticks", recipe.ticks, 83);
+            infoLine("neoecoae.workstation.ticks", DurationFormatter.format(recipe.ticks), 83);
             return;
         }
         if (!recipe.fluid.ingredient()
@@ -236,10 +237,15 @@ public final class WorkstationRecipeHandler extends TemplateRecipeHandler {
     }
 
     private static void infoLine(String key, int value, int y) {
-        String text = StatCollector.translateToLocalFormatted(
+        infoLine(
             key,
             NumberFormat.getIntegerInstance(Locale.US)
-                .format(value));
+                .format(value),
+            y);
+    }
+
+    private static void infoLine(String key, String value, int y) {
+        String text = StatCollector.translateToLocalFormatted(key, value);
         float scale = Math.min(1f, 142f / Math.max(1, Minecraft.getMinecraft().fontRenderer.getStringWidth(text)));
         org.lwjgl.opengl.GL11.glPushMatrix();
         org.lwjgl.opengl.GL11.glTranslatef(5, y, 0);

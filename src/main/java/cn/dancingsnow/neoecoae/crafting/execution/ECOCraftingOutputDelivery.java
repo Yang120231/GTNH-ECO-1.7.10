@@ -191,7 +191,9 @@ final class ECOCraftingOutputDelivery {
                 .insert(what, accepted, Actionable.MODULATE);
             host.taskSchedulerForOutput()
                 .recordPhysicalInsert(what);
-            current.waitingFor.extract(what, accepted, Actionable.MODULATE);
+            long claimed = current.waitingFor.extract(what, accepted, Actionable.MODULATE);
+            if (host.getJob() == current && claimed > 0L)
+                current.producedTotals.merge(what, java.math.BigInteger.valueOf(claimed), java.math.BigInteger::add);
             host.recordCompletedCraftingWork(accepted, what.getType());
             host.markCpuDirty();
             host.taskSchedulerForOutput()
@@ -263,6 +265,7 @@ final class ECOCraftingOutputDelivery {
                 LOGGER.warn("ECO exact output retained after an inventory listener failed", listenerFailure);
             }
             if (host.getJob() == current) {
+                current.producedTotals.merge(key, claimed, java.math.BigInteger::add);
                 host.recordCompletedCraftingWork(
                     claimed.min(max)
                         .longValueExact(),
@@ -363,6 +366,8 @@ final class ECOCraftingOutputDelivery {
                 pendingFinalOutputs.mergeLong(request.actualKey(), route.storedInCpu(), NEMath::saturatingAdd);
             }
         }
+        if (host.getJob() == current) current.producedTotals
+            .merge(request.expectedKey(), java.math.BigInteger.valueOf(claim), java.math.BigInteger::add);
         host.recordCompletedCraftingWork(
             claim,
             request.actualKey()

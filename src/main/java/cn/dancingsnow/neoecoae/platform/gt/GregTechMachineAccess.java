@@ -5,17 +5,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import net.minecraft.tileentity.TileEntity;
 
 import cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.implementations.MTEBasicMachine;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
+import gregtech.common.tileentities.machines.multi.MTEIntegratedOreFactory;
+import gregtech.common.tileentities.machines.multi.MTEIntegratedOreFactoryLegacy;
 
 /** Native API linkage is isolated from the no-GT load path. */
 final class GregTechMachineAccess {
+
+    private static final Field PROCESSING_LOGIC = nativeField("processingLogic");
+    private static final Map<MTEMultiBlockBase, CycleParallel> CYCLE_PARALLELS = new WeakHashMap<>();
 
     private GregTechMachineAccess() {}
 
@@ -53,7 +61,7 @@ final class GregTechMachineAccess {
                 false,
                 multi.mMachine,
                 result == null || result.wasSuccessful() ? null : result.getDisplayString(),
-                multi.lastParallel,
+                currentParallels(multi),
                 shutdown(host),
                 maintenanceIssues(multi),
                 false);
@@ -78,6 +86,85 @@ final class GregTechMachineAccess {
                 basic.mOutputBlocked > 0);
         }
         return null;
+    }
+
+    /** The scanner can clear ProcessingLogic while a recipe runs; keep only that accepted cycle's value. */
+    private static synchronized long currentParallels(MTEMultiBlockBase multi) {
+        if (multi.mMaxProgresstime <= 0) {
+            CYCLE_PARALLELS.remove(multi);
+            return 0;
+        }
+        long parallel = processingParallels(multi);
+        if (parallel > 0) {
+            rememberParallels(multi, parallel);
+            return parallel;
+        }
+        CycleParallel cycle = CYCLE_PARALLELS.get(multi);
+        if (cycle != null && cycle.matches(multi)) {
+            cycle.progress = Math.max(0, multi.mProgresstime);
+            return cycle.parallel;
+        }
+        CYCLE_PARALLELS.remove(multi);
+        return 0;
+    }
+
+    /** Every native recipe check begins a new cycle, even when its duration and outputs are unchanged. */
+    static synchronized void recipeChecked(Object machine, boolean successful) {
+        if (!(machine instanceof MTEMultiBlockBase multi)) return;
+        CYCLE_PARALLELS.remove(multi);
+        if (successful && multi.mMaxProgresstime > 0) rememberParallels(multi, processingParallels(multi));
+    }
+
+    /** GT's lastParallel NBT field describes the restored cycle only, not subsequent recipe checks. */
+    static synchronized void recipeLoaded(Object machine) {
+        if (!(machine instanceof MTEMultiBlockBase multi)) return;
+        CYCLE_PARALLELS.remove(multi);
+        if (multi.mMaxProgresstime <= 0 || PROCESSING_LOGIC == null) return;
+        try {
+            if (PROCESSING_LOGIC.get(multi) != null) rememberParallels(multi, multi.lastParallel);
+        } catch (IllegalAccessException | RuntimeException unavailable) {
+            // An unavailable native value stays unknown.
+        }
+    }
+
+    private static long processingParallels(MTEMultiBlockBase multi) {
+        if (PROCESSING_LOGIC == null) return 0;
+        try {
+            // These custom GT controllers calculate the accepted parallel directly, outside ProcessingLogic.
+            if (multi instanceof MTEIntegratedOreFactory || multi instanceof MTEIntegratedOreFactoryLegacy)
+                return Math.max(0, multi.lastParallel);
+            ProcessingLogic logic = (ProcessingLogic) PROCESSING_LOGIC.get(multi);
+            return logic == null ? 0 : Math.max(0, logic.getCurrentParallels());
+        } catch (IllegalAccessException | RuntimeException | LinkageError unavailable) {
+            return 0;
+        }
+    }
+
+    private static void rememberParallels(MTEMultiBlockBase multi, long parallel) {
+        if (parallel > 0) CYCLE_PARALLELS.put(multi, new CycleParallel(multi, parallel));
+    }
+
+    private static final class CycleParallel {
+
+        final long parallel;
+        final int duration;
+        final Object itemOutputs;
+        final Object fluidOutputs;
+        int progress;
+
+        CycleParallel(MTEMultiBlockBase multi, long parallel) {
+            this.parallel = parallel;
+            duration = multi.mMaxProgresstime;
+            itemOutputs = multi.mOutputItems;
+            fluidOutputs = multi.mOutputFluids;
+            progress = Math.max(0, multi.mProgresstime);
+        }
+
+        boolean matches(MTEMultiBlockBase multi) {
+            return duration == multi.mMaxProgresstime && itemOutputs == multi.mOutputItems
+                && fluidOutputs == multi.mOutputFluids
+                && progress <= Math.max(0, multi.mProgresstime);
+        }
     }
 
     static boolean openGui(TileEntity tile, net.minecraft.entity.player.EntityPlayer player) {
@@ -132,15 +219,20 @@ final class GregTechMachineAccess {
     private static List<Field> inputLists(String... names) {
         List<Field> fields = new ArrayList<>();
         for (String name : names) {
-            try {
-                Field field = MTEMultiBlockBase.class.getDeclaredField(name);
-                field.setAccessible(true);
-                fields.add(field);
-            } catch (ReflectiveOperationException | RuntimeException ignored) {
-                // Absent or sealed in this GT build; observation proceeds with the remaining lists.
-            }
+            Field field = nativeField(name);
+            if (field != null) fields.add(field);
         }
         return Collections.unmodifiableList(fields);
+    }
+
+    private static Field nativeField(String name) {
+        try {
+            Field field = MTEMultiBlockBase.class.getDeclaredField(name);
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException unavailable) {
+            return null;
+        }
     }
 
     /** Input hatch and bus tiles of a formed multiblock controller. */
