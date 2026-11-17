@@ -85,6 +85,10 @@ public final class CraftingPlanExport {
         return ARMED.contains(player.getUniqueID());
     }
 
+    public static void serverStopped() {
+        ARMED.clear();
+    }
+
     /** Called on the server thread when a craft-confirm container receives a calculated plan. */
     public static void onPlanReady(EntityPlayerMP player, GridView grid, ICraftingPlan plan,
         @Nullable ECOPlanningResult result, @Nullable ECOPlannerOptions options) {

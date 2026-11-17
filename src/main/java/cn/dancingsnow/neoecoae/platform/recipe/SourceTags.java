@@ -10,6 +10,7 @@ import java.util.Set;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
 import appeng.api.AEApi;
@@ -93,6 +94,31 @@ public final class SourceTags {
         return resolve(tag, new HashSet<>(), true);
     }
 
+    static String singleOreName(String tag) {
+        String name = oreName(tag);
+        if (name == null || NATIVE.containsKey(tag) || oreAlias(tag) != null) return null;
+        JsonObject definition = TAGS.get(tag);
+        if (definition != null) for (var value : definition.getAsJsonArray("values")) {
+            if (memberId(value).startsWith("#")) return null;
+        }
+        return name;
+    }
+
+    private static String memberId(JsonElement value) {
+        return value.isJsonPrimitive() ? value.getAsString()
+            : value.getAsJsonObject()
+                .get("id")
+                .getAsString();
+    }
+
+    private static String oreAlias(String tag) {
+        return switch (tag) {
+            case "c:ingots/aluminum" -> "ingotAluminium";
+            case "c:dusts/aluminum" -> "dustAluminium";
+            default -> null;
+        };
+    }
+
     private static List<ItemStack> resolve(String tag, Set<String> visiting, boolean ore) {
         if (!visiting.add(tag)) throw new IllegalStateException("Recursive source tag: " + tag);
         var result = new ArrayList<ItemStack>();
@@ -113,10 +139,7 @@ public final class SourceTags {
                 .allStacks(1));
         JsonObject definition = TAGS.get(tag);
         if (definition != null) for (var value : definition.getAsJsonArray("values")) {
-            String id = value.isJsonPrimitive() ? value.getAsString()
-                : value.getAsJsonObject()
-                    .get("id")
-                    .getAsString();
+            String id = memberId(value);
             if (id.startsWith("#")) result.addAll(resolve(id.substring(1), visiting, ore));
             else {
                 ItemStack stack = SourceItems.stack(id, 1);
@@ -125,8 +148,8 @@ public final class SourceTags {
         }
         String oreId = oreName(tag);
         if (ore && oreId != null) result.addAll(OreDictionary.getOres(oreId));
-        if (ore && "c:ingots/aluminum".equals(tag)) result.addAll(OreDictionary.getOres("ingotAluminium"));
-        if (ore && "c:dusts/aluminum".equals(tag)) result.addAll(OreDictionary.getOres("dustAluminium"));
+        String alias = oreAlias(tag);
+        if (ore && alias != null) result.addAll(OreDictionary.getOres(alias));
         visiting.remove(tag);
         return result;
     }

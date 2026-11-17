@@ -17,14 +17,18 @@
   </thead>
   <tbody>
     <tr>
-      <td align="center">2.9.0-RC1 及以上</td>
+      <td align="center">2.9.0（主要目标）</td>
       <td align="center"><a href="https://github.com/Yang120231/GTNH-ECO-1.7.10/releases"><img src="https://img.shields.io/github/v/release/Yang120231/GTNH-ECO-1.7.10" alt="最新版本"></a></td>
     </tr>
   </tbody>
 </table>
 </div>
 
-必需前置包括 Applied Energistics 2、AE2 Fluid Crafting（AE2FC，1.5.64-gtnh 及以上）、ModularUI2 和 StructureLib。
+必需前置包括 Applied Energistics 2、AE2 Fluid Crafting（AE2FC，1.5.64-gtnh 及以上）、ModularUI2（2.3.49-1.7.10 及以上）、StructureLib 和 GTNHLib。
+
+开发依赖以 GTNH 2.9.0 为基准。当前版本未重新验证 2.9.0-RC1 等旧候选版的兼容性。
+
+生存进度以 GTNH 的 GregTech 配方为准：第一颗盈能水晶由 MV 电弧炉加工获得。不安装 GregTech 时，不保证能从零完成 ECO 的生存进度；本移植版不生成自有的末地矿石。
 
 单方块集成工作站与大型集成工作站均可通过 CraftTweaker 1.7.10 脚本独立添加、删除和清空加工配方，参见 [中文接口说明与示例](docs/CRAFTTWEAKER_ZH_CN.md)。
 

@@ -12,10 +12,6 @@
 		"credits": "Upstream Neo ECO AE Extension by DancingSnow0517; GTNH 1.7.10 port by Yang120231.",
 		"logoFile": "",
 		"screenshots": [],
-		"parent": "",
-		"requiredMods": ["modularui2", "appliedenergistics2", "ae2fc", "structurelib"],
-		"dependencies": ["gtnhlib", "modularui2", "appliedenergistics2", "ae2fc", "structurelib", "gregtech"],
-		"dependants": [],
-		"useDependencyInformation": true
+		"parent": ""
 	}]
 }

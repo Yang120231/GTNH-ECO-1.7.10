@@ -17,14 +17,18 @@ Provides expandable storage, crafting, and computation multiblocks for ME networ
   </thead>
   <tbody>
     <tr>
-      <td align="center">2.9.0-RC1 and later</td>
+      <td align="center">2.9.0 (primary target)</td>
       <td align="center"><a href="https://github.com/Yang120231/GTNH-ECO-1.7.10/releases"><img src="https://img.shields.io/github/v/release/Yang120231/GTNH-ECO-1.7.10" alt="Latest release"></a></td>
     </tr>
   </tbody>
 </table>
 </div>
 
-Required dependencies include Applied Energistics 2, AE2 Fluid Crafting (AE2FC, 1.5.64-gtnh or later), ModularUI2, and StructureLib.
+Required dependencies include Applied Energistics 2, AE2 Fluid Crafting (AE2FC, 1.5.64-gtnh or later), ModularUI2 (2.3.49-1.7.10 or later), StructureLib, and GTNHLib.
+
+Development dependencies target GTNH 2.9.0. Compatibility with older release candidates such as 2.9.0-RC1 has not been reverified for this version.
+
+Survival progression follows GTNH's GregTech recipes: the first Energized Crystal comes from an MV Arc Furnace. Without GregTech, a complete survival progression from scratch is not supported. This port does not generate its own End ores.
 
 Single-block and Large Integrated Working Stations support independently adding, removing, and clearing processing recipes with CraftTweaker 1.7.10 scripts. See the [API documentation and examples (Chinese)](docs/CRAFTTWEAKER_ZH_CN.md).
 

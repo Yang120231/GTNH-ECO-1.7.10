@@ -153,14 +153,21 @@ public final class SourceRecipes {
                     if (entry.getKey()
                         .length() != 1)
                         throw new IllegalArgumentException("Invalid source pattern key: " + entry.getKey());
-                    var ingredient = SourceIngredient.of(entry.getValue());
-                    keys.put(
-                        entry.getKey()
-                            .charAt(0),
-                        ingredient);
-                    arguments.add(
-                        entry.getKey()
-                            .charAt(0));
+                    char symbol = entry.getKey()
+                        .charAt(0);
+                    var value = entry.getValue();
+                    arguments.add(symbol);
+                    if (value instanceof JsonObject spec && spec.has("tag") && !spec.has("item")) {
+                        String oreName = SourceTags.singleOreName(
+                            spec.get("tag")
+                                .getAsString());
+                        if (oreName != null) {
+                            arguments.add(oreName);
+                            continue;
+                        }
+                    }
+                    var ingredient = SourceIngredient.of(value);
+                    keys.put(symbol, ingredient);
                     arguments.add(
                         ingredient.examples()
                             .get(0));
@@ -172,7 +179,7 @@ public final class SourceRecipes {
                     var ingredient = keys.get(
                         rows.get(y)
                             .charAt(x));
-                    shaped.getInput()[x + y * width] = ingredient == null ? null : ingredient.examples();
+                    if (ingredient != null) shaped.getInput()[x + y * width] = ingredient.examples();
                 }
                 recipe = shaped;
                 break;
