@@ -36,21 +36,44 @@ public final class NativeAe2Button extends NativeButtonWidget<NativeAe2Button> {
     @Override
     @SideOnly(Side.CLIENT)
     public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-        boolean enabled = active.getAsBoolean();
-        String state = !enabled ? "_disabled" : isHovering() || isPressed() ? "_highlighted" : "";
+        drawFrame(0, 0, getArea().width, getArea().height, active.getAsBoolean(), isHovering() || isPressed());
+    }
+
+    /** Shared with the upload window, which keeps the terminal's container open in a plain GuiScreen. */
+    @SideOnly(Side.CLIENT)
+    public static void drawFrame(int x, int y, int width, int height, boolean enabled, boolean highlighted) {
+        String state = !enabled ? "_disabled" : highlighted ? "_highlighted" : "";
         NativePageLayout
             .texture("neoecoae:textures/gui/vendor/ae2/sprites/button" + state + ".png", 0, 0, 200, 20, 3, 3)
-            .draw(context, 0, 0, getArea().width, getArea().height, theme.getTheme());
+            .draw(x, y, width, height);
     }
 
     @Override
     @SideOnly(Side.CLIENT)
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-        boolean enabled = active.getAsBoolean();
-        boolean highlighted = isHovering() || isPressed();
-        int offset = !enabled ? 2 : highlighted ? 1 : 0;
-        int color = !enabled ? 0x413f54 : highlighted ? 0x517497 : 0xf2f2f2;
+        drawLabel(
+            label.get(),
+            0,
+            0,
+            getArea().width,
+            getArea().height,
+            1,
+            active.getAsBoolean(),
+            isHovering() || isPressed(),
+            0xf2f2f2);
+    }
+
+    @SideOnly(Side.CLIENT)
+    public static void drawLabel(Component label, int x, int y, int width, int height, float scale, boolean enabled,
+        boolean highlighted, int normalColor) {
+        int offset = contentOffset(enabled, highlighted);
+        int color = !enabled ? 0x413f54 : highlighted ? 0x517497 : normalColor;
         NativeUiDraw
-            .text(label.get(), 2, (getArea().height - 9) / 2 + offset, getArea().width - 4, 1, color, true, false);
+            .text(label, x + 2, y + (int) ((height - 9 * scale) / 2) + offset, width - 4, scale, color, true, false);
+    }
+
+    /** Vertical movement of both text and icons with the AE2 button face. */
+    public static int contentOffset(boolean enabled, boolean highlighted) {
+        return !enabled ? 2 : highlighted ? 1 : 0;
     }
 }

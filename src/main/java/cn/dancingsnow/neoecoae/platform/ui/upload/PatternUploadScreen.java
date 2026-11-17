@@ -2,16 +2,20 @@ package cn.dancingsnow.neoecoae.platform.ui.upload;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatAllowedCharacters;
 import net.minecraft.util.EnumChatFormatting;
@@ -23,13 +27,19 @@ import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 
+import com.cleanroommc.modularui.drawable.GuiTextures;
+import com.cleanroommc.modularui.drawable.UITexture;
+
 import appeng.client.gui.AEBaseGui;
 import cn.dancingsnow.neoecoae.crafting.upload.MatchResult;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetSelector;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
+import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.network.PatternUploadPackets;
 import cn.dancingsnow.neoecoae.platform.network.PatternUploadPackets.Row;
 import cn.dancingsnow.neoecoae.platform.network.PatternUploadPackets.TargetList;
+import cn.dancingsnow.neoecoae.platform.ui.NativeAe2Button;
+import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -46,21 +56,20 @@ final class PatternUploadScreen extends GuiScreen {
     private static final float SMALL = 0.75F;
     /** Same character as {@code GtPatternRoutes.MODE_SEPARATOR}, kept here so the screen never loads GT classes. */
     private static final char MODE_SEPARATOR = '';
-    private static final int PANEL_WIDTH = 220, TITLE_HEIGHT = 14, ROW_HEIGHT = 24, CARD_HEIGHT = 23;
-    private static final int MAX_VISIBLE_ROWS = 10, HEADER = 60, FOOTER = 62, SCROLLBAR_WIDTH = 4;
-    private static final int CLOSE_SIZE = 10, TOGGLE_WIDTH = 46, BUTTON_HEIGHT = 14;
+    private static final int PANEL_WIDTH = 420, TITLE_HEIGHT = 14, ROW_HEIGHT = 24, CARD_HEIGHT = 23;
+    private static final int MAX_VISIBLE_ROWS = 12, HEADER = 102, FOOTER = 58, SCROLLBAR_WIDTH = 7;
+    private static final int CLOSE_SIZE = 10, BUTTON_HEIGHT = 16;
     private static final long BUSY_TIMEOUT = 5_000L;
 
     private static final int FREE = PatternTargetSelector.SlotState.FREE.ordinal();
     private static final int FULL = PatternTargetSelector.SlotState.FULL.ordinal();
     private static final int OFFLINE = PatternTargetSelector.SlotState.OFFLINE.ordinal();
+    private static final int DUPLICATE = PatternTargetSelector.SlotState.DUPLICATE.ordinal();
+    private static final String[] FILTERS = { "all", "available", "duplicate", "full", "offline", "incompatible" };
     private static final int EXACT = MatchResult.Level.EXACT.ordinal();
     private static final int ACCEPTED = MatchResult.Level.ACCEPTED.ordinal();
     private static final int ROUTED = MatchResult.Level.ROUTED.ordinal();
     private static final int INCOMPATIBLE = MatchResult.Level.INCOMPATIBLE.ordinal();
-
-    private static final String[] CLOSE_GLYPH = { "o.....o", ".o...o.", "..o.o..", "...o...", "..o.o..", ".o...o.",
-        "o.....o" };
 
     /** Window offset from the centred position; kept for the session so the window reopens where it was left. */
     private static int offsetX, offsetY;
@@ -71,12 +80,17 @@ final class PatternUploadScreen extends GuiScreen {
     private TargetList list;
     private final Map<Row, String> haystacks = new IdentityHashMap<>();
     private List<Row> visible = Collections.emptyList();
+    private List<Row> scoped = Collections.emptyList();
+    private final List<TreeRow> tree = new ArrayList<>();
+    private final Set<String> expanded = new HashSet<>();
+    private boolean mergeTypes = true, revealSelection;
+    private int filter = 1;
+    private Integer dimension;
     private int hiddenCount;
     private boolean queryIgnored;
     private String prefill = "";
     private String searchText;
     private GuiTextField search;
-    private boolean showAll;
     private boolean mappingMode;
     private int scroll;
     private boolean draggingScrollbar;
@@ -94,6 +108,7 @@ final class PatternUploadScreen extends GuiScreen {
 
     private int left, top, panelWidth, panelHeight, listX, listY, listWidth, visibleRows;
     private int toggleX, toggleY, closeX, closeY;
+    private int dimensionX, dimensionWidth, mergeWidth;
     private final int[][] footerButtons = new int[3][];
     private final int[][] mappingButtons = new int[3][];
 
@@ -115,6 +130,7 @@ final class PatternUploadScreen extends GuiScreen {
         haystacks.clear();
         for (Row row : next.rows) haystacks.put(row, haystack(row));
         if (firstOrNewCategory || next.event == PatternUploadPackets.EVENT_MAPPING) {
+            revealSelection = true;
             mappingMode = false;
             prefill = text(next.category);
             // Material orders target a container rather than the multiblock named by the NEI page.
@@ -135,16 +151,25 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static String haystack(Row row) {
-        return strip(hostName(row)) + "\n" + strip(hostText(row.route, row.icon)) + "\n" + strip(kindName(row));
+        return strip(hostName(row)) + "\n"
+            + strip(hostText(row.route, row.icon))
+            + "\n"
+            + strip(kindName(row))
+            + "\n"
+            + row.dimension
+            + " "
+            + row.x
+            + " "
+            + row.y
+            + " "
+            + row.z
+            + " "
+            + row.circuit;
     }
 
     private static String strip(String value) {
         String plain = EnumChatFormatting.getTextWithoutFormattingCodes(value);
         return (plain == null ? "" : plain).toLowerCase(Locale.ROOT);
-    }
-
-    private static boolean available(Row row) {
-        return row.state != FULL && row.state != OFFLINE && row.level != INCOMPATIBLE;
     }
 
     private static boolean uploadable(Row row) {
@@ -166,32 +191,109 @@ final class PatternUploadScreen extends GuiScreen {
             .toLowerCase(Locale.ROOT)
             .split("\\s+");
         List<Row> byQuery = new ArrayList<>();
-        for (Row row : list.rows) if (matches(row, terms)) byQuery.add(row);
+        for (Row row : list.rows)
+            if ((dimension == null || row.dimension == dimension) && matches(row, terms)) byQuery.add(row);
         List<Row> shown = byState(byQuery);
         queryIgnored = false;
-        if (shown.isEmpty() && !text.trim()
+        if (byQuery.isEmpty() && !text.trim()
             .isEmpty() && text.equals(prefill)) {
             // An NEI category that names no target must not hide every target.
             queryIgnored = true;
-            byQuery = list.rows;
+            byQuery = new ArrayList<>();
+            for (Row row : list.rows) if (dimension == null || row.dimension == dimension) byQuery.add(row);
             shown = byState(byQuery);
         }
         hiddenCount = byQuery.size() - shown.size();
+        scoped = byQuery;
         visible = shown;
+        rebuildTree();
         if (search != null) search.setTextColor(queryIgnored ? 0x808080 : 0xE0E0E0);
         scroll = clampScroll(scroll);
     }
 
     private List<Row> byState(List<Row> rows) {
-        if (mappingMode) {
-            List<Row> result = new ArrayList<>();
-            for (Row row : rows) if (mappable(row)) result.add(row);
-            return result;
-        }
-        if (showAll) return rows;
         List<Row> result = new ArrayList<>(rows.size());
-        for (Row row : rows) if (available(row)) result.add(row);
+        for (Row row : rows) if (mappingMode ? mappable(row) : matchesFilter(row, filter)) result.add(row);
         return result;
+    }
+
+    private static boolean matchesFilter(Row row, int filter) {
+        return switch (filter) {
+            case 1 -> uploadable(row);
+            case 2 -> row.state == DUPLICATE;
+            case 3 -> row.state == FULL;
+            case 4 -> row.state == OFFLINE;
+            case 5 -> row.level == INCOMPATIBLE;
+            default -> true;
+        };
+    }
+
+    /** Presentation groups never replace the server tokens of concrete upload inventories. */
+    private static final class TreeRow {
+
+        final Row target;
+        final String key;
+        final List<Row> children;
+        final boolean child;
+
+        TreeRow(Row target, String key, List<Row> children, boolean child) {
+            this.target = target;
+            this.key = key;
+            this.children = children;
+            this.child = child;
+        }
+
+        boolean group() {
+            return children != null;
+        }
+    }
+
+    private static String machineKey(Row row) {
+        String machine = row.route.isEmpty() ? row.name : row.route;
+        return row.kind + "\n"
+            + machine
+            + "\n"
+            + (row.icon == null ? "" : Item.getIdFromItem(row.icon.getItem()) + ":" + row.icon.getItemDamage());
+    }
+
+    private static String machineName(Row row) {
+        return row.route.isEmpty() ? hostText(row.name, row.icon) : hostText(row.route, row.icon);
+    }
+
+    private void rebuildTree() {
+        tree.clear();
+        if (!mergeTypes) {
+            for (Row row : visible) tree.add(new TreeRow(row, "", null, false));
+            revealSelection = false;
+            return;
+        }
+        Map<String, List<Row>> groups = new LinkedHashMap<>();
+        for (Row row : visible) groups.computeIfAbsent(machineKey(row), ignored -> new ArrayList<>())
+            .add(row);
+        for (Map.Entry<String, List<Row>> entry : groups.entrySet()) {
+            List<Row> children = entry.getValue();
+            if (children.size() == 1) {
+                tree.add(new TreeRow(children.get(0), "", null, false));
+                continue;
+            }
+            String key = entry.getKey();
+            if (revealSelection) for (Row row : children)
+                if (row.token == list.autoToken || row.token == list.mappingToken) expanded.add(key);
+            tree.add(new TreeRow(children.get(0), key, children, false));
+            if (expanded.contains(key)) for (Row row : children) tree.add(new TreeRow(row, key, null, true));
+        }
+        revealSelection = false;
+    }
+
+    private void cycleDimension(int direction) {
+        List<Integer> dimensions = new ArrayList<>();
+        for (Row row : list.rows) if (!dimensions.contains(row.dimension)) dimensions.add(row.dimension);
+        Collections.sort(dimensions);
+        dimensions.add(0, null);
+        int index = dimensions.indexOf(dimension);
+        dimension = dimensions.get(Math.floorMod(index + direction, dimensions.size()));
+        scroll = 0;
+        refilter();
     }
 
     private boolean matches(Row row, String[] terms) {
@@ -202,7 +304,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private int clampScroll(int value) {
-        return Math.max(0, Math.min(value, visible.size() - visibleRows));
+        return Math.max(0, Math.min(value, tree.size() - visibleRows));
     }
 
     private boolean busy() {
@@ -309,7 +411,7 @@ final class PatternUploadScreen extends GuiScreen {
         if (parent.width != width || parent.height != height) parent.setWorldAndResolution(mc, width, height);
         panelWidth = Math.min(PANEL_WIDTH, width - 8);
         int rows = (height - 8 - HEADER - FOOTER) / ROW_HEIGHT;
-        visibleRows = Math.max(2, Math.min(MAX_VISIBLE_ROWS, rows));
+        visibleRows = Math.max(1, Math.min(MAX_VISIBLE_ROWS, rows));
         panelHeight = HEADER + visibleRows * ROW_HEIGHT + FOOTER;
         layout();
     }
@@ -326,11 +428,15 @@ final class PatternUploadScreen extends GuiScreen {
         listX = left + 5;
         listY = top + HEADER;
         listWidth = panelWidth - 10 - SCROLLBAR_WIDTH - 2;
-        toggleX = left + panelWidth - 5 - TOGGLE_WIDTH;
-        toggleY = top + 38;
+        mergeWidth = Math.min(78, panelWidth / 4);
+        dimensionWidth = Math.min(86, panelWidth / 4);
+        toggleX = left + panelWidth - 5 - mergeWidth;
+        dimensionX = toggleX - 3 - dimensionWidth;
+        toggleY = top + 82;
         String text = search != null ? search.getText() : searchText == null ? "" : searchText;
         boolean focused = search != null && search.isFocused();
-        search = new GuiTextField(fontRendererObj, left + 6, toggleY + 1, toggleX - 3 - (left + 6), 10);
+        search = new GuiTextField(fontRendererObj, left + 8, toggleY + 5, dimensionX - left - 14, 10);
+        search.setEnableBackgroundDrawing(false);
         search.setMaxStringLength(128);
         search.setText(text);
         search.setFocused(focused);
@@ -418,8 +524,15 @@ final class PatternUploadScreen extends GuiScreen {
         search.mouseClicked(mouseX, mouseY, button);
         int index = rowAt(mouseX, mouseY);
         if (button == 1 && index >= 0) {
+            if (tree.get(index)
+                .group()) return;
             click();
-            locate(visible.get(index));
+            locate(tree.get(index).target);
+            return;
+        }
+        if ((button == 0 || button == 1) && inside(mouseX, mouseY, dimensionX, toggleY, dimensionWidth, 16)) {
+            click();
+            cycleDimension(button == 0 ? 1 : -1);
             return;
         }
         if (button != 0) return;
@@ -436,9 +549,17 @@ final class PatternUploadScreen extends GuiScreen {
             dragStartOffsetY = offsetY;
             return;
         }
-        if (!mappingMode && inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12)) {
+        if (inside(mouseX, mouseY, toggleX, toggleY, mergeWidth, 16)) {
             click();
-            showAll = !showAll;
+            mergeTypes = !mergeTypes;
+            scroll = 0;
+            refilter();
+            return;
+        }
+        if (!mappingMode && inside(mouseX, mouseY, left + 5, top + 65, panelWidth - 10, 15)) {
+            click();
+            filter = Math.min(FILTERS.length - 1, (mouseX - left - 5) * FILTERS.length / (panelWidth - 10));
+            scroll = 0;
             refilter();
             return;
         }
@@ -471,7 +592,20 @@ final class PatternUploadScreen extends GuiScreen {
             return;
         }
         if (index < 0) return;
-        Row row = visible.get(index);
+        TreeRow entry = tree.get(index);
+        if (entry.group()) {
+            click();
+            if (!expanded.remove(entry.key)) expanded.add(entry.key);
+            rebuildTree();
+            scroll = clampScroll(scroll);
+            return;
+        }
+        Row row = entry.target;
+        if (mouseX >= listX + listWidth - 18) {
+            click();
+            locate(row);
+            return;
+        }
         if (mappingMode) {
             if (!busy() && mappable(row)) {
                 click();
@@ -511,7 +645,7 @@ final class PatternUploadScreen extends GuiScreen {
         int[] thumb = thumb();
         if (thumb == null) return;
         int track = visibleRows * ROW_HEIGHT - thumb[1];
-        int max = visible.size() - visibleRows;
+        int max = tree.size() - visibleRows;
         if (track <= 0 || max <= 0) return;
         float ratio = (mouseY - dragOffset - listY) / (float) track;
         scroll = clampScroll(Math.round(ratio * max));
@@ -519,10 +653,10 @@ final class PatternUploadScreen extends GuiScreen {
 
     /** Thumb top and height, or null when everything fits. */
     private int[] thumb() {
-        int max = visible.size() - visibleRows;
+        int max = tree.size() - visibleRows;
         if (max <= 0) return null;
         int track = visibleRows * ROW_HEIGHT;
-        int size = Math.max(10, track * visibleRows / visible.size());
+        int size = Math.max(10, track * visibleRows / tree.size());
         int y = listY + Math.round((track - size) * (scroll / (float) max));
         return new int[] { y, size };
     }
@@ -532,7 +666,7 @@ final class PatternUploadScreen extends GuiScreen {
         int slot = (mouseY - listY) / ROW_HEIGHT;
         if ((mouseY - listY) % ROW_HEIGHT >= CARD_HEIGHT) return -1;
         int index = scroll + slot;
-        return index >= 0 && index < visible.size() ? index : -1;
+        return index >= 0 && index < tree.size() ? index : -1;
     }
 
     private boolean footerEnabled(int index) {
@@ -560,7 +694,10 @@ final class PatternUploadScreen extends GuiScreen {
         UploadDraw.panel(left, top, panelWidth, panelHeight);
         drawTitle(mouseX, mouseY);
         drawHeader();
+        drawOverview();
+        drawFilters(mouseX, mouseY);
         drawSearch(mouseX, mouseY);
+        UploadDraw.rect(listX - 1, listY - 1, listX + listWidth + 1, listY + visibleRows * ROW_HEIGHT, 0xFF888697);
         drawRows(mouseX, mouseY);
         drawScrollbar();
         drawFooter(mouseX, mouseY);
@@ -610,8 +747,7 @@ final class PatternUploadScreen extends GuiScreen {
             top + 4,
             TEXT,
             false);
-        boolean hover = inside(mouseX, mouseY, closeX, closeY, CLOSE_SIZE, CLOSE_SIZE);
-        UploadDraw.glyph(closeX + 1, closeY + 1, CLOSE_GLYPH, 'o', hover ? 0xFFC03030 : 0xFF4A4860);
+        GuiTextures.CLOSE.draw(closeX, closeY, CLOSE_SIZE, CLOSE_SIZE);
         UploadDraw.rect(left + 4, top + TITLE_HEIGHT, left + panelWidth - 4, top + TITLE_HEIGHT + 1, 0x30000000);
     }
 
@@ -647,6 +783,9 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private void drawSearch(int mouseX, int mouseY) {
+        NativePageLayout
+            .texture("neoecoae:textures/gui/vendor/ae2/text_field.png", 0, search.isFocused() ? 24 : 0, 128, 12, 1, 0)
+            .draw(left + 5, toggleY + 2, dimensionX - left - 8, 12);
         search.drawTextBox();
         if (search.getText()
             .isEmpty() && !search.isFocused())
@@ -655,24 +794,108 @@ final class PatternUploadScreen extends GuiScreen {
                 search.xPosition + 3,
                 search.yPosition + 2,
                 0x707070);
-        boolean hover = !mappingMode && inside(mouseX, mouseY, toggleX, toggleY, TOGGLE_WIDTH, 12);
-        UploadDraw.button(toggleX, toggleY, TOGGLE_WIDTH, 12, hover);
-        String label = mappingMode ? text("gui.neoecoae.pattern_upload.mapping.targets")
-            : StatCollector.translateToLocal(
-                showAll ? "gui.neoecoae.pattern_upload.show_available" : "gui.neoecoae.pattern_upload.show_all");
-        smallCentered(label, toggleX, toggleY + 3, TOGGLE_WIDTH, TEXT);
-        StringBuilder info = new StringBuilder(
-            StatCollector
-                .translateToLocalFormatted("gui.neoecoae.pattern_upload.count", visible.size(), list.rows.size()));
-        if (hiddenCount > 0 && !showAll) info.append(" · ")
-            .append(StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.hidden", hiddenCount));
-        if (queryIgnored) info.append(" · ")
-            .append(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search.no_match"));
-        small(trim(info.toString(), panelWidth - 12), left + 6, toggleY + 14, MUTED);
+        UploadDraw.button(
+            dimensionX,
+            toggleY,
+            dimensionWidth,
+            16,
+            inside(mouseX, mouseY, dimensionX, toggleY, dimensionWidth, 16));
+        NativeAe2Button.drawLabel(
+            Component.literal(dimension == null ? ui("dimensions") : ui("dimension", dimension)),
+            dimensionX,
+            toggleY,
+            dimensionWidth,
+            16,
+            SMALL,
+            true,
+            inside(mouseX, mouseY, dimensionX, toggleY, dimensionWidth, 16),
+            TEXT);
+        UploadDraw.toggle(toggleX, toggleY + 2, mergeTypes, inside(mouseX, mouseY, toggleX, toggleY, mergeWidth, 16));
+        small(trim(ui("merge"), mergeWidth - 26), toggleX + 26, toggleY + 5, TEXT);
+    }
+
+    private static String ui(String key, Object... arguments) {
+        return StatCollector.translateToLocalFormatted("gui.neoecoae.pattern_upload.manager." + key, arguments);
+    }
+
+    private void drawOverview() {
+        long total = 0, empty = 0;
+        int ready = 0;
+        for (Row row : list.rows) {
+            if (uploadable(row)) ready++;
+            total += Math.max(0, row.totalSlots);
+            empty += Math.max(0, Math.min(row.emptySlots, row.totalSlots));
+        }
+        int cardWidth = (panelWidth - 16) / 3;
+        drawMetric(
+            0,
+            cardWidth,
+            ui("targets"),
+            Integer.toString(list.rows.size()),
+            ui("inventories"),
+            list.rows.isEmpty() ? 0 : 1,
+            0xFF468BBA);
+        drawMetric(
+            1,
+            cardWidth,
+            ui("ready"),
+            ready + " / " + list.rows.size(),
+            ui("unavailable", list.rows.size() - ready),
+            list.rows.isEmpty() ? 0 : ready / (double) list.rows.size(),
+            0xFF439A54);
+        drawMetric(
+            2,
+            cardWidth,
+            ui("slots"),
+            Long.toString(empty),
+            ui("total_slots", total),
+            total == 0 ? 0 : empty / (double) total,
+            0xFF468BBA);
+    }
+
+    private void drawMetric(int index, int cardWidth, String label, String value, String detail, double fraction,
+        int color) {
+        int x = left + 5 + index * (cardWidth + 3), y = top + 36;
+        if (index > 0) UploadDraw.rect(x - 2, y, x - 1, y + 29, 0xFFABA8B8);
+        small(trim(label, cardWidth / 2), x + 2, y + 1, MUTED);
+        float valueWidth = fontRendererObj.getStringWidth(value) * SMALL;
+        small(trim(value, cardWidth / 2), x + cardWidth - Math.min(valueWidth, cardWidth / 2F) - 2, y + 1, TEXT);
+        UploadDraw.rect(x + 2, y + 12, x + cardWidth - 2, y + 15, 0xFFABA8B8);
+        UploadDraw
+            .rect(x + 2, y + 12, x + 2 + (int) ((cardWidth - 4) * Math.max(0, Math.min(1, fraction))), y + 15, color);
+        small(trim(detail, cardWidth - 4), x + 2, y + 20, MUTED);
+    }
+
+    private void drawFilters(int mouseX, int mouseY) {
+        for (int index = 0; index < FILTERS.length; index++) {
+            int x = left + 5 + index * (panelWidth - 10) / FILTERS.length;
+            int end = left + 5 + (index + 1) * (panelWidth - 10) / FILTERS.length;
+            int count = 0;
+            for (Row row : scoped) if (mappingMode ? index == 0 && mappable(row) : matchesFilter(row, index)) count++;
+            boolean selected = mappingMode ? index == 0 : index == filter;
+            UploadDraw.button(
+                x,
+                top + 65,
+                end - x - 2,
+                15,
+                !mappingMode || index == 0,
+                selected || !mappingMode && inside(mouseX, mouseY, x, top + 65, end - x - 2, 15));
+            if (selected) UploadDraw.rect(x + 2, top + 77, end - 4, top + 79, 0xFF47A7BC);
+            NativeAe2Button.drawLabel(
+                Component.literal(ui("filter." + FILTERS[index]) + " " + count),
+                x,
+                top + 65,
+                end - x - 2,
+                15,
+                SMALL,
+                !mappingMode || index == 0,
+                selected || inside(mouseX, mouseY, x, top + 65, end - x - 2, 15),
+                TEXT);
+        }
     }
 
     private void drawRows(int mouseX, int mouseY) {
-        if (visible.isEmpty()) {
+        if (tree.isEmpty()) {
             smallCentered(
                 StatCollector.translateToLocal("gui.neoecoae.pattern_upload.empty"),
                 listX,
@@ -684,24 +907,89 @@ final class PatternUploadScreen extends GuiScreen {
         boolean busy = busy();
         for (int slot = 0; slot < visibleRows; slot++) {
             int index = scroll + slot;
-            if (index >= visible.size()) break;
-            Row row = visible.get(index);
+            if (index >= tree.size()) break;
+            TreeRow entry = tree.get(index);
+            Row row = entry.target;
             int x = listX, y = listY + slot * ROW_HEIGHT, w = listWidth, h = CARD_HEIGHT;
+            if (entry.group()) {
+                drawGroup(entry, x, y, w, inside(mouseX, mouseY, x, y, w, h));
+                continue;
+            }
             boolean enabled = mappingMode ? mappable(row) : uploadable(row);
             boolean hover = inside(mouseX, mouseY, x, y, w, h);
-            UploadDraw.button(x, y, w, h, hover && enabled && !busy);
-            if (!enabled) UploadDraw.rect(x, y, x + w, y + h, 0x40000000);
-            UploadDraw.rect(x + 2, y + 2, x + 4, y + h - 3, accent(row));
-            item(row.icon, x + 6, y + 3);
+            boolean automatic = row.token == list.autoToken && list.autoToken != 0;
+            UploadDraw.rect(
+                x,
+                y,
+                x + w,
+                y + h,
+                hover ? 0xFFD0EBF1 : automatic ? 0xFFDEEAF0 : entry.child ? 0xFFB8B7C3 : 0xFFC7C5D1);
+            if (hover || automatic) UploadDraw.rect(x, y, x + w, y + 1, 0xFF79C4D7);
+            int indent = entry.child ? 12 : 0;
+            if (entry.child) {
+                UploadDraw.rect(x + 7, y, x + 8, y + h, 0xFF8D899F);
+                UploadDraw.rect(x + 7, y + 13, x + 13, y + 14, 0xFF8D899F);
+            }
+            UploadDraw.rect(x + 2 + indent, y + 4, x + 4 + indent, y + h - 4, accent(row));
+            item(row.icon, x + 6 + indent, y + 3);
             String count = slotCount(row);
             float countWidth = fontRendererObj.getStringWidth(count) * SMALL;
-            float countX = x + w - 5 - countWidth;
-            small(count, countX, y + 8, enabled ? slotColor(row) : DISABLED_TEXT);
+            float countX = x + w - 60 - countWidth;
+            small(count, countX, y + 3, slotColor(row));
             String name = hostName(row);
-            if (row.token == list.autoToken && list.autoToken != 0) name = "§6★§r " + name;
-            int nameX = x + 25;
-            small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 8, enabled ? TEXT : DISABLED_TEXT);
+            if (automatic) name = "§6★§r " + name;
+            else if (row.token == list.mappingToken) name = "§5◆§r " + name;
+            int nameX = x + 25 + indent;
+            small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 3, enabled ? TEXT : MUTED);
+            String status = text(stateKey(row)) + " · " + text(level(row).translationKey());
+            if (row.circuit >= 0) status += " · " + ui("circuit", row.circuit);
+            status += " · D" + row.dimension + " " + row.x + ", " + row.y + ", " + row.z;
+            int statusWidth = w - 85 - indent;
+            small(trim(status, statusWidth), nameX, y + 14, enabled ? 0x33783D : MUTED);
+            boolean actionHover = inside(mouseX, mouseY, x + w - 54, y + 4, 34, 16);
+            UploadDraw.button(x + w - 54, y + 4, 34, 16, enabled && !busy, actionHover);
+            NativeAe2Button.drawLabel(
+                Component.literal(ui(mappingMode ? "bind" : "upload")),
+                x + w - 54,
+                y + 4,
+                34,
+                16,
+                SMALL,
+                enabled && !busy,
+                actionHover,
+                TEXT);
+            boolean locateHover = inside(mouseX, mouseY, x + w - 18, y + 4, 16, 16);
+            UploadDraw.button(x + w - 18, y + 4, 16, 16, locateHover);
+            GuiTextures.MOVE_TO.draw(x + w - 16, y + 6 + NativeAe2Button.contentOffset(true, locateHover), 12, 12);
+            int barWidth = Math.max(30, (int) countWidth);
+            UploadDraw.rect(x + w - 60 - barWidth, y + 11, x + w - 60, y + 13, 0xFF9A97A9);
+            if (row.totalSlots > 0) UploadDraw.rect(
+                x + w - 60 - barWidth,
+                y + 11,
+                x + w
+                    - 60
+                    - barWidth
+                    + (int) (barWidth
+                        * Math.min(1, Math.max(0, (row.totalSlots - (double) row.emptySlots) / row.totalSlots))),
+                y + 13,
+                0xFF000000 | slotColor(row));
         }
+    }
+
+    private void drawGroup(TreeRow entry, int x, int y, int w, boolean hover) {
+        UploadDraw.rect(x, y, x + w, y + CARD_HEIGHT, hover ? 0xFFD0EBF1 : 0xFFCCC9D7);
+        boolean open = expanded.contains(entry.key), automatic = false;
+        int ready = 0;
+        for (Row row : entry.children) {
+            if (mappingMode ? mappable(row) : uploadable(row)) ready++;
+            if (row.token == list.autoToken && list.autoToken != 0) automatic = true;
+        }
+        small(open ? "▼" : "▶", x + 3, y + 10, 0x53647C);
+        item(entry.target.icon, x + 13, y + 3);
+        String name = (automatic ? "§6★§r " : "") + machineName(entry.target);
+        small(trim(name, w - 68), x + 33, y + 3, TEXT);
+        small(trim(ui("group", entry.children.size(), ready), w - 42), x + 33, y + 14, MUTED);
+        smallCentered("×" + entry.children.size(), x + w - 32, y + 8, 28, TEXT);
     }
 
     private void drawScrollbar() {
@@ -710,7 +998,8 @@ final class PatternUploadScreen extends GuiScreen {
         int[] thumb = thumb();
         if (thumb == null) return;
         int size = Math.min(thumb[1], listY + height - thumb[0]);
-        UploadDraw.rect(x, thumb[0], x + SCROLLBAR_WIDTH, thumb[0] + size, draggingScrollbar ? 0xFF8A88A0 : 0xFFB8B6C8);
+        NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/sprites/small_scroller.png", 0, 0, 7, 15, 2, 2)
+            .draw(x, thumb[0], SCROLLBAR_WIDTH, size);
     }
 
     private void drawFooter(int mouseX, int mouseY) {
@@ -727,18 +1016,21 @@ final class PatternUploadScreen extends GuiScreen {
             message = text(list.message);
             color = list.error ? 0xb02020 : 0x2a7a2a;
         } else {
-            message = StatCollector.translateToLocal("gui.neoecoae.pattern_upload.keys");
+            message = ui("results", visible.size(), list.rows.size());
+            if (hiddenCount > 0) message += " · " + ui("hidden", hiddenCount);
+            if (queryIgnored) message += " · " + text("gui.neoecoae.pattern_upload.search.no_match");
             color = MUTED;
         }
         small(trim(message, panelWidth - 12), left + 6, messageY + 1, color);
         String[] labels = { "gui.neoecoae.pattern_upload.auto_upload", "gui.neoecoae.pattern_upload.undo",
             "gui.neoecoae.pattern_upload.refresh" };
+        UITexture[] icons = { GuiTextures.CHECKMARK, GuiTextures.SHIFT_BACKWARD, GuiTextures.REFRESH };
         for (int index = 0; index < footerButtons.length; index++)
-            drawActionButton(footerButtons[index], labels[index], footerEnabled(index), mouseX, mouseY);
+            drawActionButton(footerButtons[index], labels[index], icons[index], footerEnabled(index), mouseX, mouseY);
         small(
             trim(mappingStatus(), panelWidth - 12),
             left + 6,
-            messageY + 12,
+            messageY + 9,
             list.hasMapping && list.mappingEnabled ? 0x665090 : MUTED);
         String[] mappingLabels = {
             mappingMode ? "gui.neoecoae.pattern_upload.mapping.cancel"
@@ -747,8 +1039,15 @@ final class PatternUploadScreen extends GuiScreen {
             list.mappingEnabled ? "gui.neoecoae.pattern_upload.mapping.disable"
                 : "gui.neoecoae.pattern_upload.mapping.enable",
             "gui.neoecoae.pattern_upload.mapping.remove" };
-        for (int index = 0; index < mappingButtons.length; index++)
-            drawActionButton(mappingButtons[index], mappingLabels[index], mappingEnabled(index), mouseX, mouseY);
+        UITexture[] mappingIcons = { list.hasMapping ? GuiTextures.EDIT : GuiTextures.ADD, GuiTextures.CHECKMARK,
+            GuiTextures.REMOVE };
+        for (int index = 0; index < mappingButtons.length; index++) drawActionButton(
+            mappingButtons[index],
+            mappingLabels[index],
+            mappingIcons[index],
+            mappingEnabled(index),
+            mouseX,
+            mouseY);
     }
 
     private String mappingStatus() {
@@ -771,21 +1070,66 @@ final class PatternUploadScreen extends GuiScreen {
             name);
     }
 
-    private void drawActionButton(int[] box, String label, boolean enabled, int mouseX, int mouseY) {
+    private void drawActionButton(int[] box, String label, UITexture icon, boolean enabled, int mouseX, int mouseY) {
         boolean hover = inside(mouseX, mouseY, box[0], box[1], box[2], box[3]);
-        UploadDraw.button(box[0], box[1], box[2], box[3], hover && enabled);
-        if (!enabled) UploadDraw.rect(box[0], box[1], box[0] + box[2], box[1] + box[3], 0x40000000);
-        smallCentered(
-            StatCollector.translateToLocal(label),
-            box[0],
-            box[1] + 4,
-            box[2],
-            enabled ? TEXT : DISABLED_TEXT);
+        UploadDraw.button(box[0], box[1], box[2], box[3], enabled, hover);
+        GL11.glColor4f(1, 1, 1, enabled ? 1 : 0.4F);
+        icon.draw(box[0] + 3, box[1] + 2 + NativeAe2Button.contentOffset(enabled, hover), 12, 12);
+        GL11.glColor4f(1, 1, 1, 1);
+        NativeAe2Button.drawLabel(
+            Component.translatable(label),
+            box[0] + 16,
+            box[1],
+            box[2] - 18,
+            box[3],
+            SMALL,
+            enabled,
+            hover,
+            TEXT);
     }
 
     private List<String> tooltip(int mouseX, int mouseY) {
         List<String> lines = new ArrayList<>();
         if (draggingWindow) return lines;
+        if (inside(mouseX, mouseY, dimensionX, toggleY, dimensionWidth, 16)) {
+            lines.add(ui("dimension_tip"));
+            return lines;
+        }
+        if (inside(mouseX, mouseY, toggleX, toggleY, mergeWidth, 16)) {
+            lines.add(ui("merge_tip"));
+            return lines;
+        }
+        if (inside(mouseX, mouseY, left + 5, top + 36, panelWidth - 10, 28)) {
+            lines.add(ui("stats_tip"));
+            return lines;
+        }
+        int rowIndex = rowAt(mouseX, mouseY);
+        if (rowIndex >= 0 && !tree.get(rowIndex)
+            .group() && mouseX >= listX + listWidth - 18) {
+            Row row = tree.get(rowIndex).target;
+            lines.add(ui("locate"));
+            lines.add(
+                "§7" + StatCollector.translateToLocalFormatted(
+                    "gui.neoecoae.pattern_upload.tooltip.location",
+                    row.dimension,
+                    row.x,
+                    row.y,
+                    row.z));
+            return lines;
+        }
+        if (rowIndex >= 0 && tree.get(rowIndex)
+            .group()) {
+            TreeRow group = tree.get(rowIndex);
+            lines.add(machineName(group.target));
+            lines.add("§7" + ui("expand_tip"));
+            return lines;
+        }
+        if (inside(mouseX, mouseY, left + 5, listY + visibleRows * ROW_HEIGHT, panelWidth - 10, 12)) {
+            lines.add(ui("results", visible.size(), list.rows.size()));
+            if (queryIgnored) lines.add(text("gui.neoecoae.pattern_upload.search.no_match"));
+            lines.add("§7" + text("gui.neoecoae.pattern_upload.keys"));
+            return lines;
+        }
         if (inside(mouseX, mouseY, closeX, closeY, CLOSE_SIZE, CLOSE_SIZE)) {
             lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.back.tooltip"));
             return lines;
@@ -828,7 +1172,7 @@ final class PatternUploadScreen extends GuiScreen {
                             : "gui.neoecoae.pattern_upload.mapping.remove.tooltip"));
             return lines;
         }
-        if (inside(mouseX, mouseY, left + 5, listY + visibleRows * ROW_HEIGHT + 12, panelWidth - 10, 10)) {
+        if (inside(mouseX, mouseY, left + 5, listY + visibleRows * ROW_HEIGHT + 12, panelWidth - 10, 8)) {
             lines.add(mappingStatus());
             if (list.canMap) lines.add("§7" + text("gui.neoecoae.pattern_upload.mapping.add.tooltip"));
             return lines;
@@ -845,7 +1189,9 @@ final class PatternUploadScreen extends GuiScreen {
         if (draggingWindow) return null;
         int index = rowAt(mouseX, mouseY);
         if (index < 0) return null;
-        Row row = visible.get(index);
+        TreeRow entry = tree.get(index);
+        if (entry.group()) return null;
+        Row row = entry.target;
         UploadRowTooltip tip = new UploadRowTooltip();
         String host = hostName(row), kind = kindName(row);
         if (row.route.isEmpty()) {

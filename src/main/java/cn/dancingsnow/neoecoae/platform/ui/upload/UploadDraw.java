@@ -7,6 +7,8 @@ import net.minecraft.util.ResourceLocation;
 
 import org.lwjgl.opengl.GL11;
 
+import cn.dancingsnow.neoecoae.platform.ui.NativeAe2Button;
+import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -15,10 +17,6 @@ import cpw.mods.fml.relauncher.SideOnly;
 final class UploadDraw {
 
     static final ResourceLocation BACKGROUND = new ResourceLocation("neoecoae", "textures/gui/common/background.png");
-    static final ResourceLocation BUTTON = new ResourceLocation("neoecoae", "textures/gui/common/button.png");
-    static final ResourceLocation BUTTON_HIGHLIGHTED = new ResourceLocation(
-        "neoecoae",
-        "textures/gui/common/button_highlighted.png");
     static final ResourceLocation SLOT = new ResourceLocation("neoecoae", "textures/gui/common/slot.png");
 
     private UploadDraw() {}
@@ -28,8 +26,25 @@ final class UploadDraw {
     }
 
     static void button(int x, int y, int width, int height, boolean highlighted) {
-        if (highlighted) nineSlice(BUTTON_HIGHLIGHTED, 20, 20, x, y, width, height, 2, 3, 2, 5);
-        else nineSlice(BUTTON, 20, 20, x, y, width, height, 2, 2, 2, 5);
+        button(x, y, width, height, true, highlighted);
+    }
+
+    static void button(int x, int y, int width, int height, boolean enabled, boolean highlighted) {
+        NativeAe2Button.drawFrame(x, y, width, height, enabled, highlighted);
+    }
+
+    /** The same 22x12 AE2 switch crops used by GTNLLib's wireless-card theme. */
+    static void toggle(int x, int y, boolean on, boolean hovered) {
+        NativeUiDraw.sprite(
+            "neoecoae:textures/gui/vendor/ae2/checkbox.png",
+            hovered ? 22 : 0,
+            on ? 40 : 28,
+            22,
+            12,
+            x,
+            y,
+            22,
+            12);
     }
 
     static void slot(int x, int y) {

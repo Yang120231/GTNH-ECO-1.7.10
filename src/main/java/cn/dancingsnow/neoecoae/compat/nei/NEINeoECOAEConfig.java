@@ -8,6 +8,7 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.Tags;
 import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
 import cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftConfirmGui;
+import cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient;
 import codechicken.nei.api.API;
 import codechicken.nei.api.IConfigureNEI;
 import codechicken.nei.event.NEIRegisterHandlerInfosEvent;
@@ -68,6 +69,8 @@ public final class NEINeoECOAEConfig implements IConfigureNEI, IContainerObjectH
 
     @Override
     public boolean shouldShowTooltip(GuiContainer gui) {
+        // The floating upload window keeps drawing this container, but owns all mouse interaction.
+        if (PatternUploadClient.obscures(gui)) return false;
         // Like AE2's native confirmation screen, ECO draws its own tooltip for the hovered material.
         return !(gui instanceof ECOCraftConfirmGui confirm) || confirm.getHoveredStack() == null;
     }

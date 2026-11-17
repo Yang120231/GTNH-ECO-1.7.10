@@ -213,12 +213,16 @@ public final class PatternUploadClient {
     }
 
     /** NEI looks up hovered inventory items using the real mouse position, even when drawing the parent off-screen. */
+    @SideOnly(Side.CLIENT)
+    public static boolean obscures(GuiContainer gui) {
+        GuiScreen screen = Minecraft.getMinecraft().currentScreen;
+        return screen instanceof PatternUploadScreen && gui == ((PatternUploadScreen) screen).parent;
+    }
+
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public void hideParentTooltip(RenderTooltipEvent event) {
-        GuiScreen screen = Minecraft.getMinecraft().currentScreen;
-        if (screen instanceof PatternUploadScreen && event.gui == ((PatternUploadScreen) screen).parent)
-            event.setCanceled(true);
+        if (event.gui instanceof GuiContainer && obscures((GuiContainer) event.gui)) event.setCanceled(true);
     }
 
     /** Card tooltips for the upload buttons, drawn over the terminal after AE2's own tooltips. */
