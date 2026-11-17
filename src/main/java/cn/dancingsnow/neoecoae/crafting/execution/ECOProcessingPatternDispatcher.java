@@ -111,6 +111,8 @@ final class ECOProcessingPatternDispatcher {
     }
 
     boolean supportsScaledDispatchCached(ECOCraftingDispatchRequest request, ICraftingProvider provider) {
+        // Interface settings are live; a cached capability must never override an optimization opt-out or lock.
+        if (!scaledTransportAllowed(provider)) return false;
         Reference2ObjectOpenHashMap<IPatternDetails, Eligibility> byPattern = eligibility
             .computeIfAbsent(provider, ignored -> new Reference2ObjectOpenHashMap<>());
         Eligibility cached = byPattern.get(request.pattern());
@@ -237,10 +239,9 @@ final class ECOProcessingPatternDispatcher {
 
     /** Blocking providers retain their own acceptance checks while ECO sizes each push. */
     static boolean scaledTransportAllowed(ICraftingProvider provider) {
-        if (!NativeProviderAdapters.isEnabled(provider)) return true;
-        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
-            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
-                .allowsScaledWhileBlocking();
+        if (provider instanceof NativeCraftingProvider nativeProvider)
+            return nativeProvider.allowsScaledWhileBlocking();
+        return !NativeProviderAdapters.isEnabled(provider);
     }
 
     private static boolean isSinglePushTarget(ICraftingProvider provider) {

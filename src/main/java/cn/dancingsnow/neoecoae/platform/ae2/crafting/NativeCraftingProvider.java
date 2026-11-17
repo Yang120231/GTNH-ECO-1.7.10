@@ -165,15 +165,21 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     }
 
     /**
-     * Native processing media participate in adaptive probing by default. Per-push producers, programmable variants and
-     * crafting-lock modes retain their single-copy semantics: pulse/redstone locks meter pushes, and
+     * Native processing media participate in adaptive probing by default. Interfaces opting out of pattern
+     * optimization,
+     * per-push producers, programmable variants and crafting-lock modes retain their single-copy semantics:
+     * pulse/redstone locks meter pushes, and
      * LOCK_UNTIL_RESULT unlocks on one copy's outputs.
      */
     public boolean supportsScaledProcessing() {
         // AE2FC's auto filler ignores the input table and emits one pattern output per push.
         if (medium instanceof TileFluidAutoFiller) return false;
+        DualityInterface duality = medium instanceof DualityInterface direct ? direct
+            : medium instanceof IInterfaceHost host ? host.getInterfaceDuality() : null;
         return ProgrammableHatchCrafting.supportsScaledProcessing(medium)
-            && (!(medium instanceof DualityInterface) || !hasCraftingLock((DualityInterface) medium));
+            && (duality == null || (duality.getConfigManager()
+                .getSetting(appeng.api.config.Settings.PATTERN_OPTIMIZATION) == appeng.api.config.YesNo.YES
+                && !hasCraftingLock(duality)));
     }
 
     static boolean hasCraftingLock(appeng.helpers.DualityInterface medium) {
