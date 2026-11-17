@@ -3,7 +3,7 @@ navigation:
   title: Energized Crystal
   icon: neoecoae:energized_crystal
   position: 10
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:energized_crystal
   - neoecoae:energized_crystal_block

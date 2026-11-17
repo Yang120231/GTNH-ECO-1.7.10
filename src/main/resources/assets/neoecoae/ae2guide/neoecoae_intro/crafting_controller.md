@@ -2,7 +2,7 @@
 navigation:
   title: Crafting Controller Walkthrough
   icon: neoecoae:crafting_system_l9
-  parent: neoecoae_intro/crafting_system.md
+  parent: neoecoae:neoecoae_intro/crafting_system.md
 ---
 
 # Crafting Controller Walkthrough

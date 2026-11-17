@@ -213,6 +213,24 @@ public final class StorageHostUI {
 
         public static final CellEntry EMPTY = new CellEntry(-1, 0, 0, 0, 0, 0, 0, false, CellState.ABSENT, false);
 
+        boolean sameDisplay(CellEntry other) {
+            return this == other || typeId == other.typeId && tier == other.tier
+                && kind == other.kind
+                && usedTypes == other.usedTypes
+                && totalTypes == other.totalTypes
+                && usedBytes == other.usedBytes
+                && totalBytes == other.totalBytes
+                && infinite == other.infinite
+                && state == other.state
+                && online == other.online
+                && java.util.Objects.equals(position, other.position)
+                && java.util.Objects.equals(extractionBlockReason, other.extractionBlockReason)
+                && java.util.Objects.equals(interactionId, other.interactionId)
+                && java.util.Objects.equals(panelTierName, other.panelTierName)
+                && (stack == other.stack || cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks
+                    .isSameItemSameComponents(stack, other.stack) && stack.stackSize == other.stack.stackSize);
+        }
+
         public CellEntry(int typeId, int tier, int kind, long usedTypes, long totalTypes, long usedBytes,
             long totalBytes, boolean infinite, CellState state, boolean online, @Nullable BlockPos position,
             ItemStack stack, @Nullable Component extractionBlockReason, @Nullable UUID interactionId) {

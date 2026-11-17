@@ -4,6 +4,8 @@ import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 
+import appeng.api.networking.IGrid;
+
 /** Physical pattern slots of one source or target. Every write is read back by {@link PatternTransfer}. */
 public interface PatternSlotAccess {
 
@@ -25,6 +27,16 @@ public interface PatternSlotAccess {
     /** The single-host access and slot that physically hold {@code slot}; composite domains override this. */
     default SlotRef physical(int slot) {
         return new SlotRef(this, slot);
+    }
+
+    default boolean sameInventory(PatternSlotAccess other) {
+        return this == other;
+    }
+
+    /** Resolve a recorded physical slot against the current inventory and its writable range. */
+    default SlotRef findPhysical(SlotRef recorded, IGrid grid) {
+        return sameInventory(recorded.access) && recorded.slot >= 0 && recorded.slot < size() ? physical(recorded.slot)
+            : null;
     }
 
     static PatternSlotAccess of(IInventory inventory, int limit, TileEntity owner) {
@@ -57,6 +69,11 @@ public interface PatternSlotAccess {
         @Override
         public int size() {
             return limit;
+        }
+
+        @Override
+        public boolean sameInventory(PatternSlotAccess other) {
+            return other instanceof InventoryAccess access && inventory == access.inventory && owner == access.owner;
         }
 
         @Override

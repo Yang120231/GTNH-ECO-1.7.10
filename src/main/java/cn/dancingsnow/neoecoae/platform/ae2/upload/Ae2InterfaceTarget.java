@@ -161,9 +161,10 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
     /** Only the pattern area; GT and GTNL hatches continue with circuit and manual slots. */
     private int patternSlots(IInventory patterns) {
         if (patterns == null) return 0;
-        int slots = kind == Kind.GTNL_SUPER_INPUT ? SuperInputHatchUpload.patternSlots(viewable) : -1;
-        if (slots <= 0) slots = viewable.numSlots();
-        return Math.min(slots, patterns.getSizeInventory());
+        int inventorySize = patterns.getSizeInventory();
+        if (kind != Kind.GTNL_SUPER_INPUT) return Math.min(viewable.numSlots(), inventorySize);
+        int capacity = SuperInputHatchUpload.patternSlots(viewable);
+        return capacity <= inventorySize ? capacity : 0;
     }
 
     @Override

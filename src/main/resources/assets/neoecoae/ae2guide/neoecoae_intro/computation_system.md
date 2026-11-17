@@ -2,7 +2,7 @@
 navigation:
   title: ECO Computation System
   icon: neoecoae:computation_system_l9
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:computation_system_l4
   - neoecoae:computation_system_l6

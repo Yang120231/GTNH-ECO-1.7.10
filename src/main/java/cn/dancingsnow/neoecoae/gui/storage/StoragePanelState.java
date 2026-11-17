@@ -293,6 +293,19 @@ public record StoragePanelState(Component title, int tier, boolean formed, boole
     }
 
     public CompoundTag toTag(HolderLookup.Provider registries) {
+        return toTagWithCells(encodeCells(registries));
+    }
+
+    public boolean sameCellPage(StoragePanelState previous) {
+        if (cells.size() != previous.cells.size()) return false;
+        for (int index = 0; index < cells.size(); index++) {
+            if (!cells.get(index)
+                .sameDisplay(previous.cells.get(index))) return false;
+        }
+        return true;
+    }
+
+    public CompoundTag toTagWithCells(ListTag entries) {
         CompoundTag tag = new CompoundTag();
         putComponent(tag, "title", title);
         tag.putInt("tier", tier);
@@ -312,33 +325,6 @@ public record StoragePanelState(Component title, int tier, boolean formed, boole
         tag.putString("domain", domainId);
         tag.putInt("missing", missingMembers);
         tag.putBoolean("component", componentPresent);
-        ListTag entries = new ListTag();
-        for (CellEntry cell : cells) {
-            CompoundTag entry = new CompoundTag();
-            entry.putInt("id", cell.typeId());
-            entry.putInt("tier", cell.tier());
-            entry.putInt("kind", cell.kind());
-            if (cell.panelTierName() != null) putComponent(entry, "tierName", cell.panelTierName());
-            entry.putLong("ut", cell.usedTypes());
-            entry.putLong("tt", cell.totalTypes());
-            entry.putLong("ub", cell.usedBytes());
-            entry.putLong("tb", cell.totalBytes());
-            entry.putBoolean("infinite", cell.infinite());
-            if (cell.position() != null) entry.putLong(
-                "position",
-                cell.position()
-                    .asLong());
-            if (cell.interactionId() != null) entry.putUUID("interactionId", cell.interactionId());
-            if (!cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(cell.stack())) entry
-                .put("stack", cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.save(registries, cell.stack()));
-            if (cell.extractionBlockReason() != null) putComponent(entry, "locked", cell.extractionBlockReason());
-            entry.putInt(
-                "state",
-                cell.state()
-                    .ordinal());
-            entry.putBoolean("online", cell.online());
-            entries.add(entry);
-        }
         tag.put("cells", entries);
         ListTag lines = new ListTag();
         for (TypeLine type : types) {
@@ -372,6 +358,37 @@ public record StoragePanelState(Component title, int tier, boolean formed, boole
         }
         tag.put("types", lines);
         return tag;
+    }
+
+    public ListTag encodeCells(HolderLookup.Provider registries) {
+        ListTag entries = new ListTag();
+        for (CellEntry cell : cells) {
+            CompoundTag entry = new CompoundTag();
+            entry.putInt("id", cell.typeId());
+            entry.putInt("tier", cell.tier());
+            entry.putInt("kind", cell.kind());
+            if (cell.panelTierName() != null) putComponent(entry, "tierName", cell.panelTierName());
+            entry.putLong("ut", cell.usedTypes());
+            entry.putLong("tt", cell.totalTypes());
+            entry.putLong("ub", cell.usedBytes());
+            entry.putLong("tb", cell.totalBytes());
+            entry.putBoolean("infinite", cell.infinite());
+            if (cell.position() != null) entry.putLong(
+                "position",
+                cell.position()
+                    .asLong());
+            if (cell.interactionId() != null) entry.putUUID("interactionId", cell.interactionId());
+            if (!cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(cell.stack())) entry
+                .put("stack", cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.save(registries, cell.stack()));
+            if (cell.extractionBlockReason() != null) putComponent(entry, "locked", cell.extractionBlockReason());
+            entry.putInt(
+                "state",
+                cell.state()
+                    .ordinal());
+            entry.putBoolean("online", cell.online());
+            entries.add(entry);
+        }
+        return entries;
     }
 
     public static StoragePanelState fromTag(Tag value) {

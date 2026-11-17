@@ -3,7 +3,7 @@ navigation:
   title: Compatibility Storage Matrices
   icon: neoecoae:eco_drive
   position: 10
-  parent: neoecoae_intro/storage_system.md
+  parent: neoecoae:neoecoae_intro/storage_system.md
 ---
 
 # Compatibility Storage Matrices

@@ -295,13 +295,25 @@ public final class PatternUploadSession {
         if (receipt == null) return fail("gui.neoecoae.pattern_upload.reason.no_receipt");
         if (receipt.sourceIdentity != source.identity()) return fail("gui.neoecoae.pattern_upload.reason.other_source");
         if (!isOpen() || !source.canEdit(player)) return fail(REASON_NO_PERMISSION);
+        PatternSlotAccess.SlotRef receiver = findUndoReceiver(source.grid(), receipt);
+        if (receiver == null) return fail(PatternTransfer.REASON_OFFLINE);
         PatternTransfer.Result result = PatternTransfer
-            .move(receipt.target.access, receipt.target.slot, source.slots(), source.slot(), receipt.pattern);
+            .move(receiver.access, receiver.slot, source.slots(), source.slot(), receipt.pattern);
         if (result.succeeded()) {
             PatternUploadSessions.forget(player, receipt);
             message("gui.neoecoae.pattern_upload.undo_success", false);
         } else message(result.reason, true);
         return result;
+    }
+
+    private PatternSlotAccess.SlotRef findUndoReceiver(IGrid grid, UploadReceipt receipt) {
+        for (PatternUploadTarget target : discovery.apply(grid)) {
+            if (target.kind() != receipt.kind || !target.isPresent(grid)) continue;
+            PatternSlotAccess.SlotRef slot = target.slots()
+                .findPhysical(receipt.target, grid);
+            if (slot != null) return slot;
+        }
+        return null;
     }
 
     /** The receipt of the player's last upload when it can be undone into this terminal, else null. */

@@ -3,7 +3,7 @@ navigation:
   title: Large Integrated Working Station
   icon: neoecoae:integrated_working_station
   position: 21
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:large_integrated_working_station_casing
   - neoecoae:large_integrated_working_station_input_hatch

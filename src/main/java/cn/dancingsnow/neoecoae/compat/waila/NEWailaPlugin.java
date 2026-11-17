@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -27,7 +26,8 @@ public final class NEWailaPlugin implements IWailaDataProvider {
     private static final NEWailaPlugin INSTANCE = new NEWailaPlugin();
     /** Written only on the server thread; snapshots are never mutated after publication. */
     private static final Map<TileEntity, NBTTagCompound> SNAPSHOTS = Collections.synchronizedMap(new WeakHashMap<>());
-    private static final Set<TileEntity> PENDING = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private static final Set<TileEntity> PENDING = Collections
+        .synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
     public static void callbackRegister(IWailaRegistrar registrar) {
         // WAILA asks for server data by block or tile; every ECO machine shares this block base class.
@@ -69,18 +69,19 @@ public final class NEWailaPlugin implements IWailaDataProvider {
     @Override
     public NBTTagCompound getNBTData(EntityPlayerMP player, TileEntity tile, NBTTagCompound tag, World world, int x,
         int y, int z) {
-        if (tile == null || !ServerTasks.isRunning()) return tag;
+        var session = ServerTasks.captureSession();
+        if (tile == null || !session.isRunning()) return tag;
         NBTTagCompound snapshot;
         if (ServerThread.isCurrent()) snapshot = ECOWailaData.write(tile);
         else {
             snapshot = SNAPSHOTS.get(tile);
-            if (PENDING.add(tile)) ServerTasks.execute(() -> {
+            if (PENDING.add(tile) && !session.execute(() -> {
                 try {
                     if (!tile.isInvalid()) SNAPSHOTS.put(tile, ECOWailaData.write(tile));
                 } finally {
                     PENDING.remove(tile);
                 }
-            });
+            })) PENDING.remove(tile);
         }
         if (snapshot != null) tag.setTag(ECOWailaData.TAG, snapshot.copy());
         return tag;

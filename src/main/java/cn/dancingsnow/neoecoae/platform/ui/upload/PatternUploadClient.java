@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.inventory.GuiContainer;
+import net.minecraft.client.multiplayer.WorldClient;
 import net.minecraft.client.renderer.RenderGlobal;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.AxisAlignedBB;
@@ -32,14 +33,15 @@ import cpw.mods.fml.relauncher.SideOnly;
 
 /**
  * Client entry points, attached through Forge GUI events rather than remapped GUI mixins: upload/auto buttons,
- * right-click encode, the auto-target tooltip, the target list screen and the in-world target marker. All state is
- * bound to one window. Registered on both the Forge bus (GUI/render events) and the FML bus (client tick).
+ * right-click encode, the auto-target tooltip, the target list screen and the in-world target marker. Registered on
+ * both the Forge bus (GUI/render events) and the FML bus (client tick).
  */
 public final class PatternUploadClient {
 
     private static volatile PatternUploadPackets.AutoTarget autoTarget;
     private static final AtomicReference<PatternUploadPackets.TargetList> PENDING_LIST = new AtomicReference<>();
-    private static int highlightDimension, highlightX, highlightY, highlightZ;
+    private static WorldClient highlightWorld;
+    private static int highlightX, highlightY, highlightZ;
     private static long highlightUntil;
 
     private GuiImgButton encodeButton;
@@ -88,6 +90,7 @@ public final class PatternUploadClient {
     @SideOnly(Side.CLIENT)
     public void tick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.START) return;
+        if (highlightWorld != Minecraft.getMinecraft().theWorld) highlightWorld = null;
         PatternUploadPackets.TargetList list = PENDING_LIST.getAndSet(null);
         if (list != null) deliver(list);
     }
@@ -119,12 +122,19 @@ public final class PatternUploadClient {
         }
     }
 
-    public static synchronized void highlight(int dimension, int x, int y, int z) {
-        highlightDimension = dimension;
-        highlightX = x;
-        highlightY = y;
-        highlightZ = z;
-        highlightUntil = System.currentTimeMillis() + 30_000L;
+    @SideOnly(Side.CLIENT)
+    public static void highlight(int dimension, int x, int y, int z) {
+        Minecraft minecraft = Minecraft.getMinecraft();
+        WorldClient world = minecraft.theWorld;
+        if (world == null || world.provider.dimensionId != dimension) return;
+        minecraft.func_152344_a(() -> {
+            if (minecraft.theWorld != world) return;
+            highlightWorld = world;
+            highlightX = x;
+            highlightY = y;
+            highlightZ = z;
+            highlightUntil = System.currentTimeMillis() + 30_000L;
+        });
     }
 
     /**
@@ -259,21 +269,16 @@ public final class PatternUploadClient {
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public void render(RenderWorldLastEvent event) {
-        int dimension, x, y, z;
-        synchronized (PatternUploadClient.class) {
-            if (System.currentTimeMillis() > highlightUntil) return;
-            dimension = highlightDimension;
-            x = highlightX;
-            y = highlightY;
-            z = highlightZ;
-        }
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft.theWorld == null || minecraft.renderViewEntity == null
-            || minecraft.theWorld.provider.dimensionId != dimension) return;
-        Block block = minecraft.theWorld.getBlock(x, y, z);
+        WorldClient world = highlightWorld;
+        if (world == null || world != minecraft.theWorld
+            || minecraft.renderViewEntity == null
+            || System.currentTimeMillis() > highlightUntil) return;
+        int x = highlightX, y = highlightY, z = highlightZ;
+        Block block = world.getBlock(x, y, z);
         if (block == null || block.getMaterial() == Material.air) return;
-        block.setBlockBoundsBasedOnState(minecraft.theWorld, x, y, z);
-        AxisAlignedBB box = block.getSelectedBoundingBoxFromPool(minecraft.theWorld, x, y, z);
+        block.setBlockBoundsBasedOnState(world, x, y, z);
+        AxisAlignedBB box = block.getSelectedBoundingBoxFromPool(world, x, y, z);
         if (box == null) return;
         var view = minecraft.renderViewEntity;
         float partial = event.partialTicks;
@@ -282,7 +287,11 @@ public final class PatternUploadClient {
         double viewZ = view.lastTickPosZ + (view.posZ - view.lastTickPosZ) * partial;
         box = box.expand(0.002, 0.002, 0.002)
             .getOffsetBoundingBox(-viewX, -viewY, -viewZ);
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_LINE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_DEPTH_BUFFER_BIT);
+        GL11.glPushAttrib(
+            GL11.GL_ENABLE_BIT | GL11.GL_LINE_BIT
+                | GL11.GL_CURRENT_BIT
+                | GL11.GL_DEPTH_BUFFER_BIT
+                | GL11.GL_COLOR_BUFFER_BIT);
         try {
             GL11.glEnable(GL11.GL_BLEND);
             GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -293,9 +302,7 @@ public final class PatternUploadClient {
             GL11.glColor4f(1.0F, 0.1F, 0.1F, 0.95F);
             RenderGlobal.drawOutlinedBoundingBox(box, -1);
         } finally {
-            GL11.glDepthMask(true);
             GL11.glPopAttrib();
-            GL11.glColor4f(1, 1, 1, 1);
         }
     }
 }

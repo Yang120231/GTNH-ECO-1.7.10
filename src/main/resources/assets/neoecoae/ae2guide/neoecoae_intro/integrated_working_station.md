@@ -3,7 +3,7 @@ navigation:
   title: Integrated Working Station
   icon: neoecoae:integrated_working_station
   position: 20
-  parent: neoecoae_intro/index.md
+  parent: neoecoae:neoecoae_intro/index.md
 item_ids:
   - neoecoae:integrated_working_station
   - neoecoae:crystal_ingot

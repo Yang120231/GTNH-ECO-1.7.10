@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.PacketBuffer;
 
@@ -13,6 +14,7 @@ import cn.dancingsnow.neoecoae.gui.storage.StoragePanelState;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.network.RegistryFriendlyByteBuf;
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 import cn.dancingsnow.neoecoae.platform.ui.NativeActionSyncHandler;
@@ -67,17 +69,20 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
     @Override
     public void detectAndSendChanges(boolean init) {
         if (!validSession()) return;
-        state = StoragePanelState.capture(config, offset, PAGE_SIZE);
-        offset = state.cellOffset();
+        StoragePanelState next = StoragePanelState.capture(config, offset, PAGE_SIZE);
+        offset = next.cellOffset();
         canExtractComponents = config.canExtractInfiniteComponents()
             .getAsBoolean();
-        CompoundTag tag = state.toTag(config.registries());
+        var entries = previous != null && next.sameCellPage(state) ? previous.getList("cells", Tag.TAG_COMPOUND)
+            : next.encodeCells(config.registries());
+        CompoundTag tag = next.toTagWithCells(entries);
         tag.putBoolean("canExtractComponents", canExtractComponents);
         if (init || !tag.equals(previous)) {
-            previous = tag.copy();
             syncToClient(0, buffer -> bytes(buffer).writeNbt(tag));
+            previous = tag;
             revision++;
         }
+        state = next;
     }
 
     @Override
@@ -85,13 +90,20 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
     public void readOnClient(int id, PacketBuffer buffer) throws java.io.IOException {
         if (id == 0) {
             CompoundTag tag = bytes(buffer).readNbt();
-            state = StoragePanelState.fromTag(tag, config.registries());
-            canExtractComponents = tag.getBoolean("canExtractComponents");
-            revision++;
+            StoragePanelState next = StoragePanelState.fromTag(tag, config.registries());
+            boolean allowExtraction = tag.getBoolean("canExtractComponents");
+            Minecraft.getMinecraft()
+                .func_152344_a(() -> {
+                    if (!isValid()) return;
+                    state = next;
+                    canExtractComponents = allowExtraction;
+                    revision++;
+                });
         } else if (id == 1) {
             int token = buffer.readInt();
             buffer.readBoolean();
-            if (token == pendingToken) pendingToken = 0;
+            Minecraft.getMinecraft()
+                .func_152344_a(() -> { if (token == pendingToken) pendingToken = 0; });
         } else if (id == 3) {
             int sequence = buffer.readInt();
             boolean last = buffer.readBoolean();
@@ -325,19 +337,17 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
 
     @SideOnly(Side.CLIENT)
     public void scroll(int delta) {
+        StoragePanelState snapshot = state;
         int requested = StoragePanelState
-            .pageOffset(state.cellOffset() + delta * PAGE_SIZE, state.cellCount(), PAGE_SIZE);
+            .pageOffset(snapshot.cellOffset() + delta * PAGE_SIZE, snapshot.cellCount(), PAGE_SIZE);
         syncToServer(0, output -> output.writeInt(requested));
     }
 
     @SideOnly(Side.CLIENT)
     public boolean click(int index, boolean shift) {
-        if (pendingToken != 0 || index < 0
-            || index >= state.cells()
-                .size())
-            return false;
-        var cell = state.cells()
-            .get(index);
+        var cells = state.cells();
+        if (pendingToken != 0 || index < 0 || index >= cells.size()) return false;
+        var cell = cells.get(index);
         if (cell.position() == null) return false;
         ItemStack carried = getSyncManager().getPlayer().inventory.getItemStack();
         boolean insert = !ItemStacks.isEmpty(carried);

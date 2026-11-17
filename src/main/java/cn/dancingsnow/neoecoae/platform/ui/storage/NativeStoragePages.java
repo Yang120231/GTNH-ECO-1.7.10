@@ -219,26 +219,28 @@ public final class NativeStoragePages {
         }
 
         private StorageHostUI.CellEntry cell() {
-            return index < session.state()
-                .cells()
-                .size() ? session.state()
-                    .cells()
-                    .get(index) : StorageHostUI.CellEntry.EMPTY;
+            return cell(session.state());
+        }
+
+        private StorageHostUI.CellEntry cell(StoragePanelState snapshot) {
+            var entries = snapshot.cells();
+            return index < entries.size() ? entries.get(index) : StorageHostUI.CellEntry.EMPTY;
         }
 
         @Override
         @SideOnly(Side.CLIENT)
         public void drawBackground(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            if (session.state()
-                .formed() && cell().position() != null)
+            StoragePanelState snapshot = session.state();
+            if (snapshot.formed() && cell(snapshot).position() != null)
                 atlas(0, 52 + index / 11 * 18, 16, index / 11 == 2 ? 16 : 18, 0, 0, 16, index / 11 == 2 ? 16 : 18);
         }
 
         @Override
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            if (!ItemStacks.isEmpty(cell().stack())) cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw
-                .item(cell().stack(), 0, 0, context.getCurrentDrawingZ());
+            var stack = cell().stack();
+            if (!ItemStacks.isEmpty(stack))
+                cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw.item(stack, 0, 0, context.getCurrentDrawingZ());
         }
     }
 

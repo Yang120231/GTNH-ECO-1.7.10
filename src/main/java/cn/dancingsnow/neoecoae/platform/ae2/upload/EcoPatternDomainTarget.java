@@ -192,6 +192,18 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
         }
 
         @Override
+        public SlotRef findPhysical(SlotRef recorded, IGrid grid) {
+            for (BusAccess bus : buses) {
+                SlotRef match = bus.findPhysical(recorded, grid);
+                if (match != null) {
+                    IGridNode node = bus.bus.getGridNode();
+                    return node != null && node.getGrid() == grid ? match : null;
+                }
+            }
+            return null;
+        }
+
+        @Override
         public ItemStack get(int slot) {
             SlotRef ref = physical(slot);
             return ref.access.get(ref.slot);
@@ -233,6 +245,11 @@ final class EcoPatternDomainTarget implements PatternUploadTarget {
         public int size() {
             return bus.getInternalInventory()
                 .size();
+        }
+
+        @Override
+        public boolean sameInventory(PatternSlotAccess other) {
+            return other instanceof BusAccess access && bus == access.bus;
         }
 
         @Override
