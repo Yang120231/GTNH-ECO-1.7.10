@@ -15,7 +15,9 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.implementations.MTEBasicMachine;
+import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
+import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
 import gregtech.common.tileentities.machines.multi.MTEIntegratedOreFactory;
 import gregtech.common.tileentities.machines.multi.MTEIntegratedOreFactoryLegacy;
 
@@ -263,6 +265,53 @@ final class GregTechMachineAccess {
         if (!(machine instanceof IMetaTileEntity)) return null;
         IGregTechTileEntity base = ((IMetaTileEntity) machine).getBaseMetaTileEntity();
         return base instanceof TileEntity ? (TileEntity) base : null;
+    }
+
+    private static final Field HATCH_WATCHERS = hatchWatchers();
+
+    private static Field hatchWatchers() {
+        try {
+            Field field = MTEHatch.class.getDeclaredField("watchers");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+            return null;
+        }
+    }
+
+    /** GTNL registers its mirrors as hatch watchers rather than in GT's native proxy list. */
+    static List<TileEntity> craftingInputProxies(TileEntity tile) {
+        if (!(tile instanceof IGregTechTileEntity host)) return Collections.emptyList();
+        Object machine = host.getMetaTileEntity();
+        if (!(machine instanceof MTEHatchCraftingInputME)
+            && !isType(machine, "com.science.gtnl.common.machine.hatch.SuperCraftingInputHatchME"))
+            return Collections.emptyList();
+        var proxies = new java.util.LinkedHashSet<TileEntity>();
+        if (machine instanceof MTEHatchCraftingInputME buffer) {
+            for (Object proxy : buffer.getProxyHatches()) {
+                TileEntity base = hostTile(proxy);
+                if (base != null && !base.isInvalid()) proxies.add(base);
+            }
+        }
+        if (HATCH_WATCHERS != null) {
+            try {
+                Object value = HATCH_WATCHERS.get(machine);
+                if (value instanceof Iterable<?>watchers) for (Object watcher : watchers) {
+                    if (!isType(watcher, "com.science.gtnl.common.machine.hatch.SuperCraftingInputProxy")) continue;
+                    TileEntity base = hostTile(watcher);
+                    if (base != null && !base.isInvalid()) proxies.add(base);
+                }
+            } catch (IllegalAccessException | RuntimeException | LinkageError unavailable) {
+                // Optional GTNL observation must not interrupt native controller sampling.
+            }
+        }
+        return new ArrayList<>(proxies);
+    }
+
+    private static boolean isType(Object value, String name) {
+        if (value != null) for (Class<?> type = value.getClass(); type != null; type = type.getSuperclass())
+            if (name.equals(type.getName())) return true;
+        return false;
     }
 
     /** MTEHatchCraftingInputSlave#getMaster, resolved reflectively since the proxy class varies between GT builds. */

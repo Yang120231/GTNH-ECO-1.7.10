@@ -20,6 +20,8 @@ import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.NEFakePlayer;
 import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
 import cn.dancingsnow.neoecoae.api.storage.ECOBigIntegerStorage;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingWork;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCache;
@@ -39,6 +41,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
+import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
 import cn.dancingsnow.neoecoae.platform.minecraft.crafting.TransientCraftingContainer;
@@ -100,6 +103,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     private boolean virtualBatch = false;
     private @Nullable ECOExactVirtualLedger exactVirtual;
     private boolean outputsReady = false;
+    private String processingBlockReason;
     private RecoveryState recoveryState = RecoveryState.CLEARED;
     private long lastEjectionFailureLogTick = Long.MIN_VALUE;
     private long lastRecoveryFailureLogTick = Long.MIN_VALUE;
@@ -123,6 +127,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     public TickRateModulation tick(ECOCraftingControllerHost controller, int overlockTimes, int powerMultiply,
         int ticksSinceLastCall) {
+        processingBlockReason = null;
         if (!isBusy) {
             progress = 0;
             progressRemainder = 0.0D;
@@ -189,6 +194,33 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     public boolean isBusy() {
         return isBusy;
+    }
+
+    /** Lightweight status view of this output's cycle; does not copy inputs or run admission checks. */
+    @Nullable
+    public Machine getProcessingStatus(AEKey output, @Nullable ECOCraftingControllerHost controller, Component name,
+        String location) {
+        if (!(output instanceof AEItemKey item) || !isBusy) return null;
+        var amount = getDisplayedItemAmount(item);
+        if (amount.signum() <= 0) return null;
+        String reason = controller == null ? "gui.neoecoae.processing.unformed"
+            : outputsReady || recoveryState != RecoveryState.ACTIVE ? "gui.neoecoae.processing.output_blocked"
+                : processingBlockReason;
+        int speed = virtualBatch && controller != null && controller.isFullVirtualCraftingMode() ? MAX_PROGRESS
+            : calculateProgressPerTick(controller == null ? 0 : controller.getEffectiveOverclockTimes());
+        int duration = (MAX_PROGRESS + speed - 1) / speed;
+        return new Machine(
+            name,
+            location,
+            "",
+            outputsReady ? duration : progress / speed,
+            duration,
+            getExactCraftCount().min(java.math.BigInteger.valueOf(Long.MAX_VALUE))
+                .longValue(),
+            amount.min(java.math.BigInteger.valueOf(Long.MAX_VALUE))
+                .longValue(),
+            controller == null ? State.UNAVAILABLE : reason == null ? State.RUNNING : State.WAITING,
+            reason == null ? Component.empty() : Component.translatable(reason));
     }
 
     public boolean isFree() {
@@ -460,6 +492,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     }
 
     private void installWork(ECOCraftingThreadWork work) {
+        processingBlockReason = null;
         clearVirtualCraftingDiagnostic();
         worker.markDisplayDirty();
         outputItems.clear();
@@ -669,6 +702,9 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     private void logBlockedProgress(ECOCraftingControllerHost controller, String reason, int attemptedProgress,
         int overclockTimes, int powerMultiply) {
+        processingBlockReason = reason.contains("coolant")
+            ? "gui.neoecoae.large_integrated_working_station.pause.coolant_insufficient"
+            : "gui.neoecoae.large_integrated_working_station.pause.power_missing";
         long tick = TickClock.currentTick();
         long elapsed = tick - lastBlockedProgressLogTick;
         if (lastBlockedProgressLogTick != Long.MIN_VALUE && elapsed >= 0L

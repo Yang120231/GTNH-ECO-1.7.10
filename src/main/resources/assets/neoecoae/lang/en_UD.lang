@@ -1565,3 +1565,6 @@ achievement.neoecoae.integrated_working_station=ǝuO uı ןןⱯ
 achievement.neoecoae.integrated_working_station.desc=uoıʇɐʇS buıʞɹoM pǝʇɐɹbǝʇuI OƆƎ uɐ uıɐʇqO
 achievement.neoecoae.large_integrated_formed=sısǝɥʇuʎS puɐɹ⅁ ǝɥ⟘
 achievement.neoecoae.large_integrated_formed.desc=ǝɯıʇ ʇsɹıɟ ǝɥʇ ɹoɟ uoıʇɐʇS buıʞɹoM pǝʇɐɹbǝʇuI ǝbɹɐꞀ ɐ ɯɹoℲ
+
+gui.neoecoae.crafting_status.processing.shared=Shared-pattern machines: %s
+gui.neoecoae.crafting_status.processing.parallel_cycle=Actual parallels: %s (per parallel %s; this cycle %s)

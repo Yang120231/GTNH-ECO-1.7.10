@@ -1391,5 +1391,7 @@
   "gui.neoecoae.crafting_report.card.item_request": "ʇsǝnbǝɹ ɯǝʇI",
   "gui.neoecoae.crafting_report.card.resource_request": "ʇsǝnbǝɹ ǝɔɹnosǝᴚ",
   "gui.neoecoae.crafting_report.card.exact_hint": "sǝnןɐʌ ʇɔɐxǝ ǝʇǝןdɯoɔ ʍǝıʌ oʇ ʇɟıɥS pןoH",
-  "gui.neoecoae.crafting_report.card.exact_shown": "sǝnןɐʌ ʇɔɐxǝ ǝʇǝןdɯoɔ buıʍoɥS"
+  "gui.neoecoae.crafting_report.card.exact_shown": "sǝnןɐʌ ʇɔɐxǝ ǝʇǝןdɯoɔ buıʍoɥS",
+  "gui.neoecoae.crafting_status.processing.shared": "Shared-pattern machines: %s",
+  "gui.neoecoae.crafting_status.processing.parallel_cycle": "Actual parallels: %s (per parallel %s; this cycle %s)"
 }

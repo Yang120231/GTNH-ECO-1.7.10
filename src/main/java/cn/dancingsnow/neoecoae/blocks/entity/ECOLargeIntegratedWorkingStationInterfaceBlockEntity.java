@@ -32,7 +32,8 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
     extends ECOMachineInterfaceBlockEntity<NEIntegratedWorkingStationCluster> implements
     appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium, ECOJobAwareCraftingProvider,
-    ECOParallelCraftingProvider, appeng.api.util.IInterfaceViewable, appeng.api.implementations.IUpgradeableHost {
+    ECOParallelCraftingProvider, appeng.api.util.IInterfaceViewable, appeng.api.implementations.IUpgradeableHost,
+    cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
 
     private final LargeWorkstationPatternProvider workstationProvider = new LargeWorkstationPatternProvider(this);
 
@@ -45,6 +46,11 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
 
     public LargeWorkstationPatternProvider getWorkstationProvider() {
         return workstationProvider;
+    }
+
+    @Override
+    public cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target neoecoae$getProcessingTarget() {
+        return workstationProvider.neoecoae$getProcessingTarget();
     }
 
     public int getWorkstationPatternRows() {

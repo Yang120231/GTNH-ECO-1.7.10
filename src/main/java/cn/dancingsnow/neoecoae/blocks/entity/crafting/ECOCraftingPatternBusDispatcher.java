@@ -24,6 +24,19 @@ final class ECOCraftingPatternBusDispatcher {
     private final ECOCraftingPatternBusBlockEntity host;
     /** Ordinary one-craft dispatch follows AdvancedAE's successful-target round-robin. */
     private int roundRobinIndex;
+    private cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target processingTarget;
+
+    cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target processingTarget() {
+        return processingTarget;
+    }
+
+    private boolean recordAccepted(ECOCraftingWorkerBlockEntity worker, boolean accepted) {
+        if (accepted)
+            processingTarget = new cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target(
+                worker.getWorldObj().provider.dimensionId,
+                worker.getBlockPos());
+        return accepted;
+    }
 
     ECOCraftingPatternBusDispatcher(ECOCraftingPatternBusBlockEntity host) {
         this.host = host;
@@ -63,7 +76,7 @@ final class ECOCraftingPatternBusDispatcher {
             // The worker performs the authoritative capacity check immediately before accepting ownership.
             if (worker.pushPattern(execution, craftingJobId)) {
                 roundRobinIndex = (candidateIndex + 1) % candidates.size();
-                return true;
+                return recordAccepted(worker, true);
             }
         }
         return false;
@@ -143,8 +156,10 @@ final class ECOCraftingPatternBusDispatcher {
         return new ECOFastPathDispatchProvider.ExactPreparation(requested, () -> {
             var cluster = host.getCraftingCluster();
             return cluster != null && cluster.isDispatchCandidate(offer.worker())
-                && offer.worker()
-                    .pushExactVirtualBatch(offer.recipe(), requested, context.craftingJobId());
+                && recordAccepted(
+                    offer.worker(),
+                    offer.worker()
+                        .pushExactVirtualBatch(offer.recipe(), requested, context.craftingJobId()));
         });
     }
 
@@ -166,7 +181,7 @@ final class ECOCraftingPatternBusDispatcher {
             || availableThreadSlots() < batchSize) {
             return false;
         }
-        return worker.pushBatch(verified);
+        return recordAccepted(worker, worker.pushBatch(verified));
     }
 
     boolean pushVirtualBatch(ECOVerifiedVirtualExecution verified,
@@ -177,7 +192,7 @@ final class ECOCraftingPatternBusDispatcher {
         }
         ECOCraftingWorkerBlockEntity worker = offer.worker();
         return cluster.isDispatchCandidate(worker) && worker.getAvailableBatchCapacity() > 0
-            && worker.pushVirtualBatch(verified);
+            && recordAccepted(worker, worker.pushVirtualBatch(verified));
     }
 
     @Nullable

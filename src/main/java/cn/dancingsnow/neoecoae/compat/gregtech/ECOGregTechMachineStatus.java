@@ -78,6 +78,9 @@ public final class ECOGregTechMachineStatus {
 
         private final ArrayDeque<Target> pending = new ArrayDeque<>();
         private final HashSet<Target> visited = new HashSet<>();
+        private final ArrayDeque<Target> sharedPending = new ArrayDeque<>();
+        private final HashSet<Target> sharedVisited = new HashSet<>();
+        private final LinkedHashSet<Target> sharedMachines = new LinkedHashSet<>();
         private final Map<String, Machine> machines = new LinkedHashMap<>();
         private final LinkedHashSet<Target> machineTargets = new LinkedHashSet<>();
         private final AEKey output;
@@ -88,7 +91,7 @@ public final class ECOGregTechMachineStatus {
         }
 
         public boolean complete() {
-            return pending.isEmpty();
+            return pending.isEmpty() && sharedPending.isEmpty();
         }
 
         public List<Machine> machines() {
@@ -99,15 +102,23 @@ public final class ECOGregTechMachineStatus {
             return new ArrayList<>(machineTargets);
         }
 
+        public int sharedMachineCount() {
+            if (sharedMachines.isEmpty()) return 0;
+            var all = new LinkedHashSet<>(machineTargets);
+            all.addAll(sharedMachines);
+            return all.size();
+        }
+
         public void addRoot(Target target) {
             if (!visited.contains(target)) pending.addLast(target);
         }
 
         /** One step visits one coordinate, including duplicates or unavailable positions. */
         public void step(World context) {
-            if (pending.isEmpty() || context == null || context.isRemote) return;
-            Target target = pending.removeFirst();
-            if (!visited.add(target)) return;
+            if (complete() || context == null || context.isRemote) return;
+            boolean sharedOnly = pending.isEmpty();
+            Target target = sharedOnly ? sharedPending.removeFirst() : pending.removeFirst();
+            if (!(sharedOnly ? sharedVisited : visited).add(target)) return;
             World world = context.provider.dimensionId == target.dimension() ? context
                 : DimensionManager.getWorld(target.dimension());
             if (world == null || !world.getChunkProvider()
@@ -116,6 +127,7 @@ public final class ECOGregTechMachineStatus {
                         .getX() >> 4,
                     target.position()
                         .getZ() >> 4)) {
+                if (sharedOnly) return;
                 machines.put(
                     location(target),
                     new Machine(
@@ -132,10 +144,43 @@ public final class ECOGregTechMachineStatus {
             var pos = target.position();
             var tile = world.getTileEntity(pos.getX(), pos.getY(), pos.getZ());
             if (tile == null || tile.isInvalid()) return;
+            if (sharedOnly) {
+                sharedMachines.addAll(NativeProcessingMachines.controllers(world, pos));
+                return;
+            }
+            for (var proxy : NativeGregTech.craftingInputProxies(tile)) {
+                if (proxy.getWorldObj() != world) continue;
+                sharedPending.addLast(
+                    new Target(
+                        target.dimension(),
+                        new cn.dancingsnow.neoecoae.platform.minecraft.BlockPos(
+                            proxy.xCoord,
+                            proxy.yCoord,
+                            proxy.zCoord)));
+            }
             if (!NativeProcessingMachines.isCurrentController(world, pos, tile)) return;
-            if (tile instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationBlockEntity workstation) {
+            // ECO's own multiblock inputs are not GT hatches and therefore have no GT membership links.
+            var workstationCluster = tile instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInterfaceBlockEntity provider
+                ? provider.getCluster()
+                : tile instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInputHatchBlockEntity hatch
+                    ? hatch.getCluster()
+                    : null;
+            if (workstationCluster != null && workstationCluster.getController() != null) {
+                pending.addFirst(
+                    new Target(
+                        target.dimension(),
+                        workstationCluster.getController()
+                            .getBlockPos()));
+                return;
+            }
+            if (tile instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOIntegratedWorkingStationBlockEntity workstation) {
                 machineTargets.add(target);
                 machines.put(location(target), workstation.getProcessingStatus(output));
+                return;
+            }
+            if (tile instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingWorkerBlockEntity worker) {
+                machineTargets.add(target);
+                machines.put(location(target), worker.getProcessingStatus(output));
                 return;
             }
             var controllers = NativeProcessingMachines.controllers(world, pos);
@@ -185,7 +230,16 @@ public final class ECOGregTechMachineStatus {
             progress = 0;
         }
         long parallel = duration > 0 ? Math.max(0L, sample.lastParallel()) : 0;
-        return new Machine(name, location, "", progress, duration, parallel, state, reason);
+        long cycleOutput = 0L;
+        if (duration > 0) for (Object entry : sample.outputs()) {
+            if (entry instanceof ItemStack stack && matches(stack, output))
+                cycleOutput = cn.dancingsnow.neoecoae.crafting.amount.NEMath
+                    .saturatingAdd(cycleOutput, Math.max(0, stack.stackSize));
+            else if (entry instanceof FluidStack fluid && matches(fluid, output))
+                cycleOutput = cn.dancingsnow.neoecoae.crafting.amount.NEMath
+                    .saturatingAdd(cycleOutput, Math.max(0, fluid.amount));
+        }
+        return new Machine(name, location, "", progress, duration, parallel, cycleOutput, state, reason);
     }
 
     /** The most specific reason a machine is not advancing this output, in the order GT itself checks them. */

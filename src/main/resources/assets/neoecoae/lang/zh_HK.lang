@@ -1566,3 +1566,6 @@ achievement.neoecoae.integrated_working_station=融會貫通
 achievement.neoecoae.integrated_working_station.desc=第一次獲得整合工作站
 achievement.neoecoae.large_integrated_formed=集大成者
 achievement.neoecoae.large_integrated_formed.desc=第一次讓大型整合工作站成型
+
+gui.neoecoae.crafting_status.processing.shared=共享樣板機器：%s 台
+gui.neoecoae.crafting_status.processing.parallel_cycle=實際並行：%s（每並行產出 %s；本輪 %s）

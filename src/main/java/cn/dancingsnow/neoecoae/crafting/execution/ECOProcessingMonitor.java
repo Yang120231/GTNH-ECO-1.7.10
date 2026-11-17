@@ -150,7 +150,8 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
         }
         advance(level, tick);
         if (survey.scan != null && !survey.hasCompleteSample && survey.previewTick != tick) {
-            survey.published = ECOProcessingProgress.summarize(survey.scan.machines());
+            survey.published = ECOProcessingProgress
+                .summarize(survey.scan.machines(), survey.scan.sharedMachineCount());
             survey.previewTick = tick;
         }
         return cachedProgress(output);
@@ -211,7 +212,8 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 survey.scan.step(level);
                 if (survey.scan.complete()) {
                     survey.machineTargets = survey.scan.machineTargets();
-                    survey.published = ECOProcessingProgress.summarize(survey.scan.machines());
+                    survey.published = ECOProcessingProgress
+                        .summarize(survey.scan.machines(), survey.scan.sharedMachineCount());
                     survey.hasCompleteSample = true;
                     survey.scan = null;
                     survey.nextTick = tick + REFRESH_INTERVAL;

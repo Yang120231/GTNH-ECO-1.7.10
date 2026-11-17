@@ -71,6 +71,7 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     }
 
     /** A read-only view of the current cycle, using the same pause rules as the local workstation page. */
+    @Override
     public cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine getProcessingStatus(
         AEKey output) {
         var state = cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State.QUEUED;
@@ -119,6 +120,9 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
             progress,
             duration,
             parallel,
+            matches && batch.outputTotal.get(output) % batch.craftCount == 0
+                ? batch.outputTotal.get(output) / batch.craftCount * parallel
+                : 0,
             state,
             reason);
     }

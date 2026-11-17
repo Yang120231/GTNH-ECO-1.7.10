@@ -208,7 +208,8 @@ public final class ECOCraftingStatusItemActions {
         if (tile == null || tile.isInvalid()) return null;
         // Only actual recipe machines: a GT controller/basic machine, or an ECO workstation controller.
         boolean machine = NativeGregTech.sample(tile) != null
-            || tile instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationBlockEntity;
+            || tile instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOIntegratedWorkingStationBlockEntity
+            || tile instanceof cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingWorkerBlockEntity;
         if (!machine) return null;
         return new Place(tile, null, displayName(tile));
     }

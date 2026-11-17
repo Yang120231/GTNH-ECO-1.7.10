@@ -1633,3 +1633,6 @@ gui.neoecoae.pattern_upload.reason.cross_gt=This GT recipe source cannot verify 
 gui.neoecoae.pattern_upload.mapping.saved_cross_gt=Mapping saved. Warning: this GT source cannot verify the machine; automatic upload will deliver to an unverified machine.
 gui.neoecoae.pattern_upload.hinted_category_only=NEI category only (recipe changed)
 gui.neoecoae.pattern_upload.reason.nei_recipe_changed=The recipe changed after NEI fill. Only the category is retained; automatic delivery requires an explicit binding.
+
+gui.neoecoae.crafting_status.processing.shared=Shared-pattern machines: %s
+gui.neoecoae.crafting_status.processing.parallel_cycle=Actual parallels: %s (per parallel %s; this cycle %s)

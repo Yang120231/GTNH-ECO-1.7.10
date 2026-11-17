@@ -143,6 +143,8 @@ public final class ProcessingTooltip {
         List<Row> rows = new ArrayList<>();
         if (progress.machineCount() == 0 && !progress.refreshing()) return rows;
         if (progress.machineCount() > 0) rows.add(Row.text(I18n.format(KEY + "count", progress.machineCount())));
+        if (progress.sharedMachineCount() > 1)
+            rows.add(Row.text(I18n.format(KEY + "shared", progress.sharedMachineCount())));
         if (progress.refreshing()) rows.add(Row.text(EnumChatFormatting.GRAY + I18n.format(KEY + "refreshing")));
         if (progress.machineCount() > 0 && progress.machines()
             .isEmpty()) rows.add(Row.text(EnumChatFormatting.GRAY + I18n.format(KEY + "loading_details")));
@@ -168,9 +170,7 @@ public final class ProcessingTooltip {
             String reason = machine.reason()
                 .getString();
             if (!reason.isEmpty()) rows.add(Row.text(EnumChatFormatting.GOLD + I18n.format(KEY + "reason", reason)));
-            String parallel = I18n.format(
-                KEY + "parallel",
-                machine.parallel() > 0 ? machine.parallel() : I18n.format("gui.neoecoae.crafting_report.card.unknown"));
+            String parallel = parallel(machine);
             String cycle = machine.durationTicks() > 0
                 ? I18n.format(KEY + "cycle", (int) (100L * machine.progressTicks() / machine.durationTicks()))
                 : "";
@@ -201,6 +201,15 @@ public final class ProcessingTooltip {
                         + I18n.format(KEY + "page", Math.max(0, progress.detailPage()) + 1, progress.pages())));
         }
         return rows;
+    }
+
+    private static String parallel(ECOProcessingProgress.Machine machine) {
+        long value = machine.parallel();
+        long output = machine.cycleOutput();
+        if (value > 0 && output > 0 && output % value == 0)
+            return I18n.format(KEY + "parallel_cycle", value, output / value, output);
+        return I18n
+            .format(KEY + "parallel", value > 0 ? value : I18n.format("gui.neoecoae.crafting_report.card.unknown"));
     }
 
     /** "dim [x, y, z]" as the dimension's name and its coordinates. */

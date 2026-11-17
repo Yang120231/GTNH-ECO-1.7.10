@@ -1633,3 +1633,6 @@ gui.neoecoae.pattern_upload.reason.cross_gt=GT 配方来源无法核验此机器
 gui.neoecoae.pattern_upload.mapping.saved_cross_gt=映射已保存。警告：GT 来源无法核验此机器，自动上传将投递到未验证的机器。
 gui.neoecoae.pattern_upload.hinted_category_only=仅 NEI 类别（配方已改动）
 gui.neoecoae.pattern_upload.reason.nei_recipe_changed=NEI 填入后配方已改动，仅保留类别；自动投递需要显式绑定。
+
+gui.neoecoae.crafting_status.processing.shared=共享样板机器：%s 台
+gui.neoecoae.crafting_status.processing.parallel_cycle=实际并行：%s（每并行产出 %s；本轮 %s）

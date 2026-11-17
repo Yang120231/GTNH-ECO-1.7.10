@@ -72,6 +72,11 @@ public final class NativeGregTech {
         return isAvailable() ? GregTechMachineAccess.inputs(machine) : java.util.Collections.emptyList();
     }
 
+    /** Mirrors sharing a pattern bank; callers resolve their controllers under the normal scan budget. */
+    public static java.util.List<TileEntity> craftingInputProxies(TileEntity tile) {
+        return isAvailable() ? GregTechMachineAccess.craftingInputProxies(tile) : java.util.Collections.emptyList();
+    }
+
     @com.github.bsideup.jabel.Desugar
     public record MachineSnapshot(int metaTileId, String machineClass, boolean active, long storedEu, long euCapacity,
         int progress, int maxProgress, int euPerTick) {}

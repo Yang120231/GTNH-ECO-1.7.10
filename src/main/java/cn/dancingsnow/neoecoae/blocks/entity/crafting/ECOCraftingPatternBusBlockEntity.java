@@ -34,7 +34,8 @@ import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCluster, ECOCraftingPatternBusBlockEntity>
     implements ManagedHolder, InternalInventoryHost, ECOJobAwareCraftingProvider, ECOFastPathDispatchProvider,
-    appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium, appeng.api.util.IInterfaceViewable {
+    appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium, appeng.api.util.IInterfaceViewable,
+    cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
 
     private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
         .getLogger(cn.dancingsnow.neoecoae.NeoECOAE.MODID);
@@ -59,6 +60,12 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
         }
     };
     private final ECOCraftingPatternBusDispatcher dispatcher = new ECOCraftingPatternBusDispatcher(this);
+
+    @Override
+    public cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target neoecoae$getProcessingTarget() {
+        return dispatcher.processingTarget();
+    }
+
     private final ECOCraftingPatternBusCatalog catalog = new ECOCraftingPatternBusCatalog(
         inventory,
         this::decodePattern);

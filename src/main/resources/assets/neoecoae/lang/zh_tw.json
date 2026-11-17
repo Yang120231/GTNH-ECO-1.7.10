@@ -1391,5 +1391,7 @@
   "gui.neoecoae.crafting_report.card.resource_request": "資源請求",
   "gui.neoecoae.crafting_report.card.exact_hint": "按住 Shift 查看完整精確數值",
   "gui.neoecoae.crafting_report.card.exact_shown": "已顯示完整精確數值",
-  "gui.neoecoae.crafting_report.bytes_partial": "已算位元組：%s"
+  "gui.neoecoae.crafting_report.bytes_partial": "已算位元組：%s",
+  "gui.neoecoae.crafting_status.processing.shared": "共享樣板機器：%s 台",
+  "gui.neoecoae.crafting_status.processing.parallel_cycle": "實際並行：%s（每並行產出 %s；本輪 %s）"
 }

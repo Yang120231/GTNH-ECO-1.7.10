@@ -32,15 +32,21 @@ import appeng.parts.automation.UpgradeInventory;
 import appeng.tile.inventory.IAEAppEngInventory;
 import appeng.tile.inventory.InvOperation;
 import appeng.util.InventoryAdaptor;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IExternalPowerSink;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.RelativeSide;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.StoredEnergyAmount;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.inventory.AppEngInternalInventory;
 import cn.dancingsnow.neoecoae.platform.inventory.InternalInventoryHost;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
@@ -93,6 +99,46 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     private Map<ResourceLocation, IntegratedWorkingStationRecipe> refreshedRecipes;
     private cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation taskId;
     private boolean dirty = true;
+    private String processingBlockReason;
+
+    /** Observe the current recipe without refreshing the task cache or simulating inventory/power operations. */
+    public Machine getProcessingStatus(AEKey output) {
+        var match = WorkstationRecipes.find(inputItems(), getInputTank().getFluid());
+        var task = match == null ? null : match.recipe();
+        long amount = 0;
+        if (task != null) {
+            if (task.hasItemOutput() && output.equals(AEItemKey.of(task.itemOutput())))
+                amount = task.itemOutput().stackSize;
+            if (task.hasFluidOutput() && output.equals(AEFluidKey.of(task.fluidOutput())))
+                amount = task.fluidOutput().amount;
+        }
+        boolean matches = amount > 0;
+        String reason = !getMainNode().isOnline()
+            ? "gui.neoecoae.large_integrated_working_station.pause.output_blocked.detail.network_unavailable"
+            : matches ? processingBlockReason
+                : task == null ? "gui.neoecoae.processing.idle" : "gui.neoecoae.processing.other_recipe";
+        int duration = matches ? (int) Math.min(Integer.MAX_VALUE, (long) task.processingTicks() * 2) : 0;
+        int speed = speedFactor(upgrades.getInstalledUpgrades(Upgrades.SPEED));
+        int elapsed = matches && match.id()
+            .equals(taskId) ? processingTime : 0;
+        return new Machine(
+            Component.translatable("block.neoecoae.integrated_working_station"),
+            (worldObj == null ? "?" : worldObj.provider.dimensionId) + " ["
+                + xCoord
+                + ", "
+                + yCoord
+                + ", "
+                + zCoord
+                + "]",
+            matches ? match.id()
+                .toString() : "",
+            elapsed / speed,
+            (int) (((long) duration + speed - 1) / speed),
+            matches ? 1 : 0,
+            amount,
+            reason != null ? State.WAITING : matches ? State.RUNNING : State.QUEUED,
+            reason == null ? Component.empty() : Component.translatable(reason));
+    }
 
     public ECOIntegratedWorkingStationBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -260,6 +306,8 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     @Override
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
         var task = getTask();
+        int previousProgress = processingTime;
+        processingBlockReason = null;
         if (task != null && outputsFit(task)) {
             setWorking(true);
             getMainNode().ifPresent(grid -> {
@@ -297,8 +345,11 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
                     }
                 }
             });
+            if (processingTime == previousProgress)
+                processingBlockReason = "gui.neoecoae.large_integrated_working_station.pause.power_missing";
             if (processingTime >= getMaxProcessingTime()) finishTask(task);
         } else {
+            if (task != null) processingBlockReason = "gui.neoecoae.processing.output_blocked";
             setWorking(false);
         }
         if (working || processingTime > 0) changed();

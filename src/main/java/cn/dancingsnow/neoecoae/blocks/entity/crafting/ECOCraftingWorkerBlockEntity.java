@@ -21,18 +21,23 @@ import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine;
+import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.State;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCache;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOExtractedPatternExecution;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedFastPathExecution;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedVirtualExecution;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingControllerHost.VirtualLaneStartResult;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingThread;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
+import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
@@ -648,5 +653,61 @@ public class ECOCraftingWorkerBlockEntity extends
 
     public List<ECOCraftingThread> getCraftingThreads() {
         return Collections.unmodifiableList(craftingThreads);
+    }
+
+    /** One physical core may execute several matching batches; keep the machine count physical. */
+    public Machine getProcessingStatus(AEKey output) {
+        var controller = cluster == null ? null : cluster.getController();
+        Component name = Component.literal(getItemFromBlockEntity().getDisplayName());
+        String location = (worldObj == null ? "?" : worldObj.provider.dimensionId) + " ["
+            + xCoord
+            + ", "
+            + yCoord
+            + ", "
+            + zCoord
+            + "]";
+        var cycles = new ArrayList<Machine>();
+        long parallel = 0, amount = 0;
+        long elapsed = 0, duration = 0;
+        for (var thread : craftingThreads) {
+            var cycle = thread.getProcessingStatus(output, controller, name, location);
+            if (cycle == null) continue;
+            cycles.add(cycle);
+            parallel = cn.dancingsnow.neoecoae.crafting.amount.NEMath.saturatingAdd(parallel, cycle.parallel());
+            amount = cn.dancingsnow.neoecoae.crafting.amount.NEMath.saturatingAdd(amount, cycle.cycleOutput());
+            elapsed += cycle.progressTicks();
+            duration += cycle.durationTicks();
+        }
+        State state = controller == null ? State.UNAVAILABLE
+            : cycles.isEmpty() ? State.QUEUED
+                : ECOProcessingProgress.summarize(cycles)
+                    .state();
+        Component reason = controller == null ? Component.translatable("gui.neoecoae.processing.unformed")
+            : cycles.isEmpty()
+                ? Component
+                    .translatable(isWorking() ? "gui.neoecoae.processing.other_recipe" : "gui.neoecoae.processing.idle")
+                : Component.empty();
+        for (var cycle : cycles) if (cycle.state() == state && !cycle.reason()
+            .getString()
+            .isEmpty()) {
+                reason = cycle.reason();
+                break;
+            }
+        if (controller != null && !getMainNode().isOnline()) {
+            state = State.WAITING;
+            reason = Component.translatable(
+                "gui.neoecoae.large_integrated_working_station.pause.output_blocked.detail.network_unavailable");
+        }
+        int ticks = cycles.isEmpty() ? 0 : (int) Math.max(1, duration / cycles.size());
+        return new Machine(
+            name,
+            location,
+            "",
+            duration == 0 ? 0 : (int) (elapsed * ticks / duration),
+            ticks,
+            parallel,
+            amount,
+            state,
+            reason);
     }
 }
