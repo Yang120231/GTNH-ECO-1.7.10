@@ -1661,6 +1661,8 @@ gui.neoecoae.pattern_upload.manager.results=显示 %s / 共 %s 个目标
 gui.neoecoae.pattern_upload.manager.hidden=已筛除 %s 个
 gui.neoecoae.pattern_upload.manager.dimension_tip=左键：下一个维度 · 右键：上一个维度 · 包含所有维度选项
 gui.neoecoae.pattern_upload.manager.merge_tip=按机器类型折叠，展开后选择具体的上传或绑定目标。
+gui.neoecoae.pattern_upload.manager.height=窗口高度：%s / %s 行
+gui.neoecoae.pattern_upload.manager.height_tip=左键：增加一行 · 右键：减少一行
 gui.neoecoae.pattern_upload.manager.stats_tip=统计整个网络的目标，不受筛选影响。槽位按目标路由合计，同一库存可能出现在多个路由中。
 gui.neoecoae.pattern_upload.manager.expand_tip=左键展开或折叠，展开后再选择具体接收端。点击分组不会上传样板。
 

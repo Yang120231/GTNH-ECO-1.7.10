@@ -1661,6 +1661,8 @@ gui.neoecoae.pattern_upload.manager.results=Showing %s / %s targets
 gui.neoecoae.pattern_upload.manager.hidden=%s filtered out
 gui.neoecoae.pattern_upload.manager.dimension_tip=Left-click: next dimension | Right-click: previous | includes All dimensions
 gui.neoecoae.pattern_upload.manager.merge_tip=Group matching machine types. Expand a group to select a concrete upload or binding target.
+gui.neoecoae.pattern_upload.manager.height=Window height: %s / %s rows
+gui.neoecoae.pattern_upload.manager.height_tip=Left-click: add one row | Right-click: remove one row
 gui.neoecoae.pattern_upload.manager.stats_tip=Network totals before filtering. Slot counts are summed over target routes; shared inventories may appear in more than one route.
 gui.neoecoae.pattern_upload.manager.expand_tip=Left-click: expand / collapse. Choose a concrete target inside; expanding never uploads a pattern.
 

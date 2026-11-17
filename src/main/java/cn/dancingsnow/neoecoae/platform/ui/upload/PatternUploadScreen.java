@@ -57,8 +57,9 @@ final class PatternUploadScreen extends GuiScreen {
     /** Same character as {@code GtPatternRoutes.MODE_SEPARATOR}, kept here so the screen never loads GT classes. */
     private static final char MODE_SEPARATOR = '';
     private static final int PANEL_WIDTH = 420, TITLE_HEIGHT = 14, ROW_HEIGHT = 24, CARD_HEIGHT = 23;
-    private static final int MAX_VISIBLE_ROWS = 12, HEADER = 102, FOOTER = 58, SCROLLBAR_WIDTH = 7;
+    private static final int DEFAULT_VISIBLE_ROWS = 12, HEADER = 102, FOOTER = 58, SCROLLBAR_WIDTH = 7;
     private static final int CLOSE_SIZE = 10, BUTTON_HEIGHT = 16;
+    private static final String[] HEIGHT_ICON = { "..o..", ".ooo.", "o.o.o", "..o..", "o.o.o", ".ooo.", "..o.." };
     private static final long BUSY_TIMEOUT = 5_000L;
 
     private static final int FREE = PatternTargetSelector.SlotState.FREE.ordinal();
@@ -73,6 +74,8 @@ final class PatternUploadScreen extends GuiScreen {
 
     /** Window offset from the centred position; kept for the session so the window reopens where it was left. */
     private static int offsetX, offsetY;
+    /** Preferred list height, retained when the upload window is reopened during this game session. */
+    private static int preferredRows = DEFAULT_VISIBLE_ROWS;
 
     final GuiContainer parent;
     final int windowId;
@@ -107,7 +110,7 @@ final class PatternUploadScreen extends GuiScreen {
     private boolean parentRenderFailed;
 
     private int left, top, panelWidth, panelHeight, listX, listY, listWidth, visibleRows;
-    private int toggleX, toggleY, closeX, closeY;
+    private int toggleX, toggleY, closeX, closeY, heightX;
     private int dimensionX, dimensionWidth, mergeWidth;
     private final int[][] footerButtons = new int[3][];
     private final int[][] mappingButtons = new int[3][];
@@ -414,9 +417,24 @@ final class PatternUploadScreen extends GuiScreen {
         Keyboard.enableRepeatEvents(true);
         if (parent.width != width || parent.height != height) parent.setWorldAndResolution(mc, width, height);
         panelWidth = Math.min(PANEL_WIDTH, width - 8);
-        int rows = (height - 8 - HEADER - FOOTER) / ROW_HEIGHT;
-        visibleRows = Math.max(1, Math.min(MAX_VISIBLE_ROWS, rows));
+        visibleRows = Math.max(1, Math.min(preferredRows, maxRows()));
         panelHeight = HEADER + visibleRows * ROW_HEIGHT + FOOTER;
+        layout();
+    }
+
+    private int maxRows() {
+        return Math.max(1, (height - 8 - HEADER - FOOTER) / ROW_HEIGHT);
+    }
+
+    private void resize(int direction) {
+        int rows = Math.max(1, Math.min(maxRows(), visibleRows + direction));
+        if (rows == visibleRows) return;
+        preferredRows = rows;
+        visibleRows = rows;
+        panelHeight = HEADER + visibleRows * ROW_HEIGHT + FOOTER;
+        // Keep the height control under the pointer unless the expanded window reaches a screen edge.
+        offsetY = top - (height - panelHeight) / 2;
+        draggingScrollbar = false;
         layout();
     }
 
@@ -429,6 +447,7 @@ final class PatternUploadScreen extends GuiScreen {
         offsetY = top - centredY;
         closeX = left + panelWidth - CLOSE_SIZE - 3;
         closeY = top + 2;
+        heightX = left + 3;
         listX = left + 5;
         listY = top + HEADER;
         listWidth = panelWidth - 10 - SCROLLBAR_WIDTH - 2;
@@ -531,6 +550,11 @@ final class PatternUploadScreen extends GuiScreen {
             (int) Math.floor((mouseY - toggleY - 4) / SMALL),
             button);
         search.setFocused(insideSearch(mouseX, mouseY));
+        if ((button == 0 || button == 1) && inside(mouseX, mouseY, heightX, closeY, CLOSE_SIZE, CLOSE_SIZE)) {
+            click();
+            resize(button == 0 ? 1 : -1);
+            return;
+        }
         int index = rowAt(mouseX, mouseY);
         if (button == 1 && index >= 0) {
             if (tree.get(index)
@@ -748,11 +772,19 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private void drawTitle(int mouseX, int mouseY) {
+        boolean heightHover = inside(mouseX, mouseY, heightX, closeY, CLOSE_SIZE, CLOSE_SIZE);
+        UploadDraw.button(heightX, closeY, CLOSE_SIZE, CLOSE_SIZE, maxRows() > 1, heightHover);
+        UploadDraw.glyph(
+            heightX + 2,
+            closeY + 1 + NativeAe2Button.contentOffset(maxRows() > 1, heightHover),
+            HEIGHT_ICON,
+            'o',
+            0xFF000000 | (maxRows() > 1 ? TEXT : DISABLED_TEXT));
         fontRendererObj.drawString(
             fontRendererObj.trimStringToWidth(
                 StatCollector.translateToLocal("gui.neoecoae.pattern_upload.title"),
-                closeX - left - 10),
-            left + 6,
+                closeX - heightX - CLOSE_SIZE - 8),
+            heightX + CLOSE_SIZE + 4,
             top + 4,
             TEXT,
             false);
@@ -1109,6 +1141,11 @@ final class PatternUploadScreen extends GuiScreen {
     private List<String> tooltip(int mouseX, int mouseY) {
         List<String> lines = new ArrayList<>();
         if (draggingWindow) return lines;
+        if (inside(mouseX, mouseY, heightX, closeY, CLOSE_SIZE, CLOSE_SIZE)) {
+            lines.add(ui("height", visibleRows, maxRows()));
+            lines.add("§7" + ui("height_tip"));
+            return lines;
+        }
         if (inside(mouseX, mouseY, dimensionX, toggleY, dimensionWidth, 16)) {
             lines.add(ui("dimension_tip"));
             return lines;
