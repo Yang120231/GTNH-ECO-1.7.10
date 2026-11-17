@@ -88,7 +88,7 @@ public final class IOUtilities {
         }
     }
 
-    public static void writeNbtCompressed(CompoundTag root, Path target) throws IOException {
+    public static void writeNbtCompressed(CompoundTag root, Path target, long readLimit) throws IOException {
         Path absolute = target.toAbsolutePath();
         Files.createDirectories(absolute.getParent());
         Path temporary = Files.createTempFile(
@@ -98,6 +98,7 @@ public final class IOUtilities {
             ".tmp");
         try {
             NbtIo.writeCompressed(root, temporary);
+            NbtIo.readCompressed(temporary, NbtAccounter.create(readLimit));
             try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.WRITE)) {
                 channel.force(true);
             }

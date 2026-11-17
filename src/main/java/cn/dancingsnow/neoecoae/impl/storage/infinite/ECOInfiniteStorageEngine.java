@@ -8,6 +8,7 @@ import appeng.api.config.Actionable;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 public interface ECOInfiniteStorageEngine {
 
@@ -24,20 +25,19 @@ public interface ECOInfiniteStorageEngine {
      * Inserts at most once for the given transaction id. Repeating a call that already succeeded reports the same
      * amount again without storing it a second time, so an interrupted migration can simply be run again.
      */
-    default long insertOnce(UUID transactionId, AEKey key, long amount) {
-        return insert(key, amount, Actionable.MODULATE);
-    }
+    long insertOnce(UUID source, CompoundTag keyTag, AEKey key, long amount);
 
-    /**
-     * Records equivalent transaction identities atomically. This lets migration retries be
-     * recognized both from the disk's seal id and from its original controller slot.
-     */
-    default long insertOnce(java.util.Set<UUID> transactionIds, AEKey key, long amount) {
-        UUID transactionId = transactionIds == null || transactionIds.isEmpty() ? null
-            : transactionIds.iterator()
-                .next();
-        return insertOnce(transactionId, key, amount);
-    }
+    boolean hasLegacyKeyReceipts();
+
+    boolean isMigrationComplete(UUID source);
+
+    void completeMigration(UUID source);
+
+    long requestCheckpoint();
+
+    void flushRequestedCheckpoint();
+
+    boolean isCheckpointSaved(long generation);
 
     long extract(AEKey key, long amount, Actionable mode);
 

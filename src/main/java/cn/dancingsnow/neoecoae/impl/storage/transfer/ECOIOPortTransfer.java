@@ -11,6 +11,7 @@ import cn.dancingsnow.neoecoae.impl.storage.StorageListingVersion;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.StorageHelper;
@@ -36,8 +37,17 @@ public final class ECOIOPortTransfer {
     private Predicate<AEKey> previousFilter;
     private NetworkInventoryCache mountListing;
     private final Object2LongOpenHashMap<AEKey> listedAmounts = new Object2LongOpenHashMap<>();
+    private GenericStack remainder;
 
-    /** Only candidate keys are buffered; all resources remain in the source's authoritative inventory. */
+    public GenericStack remainder() {
+        return remainder;
+    }
+
+    public void restoreRemainder(GenericStack stack) {
+        remainder = stack;
+    }
+
+    /** Resets candidate discovery without discarding a previously extracted remainder. */
     public void reset() {
         queue.clear();
         previousSource = listedSource = null;
@@ -84,7 +94,7 @@ public final class ECOIOPortTransfer {
     public long transfer(GridView grid, MEStorage hostStorage, boolean fillHost, boolean ignoreCreativeInput,
         boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter, long tick, int outputIntervalTicks,
         long outputFlushThreshold) {
-        if (transferring) return 0;
+        if (transferring || remainder != null) return 0;
         transferring = true;
         try {
             return StorageBusTransferFilter.transfer(
@@ -208,15 +218,14 @@ public final class ECOIOPortTransfer {
             }
 
             long inserted = StorageHelper.poweredInsert(grid.getEnergyService(), destination, key, extracted, source);
-            if (inserted < extracted) {
-                from.insert(key, extracted - inserted, Actionable.MODULATE, source);
-            }
+            if (inserted < extracted) remainder = new GenericStack(key, extracted - inserted);
             if (inserted > 0L) {
                 moved = inserted > Long.MAX_VALUE - moved ? Long.MAX_VALUE : moved + inserted;
             }
             // Keep a candidate until the next refreshed listing says it is empty. Consumption and
             // replenishment can restore the same total before then, producing no aggregate delta.
             enqueue(key);
+            if (remainder != null) break;
         }
         if (scheduled && attempted)
             nextOutputTick = tick > Long.MAX_VALUE - outputIntervalTicks ? Long.MAX_VALUE : tick + outputIntervalTicks;

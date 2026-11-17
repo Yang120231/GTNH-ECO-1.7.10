@@ -35,7 +35,8 @@ import cn.dancingsnow.neoecoae.platform.nbt.Tag;
  */
 public final class ECOInfiniteStorageData extends SavedData {
 
-    public static final int CURRENT_VERSION = 3;
+    public static final int CURRENT_VERSION = 4;
+    public static final long SNAPSHOT_NBT_LIMIT = 256L * 1024 * 1024;
 
     public enum DomainStatus {
         HEALTHY,
@@ -58,6 +59,8 @@ public final class ECOInfiniteStorageData extends SavedData {
     final InfiniteStorageAmounts amounts = new InfiniteStorageAmounts();
     private final List<CompoundTag> rawEntries = new ArrayList<>();
     private final Set<UUID> migrationReceipts = new HashSet<>();
+    private final Set<UUID> completedMigrations = new HashSet<>();
+    private final Map<UUID, Map<CompoundTag, Long>> migrationKeys = new HashMap<>();
     private final Map<AEKey, Restore> restores = new HashMap<>();
     private CompoundTag unresolvedMetadata = new CompoundTag();
     private boolean unreadable;
@@ -66,6 +69,11 @@ public final class ECOInfiniteStorageData extends SavedData {
     private String failure;
     // Written by the IO worker when an asynchronous snapshot write fails; the next save retries.
     private volatile String writeFailure;
+    private long queuedGeneration;
+    private volatile long savedGeneration;
+    private boolean checkpointRequested;
+    private File snapshotFile;
+    private Runnable publishIndex;
     private long revision;
     private long listingChanges;
     private long listingBarrier;
@@ -198,8 +206,34 @@ public final class ECOInfiniteStorageData extends SavedData {
             }
             if (!invalid.isEmpty()) data.unresolvedMetadata.put("migrations", invalid);
         }
+        if (version >= 4 && !data.readMigrationKeys(tag)) {
+            data.markUnreadable("Invalid exact migration receipts; original snapshot retained");
+        }
         data.refreshMountedStorageAvailability();
         return data;
+    }
+
+    private boolean readMigrationKeys(CompoundTag tag) {
+        if (!validList(tag, "completedMigrations", Tag.TAG_INT_ARRAY)
+            || !validList(tag, "migrationKeys", Tag.TAG_COMPOUND)) return false;
+        try {
+            for (Tag id : tag.getList("completedMigrations", Tag.TAG_INT_ARRAY)) {
+                completedMigrations.add(NbtUtils.loadUUID(id));
+            }
+            for (Tag raw : tag.getList("migrationKeys", Tag.TAG_COMPOUND)) {
+                CompoundTag entry = (CompoundTag) raw;
+                UUID id = entry.getUUID("source");
+                long amount = entry.getLong("amount");
+                if (completedMigrations.contains(id) || !entry.contains("key", Tag.TAG_COMPOUND)
+                    || amount <= 0
+                    || migrationKeys.computeIfAbsent(id, ignored -> new HashMap<>())
+                        .putIfAbsent(entry.getCompound("key"), amount) != null)
+                    return false;
+            }
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static boolean validList(CompoundTag tag, String name, int type) {
@@ -249,6 +283,8 @@ public final class ECOInfiniteStorageData extends SavedData {
                     new java.util.LinkedHashMap<>(restore.plan()))));
         List<CompoundTag> raw = new ArrayList<>(rawEntries.size());
         rawEntries.forEach(entry -> raw.add(entry.copy()));
+        Map<UUID, Map<CompoundTag, Long>> migrationCopies = new HashMap<>();
+        migrationKeys.forEach((id, keysForSource) -> migrationCopies.put(id, new HashMap<>(keysForSource)));
         return new Snapshot(
             keys,
             values,
@@ -257,14 +293,16 @@ public final class ECOInfiniteStorageData extends SavedData {
             restoreCopies,
             raw,
             new ArrayList<>(migrationReceipts),
+            new ArrayList<>(completedMigrations),
+            migrationCopies,
             unresolvedMetadata.isEmpty() ? null : unresolvedMetadata.copy(),
             journalSequence);
     }
 
     @com.github.bsideup.jabel.Desugar
     private record Snapshot(AEKey[] keys, long[] values, CompoundTag[] encoded, Map<AEKey, java.math.BigInteger> big,
-        Map<AEKey, Restore> restores, List<CompoundTag> raw, List<UUID> receipts, CompoundTag unresolved,
-        long journalSequence) {
+        Map<AEKey, Restore> restores, List<CompoundTag> raw, List<UUID> receipts, List<UUID> completedMigrations,
+        Map<UUID, Map<CompoundTag, Long>> migrationKeys, CompoundTag unresolved, long journalSequence) {
 
         CompoundTag write(CompoundTag tag, HolderLookup.Provider registries) {
             tag.putInt("version", CURRENT_VERSION);
@@ -303,6 +341,18 @@ public final class ECOInfiniteStorageData extends SavedData {
             ListTag receiptTags = new ListTag();
             receipts.forEach(id -> receiptTags.add(NbtUtils.createUUID(id)));
             tag.put("migrations", receiptTags);
+            ListTag completed = new ListTag();
+            completedMigrations.forEach(id -> completed.add(NbtUtils.createUUID(id)));
+            tag.put("completedMigrations", completed);
+            ListTag partial = new ListTag();
+            migrationKeys.forEach((source, byKey) -> byKey.forEach((key, amount) -> {
+                CompoundTag entry = new CompoundTag();
+                entry.putUUID("source", source);
+                entry.put("key", key);
+                entry.putLong("amount", amount);
+                partial.add(entry);
+            }));
+            tag.put("migrationKeys", partial);
             if (unresolved != null) tag.put("unresolvedMetadata", unresolved);
             tag.putLong("journalSequence", journalSequence);
             return tag;
@@ -341,6 +391,7 @@ public final class ECOInfiniteStorageData extends SavedData {
                     captureNanos / 1_000_000L);
         }
         Path target = file.toPath();
+        long generation = ++queuedGeneration;
         IOUtilities.withIOWorker(target, () -> {
             long encodeStarted = System.nanoTime();
             try {
@@ -348,10 +399,16 @@ public final class ECOInfiniteStorageData extends SavedData {
                 root.put("data", snapshot.write(new CompoundTag(), registries));
                 NbtUtils.addCurrentDataVersion(root);
                 long writeStarted = System.nanoTime();
-                IOUtilities.writeNbtCompressed(root, target);
-                // The snapshot records journalSequence, so a journal left behind by a crash here is harmless.
-                Files.deleteIfExists(journalPath(target.toAbsolutePath()));
+                IOUtilities.writeNbtCompressed(root, target, SNAPSHOT_NBT_LIMIT);
+                if (publishIndex != null) publishIndex.run();
+                savedGeneration = generation;
                 writeFailure = null;
+                try {
+                    Files.deleteIfExists(journalPath(target.toAbsolutePath()));
+                } catch (IOException e) {
+                    LogManager.getLogger(ECOInfiniteStorageData.class)
+                        .warn("Cannot clean up legacy journal {}", file, e);
+                }
                 long finishedAt = System.nanoTime();
                 if (finishedAt - encodeStarted >= 1_000_000_000L) {
                     LogManager.getLogger(ECOInfiniteStorageData.class)
@@ -371,6 +428,34 @@ public final class ECOInfiniteStorageData extends SavedData {
             }
         });
         setDirty(false);
+    }
+
+    public void bindSnapshot(File file, Runnable onPublished) {
+        snapshotFile = file;
+        publishIndex = onPublished;
+    }
+
+    public void saveSnapshot() {
+        checkpointRequested = false;
+        save(snapshotFile, cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);
+    }
+
+    long checkpoint() {
+        if (snapshotFile == null) return -1;
+        if (isDirty()) checkpointRequested = true;
+        return isDirty() ? queuedGeneration + 1 : queuedGeneration;
+    }
+
+    void flushRequestedCheckpoint() {
+        if (checkpointRequested && writeFailure == null) saveSnapshot();
+    }
+
+    boolean isCheckpointSaved(long generation) {
+        return generation >= 0 && savedGeneration >= generation;
+    }
+
+    public String pendingSnapshotFailure() {
+        return writeFailure;
     }
 
     /** Structural change: also advances {@link #revision()} so revision-keyed caches refresh. */
@@ -481,16 +566,31 @@ public final class ECOInfiniteStorageData extends SavedData {
         return migrationReceipts.contains(transaction);
     }
 
-    public void addMigrationReceipt(UUID transaction) {
-        if (migrationReceipts.add(transaction)) setDirty();
+    boolean hasLegacyKeyReceipts() {
+        return migrationReceipts.stream()
+            .anyMatch(id -> id.version() == 3);
     }
 
-    public void addMigrationReceipts(Set<UUID> transactions) {
-        boolean changed = false;
-        for (UUID transaction : transactions) {
-            if (transaction != null) changed |= migrationReceipts.add(transaction);
+    boolean isMigrationComplete(UUID source) {
+        return completedMigrations.contains(source) || source.version() != 3 && migrationReceipts.contains(source);
+    }
+
+    long migratedAmount(UUID source, CompoundTag key) {
+        Map<CompoundTag, Long> keys = migrationKeys.get(source);
+        return keys == null ? 0 : keys.getOrDefault(key, 0L);
+    }
+
+    void recordMigratedKey(UUID source, CompoundTag key, long amount) {
+        migrationKeys.computeIfAbsent(source, ignored -> new HashMap<>())
+            .put(key.copy(), amount);
+        super.setDirty();
+    }
+
+    void completeMigration(UUID source) {
+        if (completedMigrations.add(source)) {
+            migrationKeys.remove(source);
+            super.setDirty();
         }
-        if (changed) setDirty();
     }
 
     static void replayJournal(ECOInfiniteStorageData data, Path snapshot, HolderLookup.Provider registries)

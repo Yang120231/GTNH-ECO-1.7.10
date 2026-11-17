@@ -9,7 +9,9 @@ import java.util.function.BooleanSupplier;
 
 import org.jetbrains.annotations.Nullable;
 
+import appeng.api.config.Actionable;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
+import cn.dancingsnow.neoecoae.api.storage.IECOStorageMigrationCell;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.amount.ExactAmount;
 import cn.dancingsnow.neoecoae.crafting.display.terminal.CombinedExactAmountSource;
@@ -17,6 +19,7 @@ import cn.dancingsnow.neoecoae.crafting.display.terminal.ExactAmountCollector;
 import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell;
 import cn.dancingsnow.neoecoae.impl.storage.NetworkInventoryCache;
 import cn.dancingsnow.neoecoae.impl.storage.SaturatingStackAccumulator;
+import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorage;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageEngine;
 import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOIOPortTransfer;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster;
@@ -25,20 +28,25 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
+import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 /** Moves storage contents in full-key batches using AE2 ME IO Port transfer semantics. */
 final class ECOStorageInterfaceTransfer {
 
+    private static final String REMAINDER_TAG = "neoecoae_transfer_remainder";
     private final ECOStorageSystemBlockEntity host;
     private final ECOIOPortTransfer ioPortTransfer = new ECOIOPortTransfer();
     private ECOInfiniteStorageEngine cachedStorageEngine;
     private MEStorage cachedInfiniteStorage;
     private CombinedStorage cachedCombinedStorage;
     private final List<MEStorage> candidateCells = new ArrayList<>();
+    private CompoundTag unresolvedRemainder;
 
     ECOStorageInterfaceTransfer(ECOStorageSystemBlockEntity host) {
         this.host = host;
@@ -52,8 +60,40 @@ final class ECOStorageInterfaceTransfer {
         ioPortTransfer.reset();
     }
 
+    boolean hasRemainder() {
+        return ioPortTransfer.remainder() != null || unresolvedRemainder != null;
+    }
+
+    void saveRemainder(CompoundTag tag, HolderLookup.Provider registries) {
+        if (unresolvedRemainder != null) tag.put(REMAINDER_TAG, unresolvedRemainder.copy());
+        else if (ioPortTransfer.remainder() != null)
+            tag.put(REMAINDER_TAG, GenericStack.writeTag(registries, ioPortTransfer.remainder()));
+    }
+
+    void readRemainder(CompoundTag tag, HolderLookup.Provider registries) {
+        CompoundTag saved = tag.getCompound(REMAINDER_TAG);
+        GenericStack stack = GenericStack.readTag(registries, saved);
+        ioPortTransfer.restoreRemainder(stack);
+        unresolvedRemainder = stack == null && !saved.isEmpty() ? saved.copy() : null;
+    }
+
+    void settleRemainder() {
+        GenericStack remainder = ioPortTransfer.remainder();
+        if (remainder == null || !host.isFormed()) return;
+        CombinedStorage storage = getStorageInterfaceHostStorage();
+        if (storage == null) return;
+        long inserted = storage.recover(remainder, IActionSource.ofMachine(host));
+        if (inserted > 0L) {
+            long left = remainder.amount() - inserted;
+            ioPortTransfer.restoreRemainder(left == 0L ? null : new GenericStack(remainder.what(), left));
+            host.setChanged();
+        }
+    }
+
     long transferStorageInterfaceContents(ECOMachineInterfaceBlockEntity<NEStorageCluster> storageInterface) {
-        if (!host.isFormed() || !storageInterface.isStorageTransferMode() || !storageInterface.isTargetOnline()) {
+        if (hasRemainder() || !host.isFormed()
+            || !storageInterface.isStorageTransferMode()
+            || !storageInterface.isTargetOnline()) {
             return 0L;
         }
         var grid = storageInterface.getMainNode()
@@ -63,19 +103,24 @@ final class ECOStorageInterfaceTransfer {
         MEStorage hostStorage = getStorageInterfaceHostStorage();
         if (hostStorage == null) return 0L;
 
-        long moved = ioPortTransfer.transfer(
-            grid,
-            hostStorage,
-            storageInterface.isStorageInputMode(),
-            storageInterface.isIgnoringCreativeStorageInput(),
-            storageInterface.isExcludingStorageBusContainers(),
-            IActionSource.ofMachine(storageInterface),
-            storageInterface.storageResourceFilter(),
-            host.getLevel() == null ? 0L
-                : host.getLevel()
-                    .getGameTime(),
-            PlanningSettings.Storage.storageOutputTransferIntervalTicks,
-            PlanningSettings.Storage.storageOutputFlushThreshold);
+        long moved;
+        try {
+            moved = ioPortTransfer.transfer(
+                grid,
+                hostStorage,
+                storageInterface.isStorageInputMode(),
+                storageInterface.isIgnoringCreativeStorageInput(),
+                storageInterface.isExcludingStorageBusContainers(),
+                IActionSource.ofMachine(storageInterface),
+                storageInterface.storageResourceFilter(),
+                host.getLevel() == null ? 0L
+                    : host.getLevel()
+                        .getGameTime(),
+                PlanningSettings.Storage.storageOutputTransferIntervalTicks,
+                PlanningSettings.Storage.storageOutputFlushThreshold);
+        } finally {
+            if (hasRemainder()) host.setChanged();
+        }
         if (moved > 0L) {
             host.setChanged();
             host.markForUpdate();
@@ -84,7 +129,7 @@ final class ECOStorageInterfaceTransfer {
     }
 
     @Nullable
-    MEStorage getStorageInterfaceHostStorage() {
+    CombinedStorage getStorageInterfaceHostStorage() {
         if (host.storageHostMode()
             .isTransitioning()
             || host.storageHostMode()
@@ -199,6 +244,19 @@ final class ECOStorageInterfaceTransfer {
                 extracted += inventory.extract(key, amount - extracted, mode, source);
             }
             return extracted;
+        }
+
+        long recover(GenericStack stack, IActionSource source) {
+            if (!allowAccess.getAsBoolean()) return 0L;
+            for (MEStorage inventory : inventories) {
+                long accepted = inventory instanceof IECOStorageMigrationCell cell && cell.isInfiniteStorageEligible()
+                    ? cell.insertForMigration(stack.what(), stack.amount(), Actionable.MODULATE, source)
+                    : inventory instanceof ECOInfiniteStorage
+                        ? inventory.insert(stack.what(), stack.amount(), Actionable.MODULATE, source)
+                        : 0L;
+                if (accepted > 0L) return accepted;
+            }
+            return 0L;
         }
 
         @Override

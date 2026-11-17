@@ -13,6 +13,7 @@ import cn.dancingsnow.neoecoae.impl.storage.StorageByteAccounting;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTiers;
 
 /**
@@ -56,27 +57,44 @@ public final class SavedDataInfiniteStorageEngine implements ECOInfiniteStorageE
     }
 
     @Override
-    public long insertOnce(UUID transaction, AEKey key, long amount) {
+    public long insertOnce(UUID source, CompoundTag keyTag, AEKey key, long amount) {
         if (key == null || amount <= 0 || !data.canMigrate()) return 0;
-        if (transaction == null) return insert(key, amount, Actionable.MODULATE);
-        if (data.hasMigrationReceipt(transaction)) return amount;
+        long previous = data.migratedAmount(source, keyTag);
+        if (previous != 0) return previous == amount ? amount : 0;
         if (!data.canWrite(key)) return 0;
         insertAmount(key, data.amounts.visible(key), amount);
-        // Quantity and receipt share an atomic snapshot; a sealed source can safely retry after a restart.
-        data.addMigrationReceipt(transaction);
+        data.recordMigratedKey(source, keyTag, amount);
         return amount;
     }
 
     @Override
-    public long insertOnce(Set<UUID> transactions, AEKey key, long amount) {
-        if (key == null || amount <= 0 || !data.canMigrate()) return 0;
-        if (transactions == null || transactions.isEmpty()) return insert(key, amount, Actionable.MODULATE);
-        if (transactions.stream()
-            .anyMatch(data::hasMigrationReceipt)) return amount;
-        if (!data.canWrite(key)) return 0;
-        insertAmount(key, data.amounts.visible(key), amount);
-        data.addMigrationReceipts(transactions);
-        return amount;
+    public boolean hasLegacyKeyReceipts() {
+        return data.hasLegacyKeyReceipts();
+    }
+
+    @Override
+    public boolean isMigrationComplete(UUID source) {
+        return data.isMigrationComplete(source);
+    }
+
+    @Override
+    public void completeMigration(UUID source) {
+        data.completeMigration(source);
+    }
+
+    @Override
+    public long requestCheckpoint() {
+        return data.checkpoint();
+    }
+
+    @Override
+    public void flushRequestedCheckpoint() {
+        data.flushRequestedCheckpoint();
+    }
+
+    @Override
+    public boolean isCheckpointSaved(long generation) {
+        return data.isCheckpointSaved(generation);
     }
 
     @Override

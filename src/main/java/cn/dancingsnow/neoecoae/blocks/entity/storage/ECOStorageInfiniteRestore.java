@@ -5,8 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -26,6 +28,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider;
 import cn.dancingsnow.neoecoae.platform.inventory.IItemHandlerModifiable;
+import cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldStorage;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
@@ -38,6 +41,12 @@ final class ECOStorageInfiniteRestore {
     private String extractionCheckReason;
     private RestorePlan activeRestorePlan;
     private final java.util.ArrayDeque<AEKey> restoreQueue = new java.util.ArrayDeque<>();
+    private long planGeneration;
+    private long retryPreflightTick = Long.MIN_VALUE;
+    private long retryTargetTick = Long.MIN_VALUE;
+    private CompletableFuture<Boolean> targetCheckpoint;
+    private final Map<AEKey, UUID> checkpointTransactions = new HashMap<>();
+    private final java.util.Set<ECODriveBlockEntity> checkpointTargets = new java.util.HashSet<>();
 
     private final ECOStorageSystemBlockEntity host;
 
@@ -51,6 +60,7 @@ final class ECOStorageInfiniteRestore {
 
     void invalidateExtractionCheck() {
         extractionCheckTick = Long.MIN_VALUE;
+        retryPreflightTick = Long.MIN_VALUE;
     }
 
     IItemHandlerModifiable componentItemHandler(IItemHandlerModifiable delegate) {
@@ -58,10 +68,14 @@ final class ECOStorageInfiniteRestore {
     }
 
     void restoreInfiniteDomainToNormalStorageIfPossible() {
+        long tick = host.getLevel()
+            .getGameTime();
+        if (activeRestorePlan == null && tick < retryPreflightTick) return;
         RestorePlan plan = createInfiniteRestorePlan();
         if (plan.canRestore()) {
             restoreInfiniteDomainToNormalStorage(plan);
         } else {
+            retryPreflightTick = tick + 20;
             host.storageFaults()
                 .report(
                     "restore",
@@ -72,8 +86,6 @@ final class ECOStorageInfiniteRestore {
     }
 
     private RestorePlan createInfiniteRestorePlan() {
-        if (host.getMissingInfiniteMembers() > 0)
-            return RestorePlan.blocked("missing infinite member matrices; insert them again");
         if (activeRestorePlan != null) return activeRestorePlan;
         ECOInfiniteStorageEngine engine = host.getInfiniteEngine();
         if (engine == null) {
@@ -86,6 +98,8 @@ final class ECOStorageInfiniteRestore {
         if (engine.isEmpty()) {
             return RestorePlan.allowed(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
         }
+        if (host.getMissingInfiniteMembers() > 0)
+            return RestorePlan.blocked("missing infinite member matrices; insert them again");
         if (host.getCluster() == null || host.infiniteDomainId() == null) {
             return RestorePlan.blocked("missing storage cluster or infinite domain");
         }
@@ -136,6 +150,9 @@ final class ECOStorageInfiniteRestore {
                     remaining,
                     target.drive()
                         .getRestoreReceipt(transactionId));
+                if (alreadyRestored > 0 && engine.restoreTransaction(key) == null) {
+                    return RestorePlan.blocked("Legacy slot receipt cannot establish ownership of a restore key");
+                }
                 remaining -= alreadyRestored;
                 if (remaining <= 0L) {
                     break;
@@ -167,7 +184,8 @@ final class ECOStorageInfiniteRestore {
             if (stack == null || cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(stack)) {
                 continue;
             }
-            if (!ECOInfiniteStorageMember.isMemberOf(stack, domainId)) {
+            if (!ECOInfiniteStorageMember.isMemberOf(stack, domainId) || !ECOInfiniteStorageMember.getIdentity(stack)
+                .isPresent()) {
                 continue;
             }
             ItemStack simulationStack = stack.copy();
@@ -223,6 +241,9 @@ final class ECOStorageInfiniteRestore {
                 || !target.identity.equals(ECOInfiniteStorageMember.identity(drive.getCellStack()))
                 || !targetIds.add(target.identity)) {
                 activeRestorePlan = null;
+                targetCheckpoint = null;
+                checkpointTransactions.clear();
+                checkpointTargets.clear();
                 host.refreshInfiniteStorageAccess();
                 restoreQueue.clear();
                 host.storageFaults()
@@ -274,26 +295,33 @@ final class ECOStorageInfiniteRestore {
             // Freeze all source keys before any target changes. The durable target quantities also make a crash
             // between an external cell's SavedData write and its chunk receipt recoverable without reinsertion.
             if (!engine.reserveRestores(transactions, targetIds, goals)) return;
+            planGeneration = engine.requestCheckpoint();
             restoreQueue.clear();
             for (var entry : pending) restoreQueue.addLast(entry.getKey());
             activeRestorePlan = plan;
             host.refreshInfiniteStorageAccess();
             IStorageProvider.requestUpdate(host.getMainNode());
         }
-        while (!restoreQueue.isEmpty() && engine.getRestoreAmount(restoreQueue.peekFirst())
-            .isZero()) cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.removeFirst(restoreQueue);
-        Map<AEKey, UUID> completed = new HashMap<>();
-        java.util.Set<IECOStorageMigrationCell> changedCells = new java.util.HashSet<>();
+        if (!engine.isCheckpointSaved(planGeneration)) return;
+        if (host.getLevel()
+            .getGameTime() < retryTargetTick) return;
         IActionSource source = IActionSource.ofMachine(host);
-        for (AEKey key : restoreQueue) {
-            if (completed.size() >= ECOInfiniteStorageTransfer.KEYS_PER_TICK) break;
+        for (int count = 0; count < ECOInfiniteStorageTransfer.KEYS_PER_TICK && !restoreQueue.isEmpty(); count++) {
+            AEKey key = restoreQueue.peekFirst();
+            if (engine.getRestoreAmount(key)
+                .isZero()) {
+                restoreQueue.removeFirst();
+                continue;
+            }
             var goals = engine.restorePlan(key);
             for (RestoreTarget target : plan.targets()) {
                 var goal = goals.get(target.identity);
-                if (goal == null) continue;
+                if (goal == null || goal.transferred() == 0) continue;
                 var cell = (IECOStorageMigrationCell) target.drive()
                     .getCellInventory();
                 if (!ECOInfiniteStorageTransfer.restoreTarget(cell, key, goal, source)) {
+                    retryTargetTick = host.getLevel()
+                        .getGameTime() + 20;
                     host.storageFaults()
                         .report(
                             "restore",
@@ -302,41 +330,52 @@ final class ECOStorageInfiniteRestore {
                                 .getGameTime());
                     return;
                 }
-                UUID receipt = host.migrationTransactionId(
-                    host.infiniteDomainId(),
-                    target.drive(),
-                    key,
-                    engine.getRestoreAmount(key)
-                        .toLongSaturated(),
-                    "from-domain");
-                target.drive()
-                    .putRestoreReceipt(receipt, goal.transferred());
-                changedCells.add(cell);
+                checkpointTargets.add(target.drive());
             }
-            completed.put(key, engine.restoreTransaction(key));
+            checkpointTransactions.put(key, engine.restoreTransaction(key));
+            restoreQueue.removeFirst();
         }
-        if (!completed.isEmpty()) {
-            for (var cell : changedCells) cell.persistMigrationContents(serverLevel.nativeWorld());
-            // Mark the target chunks unsaved; the vanilla world save persists them with the domain.
-            for (RestoreTarget target : plan.targets()) {
-                if (changedCells.contains(
-                    target.drive()
-                        .getCellInventory()))
-                    target.drive()
-                        .setChanged();
+        if (!restoreQueue.isEmpty()) return;
+        if (!checkpointTransactions.isEmpty()) {
+            if (targetCheckpoint == null) {
+                var fields = new HashMap<TileEntity, List<String>>();
+                for (var drive : checkpointTargets) {
+                    ((IECOStorageMigrationCell) drive.getCellInventory())
+                        .persistMigrationContents(serverLevel.nativeWorld());
+                    drive.setChanged();
+                    fields.put(drive, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf("neoecoae_fields"));
+                }
+                targetCheckpoint = NativeWorldStorage.checkpointTiles(serverLevel.nativeWorld(), fields);
+                return;
             }
-            host.setChanged();
+            if (!targetCheckpoint.isDone()) return;
+            if (!targetCheckpoint.getNow(false)) {
+                targetCheckpoint = null;
+                retryTargetTick = host.getLevel()
+                    .getGameTime() + 20;
+                host.storageFaults()
+                    .report(
+                        "restore",
+                        "Target chunk save not confirmed",
+                        host.getLevel()
+                            .getGameTime());
+                return;
+            }
+            Map<AEKey, UUID> completed = new HashMap<>();
+            for (var entry : checkpointTransactions.entrySet()) {
+                completed.put(entry.getKey(), entry.getValue());
+                if (completed.size() >= ECOInfiniteStorageTransfer.KEYS_PER_TICK) break;
+            }
             if (!engine.finishRestores(completed)) return;
-            restoreQueue.removeIf(completed::containsKey);
-            host.storageFaults()
-                .recovered("restore");
-            IStorageProvider.requestUpdate(host.getMainNode());
+            checkpointTransactions.keySet()
+                .removeAll(completed.keySet());
+            if (!checkpointTransactions.isEmpty()) return;
         }
-        if (restoreQueue.isEmpty()) {
-            activeRestorePlan = null;
-            host.refreshInfiniteStorageAccess();
-            host.exitInfiniteModeIfSafe();
-        }
+        checkpointTargets.clear();
+        targetCheckpoint = null;
+        activeRestorePlan = null;
+        host.refreshInfiniteStorageAccess();
+        host.exitInfiniteModeIfSafe();
     }
 
     private long insertForRestore(IECOStorageCell cell, AEKey key, long amount, Actionable mode, IActionSource source) {
@@ -381,8 +420,8 @@ final class ECOStorageInfiniteRestore {
             this.drive = drive;
             this.simulatedCell = cell;
             this.simulatedContents = contents;
-            this.identity = ECOInfiniteStorageMember.identity(drive.getCellStack());
-            drive.setChanged();
+            this.identity = ECOInfiniteStorageMember.getIdentity(drive.getCellStack())
+                .orElseThrow(IllegalStateException::new);
             for (var entry : contents) {
                 if (entry.getLongValue() > 0L) {
                     simulatedTypes++;

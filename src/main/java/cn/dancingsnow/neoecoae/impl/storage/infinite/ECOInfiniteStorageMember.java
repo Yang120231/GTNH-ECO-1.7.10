@@ -21,6 +21,10 @@ public final class ECOInfiniteStorageMember {
     private static final String DOMAIN_TAG = "neoecoae_infinite_domain";
     private static final String MIGRATION_TAG = "neoecoae_migration_id";
     private static final String MIGRATION_DOMAIN_TAG = "neoecoae_migration_domain";
+    private static final String EXACT_MIGRATION_TAG = "neoecoae_exact_migration";
+    private static final String COMPLETED_MIGRATION_TAG = "neoecoae_completed_migration";
+    private static final String RELEASED_DOMAIN_TAG = "neoecoae_released_domain";
+    private static final String RELEASED_IDENTITY_TAG = "neoecoae_released_identity";
     private static final String IDENTITY_TAG = "neoecoae_member_identity";
 
     private ECOInfiniteStorageMember() {}
@@ -91,10 +95,22 @@ public final class ECOInfiniteStorageMember {
             return tag.getUUID(MIGRATION_TAG);
         }
         UUID id = UUID.randomUUID();
+        tag.remove(RELEASED_DOMAIN_TAG);
+        tag.remove(RELEASED_IDENTITY_TAG);
         tag.putUUID(MIGRATION_TAG, id);
         tag.putUUID(MIGRATION_DOMAIN_TAG, domain);
+        tag.putBoolean(EXACT_MIGRATION_TAG, true);
         CellComponents.writeCustomData(stack, CustomData.of(tag));
         return id;
+    }
+
+    static boolean usesExactMigration(ItemStack stack) {
+        return readTag(CellComponents.readCustomData(stack)).getBoolean(EXACT_MIGRATION_TAG);
+    }
+
+    public static @Nullable UUID getCompletedMigration(ItemStack stack) {
+        CompoundTag tag = readTag(CellComponents.readCustomData(stack));
+        return tag.hasUUID(COMPLETED_MIGRATION_TAG) ? tag.getUUID(COMPLETED_MIGRATION_TAG) : null;
     }
 
     public static boolean isMember(@Nullable ItemStack stack) {
@@ -133,8 +149,10 @@ public final class ECOInfiniteStorageMember {
         CompoundTag tag = CellComponents.readCustomData(stack)
             .copyTag();
         tag.putBoolean(MEMBER_TAG, true);
+        if (tag.hasUUID(MIGRATION_TAG)) tag.putUUID(COMPLETED_MIGRATION_TAG, tag.getUUID(MIGRATION_TAG));
         tag.remove(MIGRATION_TAG);
         tag.remove(MIGRATION_DOMAIN_TAG);
+        tag.remove(EXACT_MIGRATION_TAG);
         tag.putUUID(DOMAIN_TAG, domainId);
         if (!tag.hasUUID(IDENTITY_TAG)) tag.putUUID(IDENTITY_TAG, UUID.randomUUID());
         CellComponents.writeCustomData(stack, CustomData.of(tag));
@@ -148,6 +166,7 @@ public final class ECOInfiniteStorageMember {
             .copyTag();
         tag.remove(MEMBER_TAG);
         tag.remove(DOMAIN_TAG);
+        tag.remove(COMPLETED_MIGRATION_TAG);
         // Identities identify one membership lifetime. Keeping them on an ordinary cell makes
         // creative/NBT copies indistinguishable during the next restore.
         tag.remove(IDENTITY_TAG);
@@ -156,6 +175,23 @@ public final class ECOInfiniteStorageMember {
         } else {
             CellComponents.writeCustomData(stack, CustomData.of(tag));
         }
+    }
+
+    public static void releaseMember(ItemStack stack, UUID domain) {
+        UUID identity = getIdentity(stack).orElseThrow(IllegalStateException::new);
+        clearMember(stack);
+        CompoundTag tag = CellComponents.readCustomData(stack)
+            .copyTag();
+        tag.putUUID(RELEASED_DOMAIN_TAG, domain);
+        tag.putUUID(RELEASED_IDENTITY_TAG, identity);
+        CellComponents.writeCustomData(stack, CustomData.of(tag));
+    }
+
+    public static Optional<UUID> releasedIdentity(@Nullable ItemStack stack, UUID domain) {
+        if (stack == null) return Optional.empty();
+        CompoundTag tag = readTag(CellComponents.readCustomData(stack));
+        return tag.hasUUID(RELEASED_DOMAIN_TAG) && domain.equals(tag.getUUID(RELEASED_DOMAIN_TAG))
+            && tag.hasUUID(RELEASED_IDENTITY_TAG) ? Optional.of(tag.getUUID(RELEASED_IDENTITY_TAG)) : Optional.empty();
     }
 
     public static void clearStoredContents(@Nullable ItemStack stack) {

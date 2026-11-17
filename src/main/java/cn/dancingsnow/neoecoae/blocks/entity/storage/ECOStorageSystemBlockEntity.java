@@ -196,6 +196,8 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         long startNanos = System.nanoTime();
         try (var cellBatch = cn.dancingsnow.neoecoae.impl.storage.ECOCellMutationBatch.open()) {
             if (!stageRunner.run("migration", this::updateInfiniteStorageMode)) return;
+            if (interfaceTransfer.hasRemainder()
+                && !stageRunner.run("transfer recovery", interfaceTransfer::settleRemainder)) return;
             ECOMachineInterfaceBlockEntity<NEStorageCluster> storageInterface = getStorageInterface();
             if (storageInterface != null) {
                 if (!stageRunner.run("transfer", () -> {
@@ -372,6 +374,26 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
         CellComponents.writeCustomData(drop, CustomData.of(tag));
     }
 
+    public boolean hasTransferRemainder() {
+        return interfaceTransfer.hasRemainder();
+    }
+
+    public void saveTransferRemainderToItem(ItemStack stack) {
+        CompoundTag tag = CellComponents.readCustomData(stack)
+            .copyTag();
+        interfaceTransfer.saveRemainder(tag, cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);
+        CellComponents.writeCustomData(stack, CustomData.of(tag));
+    }
+
+    public void restoreTransferRemainderFromItem(ItemStack stack) {
+        if (!stack.hasTagCompound()) return;
+        interfaceTransfer.readRemainder(
+            CellComponents.readCustomData(stack)
+                .copyTag(),
+            cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);
+        if (interfaceTransfer.hasRemainder()) setChanged();
+    }
+
     public void restoreInfiniteDomainFromItem(ItemStack stack) {
         CompoundTag tag = CellComponents.readCustomData(stack)
             .copyTag();
@@ -402,6 +424,11 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
 
     public boolean canInsertStorageCell(ItemStack stack) {
         if (!isInfiniteMode()) return !ECOInfiniteStorageMember.isSealed(stack);
+        if (hostMode == ECOStorageHostMode.RESTORING_TO_NORMAL && infiniteDomainId != null
+            && ECOInfiniteStorageMember.releasedIdentity(stack, infiniteDomainId)
+                .filter(infiniteMemberIds::contains)
+                .isPresent())
+            return true;
         if (ECOInfiniteStorageMember.isMigrating(stack)) {
             UUID migrationId = ECOInfiniteStorageMember.getMigrationId(stack);
             return hostMode == ECOStorageHostMode.MIGRATING_TO_INFINITE && infiniteDomainId != null
@@ -455,6 +482,9 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
             for (ECODriveBlockEntity drive : cluster.getDrives()) {
                 if (ECOInfiniteStorageMember.isMemberOf(drive.getCellStack(), infiniteDomainId)) {
                     ECOInfiniteStorageMember.getIdentity(drive.getCellStack())
+                        .ifPresent(missing::remove);
+                } else if (hostMode == ECOStorageHostMode.RESTORING_TO_NORMAL) {
+                    ECOInfiniteStorageMember.releasedIdentity(drive.getCellStack(), infiniteDomainId)
                         .ifPresent(missing::remove);
                 }
             }
@@ -614,6 +644,7 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
+        interfaceTransfer.saveRemainder(data, registries);
         data.putString("infiniteHostMode", hostMode.id());
         if (infiniteDomainId != null) {
             data.putUUID("infiniteDomainId", infiniteDomainId);
@@ -624,6 +655,7 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
+        interfaceTransfer.readRemainder(data, registries);
         loadLegacyInfiniteComponentInventory(data, registries);
         setStorageHostMode(ECOStorageHostMode.fromId(data.getString("infiniteHostMode")));
         setInfiniteDomainId(data.hasUUID("infiniteDomainId") ? data.getUUID("infiniteDomainId") : null);

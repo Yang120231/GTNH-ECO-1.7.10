@@ -2,13 +2,16 @@ package cn.dancingsnow.neoecoae.blocks.entity.storage;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tileentity.TileEntity;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -24,6 +27,7 @@ import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOStorageHostMode;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
+import cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldStorage;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 
 /**
@@ -37,6 +41,12 @@ final class ECOInfiniteStorageModeController {
     private final ECOStorageSystemBlockEntity host;
     private final ECOInfiniteStorageTransfer transfer = new ECOInfiniteStorageTransfer();
     private final Set<UUID> preparedSourceSeals = new HashSet<>();
+    private Set<UUID> checkpointSeals;
+    private CompletableFuture<Boolean> sourceCheckpoint;
+    private long sealRetryTick;
+    private CompletableFuture<Boolean> exitCheckpoint;
+    private Set<TileEntity> exitCheckpointTargets;
+    private long exitRetryTick;
 
     private boolean targetInfiniteMode;
     private boolean updating;
@@ -84,6 +94,7 @@ final class ECOInfiniteStorageModeController {
         } finally {
             updating = false;
             syncModeChanges(previous);
+            if (mountedEngine != null) mountedEngine.flushRequestedCheckpoint();
         }
     }
 
@@ -98,6 +109,17 @@ final class ECOInfiniteStorageModeController {
         }
         if (host.storageHostMode() == ECOStorageHostMode.UNFORMED) {
             host.setStorageHostMode(ECOStorageHostMode.FORMED_NORMAL);
+        }
+        if (host.storageHostMode() == ECOStorageHostMode.FORMED_INFINITE && host.infiniteDomainId() != null
+            && host.getMissingInfiniteMembers() > 0
+            && host.getCluster()
+                .getDrives()
+                .stream()
+                .anyMatch(
+                    drive -> ECOInfiniteStorageMember.getMigrationDomainId(drive.getCellStack())
+                        .filter(host.infiniteDomainId()::equals)
+                        .isPresent())) {
+            host.setStorageHostMode(ECOStorageHostMode.MIGRATING_TO_INFINITE);
         }
         if (host.storageHostMode() == ECOStorageHostMode.MIGRATING_TO_INFINITE) {
             // Finish the sealed migration before considering an exit, including after reload.
@@ -308,6 +330,9 @@ final class ECOInfiniteStorageModeController {
                 ItemStack stack = drive.getCellStack();
                 if (ECOInfiniteStorageMember.isMember(stack)) {
                     if (ECOInfiniteStorageMember.isMemberOf(stack, domainId)) {
+                        UUID migrated = ECOInfiniteStorageMember.getCompletedMigration(stack);
+                        if (migrated != null && host.infiniteMigrationSourceIds()
+                            .remove(migrated)) host.setChanged();
                         continue;
                     }
                     hasPending = true;
@@ -357,7 +382,7 @@ final class ECOInfiniteStorageModeController {
             throw new IllegalStateException("Cell handler does not support resumable migration");
         }
         ItemStack source = drive.getCellStack();
-        UUID migration = ECOInfiniteStorageMember.beginMigration(source, domainId);
+        UUID migration = ECOInfiniteStorageMember.getMigrationId(source);
         long packedPos = drive.getBlockPos()
             .asLong();
         ECOInfiniteStorageTransfer.Result result = transfer.step(
@@ -367,14 +392,8 @@ final class ECOInfiniteStorageModeController {
             engine,
             host.getLevel()
                 .registryAccess(),
-            () -> {
-                if (!preparedSourceSeals.contains(migration)) {
-                    throw new IllegalStateException("Source seal has not been prepared");
-                }
-            },
+            packedPos,
             () -> drive.convertCellToInfiniteMember(domainId),
-            (key, keyTag, amount) -> ECOInfiniteStorageTransfer
-                .slotReceipt(domainId, "to-domain", packedPos, keyTag, amount),
             budget);
         if (!result.isComplete()) {
             return result;
@@ -398,7 +417,22 @@ final class ECOInfiniteStorageModeController {
     }
 
     private void sealTransferSourcesCoalesced(ServerWorldView serverLevel, UUID domainId) {
+        long tick = host.getLevel()
+            .getGameTime();
+        if (sourceCheckpoint != null) {
+            if (!sourceCheckpoint.isDone()) return;
+            if (sourceCheckpoint.getNow(false)) preparedSourceSeals.addAll(checkpointSeals);
+            else {
+                sealRetryTick = tick + 20;
+                host.storageFaults()
+                    .report("migration seal", "Source chunk save not confirmed", tick);
+            }
+            sourceCheckpoint = null;
+            checkpointSeals = null;
+        }
+        if (tick < sealRetryTick) return;
         Set<UUID> prepared = new HashSet<>();
+        var fields = new HashMap<TileEntity, List<String>>();
         for (ECODriveBlockEntity drive : host.getCluster()
             .getDrives()) {
             if (prepared.size() >= ECOInfiniteStorageTransfer.SEAL_SOURCES_PER_TICK) break;
@@ -425,10 +459,12 @@ final class ECOInfiniteStorageModeController {
                 if (preparedSourceSeals.contains(migration)) {
                     continue;
                 }
+                ECOInfiniteStorageMember.identity(stack);
                 ((IECOStorageMigrationCell) cell).persistMigrationContents(serverLevel.nativeWorld());
                 drive.setChanged();
                 IStorageProvider.requestUpdate(drive.getMainNode());
                 prepared.add(migration);
+                fields.put(drive, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf("neoecoae_fields"));
             } catch (RuntimeException exception) {
                 host.storageStageRetryTicks()
                     .put(
@@ -445,9 +481,15 @@ final class ECOInfiniteStorageModeController {
             }
         }
         if (!prepared.isEmpty()) {
-            // Chunks and the domain are saved together by the next vanilla world save; receipts make a replay safe.
             host.setChanged();
-            preparedSourceSeals.addAll(prepared);
+            fields.put(
+                host,
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+                    .listOf("infiniteDomainId", "infiniteHostMode", "infiniteMigrationSourceIds"));
+            checkpointSeals = prepared;
+            sourceCheckpoint = NativeWorldStorage.checkpointTiles(serverLevel.nativeWorld(), fields);
+            host.storageFaults()
+                .recovered("migration seal");
         }
     }
 
@@ -455,8 +497,8 @@ final class ECOInfiniteStorageModeController {
         ECOInfiniteStorageEngine engine = getEngine();
         UUID restore = engine == null ? null : engine.restoreTransaction(key);
         if ("from-domain".equals(direction) && restore != null) {
-            UUID identity = ECOInfiniteStorageMember.identity(drive.getCellStack());
-            drive.setChanged();
+            UUID identity = ECOInfiniteStorageMember.getIdentity(drive.getCellStack())
+                .orElseThrow(IllegalStateException::new);
             return UUID.nameUUIDFromBytes((restore + ":" + identity).getBytes(StandardCharsets.UTF_8));
         }
         String value = domainId + ":"
@@ -475,27 +517,73 @@ final class ECOInfiniteStorageModeController {
 
     void exitIfSafe() {
         if (host.getMissingInfiniteMembers() > 0) {
+            exitCheckpoint = null;
+            exitCheckpointTargets = null;
             return;
         }
         ECOInfiniteStorageEngine engine = getEngine();
         if (engine == null || !engine.canExitOrRestore()
             || !engine.isEmpty()
-            || !engine.commit()
-                .successful()) {
+            || !engine.isCheckpointSaved(engine.requestCheckpoint())) {
             return;
         }
         UUID domainId = host.infiniteDomainId();
-        if (host.getCluster() != null && domainId != null) {
+        if (host.getLevel() instanceof ServerWorldView serverLevel && host.getCluster() != null && domainId != null) {
+            var drives = new ArrayList<ECODriveBlockEntity>();
+            Set<UUID> missing = new HashSet<>(host.infiniteMemberIds());
+            for (ECODriveBlockEntity drive : host.getCluster()
+                .getDrives()) {
+                if (drive.isRemoved() || serverLevel.getBlockEntity(drive.getBlockPos()) != drive) continue;
+                if (ECOInfiniteStorageMember.isMemberOf(drive.getCellStack(), domainId)) {
+                    ECOInfiniteStorageMember.getIdentity(drive.getCellStack())
+                        .ifPresent(missing::remove);
+                } else {
+                    ECOInfiniteStorageMember.releasedIdentity(drive.getCellStack(), domainId)
+                        .ifPresent(missing::remove);
+                }
+                drives.add(drive);
+            }
+            if (!missing.isEmpty()) {
+                exitCheckpoint = null;
+                exitCheckpointTargets = null;
+                return;
+            }
+            long tick = host.getLevel()
+                .getGameTime();
+            if (tick < exitRetryTick) return;
+            boolean confirmed = exitCheckpoint != null && exitCheckpoint.getNow(false);
+            if (exitCheckpoint != null && !exitCheckpoint.isDone()) return;
+            if (exitCheckpoint != null && !confirmed) {
+                exitCheckpoint = null;
+                exitCheckpointTargets = null;
+                exitRetryTick = tick + 20;
+                host.storageFaults()
+                    .report("restore", "Unsealed target chunk save not confirmed", tick);
+                return;
+            }
+            var fields = new HashMap<TileEntity, List<String>>();
             try (var ignored = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.coalesce()) {
-                for (ECODriveBlockEntity drive : host.getCluster()
-                    .getDrives()) {
+                for (ECODriveBlockEntity drive : drives) {
                     if (ECOInfiniteStorageMember.isMemberOf(drive.getCellStack(), domainId)) {
                         drive.convertInfiniteMemberToNormalStorage(domainId);
                         IStorageProvider.requestUpdate(drive.getMainNode());
+                        confirmed = false;
+                    }
+                    if (ECOInfiniteStorageMember.releasedIdentity(drive.getCellStack(), domainId)
+                        .isPresent()) {
+                        fields.put(drive, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf("neoecoae_fields"));
                     }
                 }
             }
+            if (!fields.isEmpty() && (!confirmed || !fields.keySet()
+                .equals(exitCheckpointTargets))) {
+                exitCheckpoint = NativeWorldStorage.checkpointTiles(serverLevel.nativeWorld(), fields);
+                exitCheckpointTargets = new HashSet<>(fields.keySet());
+                return;
+            }
         }
+        host.storageFaults()
+            .recovered("restore");
         host.setStorageHostMode(host.isFormed() ? ECOStorageHostMode.FORMED_NORMAL : ECOStorageHostMode.UNFORMED);
         if (host.getLevel() instanceof ServerWorldView && domainId != null) {
             // Retain transfer receipts: an old source chunk must not import the same inventory again.
@@ -536,6 +624,12 @@ final class ECOInfiniteStorageModeController {
         hostAccess = false;
         transfer.reset();
         preparedSourceSeals.clear();
+        checkpointSeals = null;
+        sourceCheckpoint = null;
+        sealRetryTick = 0;
+        exitCheckpoint = null;
+        exitCheckpointTargets = null;
+        exitRetryTick = 0;
         if (mountedServer != null && mountedDomainId != null) {
             ECOInfiniteStorageDomains.release(mountedServer, mountedDomainId);
         }

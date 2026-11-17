@@ -3,6 +3,8 @@ package cn.dancingsnow.neoecoae.platform.minecraft;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import com.gtnewhorizon.gtnhlib.util.CoordinatePacker;
+
 import appeng.api.util.WorldCoord;
 
 /** Integer world coordinates. Mutable cursors explicitly copy when used as retained positions. */
@@ -79,11 +81,14 @@ public class BlockPos {
     }
 
     public long asLong() {
-        return ((long) x & 0x3ffffffL) << 38 | ((long) z & 0x3ffffffL) << 12 | (y & 0xfffL);
+        return CoordinatePacker.pack(x, y, z);
     }
 
     public static BlockPos of(long packed) {
-        return new BlockPos((int) (packed >> 38), (int) (packed << 52 >> 52), (int) (packed << 26 >> 38));
+        return new BlockPos(
+            CoordinatePacker.unpackX(packed),
+            CoordinatePacker.unpackY(packed),
+            CoordinatePacker.unpackZ(packed));
     }
 
     public static Iterable<BlockPos> betweenClosed(BlockPos first, BlockPos second) {

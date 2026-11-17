@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.BiFunction;
 import java.util.function.LongSupplier;
 
 import net.minecraft.item.ItemStack;
@@ -148,20 +147,6 @@ public final class ECOInfiniteStorageTransfer {
         }
     }
 
-    /** The pre-existing {@code to-domain} receipt; {@code keyTag} is the key's serialized tag text. */
-    @FunctionalInterface
-    public interface LegacyReceipt {
-
-        UUID apply(AEKey key, String keyTag, long amount);
-    }
-
-    /**
-     * Seal receipt of one key. Byte-for-byte the previous {@code migration + ":" + key.toTagGeneric(registries)}.
-     */
-    public static UUID sealedReceipt(UUID migration, String keyTag) {
-        return UUID.nameUUIDFromBytes((migration + ":" + keyTag).getBytes(StandardCharsets.UTF_8));
-    }
-
     /**
      * Controller-slot receipt. Byte-for-byte the previous
      * {@code domain + ":" + direction + ":" + pos.asLong() + ":" + key.toTagGeneric(registries) + ":" + amount}.
@@ -171,44 +156,25 @@ public final class ECOInfiniteStorageTransfer {
         return UUID.nameUUIDFromBytes(value.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** Serialized once per key and shared by both receipts. */
-    public static String keyTag(AEKey key, HolderLookup.Provider registries) {
-        return String.valueOf(key.toTagGeneric(registries));
-    }
-
     public static boolean isEligible(IECOStorageCell cell) {
         return cell instanceof IECOStorageMigrationCell && cell.isInfiniteStorageEligible()
             && cell.getTier()
                 .supportsFeature(ECOFeature.INFINITE_STORAGE_CELL);
     }
 
-    /**
-     * persistSeal must save the source contents and its seal before this method exposes any destination contents.
-     * complete clears the source and marks it as a member, using the same live cell handler.
-     */
-    /** Unbounded convenience form: true once the source has been completely migrated. */
-    public boolean step(ItemStack source, IECOStorageMigrationCell cell, UUID domain, ECOInfiniteStorageEngine engine,
-        HolderLookup.Provider registries, Runnable persistSeal, Runnable complete,
-        BiFunction<AEKey, Long, UUID> legacyReceipt) {
-        return step(
-            source,
-            cell,
-            domain,
-            engine,
-            registries,
-            persistSeal,
-            complete,
-            (key, keyTag, amount) -> legacyReceipt.apply(key, amount),
-            Budget.unbounded()).isComplete();
-    }
-
+    /** Called only after the containing chunk has saved the sealed source. */
     public Result step(ItemStack source, IECOStorageMigrationCell cell, UUID domain, ECOInfiniteStorageEngine engine,
-        HolderLookup.Provider registries, Runnable persistSeal, Runnable complete, LegacyReceipt legacyReceipt,
-        Budget budget) {
+        HolderLookup.Provider registries, long packedPos, Runnable complete, Budget budget) {
         if (!isEligible(cell)) return Result.blocked(BLOCKED_SOURCE_INELIGIBLE, null);
         if (!engine.isHealthy()) return domainBlocked(engine);
-        UUID migration = ECOInfiniteStorageMember.beginMigration(source, domain);
-        return step(migration, cell, engine, registries, persistSeal, complete, legacyReceipt, budget);
+        UUID migration = ECOInfiniteStorageMember.getMigrationId(source);
+        if (migration == null) throw new IllegalStateException("Missing saved migration seal");
+        if (engine.isMigrationComplete(migration)) return finish(migration, engine, complete);
+        boolean hasLegacy = engine.hasLegacyKeyReceipts();
+        if (hasLegacy && !ECOInfiniteStorageMember.usesExactMigration(source)) {
+            return Result.blocked(BLOCKED_REJECTED, "Cannot establish ownership from legacy migration receipts");
+        }
+        return step(migration, cell, domain, engine, registries, packedPos, complete, budget, hasLegacy);
     }
 
     /**
@@ -216,24 +182,10 @@ public final class ECOInfiniteStorageTransfer {
      * reloaded or replaced stack keeps its position when its sealed contents are unchanged, and otherwise restarts
      * from a fresh snapshot, where the receipts skip every key that was already inserted.
      */
-    Result step(UUID migration, IECOStorageMigrationCell cell, ECOInfiniteStorageEngine engine,
-        HolderLookup.Provider registries, Runnable persistSeal, Runnable complete, LegacyReceipt legacyReceipt,
-        Budget budget) {
-        if (!cell.isInfiniteStorageEligible()) return Result.blocked(BLOCKED_SOURCE_INELIGIBLE, null);
-        if (!engine.isHealthy()) return domainBlocked(engine);
-        // Beta committedSources recorded a whole disk, before its source chunk was cleared.
-        // Its disk UUID is also the translated seal UUID: never replay that inventory twice.
-        if (engine.hasMigrationReceipt(migration)) {
-            ECOInfiniteStorageEngine.CommitResult commit = engine.commit();
-            if (!commit.successful()) return Result.blocked(BLOCKED_COMMIT_FAILED, commit.failure());
-            complete.run();
-            cursors.remove(migration);
-            return Result.COMPLETE;
-        }
+    private Result step(UUID migration, IECOStorageMigrationCell cell, UUID domain, ECOInfiniteStorageEngine engine,
+        HolderLookup.Provider registries, long packedPos, Runnable complete, Budget budget, boolean hasLegacy) {
         Cursor cursor = cursors.get(migration);
         if (cursor == null || cursor.cell != cell) {
-            cell.persist();
-            persistSeal.run();
             cursor = Cursor.resume(cursor, cell);
             cursors.put(migration, cursor);
         }
@@ -242,11 +194,13 @@ public final class ECOInfiniteStorageTransfer {
             AEKey key = cursor.keys[cursor.index];
             long amount = cursor.amounts[cursor.index];
             if (amount > 0) {
-                String keyTag = keyTag(key, registries);
-                UUID legacy = legacyReceipt.apply(key, keyTag, amount);
-                UUID sealed = sealedReceipt(migration, keyTag);
-                long inserted = engine
-                    .insertOnce(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf(legacy, sealed), key, amount);
+                var keyTag = key.toTagGeneric(registries);
+                if (hasLegacy && engine
+                    .hasMigrationReceipt(slotReceipt(domain, "to-domain", packedPos, keyTag.toString(), amount))) {
+                    return Result
+                        .blocked(BLOCKED_REJECTED, "Legacy slot receipt cannot establish ownership of this key");
+                }
+                long inserted = engine.insertOnce(migration, keyTag, key, amount);
                 if (inserted != amount) {
                     String reason = engine.migrationBlockedReason(key);
                     return Result.blocked(
@@ -257,8 +211,12 @@ public final class ECOInfiniteStorageTransfer {
             cursor.index++;
             budget.consume();
         }
-        ECOInfiniteStorageEngine.CommitResult commit = engine.commit();
-        if (!commit.successful()) return Result.blocked(BLOCKED_COMMIT_FAILED, commit.failure());
+        engine.completeMigration(migration);
+        return finish(migration, engine, complete);
+    }
+
+    private Result finish(UUID migration, ECOInfiniteStorageEngine engine, Runnable complete) {
+        if (!engine.isCheckpointSaved(engine.requestCheckpoint())) return Result.IN_PROGRESS;
         complete.run();
         cursors.remove(migration);
         return Result.COMPLETE;

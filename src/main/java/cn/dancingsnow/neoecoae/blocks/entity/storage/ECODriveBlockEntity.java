@@ -171,7 +171,16 @@ public class ECODriveBlockEntity extends
                 .isInfiniteMode()
             && cellStack != null
             && !cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(cellStack)
-            && ECOInfiniteStorageMember.isMember(cellStack);
+            && (ECOInfiniteStorageMember.isMember(cellStack) || storageCluster.getController()
+                .storageHostMode()
+                == cn.dancingsnow.neoecoae.impl.storage.infinite.ECOStorageHostMode.RESTORING_TO_NORMAL
+                && storageCluster.getController()
+                    .infiniteDomainId() != null
+                && ECOInfiniteStorageMember.releasedIdentity(
+                    cellStack,
+                    storageCluster.getController()
+                        .infiniteDomainId())
+                    .isPresent());
     }
 
     private void updateState() {
@@ -213,8 +222,9 @@ public class ECODriveBlockEntity extends
             return null;
         }
         if (cachedCellStack != cellStack) {
-            cachedCellStack = cellStack;
-            cachedCellInventory = ECOStorageCells.getCellInventory(cellStack, this);
+            ItemStack installed = cellStack;
+            cachedCellInventory = ECOStorageCells.getCellInventory(installed, this);
+            cachedCellStack = installed;
         }
         return cachedCellInventory;
     }
@@ -420,7 +430,7 @@ public class ECODriveBlockEntity extends
             || !ECOInfiniteStorageMember.isMemberOf(cellStack, domainId)) {
             return false;
         }
-        ECOInfiniteStorageMember.clearMember(cellStack);
+        ECOInfiniteStorageMember.releaseMember(cellStack, domainId);
         var controller = getStorageController();
         if (controller != null) controller.invalidateInfiniteMembers();
         clearRestoreReceipts();
