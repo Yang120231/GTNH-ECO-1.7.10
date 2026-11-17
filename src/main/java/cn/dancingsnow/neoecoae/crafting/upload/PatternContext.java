@@ -20,7 +20,7 @@ public final class PatternContext {
     /** Recipe-only view; the encoded pattern and its tunnel references are never rewritten. */
     public final IAEStack<?>[] recipeInputs;
     public final String inputError;
-    /** Null unless an NEI hint naming a recipe map is still bound to exactly this pattern in this window. */
+    /** NEI provenance bound to this exact pattern, restored from this player's bounded cache when available. */
     public final RouteHint hint;
     public final World world;
 

@@ -88,6 +88,12 @@ public final class MatchResult {
             || level == Level.ACCEPTED
             || level == Level.UNVERIFIED && (reason == null || reason.isEmpty()
                 || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.no_machine".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.no_source".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.cross_gt".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.nei_recipe_changed".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.no_machines".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.machine_mismatch".equals(reason)
                 || "gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason));
     }
 

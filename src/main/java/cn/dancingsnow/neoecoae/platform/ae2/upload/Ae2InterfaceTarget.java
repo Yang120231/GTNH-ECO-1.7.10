@@ -4,7 +4,6 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import net.minecraft.inventory.IInventory;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.MovingObjectPosition;
@@ -254,12 +253,11 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
                 .of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.source_map_unknown");
         MatchResult routed = probe.match(viewable, context, kind == Kind.PROGRAMMABLE_HATCH);
         if (routed != null) return routed;
-        if (context.hint != null && !context.hint.hasRecipeMap() && viewable instanceof IInterfaceHost) {
-            IInterfaceHost host = (IInterfaceHost) viewable;
+        Set<String> machines = new TreeSet<>(), matched = new TreeSet<>();
+        ItemStack shown = null, actual = null;
+        if (viewable instanceof IInterfaceHost host) {
             TileEntity tile = host.getTileEntity();
             var targets = host.getTargets();
-            Set<String> machines = new TreeSet<>();
-            ItemStack shown = null;
             if (tile != null && tile.getWorldObj() != null && targets != null) for (ForgeDirection target : targets) {
                 if (target == null || target == ForgeDirection.UNKNOWN) continue;
                 TileEntity machine = tile.getWorldObj()
@@ -267,39 +265,57 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
                         tile.xCoord + target.offsetX,
                         tile.yCoord + target.offsetY,
                         tile.zCoord + target.offsetZ);
+                if (machine == null) continue;
                 ItemStack type = machineType(machine, target.getOpposite());
-                if (!context.hint.matchesMachine(type)) continue;
+                if (actual == null) actual = type;
+                String identity = target.ordinal() + ":"
+                    + machine.getClass()
+                        .getName()
+                    + "@"
+                    + net.minecraft.block.Block.blockRegistry.getNameForObject(machine.getBlockType())
+                    + ":"
+                    + machine.getBlockMetadata()
+                    + ":"
+                    + (type == null ? "?"
+                        : type.writeToNBT(new net.minecraft.nbt.NBTTagCompound())
+                            .toString());
+                machines.add(identity);
+                if (context.hint == null || context.hint.hasRecipeMap() || !context.hint.matchesMachine(type)) continue;
                 if (shown == null) shown = type;
-                machines.add(
+                matched.add(
                     machine.getClass()
                         .getName() + "@"
-                        + Item.itemRegistry.getNameForObject(type.getItem())
-                        + ":"
-                        + type.getItemDamage());
-            }
-            if (!machines.isEmpty()) {
-                String category = context.hint.getCategoryId();
-                return new MatchResult(
-                    MatchResult.Level.ROUTED,
-                    null,
-                    circuit,
-                    null,
-                    shown,
-                    category + "#" + selection + "#" + String.join(",", machines),
-                    false,
-                    category,
-                    selection);
+                        + type.writeToNBT(new net.minecraft.nbt.NBTTagCompound())
+                            .toString());
             }
         }
-        return new MatchResult(
-            MatchResult.Level.UNVERIFIED,
-            "gui.neoecoae.pattern_upload.reason.no_route",
+        String category = context.hint == null ? "" : context.hint.getCategoryId();
+        // Even an unverified explicit binding must notice a changed facing machine, item form or NBT.
+        String signature = "adjacent:" + String.join(",", machines);
+        if (!matched.isEmpty() && context.hint.isRecipeUnchanged()) return new MatchResult(
+            MatchResult.Level.ROUTED,
+            null,
             circuit,
             null,
-            null,
-            "",
+            shown,
+            category + "#" + selection + "#" + String.join(",", matched),
             false,
-            context.hint == null ? "" : context.hint.getCategoryId(),
+            category,
+            selection);
+        String reason = machines.isEmpty() ? "no_machine"
+            : context.hint == null ? "no_source"
+                : context.hint.hasRecipeMap() ? "cross_gt"
+                    : !context.hint.isRecipeUnchanged() ? "nei_recipe_changed"
+                        : !context.hint.hasMachineTypes() ? "no_machines" : "machine_mismatch";
+        return new MatchResult(
+            MatchResult.Level.UNVERIFIED,
+            "gui.neoecoae.pattern_upload.reason." + reason,
+            circuit,
+            null,
+            actual,
+            signature,
+            false,
+            category,
             selection);
     }
 
@@ -327,7 +343,7 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
                 .getPickBlock(hit, machine.getWorldObj(), machine.xCoord, machine.yCoord, machine.zCoord, null);
             if (picked != null && picked.getItem() != null) type = picked;
         } catch (RuntimeException | LinkageError unsupportedPick) { /* Use the block's declared item form. */ }
-        return type.getItem() == null ? null : type;
+        return type.getItem() == null ? null : cn.dancingsnow.neoecoae.crafting.upload.PatternStacks.copy(type, 1);
     }
 
     private boolean facesMolecularAssembler() {

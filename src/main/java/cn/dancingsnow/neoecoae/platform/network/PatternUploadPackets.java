@@ -391,6 +391,8 @@ public final class PatternUploadPackets {
         /** Virtual circuit number, or -1. */
         public int circuit = -1;
         public boolean programmingCover, manual;
+        public boolean mappable;
+        public String mappingFailure = "";
         /** Position of the member the next upload would write to (or the first member). */
         public int dimension, x, y, z;
 
@@ -454,7 +456,7 @@ public final class PatternUploadPackets {
         public int windowId, listId, part, parts = 1;
         /** Primary output of the encoded pattern, or null when the terminal holds no encoded pattern. */
         public ItemStack pattern;
-        public boolean processing, hinted;
+        public boolean processing, hinted, inferred, categoryOnly;
         /** Display name of the NEI recipe category the pattern was filled from; prefills the search. */
         public String category = "";
         /** Translation key of the last action's result; empty for none. */
@@ -478,6 +480,8 @@ public final class PatternUploadPackets {
             copy.pattern = pattern;
             copy.processing = processing;
             copy.hinted = hinted;
+            copy.inferred = inferred;
+            copy.categoryOnly = categoryOnly;
             copy.category = category;
             copy.message = message;
             copy.error = error;
@@ -535,6 +539,16 @@ public final class PatternUploadPackets {
                 mappingToken = buf.readInt();
                 autoMapped = buf.readBoolean();
             }
+            if (buf.isReadable()) {
+                if (part == 0) {
+                    inferred = buf.readBoolean();
+                    categoryOnly = buf.readBoolean();
+                }
+                for (Row row : rows) {
+                    row.mappable = buf.readBoolean();
+                    row.mappingFailure = readString(buf, 256);
+                }
+            }
         }
 
         @Override
@@ -568,6 +582,14 @@ public final class PatternUploadPackets {
                 ByteBufUtils.writeUTF8String(buf, mappingNameSuffix);
                 buf.writeInt(mappingToken);
                 buf.writeBoolean(autoMapped);
+            }
+            if (part == 0) {
+                buf.writeBoolean(inferred);
+                buf.writeBoolean(categoryOnly);
+            }
+            for (Row row : rows) {
+                buf.writeBoolean(row.mappable);
+                ByteBufUtils.writeUTF8String(buf, row.mappingFailure);
             }
         }
     }

@@ -9,9 +9,14 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 
 /** Server-thread registry: at most one active session, one NEI hint and one undo receipt per player. */
 public final class PatternUploadSessions {
+
+    private static final String SOURCE_CACHE = "neoecoaePatternUploadSources";
+    private static final int MAX_SOURCES = 128, MAX_ENTRY_LENGTH = 16384, MAX_CACHE_LENGTH = 262144;
 
     private static final Map<UUID, PatternUploadSession> SESSIONS = new HashMap<>();
     private static final Map<UUID, EditorSource> HINTS = new HashMap<>();
@@ -93,7 +98,10 @@ public final class PatternUploadSessions {
         EditorSource source = editor(player);
         if (source == null || source.container.windowId != windowId) return;
         source.encoded = source.draft == null ? null : source.draft.copy();
-        if (source.encoded != null) source.encoded.bind(pattern);
+        if (source.encoded != null) {
+            source.encoded.bind(pattern);
+            rememberSource(player, pattern, source.encoded);
+        }
     }
 
     /** A user loaded another pattern; native encoding and removal of an uploaded pattern keep the draft. */
@@ -104,8 +112,8 @@ public final class PatternUploadSessions {
             if (source.encoded != null && source.encoded.appliesTo(source.container.windowId, pattern))
                 source.draft = source.encoded.copy();
             else {
-                source.draft = null;
-                source.encoded = null;
+                source.encoded = cachedSource(source.player, source.container.windowId, pattern);
+                source.draft = source.encoded == null ? null : source.encoded.copy();
             }
         }
     }
@@ -131,7 +139,53 @@ public final class PatternUploadSessions {
     public static RouteHint hintFor(EntityPlayer player, int windowId, ItemStack pattern) {
         EditorSource source = editor(player);
         RouteHint hint = source == null ? null : source.encoded;
-        return hint != null && hint.appliesTo(windowId, pattern) ? hint : null;
+        if (hint != null && hint.appliesTo(windowId, pattern)) return hint;
+        RouteHint restored = cachedSource(player, windowId, pattern);
+        if (source != null && source.container.windowId == windowId) source.encoded = restored;
+        return restored;
+    }
+
+    /** Bounded per-player provenance; pattern items themselves remain untouched. */
+    private static void rememberSource(EntityPlayer player, ItemStack pattern, RouteHint hint) {
+        NBTTagCompound entry = hint.write();
+        entry.setTag("pattern", pattern.writeToNBT(new NBTTagCompound()));
+        int length = entry.toString()
+            .length();
+        boolean cacheable = length <= MAX_ENTRY_LENGTH;
+        NBTTagCompound persisted = player.getEntityData()
+            .getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG);
+        NBTTagList previous = persisted.getTagList(SOURCE_CACHE, 10), next = new NBTTagList();
+        if (cacheable) next.appendTag(entry);
+        else length = 0;
+        for (int i = 0; i < previous.tagCount() && next.tagCount() < MAX_SOURCES; i++) {
+            NBTTagCompound old = previous.getCompoundTagAt(i);
+            if (PatternStacks.samePattern(pattern, ItemStack.loadItemStackFromNBT(old.getCompoundTag("pattern"))))
+                continue;
+            int size = old.toString()
+                .length();
+            if (size > MAX_ENTRY_LENGTH || length + size > MAX_CACHE_LENGTH) continue;
+            length += size;
+            next.appendTag(old.copy());
+        }
+        persisted.setTag(SOURCE_CACHE, next);
+        player.getEntityData()
+            .setTag(EntityPlayer.PERSISTED_NBT_TAG, persisted);
+    }
+
+    private static RouteHint cachedSource(EntityPlayer player, int windowId, ItemStack pattern) {
+        if (pattern == null) return null;
+        NBTTagList entries = player.getEntityData()
+            .getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG)
+            .getTagList(SOURCE_CACHE, 10);
+        for (int i = 0; i < Math.min(entries.tagCount(), MAX_SOURCES); i++) {
+            NBTTagCompound entry = entries.getCompoundTagAt(i);
+            if (!PatternStacks.samePattern(pattern, ItemStack.loadItemStackFromNBT(entry.getCompoundTag("pattern"))))
+                continue;
+            RouteHint hint = RouteHint.read(entry, windowId);
+            if (hint != null) hint.bind(pattern);
+            return hint;
+        }
+        return null;
     }
 
     /** Like {@link #hintFor} but only a hint that names a recipe map; this is the one route matching may use. */

@@ -5,10 +5,12 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 
 /**
- * Recipe route selected while NEI fills a pattern terminal. The editor keeps it while that draft is edited and
- * re-encoded; a separate copy is bound to each encoded result. It never authorizes a network write.
+ * Recipe route selected while NEI fills a pattern terminal. Editing the filled recipe retains only its category.
+ * A separate copy is bound to each encoded result. It never authorizes a network write.
  *
  * <p>
  * Non-GT categories use NEI's registered machine catalysts. Display names and handler icons are not route evidence.
@@ -27,6 +29,54 @@ public final class RouteHint {
     private final List<ItemStack> machineTypes;
     private final int windowId;
     private ItemStack boundPattern;
+    private NBTTagCompound filledRecipe;
+    private boolean recipeUnchanged;
+
+    public void captureRecipe(NBTTagCompound recipe) {
+        filledRecipe = recipe == null ? null : (NBTTagCompound) recipe.copy();
+        recipeUnchanged = recipe != null;
+    }
+
+    public void validateRecipe(NBTTagCompound recipe) {
+        recipeUnchanged &= filledRecipe != null && filledRecipe.equals(recipe);
+    }
+
+    public boolean isRecipeUnchanged() {
+        return recipeUnchanged;
+    }
+
+    public NBTTagCompound write() {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString("map", recipeMapId);
+        tag.setString("category", category);
+        tag.setString("id", categoryId);
+        if (circuit != null) tag.setTag("circuit", circuit.writeToNBT(new NBTTagCompound()));
+        NBTTagList machines = new NBTTagList();
+        for (ItemStack machine : machineTypes) machines.appendTag(machine.writeToNBT(new NBTTagCompound()));
+        tag.setTag("machines", machines);
+        tag.setBoolean("unchanged", recipeUnchanged);
+        if (filledRecipe != null) tag.setTag("recipe", filledRecipe.copy());
+        return tag;
+    }
+
+    public static RouteHint read(NBTTagCompound tag, int windowId) {
+        List<ItemStack> machines = new ArrayList<>();
+        NBTTagList list = tag.getTagList("machines", 10);
+        if (list.tagCount() > 128) return null;
+        for (int i = 0; i < list.tagCount(); i++)
+            machines.add(ItemStack.loadItemStackFromNBT(list.getCompoundTagAt(i)));
+        RouteHint hint = new RouteHint(
+            tag.getString("map"),
+            ItemStack.loadItemStackFromNBT(tag.getCompoundTag("circuit")),
+            tag.getString("category"),
+            tag.getString("id"),
+            windowId,
+            machines);
+        hint.filledRecipe = tag.hasKey("recipe", 10) ? (NBTTagCompound) tag.getCompoundTag("recipe")
+            .copy() : null;
+        hint.recipeUnchanged = tag.getBoolean("unchanged") && hint.filledRecipe != null;
+        return hint.isEmpty() ? null : hint;
+    }
 
     public RouteHint(String recipeMapId, ItemStack circuit, int windowId) {
         this(recipeMapId, circuit, "", windowId);
@@ -80,7 +130,10 @@ public final class RouteHint {
     }
 
     public RouteHint copy() {
-        return new RouteHint(recipeMapId, circuit, category, categoryId, windowId, machineTypes);
+        RouteHint copy = new RouteHint(recipeMapId, circuit, category, categoryId, windowId, machineTypes);
+        copy.filledRecipe = filledRecipe == null ? null : (NBTTagCompound) filledRecipe.copy();
+        copy.recipeUnchanged = recipeUnchanged;
+        return copy;
     }
 
     public boolean matchesMachine(ItemStack machine) {

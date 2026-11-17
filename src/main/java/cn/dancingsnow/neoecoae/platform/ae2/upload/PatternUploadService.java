@@ -249,13 +249,13 @@ public final class PatternUploadService {
             list.pattern = context.primaryOutput();
             list.processing = context.processing;
             list.hinted = context.hint != null;
+            list.categoryOnly = context.hint != null && !context.hint.isRecipeUnchanged()
+                && !context.hint.isMaterialOrder();
         }
         PatternUploadMappings.Scope scope = session.mappingScope();
         list.category = scope == null ? "" : scope.category;
         list.categoryId = scope == null ? "" : scope.categoryId;
-        list.canMap = context != null && scope != null;
-        if (context != null) for (var evaluation : session.evaluations())
-            if (!evaluation.match.categoryId.isEmpty() && evaluation.match.allowsMapping()) list.canMap = true;
+        list.inferred = context != null && context.processing && context.hint == null && scope != null;
         PatternUploadMappings.Mapping mapping = session.mapping();
         if (mapping != null && !mapping.conflict) {
             list.hasMapping = true;
@@ -282,7 +282,19 @@ public final class PatternUploadService {
         }
         list.autoReason = choice.reason == null ? "" : choice.reason;
         List<PatternUploadPackets.Row> rows = new ArrayList<>();
-        for (PatternTargetGroups.Group group : session.groups()) rows.add(row(group));
+        for (PatternTargetGroups.Group group : session.groups()) {
+            PatternUploadPackets.Row row = row(group);
+            row.mappingFailure = "gui.neoecoae.pattern_upload.mapping.no_category";
+            if (context != null) for (var member : group.members) {
+                row.mappingFailure = session.mappingFailure(context, member);
+                if (row.mappingFailure.isEmpty()) {
+                    row.mappable = true;
+                    break;
+                }
+            }
+            list.canMap |= row.mappable;
+            rows.add(row);
+        }
         list.rows = rows;
         return list;
     }
@@ -322,8 +334,28 @@ public final class PatternUploadService {
         ContainerPatternTerm container = terminal(player, windowId);
         if (container == null) return;
         bindEditor(container, player);
-        PatternUploadSessions
-            .setHint(player, new RouteHint(recipeMapId, circuit, category, categoryId, windowId, machineTypes));
+        RouteHint hint = new RouteHint(recipeMapId, circuit, category, categoryId, windowId, machineTypes);
+        hint.captureRecipe(recipeSnapshot(container));
+        PatternUploadSessions.setHint(player, hint);
+    }
+
+    /** Snapshot the actual transferred alternatives, fluid stacks, quantities and NBT on the server. */
+    private static net.minecraft.nbt.NBTTagCompound recipeSnapshot(ContainerPatternTerm container) {
+        var terminal = container.getPatternTerminal();
+        var snapshot = new net.minecraft.nbt.NBTTagCompound();
+        snapshot.setBoolean("crafting", terminal.isCraftingRecipe());
+        for (var name : new appeng.api.storage.StorageName[] { appeng.api.storage.StorageName.CRAFTING_INPUT,
+            appeng.api.storage.StorageName.CRAFTING_OUTPUT }) {
+            var inventory = terminal.getAEInventoryByName(name);
+            if (inventory == null) return null;
+            var contents = new net.minecraft.nbt.NBTTagCompound();
+            for (int slot = 0; slot < inventory.getSizeInventory(); slot++) {
+                var stack = inventory.getAEStackInSlot(slot);
+                if (stack != null) contents.setTag(Integer.toString(slot), stack.toNBTGeneric());
+            }
+            snapshot.setTag(name.getName(), contents);
+        }
+        return snapshot;
     }
 
     private static void bindEditor(ContainerPatternTerm container, EntityPlayer player) {
@@ -356,6 +388,7 @@ public final class PatternUploadService {
         if (source == null) return;
         PatternContext context = PatternContext.of(pattern, null, player.worldObj, source.grid());
         RouteHint draft = PatternUploadSessions.draft(player);
+        if (draft != null) draft.validateRecipe(recipeSnapshot(container));
         if (context == null || !context.processing || context.details.isInputOnly())
             PatternUploadSessions.setHint(player, null);
         else if (draft != null && cn.dancingsnow.neoecoae.platform.gt.NativeGregTech.isAvailable())

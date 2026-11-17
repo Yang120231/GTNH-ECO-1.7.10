@@ -152,7 +152,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static boolean mappable(Row row) {
-        return row.state != OFFLINE && MatchResult.allowsMapping(level(row), row.reason);
+        return row.mappable;
     }
 
     private static MatchResult.Level level(Row row) {
@@ -544,7 +544,7 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private boolean mappingEnabled(int index) {
-        return !busy() && list.canMap && (index == 0 || list.hasMapping);
+        return !busy() && (index == 0 ? list.canMap : list.hasMapping);
     }
 
     private static boolean inside(int x, int y, int left, int top, int width, int height) {
@@ -630,12 +630,18 @@ final class PatternUploadScreen extends GuiScreen {
         if (!list.category.isEmpty()) {
             if (detail.length() > 0) detail.append(" · ");
             detail.append(
-                StatCollector
-                    .translateToLocalFormatted("gui.neoecoae.pattern_upload.nei_category", text(list.category)));
+                StatCollector.translateToLocalFormatted(
+                    list.inferred ? "gui.neoecoae.pattern_upload.inferred_category"
+                        : list.hinted ? "gui.neoecoae.pattern_upload.nei_category"
+                            : "gui.neoecoae.pattern_upload.category",
+                    text(list.category)));
         }
         if (list.hinted) {
             if (detail.length() > 0) detail.append(" · ");
-            detail.append(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.hinted"));
+            detail.append(
+                text(
+                    list.categoryOnly ? "gui.neoecoae.pattern_upload.hinted_category_only"
+                        : "gui.neoecoae.pattern_upload.hinted"));
         }
         small(trim(detail.toString(), textWidth), textX, y + 10, MUTED);
     }
@@ -747,8 +753,13 @@ final class PatternUploadScreen extends GuiScreen {
 
     private String mappingStatus() {
         if (mappingMode) return text("gui.neoecoae.pattern_upload.mapping.pick");
-        if (!list.canMap) return text("gui.neoecoae.pattern_upload.mapping.no_category");
-        if (!list.hasMapping) return text("gui.neoecoae.pattern_upload.mapping.none");
+        if (!list.hasMapping) {
+            if (list.canMap) return text("gui.neoecoae.pattern_upload.mapping.none");
+            for (Row row : list.rows) if (!row.mappingFailure.isEmpty()
+                && !"gui.neoecoae.pattern_upload.mapping.no_category".equals(row.mappingFailure))
+                return text(row.mappingFailure);
+            return text("gui.neoecoae.pattern_upload.mapping.no_category");
+        }
         String name = text(list.mappingName) + list.mappingNameSuffix;
         for (Row row : list.rows) if (row.token == list.mappingToken) {
             name = hostName(row);
@@ -860,6 +871,7 @@ final class PatternUploadScreen extends GuiScreen {
         tip.emptySlots = row.emptySlots;
         tip.totalSlots = row.totalSlots;
         if (!row.reason.isEmpty()) tip.notes.add(text(row.reason));
+        if (mappingMode && !row.mappable && !row.mappingFailure.isEmpty()) tip.notes.add(text(row.mappingFailure));
         if (row.circuit >= 0) tip.notes.add(
             StatCollector
                 .translateToLocalFormatted("gui.neoecoae.pattern_upload.button.auto.tooltip.circuit", row.circuit));
@@ -878,7 +890,9 @@ final class PatternUploadScreen extends GuiScreen {
             row.z);
         tip.uploadable = mappingMode ? mappable(row) : uploadable(row);
         tip.mappingAction = mappingMode && mappable(row);
-        tip.disabledReason = StatCollector.translateToLocal("gui.neoecoae.pattern_upload.row.disabled");
+        tip.disabledReason = text(
+            mappingMode && !row.mappingFailure.isEmpty() ? row.mappingFailure
+                : "gui.neoecoae.pattern_upload.row.disabled");
         return tip;
     }
 

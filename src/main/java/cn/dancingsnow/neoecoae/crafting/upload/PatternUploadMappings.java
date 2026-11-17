@@ -181,24 +181,34 @@ public final class PatternUploadMappings {
         return disabled.size() == 1 ? disabled.get(0) : null;
     }
 
+    /** Empty only when this receiver and scope can be saved; shared by listing and writes. */
+    public static String mappingFailure(EntityPlayer player, Scope scope, Evaluation evaluation) {
+        if (evaluation.state == PatternTargetSelector.SlotState.OFFLINE) return evaluation.state.translationKey();
+        if (!evaluation.match.allowsMapping())
+            return evaluation.match.reason == null || evaluation.match.reason.isEmpty()
+                ? evaluation.match.level.translationKey()
+                : evaluation.match.reason;
+        if (scope == null || scope.categoryId.isEmpty()) return "gui.neoecoae.pattern_upload.mapping.no_category";
+        if (!scope.categoryId.equals(evaluation.match.categoryId))
+            return "gui.neoecoae.pattern_upload.mapping.target_changed";
+        if (evaluation.positionKey.length() > 1024 || evaluation.match.routeSignature.length() > 8192
+            || scope.key()
+                .length() > 1024)
+            return "gui.neoecoae.pattern_upload.mapping.too_long";
+        NBTTagCompound current = data(player, false);
+        if (!current.hasKey(scope.key(), 10) && current.func_150296_c()
+            .size() >= MAX_MAPPINGS) return "gui.neoecoae.pattern_upload.mapping.limit";
+        return "";
+    }
+
     /**
      * Call only after re-reading a receiver selected by its server-issued list token. {@code auto} marks a preference
      * remembered by auto-upload, which later yields to normal selection when its receiver cannot take a pattern.
      */
     public static boolean put(EntityPlayer player, Scope scope, Evaluation evaluation, boolean auto) {
-        if (scope == null || scope.categoryId.isEmpty()
-            || !evaluation.match.allowsMapping()
-            || !scope.categoryId.equals(evaluation.match.categoryId)
-            || evaluation.state == PatternTargetSelector.SlotState.OFFLINE) return false;
+        if (!mappingFailure(player, scope, evaluation).isEmpty()) return false;
         String position = evaluation.positionKey;
         String signature = evaluation.match.routeSignature;
-        NBTTagCompound current = data(player, false);
-        if (position.length() > 1024 || signature.length() > 8192
-            || scope.key()
-                .length() > 1024
-            || !current.hasKey(scope.key(), 10) && current.func_150296_c()
-                .size() >= MAX_MAPPINGS)
-            return false;
         NBTTagCompound tag = new NBTTagCompound();
         tag.setString("category", scope.categoryId);
         tag.setString("selection", scope.selectionKey);
