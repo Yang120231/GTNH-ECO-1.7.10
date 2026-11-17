@@ -3,7 +3,10 @@ package cn.dancingsnow.neoecoae.blocks.entity;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -41,6 +44,8 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
 
     public static final int PATTERN_COLUMNS = 9, BASE_PATTERN_ROWS = 4, MAX_CAPACITY_CARDS = 4, UPGRADE_SLOTS = 5,
         MAX_PATTERN_SLOTS = 72;
+    private static final Set<LargeWorkstationPatternProvider> PENDING_UPDATES = new LinkedHashSet<>();
+    private final Map<IInventory, ItemStack[]> inventorySnapshots = new IdentityHashMap<>();
     private final ECOLargeIntegratedWorkingStationInterfaceBlockEntity host;
     private final appeng.tile.inventory.AppEngInternalInventory patterns = new appeng.tile.inventory.AppEngInternalInventory(
         this,
@@ -308,8 +313,32 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     }
 
     private void requestProviderUpdate() {
-        if (host.getMainNode()
-            .isReady() && host.getGridNode() != null) ICraftingProvider.requestUpdate(host.getMainNode());
+        if (host.getWorldObj() != null && !host.getWorldObj().isRemote) PENDING_UPDATES.add(this);
+    }
+
+    /** Resolve current grids after topology updates; AE2 merges the resulting rebuilds per grid. */
+    public static void flushProviderUpdates() {
+        if (PENDING_UPDATES.isEmpty()) return;
+        var pending = new ArrayList<>(PENDING_UPDATES);
+        PENDING_UPDATES.clear();
+        appeng.me.cache.CraftingGridCache.pauseRebuilds();
+        try {
+            for (var provider : pending) {
+                var host = provider.host;
+                if (host.isInvalid() || host.getWorldObj() == null
+                    || !host.getMainNode()
+                        .isReady())
+                    continue;
+                if (host.getMainNode()
+                    .getNode() != null) ICraftingProvider.requestUpdate(host.getMainNode());
+            }
+        } finally {
+            appeng.me.cache.CraftingGridCache.unpauseRebuilds();
+        }
+    }
+
+    public static void clearPendingUpdates(net.minecraft.world.World world) {
+        PENDING_UPDATES.removeIf(provider -> world == null || provider.host.getWorldObj() == world);
     }
 
     @Override
@@ -320,6 +349,18 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     @Override
     public void onChangeInventory(IInventory inventory, int slot, InvOperation operation, ItemStack removed,
         ItemStack added) {
+        // markDirty has no delta, including after in-place NBT edits. Compare copied contents rather than deltas.
+        ItemStack[] previous = inventorySnapshots
+            .computeIfAbsent(inventory, inv -> new ItemStack[inv.getSizeInventory()]);
+        boolean changed = false;
+        for (int index = 0; index < previous.length; index++) {
+            ItemStack current = inventory.getStackInSlot(index);
+            if (ItemStacks.isEmpty(current)) current = null;
+            if (ItemStack.areItemStacksEqual(previous[index], current)) continue;
+            previous[index] = ItemStacks.copy(current);
+            changed = true;
+        }
+        if (!changed) return;
         host.saveChanges();
         host.markForClientUpdate();
         updatePatterns();

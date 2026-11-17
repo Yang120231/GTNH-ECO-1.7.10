@@ -30,7 +30,6 @@ import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOFastPathStacks;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEIntegratedWorkingStationControllerCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEIntegratedWorkingStationCluster;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
@@ -731,7 +730,7 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         getMainNode().ifPresent(
             (grid, node) -> grid.getTickManager()
                 .wakeDevice(node));
-        requestCommunicationProviderUpdate();
+        // Runtime contents leave the advertised recipes unchanged; only wake processing and sync the local UI.
     }
 
     @Override
@@ -1286,7 +1285,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
             setProcessingTime(batch.progress);
 
             setChanged();
-            requestCommunicationProviderUpdate();
         }
     }
 
@@ -1387,7 +1385,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         if (overheated) preheating = false;
         if (changed) setChanged();
         if (previousLimit != getMaxBatchParallelism()) {
-            requestCommunicationProviderUpdate();
             getMainNode().ifPresent(
                 (grid, node) -> grid.getTickManager()
                     .wakeDevice(node));
@@ -1563,8 +1560,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         if (next != null) {
             setWorking(true);
         }
-
-        requestCommunicationProviderUpdate();
     }
 
     private boolean deliverBatchOutputs(PendingBatch batch) {
@@ -1637,7 +1632,8 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     private void requestCommunicationProviderUpdate() {
         if (cluster != null && cluster
             .getCommunication() instanceof ECOLargeIntegratedWorkingStationInterfaceBlockEntity communication) {
-            ICraftingProvider.requestUpdate(communication.getMainNode());
+            communication.getWorkstationProvider()
+                .updatePatterns();
         }
     }
 

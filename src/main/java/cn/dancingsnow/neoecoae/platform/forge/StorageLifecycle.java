@@ -59,6 +59,8 @@ public final class StorageLifecycle {
     @SubscribeEvent
     public void unload(WorldEvent.Unload event) {
         if (!event.world.isRemote)
+            cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider.clearPendingUpdates(event.world);
+        if (!event.world.isRemote)
             cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning.unload(event.world);
         if (WorldView.of(event.world) instanceof ServerWorldView level) {
             MBCalculator.clearPending(level);
@@ -95,9 +97,11 @@ public final class StorageLifecycle {
             MBCalculator.tick(level);
             cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.tick(level);
         }
+        cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider.flushProviderUpdates();
     }
 
     public static void stopped() {
+        cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider.clearPendingUpdates(null);
         cn.dancingsnow.neoecoae.platform.gt.NativeProcessingMachines.clear();
         cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.clearCache();
         MinecraftServer server = MinecraftServer.getServer();
