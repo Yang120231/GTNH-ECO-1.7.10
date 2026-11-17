@@ -156,6 +156,8 @@ final class PatternUploadScreen extends GuiScreen {
             + "\n"
             + strip(kindName(row))
             + "\n"
+            + strip(row.voltageTier)
+            + "\n"
             + row.dimension
             + " "
             + row.x
@@ -252,6 +254,8 @@ final class PatternUploadScreen extends GuiScreen {
         String machine = row.route.isEmpty() ? row.name : row.route;
         return row.kind + "\n"
             + machine
+            + "\n"
+            + row.voltageTier
             + "\n"
             + (row.icon == null ? "" : Item.getIdFromItem(row.icon.getItem()) + ":" + row.icon.getItemDamage());
     }
@@ -954,7 +958,7 @@ final class PatternUploadScreen extends GuiScreen {
             if (automatic) name = "§6★§r " + name;
             else if (row.token == list.mappingToken) name = "§5◆§r " + name;
             int nameX = x + 25 + indent;
-            small(trim(name, (int) (countX - 4 - nameX)), nameX, y + 3, enabled ? TEXT : MUTED);
+            machineTitle(name, row, nameX, y + 3, (int) (countX - 4 - nameX), enabled ? TEXT : MUTED);
             String status = text(stateKey(row)) + " · " + text(level(row).translationKey());
             if (row.circuit >= 0) status += " · " + ui("circuit", row.circuit);
             status += " · D" + row.dimension + " " + row.x + ", " + row.y + ", " + row.z;
@@ -1001,7 +1005,7 @@ final class PatternUploadScreen extends GuiScreen {
         small(open ? "▼" : "▶", x + 3, y + 10, 0x53647C);
         item(entry.target.icon, x + 13, y + 3);
         String name = (automatic ? "§6★§r " : "") + machineName(entry.target);
-        small(trim(name, w - 68), x + 33, y + 3, TEXT);
+        machineTitle(name, entry.target, x + 33, y + 3, w - 68, TEXT);
         small(trim(ui("group", entry.children.size(), ready), w - 42), x + 33, y + 14, MUTED);
         smallCentered("×" + entry.children.size(), x + w - 32, y + 8, 28, TEXT);
     }
@@ -1134,7 +1138,7 @@ final class PatternUploadScreen extends GuiScreen {
         if (rowIndex >= 0 && tree.get(rowIndex)
             .group()) {
             TreeRow group = tree.get(rowIndex);
-            lines.add(machineName(group.target));
+            lines.add(withVoltageTier(machineName(group.target), group.target));
             lines.add("§7" + ui("expand_tip"));
             return lines;
         }
@@ -1219,6 +1223,7 @@ final class PatternUploadScreen extends GuiScreen {
             tip.subtitle = host.equals(tip.title) || host.isEmpty() ? kind
                 : kind.isEmpty() ? host : host + " · " + kind;
         }
+        tip.title = withVoltageTier(tip.title, row);
         tip.star = row.token == list.autoToken && list.autoToken != 0;
         tip.level = text(level(row).translationKey());
         tip.levelColor = row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED ? UploadRowTooltip.GOOD
@@ -1254,6 +1259,17 @@ final class PatternUploadScreen extends GuiScreen {
             mappingMode && !row.mappingFailure.isEmpty() ? row.mappingFailure
                 : "gui.neoecoae.pattern_upload.row.disabled");
         return tip;
+    }
+
+    /** Keep the voltage suffix visible even when a long machine name needs trimming. */
+    private void machineTitle(String name, Row row, int x, int y, int width, int color) {
+        String suffix = row.voltageTier.isEmpty() ? "" : " " + row.voltageTier;
+        int suffixWidth = (int) Math.ceil(fontRendererObj.getStringWidth(suffix) * SMALL);
+        small(trim(name, width - suffixWidth) + suffix, x, y, color);
+    }
+
+    private static String withVoltageTier(String name, Row row) {
+        return row.voltageTier.isEmpty() ? name : name + " " + row.voltageTier;
     }
 
     /** Trims to {@code width} screen pixels of small text. */
@@ -1368,7 +1384,7 @@ final class PatternUploadScreen extends GuiScreen {
 
     static String title(Row row) {
         String name = hostName(row);
-        return row.route.isEmpty() ? name : name + " → " + hostText(row.route, row.icon);
+        return withVoltageTier(row.route.isEmpty() ? name : name + " → " + hostText(row.route, row.icon), row);
     }
 
     static String kindName(Row row) {

@@ -309,6 +309,7 @@ public final class PatternUploadService {
         row.name = target.name() == null ? "" : target.name();
         row.nameSuffix = target.nameSuffix() == null ? "" : target.nameSuffix();
         row.route = match.routeName == null ? "" : match.routeName;
+        row.voltageTier = match.voltageTier;
         row.kind = target.kind()
             .ordinal();
         row.level = match.level.ordinal();

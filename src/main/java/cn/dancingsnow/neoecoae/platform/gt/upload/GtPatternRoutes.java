@@ -114,7 +114,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             signature(bestRoute, best.circuit),
             bestRoute.programmingCover() || request.programmingCircuit && canProgram(bestRoute, programmable),
             request.categoryId(bestRoute),
-            request.selectionKey());
+            request.selectionKey(),
+            GtRouteDiscovery.voltageTier(bestRoute.receiver()));
     }
 
     private static boolean rejectsFluidInputs(Object host, PatternContext context) {

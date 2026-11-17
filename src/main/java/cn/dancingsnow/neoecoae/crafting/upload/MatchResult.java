@@ -41,6 +41,8 @@ public final class MatchResult {
     public final ItemStack circuit;
     public final String routeName;
     public final ItemStack routeIcon;
+    /** GT-formatted supply voltage tier of the selected receiver; empty when it cannot be read. */
+    public final String voltageTier;
     /** Recipe map and circuit of the selected route; different signatures among auto candidates are ambiguous. */
     public final String routeSignature;
     public final boolean programmingCover;
@@ -55,11 +57,27 @@ public final class MatchResult {
 
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover, String categoryId, String selectionKey) {
+        this(
+            level,
+            reason,
+            circuit,
+            routeName,
+            routeIcon,
+            routeSignature,
+            programmingCover,
+            categoryId,
+            selectionKey,
+            "");
+    }
+
+    public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
+        String routeSignature, boolean programmingCover, String categoryId, String selectionKey, String voltageTier) {
         this.level = level;
         this.reason = reason;
         this.circuit = circuit == null ? null : circuit.copy();
         this.routeName = routeName;
         this.routeIcon = routeIcon == null ? null : routeIcon.copy();
+        this.voltageTier = voltageTier == null ? "" : voltageTier;
         this.routeSignature = routeSignature == null ? "" : routeSignature;
         this.programmingCover = programmingCover;
         this.categoryId = categoryId == null ? "" : categoryId;

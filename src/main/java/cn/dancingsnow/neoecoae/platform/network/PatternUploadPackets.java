@@ -379,6 +379,8 @@ public final class PatternUploadPackets {
         public String nameSuffix = "";
         /** Translation key or literal machine route name; empty when the host has no readable route. */
         public String route = "";
+        /** Formatted supply voltage tier of the route's receiver; no GT classes are needed by the client. */
+        public String voltageTier = "";
         /** Ordinals of {@code PatternUploadTarget.Kind}, {@code MatchResult.Level} and {@code SlotState}. */
         public int kind, level, state;
         /** Translation key explaining the match level; may be empty. */
@@ -549,6 +551,7 @@ public final class PatternUploadPackets {
                     row.mappingFailure = readString(buf, 256);
                 }
             }
+            if (buf.isReadable()) for (Row row : rows) row.voltageTier = readString(buf, 64);
         }
 
         @Override
@@ -591,6 +594,7 @@ public final class PatternUploadPackets {
                 buf.writeBoolean(row.mappable);
                 ByteBufUtils.writeUTF8String(buf, row.mappingFailure);
             }
+            for (Row row : rows) ByteBufUtils.writeUTF8String(buf, row.voltageTier);
         }
     }
 
