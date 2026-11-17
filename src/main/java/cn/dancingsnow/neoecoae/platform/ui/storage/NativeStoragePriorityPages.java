@@ -26,15 +26,31 @@ public final class NativeStoragePriorityPages {
     private NativeStoragePriorityPages() {}
 
     public static ModularPanel create(NativeStoragePrioritySession session, IPanelHandler handler) {
+        // Client-only setters must be resolved when invoked, after common server-side UI construction.
+        return create(
+            session::priority,
+            text -> session.set(text),
+            delta -> session.change(delta),
+            session::title,
+            session::editable,
+            handler);
+    }
+
+    /** Same priority editor for any server-owned priority setting. */
+    public static ModularPanel create(java.util.function.IntSupplier priority, java.util.function.Consumer<String> set,
+        java.util.function.IntConsumer change, java.util.function.Supplier<Component> title,
+        java.util.function.BooleanSupplier editable, IPanelHandler handler) {
         NativePageLayout layout = new NativePageLayout("storage/storage_priority");
         ModularPanel panel = ModularPanel.defaultPanel("neoecoae_storage_priority", layout.width(), layout.height())
             .background(NativePageLayout.texture("neoecoae:textures/guis/priority.png", 0, 0, 176, 125));
-        children(panel, layout, layout.root(), session, handler);
+        children(panel, layout, layout.root(), priority, set, change, title, editable, handler);
         return panel;
     }
 
     private static void children(ParentWidget<?> parent, NativePageLayout layout, JsonObject definition,
-        NativeStoragePrioritySession session, IPanelHandler handler) {
+        java.util.function.IntSupplier priority, java.util.function.Consumer<String> set,
+        java.util.function.IntConsumer change, java.util.function.Supplier<Component> title,
+        java.util.function.BooleanSupplier editable, IPanelHandler handler) {
         if (!definition.has("children")) return;
         for (var value : definition.getAsJsonArray("children")) {
             JsonObject node = value.getAsJsonObject();
@@ -44,11 +60,11 @@ public final class NativeStoragePriorityPages {
             switch (custom) {
                 case "drag_bar":
                     ParentWidget<?> dragBar = new ParentWidget<>();
-                    children(dragBar, layout, node, session, handler);
+                    children(dragBar, layout, node, priority, set, change, title, editable, handler);
                     widget = dragBar;
                     break;
                 case "title":
-                    widget = new NativeText(() -> session.title());
+                    widget = new NativeText(title);
                     break;
                 case "back":
                     widget = new ButtonWidget<>()
@@ -71,23 +87,20 @@ public final class NativeStoragePriorityPages {
                     int step = node.get("step")
                         .getAsInt();
                     widget = new NativeAe2Button(() -> Component.literal(step > 0 ? "+" + step : String.valueOf(step)))
-                        .activeWhen(() -> session.editable())
+                        .activeWhen(() -> editable.getAsBoolean())
                         .onMousePressed(button -> {
                             if (button != 0) return false;
-                            session.change(step);
+                            change.accept(step);
                             return true;
                         });
                     break;
                 case "priority_field":
                     widget = new PriorityField().setMaxLength(11)
-                        .setEnabledIf(field -> session.editable())
+                        .setEnabledIf(field -> editable.getAsBoolean())
                         .setPattern(Pattern.compile("[+-]?[0-9]*"))
                         .setTextColor(0xfff2f2f2)
                         // Common UI construction must not resolve a method stripped on dedicated servers.
-                        .value(
-                            new StringValue.Dynamic(
-                                () -> String.valueOf(session.priority()),
-                                text -> session.set(text)));
+                        .value(new StringValue.Dynamic(() -> String.valueOf(priority.getAsInt()), set));
                     break;
                 case "help":
                     String key = node.get("key")

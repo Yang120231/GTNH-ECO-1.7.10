@@ -42,7 +42,7 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 public final class LargeWorkstationPatternProvider implements ICraftingProvider, ECOParallelCraftingProvider,
     IAEAppEngInventory, IConfigManagerHost, cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
 
-    public static final int PATTERN_COLUMNS = 9, BASE_PATTERN_ROWS = 4, MAX_CAPACITY_CARDS = 4, UPGRADE_SLOTS = 5,
+    public static final int PATTERN_COLUMNS = 9, BASE_PATTERN_ROWS = 4, MAX_CAPACITY_CARDS = 4, UPGRADE_SLOTS = 4,
         MAX_PATTERN_SLOTS = 72;
     private static final Set<LargeWorkstationPatternProvider> PENDING_UPDATES = new LinkedHashSet<>();
     private final Map<IInventory, ItemStack[]> inventorySnapshots = new IdentityHashMap<>();
@@ -87,6 +87,8 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     private boolean dirty = true, waitingForPulse, redstone;
     private GenericStack unlockStack;
     private int revision;
+    private int priority;
+    private ItemStack legacyUpgrade;
     private cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target processingTarget;
 
     @Override
@@ -115,6 +117,30 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
 
     public UpgradeInventory getUpgrades() {
         return upgrades;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
+    public void setPriority(int priority) {
+        if (this.priority == priority) return;
+        this.priority = priority;
+        host.saveChanges();
+        requestProviderUpdate();
+    }
+
+    /** Return the removed fifth slot to the next player opening the interface, preserving old saves. */
+    public void returnLegacyUpgrade(net.minecraft.entity.player.EntityPlayer player) {
+        if (host.getWorldObj() == null || host.getWorldObj().isRemote || legacyUpgrade == null) return;
+        if (!player.inventory.addItemStackToInventory(legacyUpgrade))
+            player.dropPlayerItemWithRandomChoice(legacyUpgrade, false);
+        legacyUpgrade = null;
+        host.saveChanges();
+    }
+
+    public ItemStack getLegacyUpgrade() {
+        return legacyUpgrade;
     }
 
     public IConfigManager getConfigManager() {
@@ -379,6 +405,14 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
         patterns.writeToNBT(tag.nativeTag(), "workstationPatterns");
         upgrades.writeToNBT(tag.nativeTag(), "workstationCapacityUpgrades");
+        tag.putInt("providerPriority", priority);
+        if (legacyUpgrade != null) {
+            var upgradeTag = tag.nativeTag()
+                .getCompoundTag("workstationCapacityUpgrades");
+            upgradeTag.setTag("#4", legacyUpgrade.writeToNBT(new net.minecraft.nbt.NBTTagCompound()));
+            tag.nativeTag()
+                .setTag("workstationCapacityUpgrades", upgradeTag);
+        }
         var cfg = new CompoundTag();
         config.writeToNBT(cfg.nativeTag());
         tag.put("providerConfig", cfg);
@@ -389,6 +423,11 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     public void readFromNBT(CompoundTag tag, HolderLookup.Provider registries) {
         patterns.readFromNBT(tag.nativeTag(), "workstationPatterns");
         upgrades.readFromNBT(tag.nativeTag(), "workstationCapacityUpgrades");
+        priority = tag.getInt("providerPriority");
+        legacyUpgrade = ItemStack.loadItemStackFromNBT(
+            tag.nativeTag()
+                .getCompoundTag("workstationCapacityUpgrades")
+                .getCompoundTag("#4"));
         config.readFromNBT(
             tag.getCompound("providerConfig")
                 .nativeTag());
