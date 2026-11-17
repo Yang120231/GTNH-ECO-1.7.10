@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ui.workstation;
 
+import java.util.ArrayList;
+
 import net.minecraft.entity.player.EntityPlayer;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
@@ -9,7 +11,6 @@ import com.cleanroommc.modularui.theme.WidgetTheme;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
-import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.ScrollWidget;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widget.scroll.ScrollArea;
@@ -46,6 +47,8 @@ public final class NativeLargeWorkstationInterfacePages {
     private static final String BACKGROUND = "ae2:textures/guis/large_integrated_working_station_interface.png";
     private static final String ATLAS = NativeHostSideBar.ATLAS;
     private static final int COLUMNS = 9, CELL = 18, VISIBLE_ROWS = 7, VIEWPORT_HEIGHT = CELL * VISIBLE_ROWS;
+    private static final int SCROLLBAR_WIDTH = 8, SCROLLBAR_HEIGHT = 124, THUMB_WIDTH = 7, THUMB_HEIGHT = 15;
+    private static final int THUMB_TRAVEL = SCROLLBAR_HEIGHT - THUMB_HEIGHT;
 
     private NativeLargeWorkstationInterfacePages() {}
 
@@ -115,28 +118,22 @@ public final class NativeLargeWorkstationInterfacePages {
                         widget -> slot < session.state()
                             .getInt("patternRows") * COLUMNS));
         }
+        // The scrolling middle-row crops must not cover the fixed top and bottom edges of the source frame.
+        panel.child(
+            new PatternFrame().pos(7, 22)
+                .size(162, VIEWPORT_HEIGHT));
         panel.child(
             new PatternScrollbar(viewport, data).pos(174, 23)
-                .size(9, 124));
+                .size(SCROLLBAR_WIDTH, SCROLLBAR_HEIGHT));
 
         String upgradeGroup = NativeSlotGroups
             .register(sync, "workstation.provider.upgrades", 1, NativeSlotGroups.UPGRADE_PRIORITY);
         var upgrades = new InvWrapper(provider.getUpgrades());
-        // Native AE2 UpgradesPanel: five-pixel top padding, eighteen-pixel cells, seven-pixel bottom cap.
-        var upgradePanel = new ParentWidget<>().pos(186, 0)
-            .size(28, 84)
-            .excludeAreaInRecipeViewer()
-            .background(
-                NativePageLayout
-                    .texture("neoecoae:textures/gui/vendor/ae2/extra_panels.png", 0, 0, 28, 30, 5, 5, 5, 7));
-        for (int slot = 0; slot < LargeWorkstationPatternProvider.UPGRADE_SLOTS; slot++) upgradePanel.child(
+        var upgradeSlots = new ArrayList<Widget<?>>();
+        for (int slot = 0; slot < LargeWorkstationPatternProvider.UPGRADE_SLOTS; slot++) upgradeSlots.add(
             new NativeUpgradeSlot().slot(new ModularSlot(upgrades, slot).slotGroup(upgradeGroup))
-                .background(NativePageLayout.texture(ATLAS, 192, 192, 18, 18))
-                .pos(0, 5 + slot * CELL));
-        upgradePanel.child(
-            new UpgradeFrame().pos(0, 5)
-                .size(18, 72));
-        panel.child(upgradePanel);
+                .disableHoverBackground());
+        panel.child(NativeHostSideBar.upgrades(188, upgradeSlots));
 
         panel.child(
             new Widget<>().pos(-19, 0)
@@ -191,20 +188,17 @@ public final class NativeLargeWorkstationInterfacePages {
         return panel;
     }
 
-    private static final class UpgradeFrame extends Widget<UpgradeFrame> {
+    private static final class PatternFrame extends Widget<PatternFrame> {
+
+        PatternFrame() {
+            // MUI draws sibling backgrounds before the viewport's rows, so the fixed frame belongs in the overlay.
+            background(IDrawable.EMPTY);
+            overlay(NativeUiStyle.inventoryBorder());
+        }
 
         @Override
         public boolean canHover() {
             return false;
-        }
-
-        @Override
-        @SideOnly(Side.CLIENT)
-        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(1, 0, 16, 1, 0xfff2f2f2);
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(1, 71, 16, 1, 0xfff2f2f2);
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(0, 0, 1, 72, 0xfff2f2f2);
-            com.cleanroommc.modularui.drawable.GuiDraw.drawRect(17, 0, 1, 72, 0xfff2f2f2);
         }
     }
 
@@ -276,14 +270,14 @@ public final class NativeLargeWorkstationInterfacePages {
         @Override
         public Result onMousePressed(int button) {
             if (button != 0 || maximum() == 0) return Result.IGNORE;
-            float y = getContext().getMouseY(), top = 109f * data.getScroll() / maximum();
-            grab = y >= top && y < top + 15 ? y - top : 7.5f;
+            float y = getContext().getMouseY(), top = (float) THUMB_TRAVEL * data.getScroll() / maximum();
+            grab = y >= top && y < top + THUMB_HEIGHT ? y - top : THUMB_HEIGHT / 2f;
             drag();
             return Result.SUCCESS;
         }
 
         private void drag() {
-            int pixels = (int) ((getContext().getMouseY() - grab) / 109 * maximum());
+            int pixels = (int) ((getContext().getMouseY() - grab) / THUMB_TRAVEL * maximum());
             data.animateTo(viewport.getScrollArea(), pixels);
             data.scrollTo(viewport.getScrollArea(), pixels);
         }
@@ -296,16 +290,16 @@ public final class NativeLargeWorkstationInterfacePages {
         @Override
         @SideOnly(Side.CLIENT)
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            int y = maximum() == 0 ? 0 : Math.round(109f * data.getScroll() / maximum());
+            int y = maximum() == 0 ? 0 : Math.round((float) THUMB_TRAVEL * data.getScroll() / maximum());
             NativePageLayout
                 .texture(
                     "neoecoae:textures/gui/vendor/ae2/sprites/small_scroller" + (maximum() == 0 ? "_disabled" : "")
                         + ".png",
                     0,
                     0,
-                    7,
-                    15)
-                .draw(0, y, 9, 15);
+                    THUMB_WIDTH,
+                    THUMB_HEIGHT)
+                .draw(0, y, SCROLLBAR_WIDTH, THUMB_HEIGHT);
         }
     }
 
