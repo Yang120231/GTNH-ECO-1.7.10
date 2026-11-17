@@ -5,6 +5,8 @@ import net.minecraft.item.ItemStack;
 /** One decision per target, shared by the list, the auto-upload hint and the final submit check. */
 public final class MatchResult {
 
+    private static final long SLOT_RANGE = 1L + Integer.MAX_VALUE;
+
     public enum Level {
 
         /** A native crafting pattern can be handled by this target. */
@@ -46,7 +48,9 @@ public final class MatchResult {
     public final ItemStack routeIcon;
     /** GT-formatted supply voltage tier of the selected receiver; empty when it cannot be read. */
     public final String voltageTier;
-    /** Recipe map and circuit of the selected route; different signatures among auto candidates are ambiguous. */
+    /** Numeric GT supply tier, or -1 when it cannot be read. Independent of the translated display name. */
+    public final int voltageTierRank;
+    /** Concrete route identity used by saved bindings and final upload revalidation. */
     public final String routeSignature;
     /** The receiver can program selectors through a hatch or cover. */
     public final boolean programmingCover;
@@ -87,12 +91,13 @@ public final class MatchResult {
             categoryId,
             selectionKey,
             voltageTier,
-            null);
+            null,
+            -1);
     }
 
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover, String categoryId, String selectionKey, String voltageTier,
-        ItemStack configuredCircuit) {
+        ItemStack configuredCircuit, int voltageTierRank) {
         this.level = level;
         this.reason = reason;
         this.circuit = circuit == null ? null : circuit.copy();
@@ -100,20 +105,29 @@ public final class MatchResult {
         this.routeName = routeName;
         this.routeIcon = routeIcon == null ? null : routeIcon.copy();
         this.voltageTier = voltageTier == null ? "" : voltageTier;
+        this.voltageTierRank = voltageTierRank;
         this.routeSignature = routeSignature == null ? "" : routeSignature;
         this.programmingCover = programmingCover;
         this.categoryId = categoryId == null ? "" : categoryId;
         this.selectionKey = selectionKey == null ? "" : selectionKey;
     }
 
-    /** Programming receivers first, then a matching fixed circuit, then other configurations. */
-    public int circuitPriority() {
-        return circuitPriority(programmingCover, configuredCircuit, circuit);
+    /**
+     * Higher scores win: GT voltage tier, free slots, then programming or a matching fixed circuit. Separate ranges
+     * ensure even Integer.MAX_VALUE free slots cannot outweigh one voltage tier; GT tiers range from 0 to 15.
+     */
+    public long priorityScore(int emptySlots) {
+        long voltage = Math.max(-1, Math.min(15, voltageTierRank)) + 1L;
+        int circuit = programmingCover ? 2
+            : configuredCircuit != null && this.circuit != null && configuredCircuit.isItemEqual(this.circuit) ? 1 : 0;
+        return (voltage * SLOT_RANGE + Math.max(0, emptySlots)) * 3 + circuit;
     }
 
-    public static int circuitPriority(boolean programmable, ItemStack configured, ItemStack selected) {
-        if (programmable) return 0;
-        return configured != null && selected != null && configured.isItemEqual(selected) ? 1 : 2;
+    /** Different GT receiver implementations can execute the same proven recipe map and circuit. */
+    public boolean sameRecipeSelection(MatchResult other) {
+        if (!categoryId.equals(other.categoryId)) return false;
+        if (!categoryId.startsWith("gt:")) return routeSignature.equals(other.routeSignature);
+        return circuit == null ? other.circuit == null : other.circuit != null && circuit.isItemEqual(other.circuit);
     }
 
     public static MatchResult of(Level level) {

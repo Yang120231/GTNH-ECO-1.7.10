@@ -174,6 +174,8 @@ public final class PatternUploadMappings {
                     mapping = get(player, new Scope(scope.categoryId, proven, scope.category));
             }
             if (mapping == null) continue;
+            // Automatic history cannot turn several plausible source-free categories into conflicting bindings.
+            if (mapping.auto) continue;
             (mapping.enabled ? enabled : disabled).add(mapping);
         }
         if (enabled.size() > 1) return new Mapping();

@@ -14,6 +14,7 @@ import cn.dancingsnow.neoecoae.crafting.upload.PatternUploadTarget;
 import cn.dancingsnow.neoecoae.crafting.upload.RouteHint;
 import cn.dancingsnow.neoecoae.platform.gt.upload.GtRouteDiscovery.Route;
 import gregtech.api.recipe.RecipeMap;
+import gregtech.api.util.GTUtility;
 import gregtech.common.tileentities.machines.IDualInputHatch;
 import gregtech.common.tileentities.machines.MTEHatchCraftingInputME;
 import tectech.recipe.TecTechRecipeMaps;
@@ -89,38 +90,58 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         if (routes.isEmpty()) return null;
 
         Request request = request(context);
-        Route bestRoute = null;
-        Decision best = null;
-        String resolvedSignature = null;
+        MatchResult best = null;
+        MatchResult bestProgrammable = null;
+        MatchResult resolved = null;
+        RecipeMap<?> resolvedMap = null;
         boolean ambiguous = false;
         for (Route route : routes) {
-            Decision decision = evaluate(route, request, canProgram(route, programmable));
-            if (!ambiguous && MatchResult.allowsMapping(decision.level, decision.reason)) {
-                String signature = signature(route, decision.circuit);
-                ambiguous = resolvedSignature != null && !resolvedSignature.equals(signature);
-                resolvedSignature = signature;
+            boolean canProgram = canProgram(route, programmable);
+            Decision decision = evaluate(route, request, canProgram);
+            long voltage = GtRouteDiscovery.inputVoltage(route.receiver());
+            MatchResult candidate = new MatchResult(
+                decision.level,
+                decision.reason,
+                decision.circuit,
+                route.name(),
+                route.icon(),
+                signature(route, decision.circuit),
+                canProgram,
+                request.categoryId(route),
+                request.selectionKey(),
+                voltage > 0 ? GTUtility.getColoredTierNameFromVoltage(voltage) : "",
+                route.circuit(),
+                voltage > 0 ? GTUtility.getTier(voltage) : -1);
+            if (candidate.allowsMapping()) {
+                if (resolved == null || candidate.level.rank() < resolved.level.rank()) {
+                    resolved = candidate;
+                    resolvedMap = route.map();
+                    ambiguous = false;
+                } else if (candidate.level.rank() == resolved.level.rank()
+                    && (resolvedMap != route.map() || !resolved.sameRecipeSelection(candidate))) ambiguous = true;
             }
-            if (best == null || decision.level.rank() < best.level.rank()
-                || decision.level.rank() == best.level.rank()
-                    && MatchResult.circuitPriority(canProgram(route, programmable), route.circuit(), decision.circuit)
-                        < MatchResult
-                            .circuitPriority(canProgram(bestRoute, programmable), bestRoute.circuit(), best.circuit)) {
-                best = decision;
-                bestRoute = route;
-            }
+            if (best == null || candidate.level.rank() < best.level.rank()
+                || candidate.level.rank() == best.level.rank() && candidate.priorityScore(0) > best.priorityScore(0))
+                best = candidate;
+            if (candidate.programmingCover && candidate.allowsAuto()
+                && (bestProgrammable == null || candidate.priorityScore(0) > bestProgrammable.priorityScore(0)))
+                bestProgrammable = candidate;
         }
+        if (!ambiguous) return best;
+        if (request.source == null && bestProgrammable != null) return bestProgrammable;
         return new MatchResult(
-            ambiguous ? Level.UNVERIFIED : best.level,
-            ambiguous ? reasonKey("route_ambiguous") : best.reason,
+            Level.UNVERIFIED,
+            reasonKey("route_ambiguous"),
             best.circuit,
-            bestRoute.name(),
-            bestRoute.icon(),
-            signature(bestRoute, best.circuit),
-            canProgram(bestRoute, programmable),
-            request.categoryId(bestRoute),
-            request.selectionKey(),
-            GtRouteDiscovery.voltageTier(bestRoute.receiver()),
-            bestRoute.circuit());
+            best.routeName,
+            best.routeIcon,
+            best.routeSignature,
+            best.programmingCover,
+            best.categoryId,
+            best.selectionKey,
+            best.voltageTier,
+            best.configuredCircuit,
+            best.voltageTierRank);
     }
 
     private static boolean rejectsFluidInputs(Object host, PatternContext context) {

@@ -26,7 +26,6 @@ import gregtech.api.metatileentity.implementations.MTEHatchInput;
 import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
-import gregtech.api.util.GTUtility;
 
 /** Reads GT destinations behind pattern hatches and ME interfaces, sharing the controller index across hosts. */
 final class GtRouteDiscovery {
@@ -151,21 +150,21 @@ final class GtRouteDiscovery {
     }
 
     /** Read the receiver's supply, never the input hatch's tier or voltage multiplied by amperage. */
-    static String voltageTier(IMetaTileEntity receiver) {
-        if (receiver == null) return "";
+    static long inputVoltage(IMetaTileEntity receiver) {
+        if (receiver == null) return 0;
         try {
             long voltage;
             if (receiver instanceof MTEMultiBlockBase controller) {
-                if (!controller.mMachine) return "";
+                if (!controller.mMachine) return 0;
                 // This is the voltage used by GT's processing logic; extended controllers include exotic hatches.
                 voltage = controller.getAverageInputVoltage();
             } else {
                 IGregTechTileEntity tile = receiver.getBaseMetaTileEntity();
                 voltage = tile == null ? 0 : tile.getInputVoltage();
             }
-            return voltage > 0 ? GTUtility.getColoredTierNameFromVoltage(voltage) : "";
+            return Math.max(0, voltage);
         } catch (RuntimeException | LinkageError unavailable) {
-            return "";
+            return 0;
         }
     }
 

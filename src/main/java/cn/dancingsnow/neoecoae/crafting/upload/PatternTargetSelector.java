@@ -100,9 +100,10 @@ public final class PatternTargetSelector {
         .thenComparingInt(PatternTargetSelector::craftingPriority)
         .thenComparingInt(evaluation -> evaluation.match.level.rank())
         .thenComparingInt(evaluation -> evaluation.state.ordinal())
-        .thenComparingInt(evaluation -> evaluation.match.circuitPriority())
+        .thenComparing(
+            Comparator.<Evaluation>comparingLong(evaluation -> evaluation.match.priorityScore(evaluation.emptySlots))
+                .reversed())
         .thenComparingInt(evaluation -> evaluation.target.kind().priority)
-        .thenComparingInt(evaluation -> -evaluation.emptySlots)
         .thenComparing(evaluation -> evaluation.positionKey);
 
     private PatternTargetSelector() {}
@@ -150,16 +151,25 @@ public final class PatternTargetSelector {
     }
 
     public static AutoChoice choose(List<Evaluation> sorted) {
+        return choose(sorted, null);
+    }
+
+    private static AutoChoice automatic(List<Evaluation> sorted) {
         List<Evaluation> routes = new ArrayList<>();
         List<Evaluation> unverified = new ArrayList<>();
         boolean unknownSelector = false;
+        String inspectionFailure = null;
         for (Evaluation evaluation : sorted) {
+            if (evaluation.state == SlotState.OFFLINE) continue;
             String reason = evaluation.match.reason;
-            if ("gui.neoecoae.pattern_upload.reason.search_incomplete".equals(reason)
-                || "gui.neoecoae.pattern_upload.reason.route_ambiguous".equals(reason)
-                || "gui.neoecoae.pattern_upload.reason.tunnel_missing".equals(reason)
+            if ("gui.neoecoae.pattern_upload.reason.tunnel_missing".equals(reason)
                 || "gui.neoecoae.pattern_upload.reason.tunnel_invalid".equals(reason))
                 return new AutoChoice(null, reason);
+            if ("gui.neoecoae.pattern_upload.reason.search_incomplete".equals(reason)
+                || "gui.neoecoae.pattern_upload.reason.route_ambiguous".equals(reason)) {
+                if (inspectionFailure == null) inspectionFailure = reason;
+                continue;
+            }
             if (evaluation.match.allowsAuto()) routes.add(evaluation);
             else if (evaluation.match.level == MatchResult.Level.UNVERIFIED && evaluation.match.allowsMapping()
                 && !evaluation.match.categoryId.isEmpty()
@@ -168,11 +178,11 @@ public final class PatternTargetSelector {
         }
         // Bindable but unproven receivers must not make a verified route ambiguous.
         // Keep the existing unverified fallback only when no receiver proves the route.
-        if (routes.isEmpty()) routes.addAll(unverified);
-        if (unknownSelector) return new AutoChoice(
-            null,
-            routes.isEmpty() ? "gui.neoecoae.pattern_upload.reason.circuit_unknown"
-                : "gui.neoecoae.pattern_upload.reason.route_ambiguous");
+        if (routes.isEmpty()) {
+            if (inspectionFailure != null) return new AutoChoice(null, inspectionFailure);
+            if (unknownSelector) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.circuit_unknown");
+            routes = unverified;
+        }
         if (routes.isEmpty()) {
             for (Evaluation evaluation : sorted)
                 if (evaluation.match.reason != null && evaluation.match.level != MatchResult.Level.WRONG_RECIPE
@@ -184,62 +194,28 @@ public final class PatternTargetSelector {
                     return new AutoChoice(null, evaluation.match.reason);
             return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.no_exact");
         }
-        Set<String> signatures = new HashSet<>();
+        Evaluation firstMatch = routes.get(0);
+        routes.removeIf(evaluation -> evaluation.state != SlotState.FREE);
+        if (routes.isEmpty()) return available(firstMatch, false);
         if (routes.stream()
             .allMatch(evaluation -> "ae2:crafting".equals(evaluation.match.categoryId))) {
-            // The best crafting tier wins; a tier whose receivers are all full hands over to the next one.
-            List<Evaluation> tier = routes;
-            for (int priority = 0; priority <= 3; priority++) {
-                List<Evaluation> candidates = new ArrayList<>();
-                boolean full = true;
-                for (Evaluation evaluation : routes) if (craftingPriority(evaluation) == priority) {
-                    candidates.add(evaluation);
-                    full &= evaluation.state == SlotState.FULL;
-                }
-                if (candidates.isEmpty()) continue;
-                tier = candidates;
-                if (!full) break;
-            }
-            routes = tier;
-        } else routes = preferCircuits(routes);
-        for (Evaluation evaluation : routes) signatures.add(evaluation.match.routeSignature);
-        if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
-        return pick(routes);
-    }
-
-    /** Receiver capability breaks ties within one known category and recipe selector, never between recipes. */
-    private static List<Evaluation> preferCircuits(List<Evaluation> routes) {
+            int tier = craftingPriority(routes.get(0));
+            routes.removeIf(evaluation -> craftingPriority(evaluation) != tier);
+        }
         MatchResult first = routes.get(0).match;
-        int priority = 2;
+        boolean ambiguous = false, categoriesDiffer = false;
         for (Evaluation evaluation : routes) {
-            if (!first.categoryId.equals(evaluation.match.categoryId)
-                || PatternTargetGroups.circuitNumber(first) != PatternTargetGroups.circuitNumber(evaluation.match))
-                return routes;
-            if (evaluation.state == SlotState.FREE) priority = Math.min(priority, evaluation.match.circuitPriority());
+            ambiguous |= !first.sameRecipeSelection(evaluation.match);
+            categoriesDiffer |= !first.categoryId.equals(evaluation.match.categoryId);
         }
-        if (priority == 2) return routes;
-        List<Evaluation> preferred = new ArrayList<>();
-        for (Evaluation evaluation : routes)
-            if (evaluation.match.circuitPriority() == priority || evaluation.state == SlotState.DUPLICATE)
-                preferred.add(evaluation);
-        return preferred;
-    }
-
-    /**
-     * One receiver is used as is. Several verified receivers of the same route are interchangeable: the first free
-     * one in list order takes the pattern, unless one of them already holds it.
-     */
-    private static AutoChoice pick(List<Evaluation> routes) {
-        if (receiverCount(routes) == 1) return available(routes.get(0), false);
-        for (Evaluation evaluation : routes) if (!evaluation.match.allowsAuto())
+        if (ambiguous && categoriesDiffer)
+            routes.removeIf(evaluation -> !evaluation.match.programmingCover || !evaluation.match.allowsAuto());
+        if (ambiguous && (!categoriesDiffer || routes.isEmpty()))
+            return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
+        if (routes.stream()
+            .anyMatch(evaluation -> !evaluation.match.allowsAuto()) && receiverCount(routes) > 1)
             return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.ambiguous");
-        Evaluation free = null;
-        for (Evaluation evaluation : routes) {
-            if (evaluation.state == SlotState.DUPLICATE)
-                return new AutoChoice(null, SlotState.DUPLICATE.translationKey());
-            if (free == null && evaluation.state == SlotState.FREE) free = evaluation;
-        }
-        return free != null ? new AutoChoice(free, null) : new AutoChoice(null, rejection(routes.get(0)));
+        return available(routes.get(0), false);
     }
 
     /**
@@ -247,14 +223,15 @@ public final class PatternTargetSelector {
      * equivalent receiver. A binding remembered by auto-upload is only a preference and yields to normal selection.
      */
     public static AutoChoice choose(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {
-        if (mapping == null || !mapping.enabled) return choose(sorted);
+        if (hasDuplicate(sorted)) return new AutoChoice(null, SlotState.DUPLICATE.translationKey());
+        if (mapping == null || !mapping.enabled || mapping.auto) return automatic(sorted);
         if (mapping.conflict) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.ambiguous");
-        AutoChoice bound = bound(sorted, mapping);
-        if (!mapping.auto) return bound;
-        AutoChoice preferred = choose(sorted);
-        if (bound.selected == null || preferred.selected != null
-            && preferred.selected.match.circuitPriority() < bound.selected.match.circuitPriority()) return preferred;
-        return bound;
+        return bound(sorted, mapping);
+    }
+
+    private static boolean hasDuplicate(List<Evaluation> evaluations) {
+        for (Evaluation evaluation : evaluations) if (evaluation.state == SlotState.DUPLICATE) return true;
+        return false;
     }
 
     private static AutoChoice bound(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {

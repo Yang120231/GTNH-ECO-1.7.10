@@ -274,7 +274,8 @@ public final class PatternUploadSession {
             // The first successful route is remembered as a preference. Existing disabled or explicit bindings stay
             // authoritative.
             if (remember && evaluation.match.allowsAuto()) {
-                PatternUploadMappings.Scope scope = binding == null ? PatternUploadMappings.scope(context, evaluation)
+                PatternUploadMappings.Scope scope = binding == null || binding.auto
+                    ? PatternUploadMappings.scope(context, evaluation)
                     : binding.scope;
                 if (PatternUploadMappings.put(player, scope, evaluation, true) && binding != null && binding.legacy)
                     PatternUploadMappings.remove(player, binding);
