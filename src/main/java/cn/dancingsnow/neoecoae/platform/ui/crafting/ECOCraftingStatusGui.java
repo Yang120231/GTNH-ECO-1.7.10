@@ -76,6 +76,12 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
+    private static final org.apache.logging.log4j.Logger STATUS_LOG = org.apache.logging.log4j.LogManager
+        .getLogger("neoecoae");
+    private int diagnosedWindow = Integer.MIN_VALUE, diagnosedStateWindow = Integer.MIN_VALUE;
+    private boolean diagnosedEco;
+    private boolean diagnosedVisualPacket;
+
     private static final ResourceLocation PROCESSING = new ResourceLocation(
         "neoecoae",
         "textures/guis/eco_crafting_processing.png");
@@ -258,6 +264,19 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         state = ECOCraftingStatusClient.state(inventorySlots);
+        if (diagnosedWindow != inventorySlots.windowId || diagnosedStateWindow != state.windowId
+            || diagnosedEco != state.eco) {
+            diagnosedWindow = inventorySlots.windowId;
+            diagnosedStateWindow = state.windowId;
+            diagnosedEco = state.eco;
+            STATUS_LOG.info(
+                "[craft-status] GUI window={} metadataWindow={} eco={} selectedCpu={} entries={}",
+                inventorySlots.windowId,
+                state.windowId,
+                state.eco,
+                getCPUTable().getContainer().selectedCpuSerial,
+                entries.size());
+        }
         boolean eco = ecoCapable && !unsupported && state.eco;
         boolean cycle = eco;
         if (eco != ecoLayout || cycle != taskLayout) {
@@ -434,6 +453,16 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             IAEStack<?> key = CraftingCpuEntry.normalizeStack(update.getStack());
             if (update.getTotalAmount() <= 0) entries.remove(key);
             else entries.put(key, update);
+        }
+        if (clearFirst || !diagnosedVisualPacket) {
+            diagnosedVisualPacket = true;
+            STATUS_LOG.info(
+                "[craft-status] GUI item packet window={} cpuSerial={} clear={} updates={} visible={}",
+                inventorySlots.windowId,
+                getCPUTable().getContainer().selectedCpuSerial,
+                clearFirst,
+                updates == null ? 0 : updates.length,
+                entries.size());
         }
         super.postVisualEntryUpdate(updates, clearFirst, remainingOperations);
     }
