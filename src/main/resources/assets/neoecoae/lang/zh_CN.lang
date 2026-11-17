@@ -1324,6 +1324,7 @@ gui.neoecoae.pattern_upload.location=维度 %s · %s, %s, %s
 gui.neoecoae.pattern_upload.hinted=NEI 路由
 gui.neoecoae.pattern_upload.auto_ready=自动上传已找到唯一接收端
 gui.neoecoae.pattern_upload.programming_cover=可编程覆盖板
+gui.neoecoae.pattern_upload.programmable=可编程
 gui.neoecoae.pattern_upload.button.open.tooltip.title=上传样板菜单
 gui.neoecoae.pattern_upload.button.auto.tooltip.title=自动上传
 gui.neoecoae.pattern_upload.button.auto.tooltip.target=目标机器：%s（%s）

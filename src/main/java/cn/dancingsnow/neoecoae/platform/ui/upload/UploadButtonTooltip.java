@@ -97,7 +97,7 @@ final class UploadButtonTooltip {
             statusLines.add(tr(target.reason));
         }
         if (target.mapped) statusDetails.add(tr("gui.neoecoae.pattern_upload.mapping.used"));
-        if (target.programmingCover) statusDetails.add(tr("gui.neoecoae.pattern_upload.programming_cover"));
+        if (target.programmingCover) statusDetails.add(tr("gui.neoecoae.pattern_upload.programmable"));
         else if (target.circuit != null) statusDetails.add(
             StatCollector.translateToLocalFormatted(
                 "gui.neoecoae.pattern_upload.button.auto.tooltip.circuit",

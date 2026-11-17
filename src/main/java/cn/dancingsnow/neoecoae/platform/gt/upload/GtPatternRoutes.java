@@ -100,7 +100,11 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                 ambiguous = resolvedSignature != null && !resolvedSignature.equals(signature);
                 resolvedSignature = signature;
             }
-            if (best == null || decision.level.rank() < best.level.rank()) {
+            if (best == null || decision.level.rank() < best.level.rank()
+                || decision.level.rank() == best.level.rank()
+                    && MatchResult.circuitPriority(canProgram(route, programmable), route.circuit(), decision.circuit)
+                        < MatchResult
+                            .circuitPriority(canProgram(bestRoute, programmable), bestRoute.circuit(), best.circuit)) {
                 best = decision;
                 bestRoute = route;
             }
@@ -112,10 +116,11 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             bestRoute.name(),
             bestRoute.icon(),
             signature(bestRoute, best.circuit),
-            bestRoute.programmingCover() || request.programmingCircuit && canProgram(bestRoute, programmable),
+            canProgram(bestRoute, programmable),
             request.categoryId(bestRoute),
             request.selectionKey(),
-            GtRouteDiscovery.voltageTier(bestRoute.receiver()));
+            GtRouteDiscovery.voltageTier(bestRoute.receiver()),
+            bestRoute.circuit());
     }
 
     private static boolean rejectsFluidInputs(Object host, PatternContext context) {
@@ -180,7 +185,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         if (!inferred.found()) return new Decision(Level.WRONG_RECIPE, "recipe", request.selectedCircuit);
         if (!inferred.unique()) {
             ItemStack installed = route.circuit();
-            if (request.programmingCircuit && !canProgram)
+            if (request.programmingCircuit && !canProgram
+                && !GtCircuits.programmingCircuitsMatch(request.context.recipeInputs, installed))
                 return new Decision(Level.CIRCUIT_CONFLICT, "needs_programming", installed);
             if (!inferred.allows(installed)) return new Decision(
                 Level.CIRCUIT_CONFLICT,
@@ -193,14 +199,14 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     private static Decision checkCircuit(Route route, Request request, ItemStack selected, boolean canProgram) {
-        if (request.programmingCircuit && !canProgram)
+        ItemStack installed = canProgram ? null : route.circuit();
+        if (request.programmingCircuit && !canProgram
+            && !GtCircuits.programmingCircuitsMatch(request.context.recipeInputs, installed))
             return new Decision(Level.CIRCUIT_CONFLICT, "needs_programming", selected);
 
-        ItemStack installed = route.circuit();
         boolean sourceWithoutMap = request.source != null && !request.source.hasRecipeMap();
         if (selected != null) {
-            if (installed != null && !GtCircuits.same(selected, installed)
-                && !(GtCircuits.hasProgrammingSelector(request.context.recipeInputs) && canProgram))
+            if (installed != null && !GtCircuits.same(selected, installed))
                 return new Decision(Level.CIRCUIT_CONFLICT, "machine_circuit", selected);
             if (request.patternCircuit == null && (installed == null || request.programmingCircuit))
                 return new Decision(Level.CIRCUIT_CONFLICT, "machine_circuit_missing", selected);

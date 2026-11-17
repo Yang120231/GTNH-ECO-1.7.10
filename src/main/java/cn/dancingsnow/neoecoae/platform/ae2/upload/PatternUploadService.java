@@ -307,7 +307,7 @@ public final class PatternUploadService {
         PatternUploadPackets.Row row = new PatternUploadPackets.Row();
         row.token = group.token();
         row.name = target.name() == null ? "" : target.name();
-        row.nameSuffix = target.nameSuffix() == null ? "" : target.nameSuffix();
+        row.nameSuffix = match.programmingCover || target.nameSuffix() == null ? "" : target.nameSuffix();
         row.route = match.routeName == null ? "" : match.routeName;
         row.voltageTier = match.voltageTier;
         row.kind = target.kind()
@@ -321,7 +321,7 @@ public final class PatternUploadService {
         row.duplicates = group.duplicates;
         row.emptySlots = group.emptySlots;
         row.totalSlots = group.totalSlots;
-        row.circuit = PatternTargetGroups.circuitNumber(match);
+        row.circuit = match.configuredCircuit == null ? -1 : match.configuredCircuit.getItemDamage() & 0xFF;
         row.programmingCover = match.programmingCover;
         row.manual = group.manual;
         row.dimension = target.dimension();
@@ -435,10 +435,11 @@ public final class PatternUploadService {
                     match.routeName != null ? match.routeName : target.name(),
                     target.kind()
                         .ordinal(),
-                    match.circuit,
+                    match.configuredCircuit,
                     match.programmingCover,
                     choice.reason);
-                message.nameSuffix = (match.routeName == null && target.nameSuffix() != null ? target.nameSuffix()
+                message.nameSuffix = (match.routeName == null && !match.programmingCover && target.nameSuffix() != null
+                    ? target.nameSuffix()
                     : "") + " (" + target.dimension() + ": " + target.x() + ", " + target.y() + ", " + target.z() + ")";
                 message.icon = copy(match.routeIcon != null ? match.routeIcon : target.icon());
                 message.mapped = choice.mapped;

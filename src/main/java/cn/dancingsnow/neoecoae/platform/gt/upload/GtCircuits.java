@@ -80,13 +80,14 @@ final class GtCircuits {
         return false;
     }
 
-    static boolean hasProgrammingSelector(IAEStack<?>[] inputs) {
-        if (inputs == null) return false;
+    /** A fixed circuit is a fallback only when every programming item selects that same integrated circuit. */
+    static boolean programmingCircuitsMatch(IAEStack<?>[] inputs, ItemStack installed) {
+        if (inputs == null || installed == null) return false;
         for (IAEStack<?> input : inputs) if (input instanceof IAEItemStack) {
             ItemStack raw = ((IAEItemStack) input).getItemStack();
-            if (ProgrammableHatchUpload.isProgrammingCircuit(raw) && unwrap(raw) != null) return true;
+            if (ProgrammableHatchUpload.isProgrammingCircuit(raw) && !same(raw, installed)) return false;
         }
-        return false;
+        return true;
     }
 
     static boolean resetsSelector(IAEStack<?>[] inputs) {

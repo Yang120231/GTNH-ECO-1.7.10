@@ -222,7 +222,7 @@ public final class PatternUploadMappings {
         tag.setString("name", display(evaluation.target.name()));
         tag.setString(
             "suffix",
-            display(evaluation.target.nameSuffix()) + " ("
+            display(evaluation.match.programmingCover ? "" : evaluation.target.nameSuffix()) + " ("
                 + evaluation.target.dimension()
                 + ": "
                 + evaluation.target.x()

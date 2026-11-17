@@ -1324,6 +1324,7 @@ gui.neoecoae.pattern_upload.location=Dim %s · %s, %s, %s
 gui.neoecoae.pattern_upload.hinted=NEI route
 gui.neoecoae.pattern_upload.auto_ready=Auto-upload found one concrete receiver
 gui.neoecoae.pattern_upload.programming_cover=Programming Cover
+gui.neoecoae.pattern_upload.programmable=Programmable
 gui.neoecoae.pattern_upload.button.open.tooltip.title=Upload Pattern Menu
 gui.neoecoae.pattern_upload.button.auto.tooltip.title=Automatic Upload
 gui.neoecoae.pattern_upload.button.auto.tooltip.target=Target machine: %s (%s)

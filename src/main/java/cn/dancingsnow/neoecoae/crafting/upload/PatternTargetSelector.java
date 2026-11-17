@@ -100,6 +100,7 @@ public final class PatternTargetSelector {
         .thenComparingInt(PatternTargetSelector::craftingPriority)
         .thenComparingInt(evaluation -> evaluation.match.level.rank())
         .thenComparingInt(evaluation -> evaluation.state.ordinal())
+        .thenComparingInt(evaluation -> evaluation.match.circuitPriority())
         .thenComparingInt(evaluation -> evaluation.target.kind().priority)
         .thenComparingInt(evaluation -> -evaluation.emptySlots)
         .thenComparing(evaluation -> evaluation.positionKey);
@@ -200,10 +201,28 @@ public final class PatternTargetSelector {
                 if (!full) break;
             }
             routes = tier;
-        }
+        } else routes = preferCircuits(routes);
         for (Evaluation evaluation : routes) signatures.add(evaluation.match.routeSignature);
         if (signatures.size() > 1) return new AutoChoice(null, "gui.neoecoae.pattern_upload.reason.route_ambiguous");
         return pick(routes);
+    }
+
+    /** Receiver capability breaks ties within one known category and recipe selector, never between recipes. */
+    private static List<Evaluation> preferCircuits(List<Evaluation> routes) {
+        MatchResult first = routes.get(0).match;
+        int priority = 2;
+        for (Evaluation evaluation : routes) {
+            if (!first.categoryId.equals(evaluation.match.categoryId)
+                || PatternTargetGroups.circuitNumber(first) != PatternTargetGroups.circuitNumber(evaluation.match))
+                return routes;
+            if (evaluation.state == SlotState.FREE) priority = Math.min(priority, evaluation.match.circuitPriority());
+        }
+        if (priority == 2) return routes;
+        List<Evaluation> preferred = new ArrayList<>();
+        for (Evaluation evaluation : routes)
+            if (evaluation.match.circuitPriority() == priority || evaluation.state == SlotState.DUPLICATE)
+                preferred.add(evaluation);
+        return preferred;
     }
 
     /**
@@ -231,7 +250,11 @@ public final class PatternTargetSelector {
         if (mapping == null || !mapping.enabled) return choose(sorted);
         if (mapping.conflict) return new AutoChoice(null, "gui.neoecoae.pattern_upload.mapping.ambiguous");
         AutoChoice bound = bound(sorted, mapping);
-        return bound.selected == null && mapping.auto ? choose(sorted) : bound;
+        if (!mapping.auto) return bound;
+        AutoChoice preferred = choose(sorted);
+        if (bound.selected == null || preferred.selected != null
+            && preferred.selected.match.circuitPriority() < bound.selected.match.circuitPriority()) return preferred;
+        return bound;
     }
 
     private static AutoChoice bound(List<Evaluation> sorted, PatternUploadMappings.Mapping mapping) {

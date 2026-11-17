@@ -240,7 +240,7 @@ public final class PatternTargetGroups {
         }
     }
 
-    /** Virtual circuit number shown for a route, or -1. */
+    /** Recipe selector retained in legacy mapping keys, or -1. */
     public static int circuitNumber(MatchResult match) {
         return match.circuit == null ? -1 : match.circuit.getItemDamage() & 0xFF;
     }

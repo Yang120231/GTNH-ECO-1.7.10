@@ -992,7 +992,8 @@ final class PatternUploadScreen extends GuiScreen {
             int nameX = x + 25 + indent;
             machineTitle(name, row, nameX, y + 3, (int) (countX - 4 - nameX), enabled ? TEXT : MUTED);
             String status = text(stateKey(row)) + " · " + text(level(row).translationKey());
-            if (row.circuit >= 0) status += " · " + ui("circuit", row.circuit);
+            if (row.programmingCover) status += " · " + text("gui.neoecoae.pattern_upload.programmable");
+            else if (row.circuit >= 0) status += " · " + ui("circuit", row.circuit);
             status += " · D" + row.dimension + " " + row.x + ", " + row.y + ", " + row.z;
             int statusWidth = w - 85 - indent;
             small(trim(status, statusWidth), nameX, y + 14, enabled ? 0x33783D : MUTED);
@@ -1274,11 +1275,11 @@ final class PatternUploadScreen extends GuiScreen {
         tip.totalSlots = row.totalSlots;
         if (!row.reason.isEmpty()) tip.notes.add(text(row.reason));
         if (mappingMode && !row.mappable && !row.mappingFailure.isEmpty()) tip.notes.add(text(row.mappingFailure));
-        if (row.circuit >= 0) tip.notes.add(
+        if (row.programmingCover)
+            tip.notes.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programmable"));
+        else if (row.circuit >= 0) tip.notes.add(
             StatCollector
                 .translateToLocalFormatted("gui.neoecoae.pattern_upload.button.auto.tooltip.circuit", row.circuit));
-        if (row.programmingCover)
-            tip.notes.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programming_cover"));
         if (tip.star) tip.notes.add(
             "§6★ §r" + StatCollector.translateToLocal(
                 list.autoMapped ? "gui.neoecoae.pattern_upload.mapping.used"

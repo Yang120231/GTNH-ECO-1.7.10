@@ -38,13 +38,17 @@ public final class MatchResult {
 
     public final Level level;
     public final String reason;
+    /** The recipe's selected circuit, independent of the receiver's current configuration. */
     public final ItemStack circuit;
+    /** A fixed receiver circuit; programming hatches and covers have no stable circuit to remember. */
+    public final ItemStack configuredCircuit;
     public final String routeName;
     public final ItemStack routeIcon;
     /** GT-formatted supply voltage tier of the selected receiver; empty when it cannot be read. */
     public final String voltageTier;
     /** Recipe map and circuit of the selected route; different signatures among auto candidates are ambiguous. */
     public final String routeSignature;
+    /** The receiver can program selectors through a hatch or cover. */
     public final boolean programmingCover;
     /** Language-independent category and requested selector used by automatic route bindings. */
     public final String categoryId;
@@ -72,9 +76,27 @@ public final class MatchResult {
 
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover, String categoryId, String selectionKey, String voltageTier) {
+        this(
+            level,
+            reason,
+            circuit,
+            routeName,
+            routeIcon,
+            routeSignature,
+            programmingCover,
+            categoryId,
+            selectionKey,
+            voltageTier,
+            null);
+    }
+
+    public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
+        String routeSignature, boolean programmingCover, String categoryId, String selectionKey, String voltageTier,
+        ItemStack configuredCircuit) {
         this.level = level;
         this.reason = reason;
         this.circuit = circuit == null ? null : circuit.copy();
+        this.configuredCircuit = programmingCover || configuredCircuit == null ? null : configuredCircuit.copy();
         this.routeName = routeName;
         this.routeIcon = routeIcon == null ? null : routeIcon.copy();
         this.voltageTier = voltageTier == null ? "" : voltageTier;
@@ -82,6 +104,16 @@ public final class MatchResult {
         this.programmingCover = programmingCover;
         this.categoryId = categoryId == null ? "" : categoryId;
         this.selectionKey = selectionKey == null ? "" : selectionKey;
+    }
+
+    /** Programming receivers first, then a matching fixed circuit, then other configurations. */
+    public int circuitPriority() {
+        return circuitPriority(programmingCover, configuredCircuit, circuit);
+    }
+
+    public static int circuitPriority(boolean programmable, ItemStack configured, ItemStack selected) {
+        if (programmable) return 0;
+        return configured != null && selected != null && configured.isItemEqual(selected) ? 1 : 2;
     }
 
     public static MatchResult of(Level level) {

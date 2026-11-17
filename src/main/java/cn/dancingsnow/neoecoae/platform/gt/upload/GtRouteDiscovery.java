@@ -69,9 +69,10 @@ final class GtRouteDiscovery {
     }
 
     private void addMachine(List<Route> routes, IMetaTileEntity machine) {
-        ItemStack circuit = circuit(machine);
         boolean cover = hasProgrammingCover(machine.getBaseMetaTileEntity());
         boolean programmable = ProgrammableHatchUpload.isProgrammingInput(machine);
+        // Programming overwrites this ghost slot for each recipe; its last value is not a fixed configuration.
+        ItemStack circuit = cover || programmable ? null : circuit(machine);
         boolean direct = machine instanceof RecipeMapWorkable;
         List<MTEMultiBlockBase> controllers = direct ? Collections.emptyList() : ownersOf(machine);
         if (controllers.isEmpty()) {
