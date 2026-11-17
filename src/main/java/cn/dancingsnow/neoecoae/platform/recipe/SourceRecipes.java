@@ -62,6 +62,10 @@ public final class SourceRecipes {
             definitions.put(id, read(path));
         }
         definitions.putAll(GTRecipeProfile.load());
+        for (String tier : new String[] { "l4", "l6", "l9" }) {
+            String id = "disassembly/eco_computation_cell_" + tier;
+            definitions.put(id, read("data/neoecoae/recipe/" + id + ".json"));
+        }
         for (var recipeEntry : definitions.entrySet()) {
             String id = recipeEntry.getKey();
             var definition = recipeEntry.getValue();
