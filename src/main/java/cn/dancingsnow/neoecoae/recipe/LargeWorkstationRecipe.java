@@ -241,19 +241,25 @@ public record LargeWorkstationRecipe(ResourceLocation id, IntegratedWorkingStati
     }
 
     static boolean matchesQuantities(long[] supplied, long[] needed, boolean[][] accepts) {
+        return allocateQuantities(supplied, needed, accepts, true) != null;
+    }
+
+    static long[] allocateQuantities(long[] supplied, long[] needed, boolean[][] accepts, boolean exact) {
         long supply = 0, demand = 0;
         for (long amount : supplied) {
-            if (amount <= 0) return false;
+            if (amount < 0 || exact && amount == 0) return null;
             supply = Math.addExact(supply, amount);
         }
         for (long amount : needed) {
-            if (amount <= 0) return false;
+            if (amount <= 0) return null;
             demand = Math.addExact(demand, amount);
         }
-        if (supply != demand) return false;
+        if (supply < demand || exact && supply != demand) return null;
+        if (demand == 0) return new long[supplied.length];
         int sink = supplied.length + needed.length + 1;
         long[][] residual = new long[sink + 1][sink + 1];
         for (int i = 0; i < supplied.length; i++) {
+            if (supplied[i] == 0) continue;
             residual[0][i + 1] = supplied[i];
             for (int j = 0; j < needed.length; j++) {
                 if (accepts[i][j]) residual[i + 1][supplied.length + j + 1] = supplied[i];
@@ -276,7 +282,7 @@ public record LargeWorkstationRecipe(ResourceLocation id, IntegratedWorkingStati
                     }
                 }
             }
-            if (parent[sink] == -1) return false;
+            if (parent[sink] == -1) return null;
             long amount = demand - matched;
             for (int to = sink; to != 0; to = parent[to]) amount = Math.min(amount, residual[parent[to]][to]);
             for (int to = sink; to != 0; to = parent[to]) {
@@ -285,6 +291,9 @@ public record LargeWorkstationRecipe(ResourceLocation id, IntegratedWorkingStati
             }
             matched += amount;
         }
-        return true;
+        if (exact) return supplied;
+        long[] debits = new long[supplied.length];
+        for (int slot = 0; slot < debits.length; slot++) debits[slot] = supplied[slot] - residual[0][slot + 1];
+        return debits;
     }
 }

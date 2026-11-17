@@ -63,14 +63,21 @@ public final class NEStructureLib {
         register(
             Workstation.class,
             WorkstationMachines.WORKSTATION,
-            host -> ((ECOLargeIntegratedWorkingStationBlockEntity) host).getBuildDefinition());
+            host -> ((ECOLargeIntegratedWorkingStationBlockEntity) host).getBuildDefinition(),
+            false);
         StructureLibAPI.registerChannelDescription(CHANNEL_LENGTH, NeoECOAE.MODID, "neoecoae.structure.channel.length");
         StructureLibAPI.registerChannelDescription(CHANNEL_MIRROR, NeoECOAE.MODID, "neoecoae.structure.channel.mirror");
     }
 
     private static void register(Class<? extends TileEntity> type, net.minecraft.block.Block controller,
         Function<TileEntity, MultiBlockDefinition> definitions) {
-        IMultiblockInfoContainer.registerTileClass(type, new NEConstructableContainer(controller, definitions));
+        register(type, controller, definitions, true);
+    }
+
+    private static void register(Class<? extends TileEntity> type, net.minecraft.block.Block controller,
+        Function<TileEntity, MultiBlockDefinition> definitions, boolean allowsMirror) {
+        IMultiblockInfoContainer
+            .registerTileClass(type, new NEConstructableContainer(controller, definitions, allowsMirror));
     }
 
     public static boolean check(TileEntity host, MultiBlockDefinition definition, int repeats, Direction facing,

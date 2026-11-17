@@ -21,7 +21,7 @@ final class LargeWorkstationTickPayment {
     private LargeWorkstationTickPayment() {}
 
     static Result commit(IEnergySource source, double required, BooleanSupplier consumeCoolant,
-        DoubleConsumer refundEnergy) {
+        DoubleConsumer refundRawEnergy) {
         if (!Double.isFinite(required) || required < 0.0D) return Result.POWER_MISSING;
 
         double charged = required == 0.0D ? 0.0D
@@ -29,11 +29,12 @@ final class LargeWorkstationTickPayment {
         if (!Double.isFinite(charged) || charged < 0.0D
             || charged + ENERGY_TOLERANCE < required
             || charged > required + ENERGY_TOLERANCE) {
-            if (Double.isFinite(charged) && charged > 0.0D) refundEnergy.accept(charged);
+            if (Double.isFinite(charged) && charged > 0.0D)
+                refundRawEnergy.accept(PowerMultiplier.CONFIG.multiply(charged));
             return Result.POWER_MISSING;
         }
         if (!consumeCoolant.getAsBoolean()) {
-            if (charged > 0.0D) refundEnergy.accept(charged);
+            if (charged > 0.0D) refundRawEnergy.accept(PowerMultiplier.CONFIG.multiply(charged));
             return Result.COOLANT_BLOCKED;
         }
         return Result.PAID;

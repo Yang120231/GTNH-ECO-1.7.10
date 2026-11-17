@@ -30,18 +30,21 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
 
     private final net.minecraft.block.Block controller;
     private final Function<TileEntity, MultiBlockDefinition> definitions;
+    private final boolean allowsMirror;
 
     NEConstructableContainer(net.minecraft.block.Block controller,
-        Function<TileEntity, MultiBlockDefinition> definitions) {
+        Function<TileEntity, MultiBlockDefinition> definitions, boolean allowsMirror) {
         this.controller = controller;
         this.definitions = definitions;
+        this.allowsMirror = allowsMirror;
     }
 
     @Override
     public ISurvivalConstructable toConstructable(TileEntity host, ExtendedFacing facing) {
         return new NEPreviewConstructable(
             IMultiblockInfoContainer.super.toConstructable(host, facing),
-            definitions.apply(host));
+            definitions.apply(host),
+            allowsMirror);
     }
 
     @Override
@@ -82,8 +85,9 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
 
     @Override
     public String[] getDescription(ItemStack trigger) {
-        return new String[] { StatCollector.translateToLocal("neoecoae.structure.desc.length"),
-            StatCollector.translateToLocal("neoecoae.structure.desc.mirror") };
+        String length = StatCollector.translateToLocal("neoecoae.structure.desc.length");
+        return allowsMirror ? new String[] { length, StatCollector.translateToLocal("neoecoae.structure.desc.mirror") }
+            : new String[] { length };
     }
 
     private NEStructureShape shape(ItemStack trigger, TileEntity host) {
@@ -94,7 +98,7 @@ final class NEConstructableContainer implements IMultiblockInfoContainer<TileEnt
             ? ChannelDataAccessor.getChannelData(trigger, NEStructureLib.CHANNEL_LENGTH)
             : trigger.stackSize;
         int repeats = Math.max(definition.getExpandMin(), Math.min(definition.getExpandMax(), length));
-        boolean mirrored = ChannelDataAccessor.hasSubChannel(trigger, NEStructureLib.CHANNEL_MIRROR)
+        boolean mirrored = allowsMirror && ChannelDataAccessor.hasSubChannel(trigger, NEStructureLib.CHANNEL_MIRROR)
             && ChannelDataAccessor.getChannelData(trigger, NEStructureLib.CHANNEL_MIRROR) != 0;
         return NEStructureShape.of(definition, repeats, facing(host), mirrored);
     }

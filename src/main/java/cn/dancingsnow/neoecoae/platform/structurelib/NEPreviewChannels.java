@@ -21,7 +21,7 @@ public final class NEPreviewChannels {
                     .newInstance();
             Method setMaxTier = type.getMethod("setMaxTier", int.class, Collection.class);
             setMaxTier.invoke(data, preview.maximumLength, Collections.singleton(NEStructureLib.CHANNEL_LENGTH));
-            setMaxTier.invoke(data, 1, Collections.singleton(NEStructureLib.CHANNEL_MIRROR));
+            if (preview.allowsMirror) setMaxTier.invoke(data, 1, Collections.singleton(NEStructureLib.CHANNEL_MIRROR));
             return data;
         } catch (ReflectiveOperationException failure) {
             org.apache.logging.log4j.LogManager.getLogger("neoecoae")

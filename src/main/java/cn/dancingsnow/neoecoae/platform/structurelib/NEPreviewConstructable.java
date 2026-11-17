@@ -11,11 +11,13 @@ import cn.dancingsnow.neoecoae.multiblock.definition.MultiBlockDefinition;
 final class NEPreviewConstructable implements ISurvivalConstructable {
 
     final int maximumLength;
+    final boolean allowsMirror;
     private final ISurvivalConstructable delegate;
 
-    NEPreviewConstructable(ISurvivalConstructable delegate, MultiBlockDefinition definition) {
+    NEPreviewConstructable(ISurvivalConstructable delegate, MultiBlockDefinition definition, boolean allowsMirror) {
         this.delegate = delegate;
         maximumLength = definition == null ? 1 : Math.max(1, definition.getExpandMax());
+        this.allowsMirror = allowsMirror;
     }
 
     @Override

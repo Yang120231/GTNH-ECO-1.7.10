@@ -31,29 +31,36 @@ public record IntegratedWorkingStationRecipe(List<SizedIngredient> inputItems, S
     }
 
     public boolean matches(Input recipeInput, World level) {
-        var provided = recipeInput.inputs();
-        int[] remaining = new int[provided.size()];
-        for (int i = 0; i < provided.size(); i++) {
-            var stack = provided.get(i);
-            remaining[i] = stack == null ? 0 : stack.stackSize;
+        return allocateInputs(recipeInput) != null;
+    }
+
+    public long[] allocateInputs(Input recipeInput) {
+        if (!inputFluid.ingredient()
+            .isEmpty() && !inputFluid.test(recipeInput.fluid())) return null;
+
+        long[] supplied = new long[recipeInput.size()];
+        long[] needed = new long[inputItems.size()];
+        for (int ingredient = 0; ingredient < needed.length; ingredient++) {
+            needed[ingredient] = inputItems.get(ingredient)
+                .count();
         }
-        for (var required : inputItems) {
-            int needed = required.count();
-            for (int i = 0; i < provided.size() && needed > 0; i++) {
-                var stack = provided.get(i);
-                if (stack == null || stack.stackSize <= 0 || remaining[i] <= 0) continue;
-                if (required.ingredient()
-                    .test(stack)) {
-                    int take = Math.min(remaining[i], needed);
-                    remaining[i] -= take;
-                    needed -= take;
-                }
+        for (int slot = 0; slot < supplied.length; slot++) {
+            ItemStack stack = recipeInput.getItem(slot);
+            if (stack != null && stack.stackSize > 0) supplied[slot] = stack.stackSize;
+        }
+        if (needed.length == 0) return new long[supplied.length];
+        boolean[][] accepts = new boolean[supplied.length][];
+        for (int slot = 0; slot < supplied.length; slot++) {
+            if (supplied[slot] == 0) continue;
+            ItemStack stack = recipeInput.getItem(slot);
+            accepts[slot] = new boolean[needed.length];
+            for (int ingredient = 0; ingredient < needed.length; ingredient++) {
+                accepts[slot][ingredient] = inputItems.get(ingredient)
+                    .ingredient()
+                    .test(stack);
             }
-            if (needed > 0) return false;
         }
-        if (inputFluid.ingredient()
-            .isEmpty()) return true;
-        return inputFluid.test(recipeInput.fluid());
+        return LargeWorkstationRecipe.allocateQuantities(supplied, needed, accepts, false);
     }
 
     public ItemStack assemble(Input input) {

@@ -23,6 +23,7 @@ import appeng.api.config.PowerMultiplier;
 import appeng.api.config.PowerUnits;
 import appeng.api.config.Upgrades;
 import appeng.api.networking.IGridNode;
+import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.energy.IEnergySource;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
@@ -93,6 +94,8 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     @Persisted
     @DescSynced
     private int processingTime;
+    @Persisted
+    private double paidStepRemainder;
     private final EnumSet<RelativeSide> allowOutputs = EnumSet.allOf(RelativeSide.class);
     private WorkstationRecipes.Match cachedTask;
     private Map<ResourceLocation, IntegratedWorkingStationRecipe> cachedRecipes;
@@ -187,6 +190,7 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
 
     public void setProcessingTime(int value) {
         processingTime = Math.max(0, value);
+        paidStepRemainder = 0.0D;
     }
 
     public boolean isAutoExport() {
@@ -260,7 +264,7 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
         if (dirty || cachedRecipes != recipes) {
             var next = WorkstationRecipes.find(inputItems(), getInputTank().getFluid());
             if (next == null || (taskId != null && !taskId.equals(next.id()))
-                || (cachedTask != null && cachedTask.recipe() != next.recipe())) processingTime = 0;
+                || (cachedTask != null && cachedTask.recipe() != next.recipe())) setProcessingTime(0);
             cachedTask = next;
             cachedRecipes = recipes;
             taskId = next == null ? null : next.id();
@@ -307,44 +311,11 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
         var task = getTask();
         int previousProgress = processingTime;
+        double previousRemainder = paidStepRemainder;
         processingBlockReason = null;
         if (task != null && outputsFit(task)) {
             setWorking(true);
-            getMainNode().ifPresent(grid -> {
-                final int speed = speedFactor(upgrades.getInstalledUpgrades(Upgrades.SPEED));
-                final int maxTime = getMaxProcessingTime();
-                final int remaining = maxTime - processingTime;
-                final float powerRatio = remaining < speed ? (float) remaining / speed : 1;
-                final int requiredTicks = (int) Math.ceil((float) maxTime / speed);
-                final int power = (int) Math.floor(((float) task.energy() / requiredTicks) * powerRatio);
-                final double threshold = power - 0.01;
-                IEnergySource source = this;
-                double available = extractAEPower(power, Actionable.SIMULATE, PowerMultiplier.CONFIG);
-                if (available <= threshold) {
-                    double network = grid.getEnergyService()
-                        .extractAEPower(power, Actionable.SIMULATE, PowerMultiplier.CONFIG);
-                    if (network >= available) {
-                        available = network;
-                        source = grid.getEnergyService();
-                    }
-                }
-                if (available > threshold) {
-                    source.extractAEPower(power, Actionable.MODULATE, PowerMultiplier.CONFIG);
-                    processingTime += speed;
-                } else if (available != 0 && power > 0) {
-                    double ratio = source == this ? available / power
-                        : (available - 10 * grid.getEnergyService()
-                            .getIdlePowerUsage()) / power;
-                    int factor = (int) Math.floor(ratio * speed);
-                    if (factor > 1) {
-                        double paid = source.extractAEPower(
-                            (double) power * factor / speed,
-                            Actionable.MODULATE,
-                            PowerMultiplier.CONFIG);
-                        processingTime += (int) Math.floor(paid / power * speed);
-                    }
-                }
-            });
+            getMainNode().ifPresent(grid -> payForProgress(task, grid.getEnergyService()));
             if (processingTime == previousProgress)
                 processingBlockReason = "gui.neoecoae.large_integrated_working_station.pause.power_missing";
             if (processingTime >= getMaxProcessingTime()) finishTask(task);
@@ -352,10 +323,44 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
             if (task != null) processingBlockReason = "gui.neoecoae.processing.output_blocked";
             setWorking(false);
         }
-        if (working || processingTime > 0) changed();
+        if (processingTime != previousProgress || paidStepRemainder != previousRemainder) changed();
         if (pushOutResult()) return TickRateModulation.URGENT;
         return getTask() != null ? TickRateModulation.URGENT
             : hasAutoExportWork() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP;
+    }
+
+    private void payForProgress(IntegratedWorkingStationRecipe task, IEnergyGrid gridEnergy) {
+        int maxTime = getMaxProcessingTime();
+        int advance = Math.min(maxTime - processingTime, speedFactor(upgrades.getInstalledUpgrades(Upgrades.SPEED)));
+        if (advance <= 0) return;
+        if (task.energy() == 0) {
+            processingTime += advance;
+            return;
+        }
+
+        double energyPerStep = (double) task.energy() / maxTime;
+        double required = (advance - paidStepRemainder) * energyPerStep;
+        IEnergySource source = this;
+        double available = extractAEPower(required, Actionable.SIMULATE, PowerMultiplier.CONFIG);
+        if (available < required) {
+            double network = gridEnergy.extractAEPower(required, Actionable.SIMULATE, PowerMultiplier.CONFIG);
+            if (network < Math.nextDown(required)) network -= 10 * gridEnergy.getIdlePowerUsage();
+            if (network > available) {
+                available = network;
+                source = gridEnergy;
+            }
+        }
+        if (available <= 0.0D) return;
+        double paid = source.extractAEPower(Math.min(required, available), Actionable.MODULATE, PowerMultiplier.CONFIG);
+        if (paid >= Math.nextDown(required)) {
+            processingTime += advance;
+            paidStepRemainder = 0.0D;
+        } else if (paid > 0.0D) {
+            double paidSteps = paidStepRemainder + paid / energyPerStep;
+            int completed = Math.min(advance, (int) paidSteps);
+            processingTime += completed;
+            paidStepRemainder = paidSteps - completed;
+        }
     }
 
     public static int speedFactor(int cards) {
@@ -374,22 +379,11 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     }
 
     protected void finishTask(IntegratedWorkingStationRecipe task) {
-        if (!task.matches(new IntegratedWorkingStationRecipe.Input(inputItems(), getInputTank().getFluid()), worldObj)
-            || !outputsFit(task)) return;
-        if (task.hasItemOutput()) outputInv.insertItem(0, task.itemOutput(), false);
-        if (task.hasFluidOutput()) getOutputTank().fill(task.fluidOutput(), true);
-        for (var required : task.inputItems()) {
-            int remaining = required.count();
-            for (int slot = 0; slot < inputInv.size() && remaining > 0; slot++) {
-                ItemStack stack = inputInv.getStackInSlot(slot);
-                if (!ItemStacks.isEmpty(stack) && required.ingredient()
-                    .test(stack)) {
-                    int consumed = Math.min(remaining, stack.stackSize);
-                    inputInv.extractItem(slot, consumed, false);
-                    remaining -= consumed;
-                }
-            }
-        }
+        long[] debits = task
+            .allocateInputs(new IntegratedWorkingStationRecipe.Input(inputItems(), getInputTank().getFluid()));
+        if (debits == null || !outputsFit(task)) return;
+        for (int slot = 0; slot < debits.length; slot++)
+            if (debits[slot] > 0) inputInv.extractItem(slot, (int) debits[slot], false);
         if (!task.inputFluid()
             .ingredient()
             .isEmpty())
@@ -397,7 +391,9 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
                 task.inputFluid()
                     .amount(),
                 true);
-        processingTime = 0;
+        if (task.hasItemOutput()) outputInv.insertItem(0, task.itemOutput(), false);
+        if (task.hasFluidOutput()) getOutputTank().fill(task.fluidOutput(), true);
+        setProcessingTime(0);
         cachedTask = null;
         dirty = true;
         taskId = null;
@@ -465,6 +461,7 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
 
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
+        paidStepRemainder = 0.0D;
         super.loadTag(data, registries);
         inputTank.readFromNBT(
             data.getCompound("inputTank")
