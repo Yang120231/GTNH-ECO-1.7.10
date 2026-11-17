@@ -110,7 +110,6 @@ public final class ComponentPlanner {
             network,
             activeSelection,
             condensation.cycles(),
-            inventory,
             snapshot,
             amount,
             cyclePlanningEnabled,
@@ -167,7 +166,6 @@ public final class ComponentPlanner {
             network,
             activeSelection,
             activeSelection.cyclicComponents(),
-            inventory,
             snapshot,
             amount,
             cyclePlanningEnabled,
@@ -176,16 +174,14 @@ public final class ComponentPlanner {
     }
 
     private Outcome planWithSeedScope(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection,
-        List<CycleComponent> seedScope, KeyCounter inventory, PlannerInventorySnapshot snapshot, long amount,
-        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
-        throws InterruptedException {
+        List<CycleComponent> seedScope, PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
+        boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
         if (!(cancellation instanceof ECOPlanningBudget)) cancellation = new ECOPlanningBudget(cancellation);
         ExternalDemandPlanner externalDemandPlanner = new ExternalDemandPlanner(acyclicSolver);
         SeedFloors seeds = seedFloors(network, seedScope, snapshot, cyclePlanningEnabled, cancellation);
         Outcome outcome = plan(
             network,
             activeSelection,
-            seeds.reduce(inventory),
             seeds.reduce(snapshot),
             amount,
             cyclePlanningEnabled,
@@ -208,10 +204,10 @@ public final class ComponentPlanner {
     }
 
     /**
-     * {@code inventory} and {@code snapshot} already exclude the seeds reserved by {@code seeds}. Retention is not an
+     * {@code snapshot} already excludes the seeds reserved by {@code seeds}. Retention is not an
      * optional improvement: the first published plan keeps every reserved seed, or reports what is missing.
      */
-    private Outcome plan(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection, KeyCounter inventory,
+    private Outcome plan(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection,
         PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
         boolean ignorePatternSubstitutions, ECOCancellation cancellation, CycleFailureCache failures,
         ExternalDemandPlanner externalDemandPlanner, SeedFloors seeds, boolean stopAtFirstFailure)
@@ -219,7 +215,6 @@ public final class ComponentPlanner {
         return planRoute(
             network,
             activeSelection,
-            inventory,
             snapshot,
             amount,
             cyclePlanningEnabled,
@@ -232,7 +227,7 @@ public final class ComponentPlanner {
     }
 
     private Outcome planRoute(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection,
-        KeyCounter inventory, PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
+        PlannerInventorySnapshot snapshot, long amount, boolean cyclePlanningEnabled,
         boolean ignorePatternSubstitutions, ECOCancellation cancellation, CycleFailureCache failures,
         ExternalDemandPlanner externalDemandPlanner, SeedFloors seeds, boolean stopAtFirstFailure)
         throws InterruptedException {
@@ -463,8 +458,8 @@ public final class ComponentPlanner {
                 List<SeedFloors.Floor> floors = cyclePlanningEnabled && !exactRequiredOutputs.isEmpty()
                     ? seeds.within(cycle)
                     : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf();
-                KeyCounter cycleInventory = floors.isEmpty() && borrowedSeeds.isEmpty() ? inventory
-                    : withReservedSeeds(inventory, floors, borrowedSeeds);
+                PlannerInventorySnapshot cycleInventory = floors.isEmpty() && borrowedSeeds.isEmpty() ? snapshot
+                    : withReservedSeeds(snapshot, floors, borrowedSeeds);
                 CyclePlanningStatus cycleStatus = CyclePlanningStatus.UNKNOWN_BUDGET;
                 String diagnostic = null;
                 CycleSolveResult cycleResult = null;
@@ -866,7 +861,7 @@ public final class ComponentPlanner {
                                         diagnostic = "Cycle/external-DAG transaction validation failed";
                                         unresolvedCycle = true;
                                     } else {
-                                        recordBorrowedSeeds(floors, inventory, borrowedSeeds, acyclic.state());
+                                        recordBorrowedSeeds(floors, snapshot, borrowedSeeds, acyclic.state());
                                         external.delegatedCycleDemands()
                                             .forEach((key, demand) -> {
                                                 CycleComponent supplier = cyclicSupplier(
@@ -1154,7 +1149,6 @@ public final class ComponentPlanner {
             network,
             universe,
             activeSelection,
-            seeds.reduce(inventory),
             seeds.reduce(snapshot),
             snapshot,
             amount,
@@ -1173,7 +1167,7 @@ public final class ComponentPlanner {
      * a proof over less stock than the planner may use would declare feasible orders impossible.
      */
     private Outcome planWithRouteFallback(CompiledNetwork network, CondensationGraph universe,
-        ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
+        ActiveRouteSelector.Selection activeSelection, PlannerInventorySnapshot snapshot,
         PlannerInventorySnapshot owned, long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions,
         ECOCancellation cancellation, SeedFloors seeds, CandidateValidator validator) throws InterruptedException {
         // The ordinary route plan always runs first: it is fast and follows AE's producer order. The joint model is
@@ -1183,7 +1177,6 @@ public final class ComponentPlanner {
         Outcome preferred = plan(
             network,
             activeSelection,
-            inventory,
             snapshot,
             amount,
             cyclePlanningEnabled,
@@ -1268,7 +1261,6 @@ public final class ComponentPlanner {
                 network,
                 universe,
                 activeSelection,
-                inventory,
                 snapshot,
                 amount,
                 cyclePlanningEnabled,
@@ -1295,8 +1287,8 @@ public final class ComponentPlanner {
     }
 
     private Outcome searchAlternativeRoutes(CompiledNetwork network, CondensationGraph universe,
-        ActiveRouteSelector.Selection activeSelection, KeyCounter inventory, PlannerInventorySnapshot snapshot,
-        long amount, boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
+        ActiveRouteSelector.Selection activeSelection, PlannerInventorySnapshot snapshot, long amount,
+        boolean cyclePlanningEnabled, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
         CycleFailureCache failures, Outcome preferred, ExternalDemandPlanner externalDemandPlanner,
         RouteQuantityProof.Prepared supply, SeedFloors seeds, CandidateValidator validator, boolean executable)
         throws InterruptedException {
@@ -1349,7 +1341,6 @@ public final class ComponentPlanner {
                 Outcome alternative = plan(
                     network,
                     candidate,
-                    inventory,
                     snapshot,
                     amount,
                     cyclePlanningEnabled,
@@ -1491,8 +1482,8 @@ public final class ComponentPlanner {
     }
 
     private static Map<AEKey, Long> relevantStock(CycleComponent cycle, java.util.Set<AEKey> requiredOutputs,
-        KeyCounter inventory, SolveState state, Map<AEKey, PlannerAmount> componentReservations) {
-        Map<AEKey, Long> result = new LinkedHashMap<>();
+        PlannerInventorySnapshot inventory, SolveState state, Map<AEKey, PlannerAmount> componentReservations) {
+        Map<AEKey, PlannerAmount> result = new LinkedHashMap<>();
         for (AEKey member : cycle.members()) result.put(member, remaining(inventory, state, member));
         for (AEKey required : requiredOutputs) result.putIfAbsent(required, remaining(inventory, state, required));
         for (var dependency : cycle.outgoingDependencies()) {
@@ -1501,15 +1492,9 @@ public final class ComponentPlanner {
                 result.putIfAbsent(key, remaining(inventory, state, key));
             }
         }
-        componentReservations.forEach((key, reserved) -> {
-            if (state.stored.isUnbounded(key)) result.put(key, Long.MAX_VALUE);
-            else result.put(
-                key,
-                boundedReservation(
-                    PlannerAmount.of(result.getOrDefault(key, 0L))
-                        .add(reserved)));
-        });
-        return result;
+        componentReservations.forEach(
+            (key, reserved) -> { if (!inventory.isUnbounded(key)) result.merge(key, reserved, PlannerAmount::add); });
+        return projectReservations(result);
     }
 
     static Set<AEKey> delegatedCycleInputs(CompiledNetwork network, CondensationGraph condensation,
@@ -1605,12 +1590,11 @@ public final class ComponentPlanner {
     /**
      * Stock the DAG pass has not already spent. The cycle solver must never double-spend an item.
      */
-    private static long remaining(KeyCounter inventory, SolveState state, AEKey key) {
-        if (state.stored.isUnbounded(key)) return Long.MAX_VALUE;
-        PlannerAmount available = PlannerAmount.of(inventory.get(key));
-        PlannerAmount used = state.used.get(key);
-        return available.compareTo(used) > 0 ? available.subtract(used)
-            .longValueExact() : 0L;
+    private static PlannerAmount remaining(PlannerInventorySnapshot inventory, SolveState state, AEKey key) {
+        return inventory.isUnbounded(key) ? PlannerAmount.of(Long.MAX_VALUE)
+            : inventory.amountOf(key)
+                .subtract(state.used.get(key))
+                .max(PlannerAmount.ZERO);
     }
 
     /**
@@ -1752,28 +1736,20 @@ public final class ComponentPlanner {
         return result;
     }
 
-    private static KeyCounter withReservedSeeds(KeyCounter inventory, List<SeedFloors.Floor> floors,
-        Map<AEKey, Long> borrowedSeeds) {
-        KeyCounter result = new KeyCounter();
-        for (var entry : inventory) result.add(entry.getKey(), entry.getLongValue());
-        borrowedSeeds.forEach(result::add);
-        for (SeedFloors.Floor floor : floors) {
-            if (floor.reserved()
-                .signum() > 0)
-                result.add(
-                    floor.key(),
-                    floor.reserved()
-                        .longValueExact());
-        }
-        return result;
+    private static PlannerInventorySnapshot withReservedSeeds(PlannerInventorySnapshot inventory,
+        List<SeedFloors.Floor> floors, Map<AEKey, Long> borrowedSeeds) {
+        Map<AEKey, PlannerAmount> stock = new LinkedHashMap<>(inventory.amounts());
+        borrowedSeeds.forEach((key, amount) -> stock.merge(key, PlannerAmount.of(amount), PlannerAmount::add));
+        for (SeedFloors.Floor floor : floors) stock.merge(floor.key(), floor.reserved(), PlannerAmount::add);
+        return PlannerInventorySnapshot.exact(stock, inventory.unboundedKeys());
     }
 
     /** After a committed cycle transaction, remember how much of its reserved seed the ledger now uses. */
-    private static void recordBorrowedSeeds(List<SeedFloors.Floor> floors, KeyCounter inventory,
+    private static void recordBorrowedSeeds(List<SeedFloors.Floor> floors, PlannerInventorySnapshot inventory,
         Map<AEKey, Long> borrowedSeeds, SolveState state) {
         for (SeedFloors.Floor floor : floors) {
             AEKey key = floor.key();
-            PlannerAmount visible = PlannerAmount.of(inventory.get(key))
+            PlannerAmount visible = inventory.amountOf(key)
                 .add(PlannerAmount.of(borrowedSeeds.getOrDefault(key, 0L)));
             PlannerAmount borrowed = state.used.get(key)
                 .subtract(visible)
@@ -1860,8 +1836,8 @@ public final class ComponentPlanner {
         };
     }
 
-    private static CycleDiagnostic diagnostic(CycleComponent cycle, KeyCounter inventory, CycleSolveResult cycleResult,
-        ECOPlanTrace trace) {
+    private static CycleDiagnostic diagnostic(CycleComponent cycle, PlannerInventorySnapshot inventory,
+        CycleSolveResult cycleResult, ECOPlanTrace trace) {
         Map<AEKey, PlannerAmount> exactNet = new LinkedHashMap<>();
         java.util.LinkedHashSet<AEKey> diagnosticKeys = new java.util.LinkedHashSet<>(cycle.members());
         for (var pattern : cycle.patterns()) {
@@ -1914,6 +1890,9 @@ public final class ComponentPlanner {
         }
         addWideCycleDiagnostics(trace, exactNet, "cycle net output");
         addWideCycleDiagnostics(trace, exactTotal, "cycle total net output");
+        Map<AEKey, Long> available = new LinkedHashMap<>();
+        for (AEKey key : diagnosticKeys) available
+            .put(key, inventory.isUnbounded(key) ? Long.MAX_VALUE : boundedReservation(inventory.amountOf(key)));
         return new CycleDiagnostic(
             new ArrayList<>(diagnosticKeys),
             cycle.patterns()
@@ -1922,11 +1901,10 @@ public final class ComponentPlanner {
                 .collect(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.toList()),
             exactNet,
             exactTotal,
-            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
+            available,
             cycleResult == null ? cn.dancingsnow.neoecoae.crafting.planner.result.ExecutionCountKnowledge.UNKNOWN
                 : cycleResult.executionCountKnowledge(),
-            cycleResult == null ? CycleSolveStatus.NOT_IMPLEMENTED : cycleResult.status())
-                .withAvailableAmounts(inventory);
+            cycleResult == null ? CycleSolveStatus.NOT_IMPLEMENTED : cycleResult.status());
     }
 
     static Map<AEKey, Long> representable(Map<AEKey, PlannerAmount> exact) {

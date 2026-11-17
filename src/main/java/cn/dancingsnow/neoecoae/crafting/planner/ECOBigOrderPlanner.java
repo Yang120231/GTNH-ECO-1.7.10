@@ -29,10 +29,11 @@ public final class ECOBigOrderPlanner {
                 amount -> session.plan(
                     amount,
                     false,
-                    () -> {
-                        if (Thread.currentThread()
-                            .isInterrupted()) throw new InterruptedException();
-                    })));
+                    ECOCancellation.firstSolution(
+                        () -> {
+                            if (Thread.currentThread()
+                                .isInterrupted()) throw new InterruptedException();
+                        }))));
     }
 
     @FunctionalInterface

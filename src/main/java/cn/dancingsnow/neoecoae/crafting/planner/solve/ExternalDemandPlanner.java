@@ -81,9 +81,9 @@ final class ExternalDemandPlanner {
         this.acyclicSolver = acyclicSolver;
     }
 
-    Outcome solve(CompiledNetwork network, CycleComponent cycle, CycleSolveResult cycleResult, KeyCounter inventory,
-        SolveState base, Map<AEKey, Long> additionalCycleReservations, Set<AEKey> delegatedCycleInputs,
-        ECOCancellation cancellation) throws InterruptedException {
+    Outcome solve(CompiledNetwork network, CycleComponent cycle, CycleSolveResult cycleResult,
+        PlannerInventorySnapshot inventory, SolveState base, Map<AEKey, Long> additionalCycleReservations,
+        Set<AEKey> delegatedCycleInputs, ECOCancellation cancellation) throws InterruptedException {
         return solve(
             network,
             cycle,
@@ -96,9 +96,10 @@ final class ExternalDemandPlanner {
             cancellation);
     }
 
-    Outcome solve(CompiledNetwork network, CycleComponent cycle, CycleSolveResult cycleResult, KeyCounter inventory,
-        SolveState base, Map<AEKey, Long> additionalCycleReservations, Set<AEKey> delegatedCycleInputs,
-        boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
+    Outcome solve(CompiledNetwork network, CycleComponent cycle, CycleSolveResult cycleResult,
+        PlannerInventorySnapshot inventory, SolveState base, Map<AEKey, Long> additionalCycleReservations,
+        Set<AEKey> delegatedCycleInputs, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
         return solveDemands(
             network,
             cycle,
@@ -111,9 +112,9 @@ final class ExternalDemandPlanner {
             cancellation);
     }
 
-    Outcome solveDemands(CompiledNetwork network, CycleComponent cycle, Map<AEKey, Long> demands, KeyCounter inventory,
-        SolveState base, Map<AEKey, Long> additionalCycleReservations, Set<AEKey> delegatedCycleInputs,
-        ECOCancellation cancellation) throws InterruptedException {
+    Outcome solveDemands(CompiledNetwork network, CycleComponent cycle, Map<AEKey, Long> demands,
+        PlannerInventorySnapshot inventory, SolveState base, Map<AEKey, Long> additionalCycleReservations,
+        Set<AEKey> delegatedCycleInputs, ECOCancellation cancellation) throws InterruptedException {
         return solveDemands(
             network,
             cycle,
@@ -126,9 +127,10 @@ final class ExternalDemandPlanner {
             cancellation);
     }
 
-    Outcome solveDemands(CompiledNetwork network, CycleComponent cycle, Map<AEKey, Long> demands, KeyCounter inventory,
-        SolveState base, Map<AEKey, Long> additionalCycleReservations, Set<AEKey> delegatedCycleInputs,
-        boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
+    Outcome solveDemands(CompiledNetwork network, CycleComponent cycle, Map<AEKey, Long> demands,
+        PlannerInventorySnapshot inventory, SolveState base, Map<AEKey, Long> additionalCycleReservations,
+        Set<AEKey> delegatedCycleInputs, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
         cancellation.checkpoint();
         // CompiledNetwork is immutable and shared by all route attempts in this invocation. Comparing its
         // identity both invalidates changed recipes and avoids hashing the complete recipe graph on each hit.
@@ -138,7 +140,7 @@ final class ExternalDemandPlanner {
             filteredRouteWeight = 0;
             cachedNetwork = network;
         }
-        KeyCounter available = remainingInventory(inventory, base);
+        PlannerInventorySnapshot available = inventory.withoutReserved(base.usedAmounts());
         CacheKey cacheKey = new CacheKey(
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setCopyOf(cycle.members()),
             cycle.patterns()
@@ -149,8 +151,8 @@ final class ExternalDemandPlanner {
                 .stream()
                 .map(entry -> new BoundaryDemand(entry.getKey(), entry.getValue()))
                 .collect(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.toList()),
-            copyLongMap(available),
-            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setCopyOf(base.stored.unboundedKeys()),
+            available.amounts(),
+            available.unboundedKeys(),
             copyLongMap(additionalCycleReservations),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setCopyOf(delegatedCycleInputs),
             ignorePatternSubstitutions);
@@ -162,7 +164,6 @@ final class ExternalDemandPlanner {
             cycle,
             demands,
             available,
-            base,
             additionalCycleReservations,
             delegatedCycleInputs,
             ignorePatternSubstitutions,
@@ -178,20 +179,24 @@ final class ExternalDemandPlanner {
     }
 
     private Outcome solveDemandsUncached(CompiledNetwork network, CycleComponent cycle, Map<AEKey, Long> demands,
-        KeyCounter available, SolveState base, Map<AEKey, Long> additionalCycleReservations,
-        Set<AEKey> delegatedCycleInputs, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
-        throws InterruptedException {
+        PlannerInventorySnapshot stock, Map<AEKey, Long> additionalCycleReservations, Set<AEKey> delegatedCycleInputs,
+        boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
+        PlannerCounter available = new PlannerCounter();
+        stock.initialize(available);
         for (var reservation : additionalCycleReservations.entrySet()) {
-            long amount = reservation.getValue();
-            if (amount < 0L || available.get(reservation.getKey()) < amount) {
+            PlannerAmount amount = PlannerAmount.of(reservation.getValue());
+            PlannerAmount held = available.available(reservation.getKey(), amount);
+            if (amount.signum() < 0 || held.compareTo(amount) < 0) {
                 return failure(
                     CycleExternalDemandStatus.MISSING,
-                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
-                        .mapOf(reservation.getKey(), amount < 0L ? 0L : amount - available.get(reservation.getKey())),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(
+                        reservation.getKey(),
+                        amount.subtract(held)
+                            .max(PlannerAmount.ZERO)
+                            .longValueExact()),
                     "Cycle-owned stock is unavailable before external-demand planning");
             }
-            if (amount > 0L && !base.stored.isUnbounded(reservation.getKey()))
-                available.remove(reservation.getKey(), amount);
+            if (amount.signum() > 0) available.remove(reservation.getKey(), amount);
         }
 
         KeyCounter direct = new KeyCounter();
@@ -205,18 +210,18 @@ final class ExternalDemandPlanner {
             // loop. Delegate the complete demand before consuming inventory here; otherwise the downstream
             // component reserves the seed as an ordinary boundary input and the supplier later observes no
             // remaining stock with which to start the cycle.
-            if (delegatedCycleInputs.contains(demand.getKey()) && !base.stored.isUnbounded(demand.getKey())) {
+            if (delegatedCycleInputs.contains(demand.getKey()) && !available.isUnbounded(demand.getKey())) {
                 if (demand.getValue() > 0L) {
                     delegated.merge(demand.getKey(), demand.getValue(), Math::addExact);
                 }
                 continue;
             }
-            long fromStock = Math.min(demand.getValue(), available.get(demand.getKey()));
-            if (fromStock > 0) {
-                if (!base.stored.isUnbounded(demand.getKey())) available.remove(demand.getKey(), fromStock);
-                direct.add(demand.getKey(), fromStock);
+            PlannerAmount fromStock = available.available(demand.getKey(), PlannerAmount.of(demand.getValue()));
+            if (fromStock.signum() > 0) {
+                available.remove(demand.getKey(), fromStock);
+                direct.add(demand.getKey(), fromStock.longValueExact());
             }
-            long deficit = demand.getValue() - fromStock;
+            long deficit = demand.getValue() - fromStock.longValueExact();
             if (deficit > 0) deficits.put(demand.getKey(), deficit);
         }
         if (!deficits.isEmpty()) {
@@ -225,40 +230,13 @@ final class ExternalDemandPlanner {
                 network,
                 cycle,
                 deficits,
-                available,
-                base.stored.unboundedKeys(),
+                PlannerInventorySnapshot.exact(available.asMap(), available.unboundedKeys()),
                 ignorePatternSubstitutions,
                 cancellation);
             if (!one.solved()) return one;
             SolveState state = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.first(one.states());
             states.add(state);
             selected.addAll(one.selectedPatterns());
-            for (var used : state.used) {
-                // Unlimited inputs are charged in the exact ledger; no finite stock window can bound their total.
-                if (base.stored.isUnbounded(used.getKey())) continue;
-                if (!used.getValue()
-                    .fitsLong()) {
-                    return failure(
-                        CycleExternalDemandStatus.UNREPRESENTABLE,
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
-                        "External DAG used amount exceeds AE2 long range: key=" + used
-                            .getKey() + " amount=" + used.getValue() + " max=" + Long.MAX_VALUE);
-                }
-                if (available.get(used.getKey()) < used.getValue()
-                    .longValueExact()) {
-                    return failure(
-                        CycleExternalDemandStatus.MISSING,
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(
-                            used.getKey(),
-                            used.getValue()
-                                .longValueExact() - available.get(used.getKey())),
-                        "External demands compete for the same remaining inventory");
-                }
-                if (!base.stored.isUnbounded(used.getKey())) available.remove(
-                    used.getKey(),
-                    used.getValue()
-                        .longValueExact());
-            }
         }
         return new Outcome(
             CycleExternalDemandStatus.SOLVED,
@@ -276,26 +254,18 @@ final class ExternalDemandPlanner {
         return cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapCopyOf(source);
     }
 
-    private static Map<AEKey, Long> copyLongMap(KeyCounter source) {
-        if (!source.iterator()
-            .hasNext()) return cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf();
-        Map<AEKey, Long> result = new LinkedHashMap<>();
-        for (var entry : source) result.put(entry.getKey(), entry.getLongValue());
-        return cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapCopyOf(result);
-    }
-
     @com.github.bsideup.jabel.Desugar
     private record BoundaryDemand(AEKey key, long amount) {}
 
     /** Component numbering/dependency metadata is irrelevant to the filtered external DAG; root order is not. */
     @com.github.bsideup.jabel.Desugar
     private record CacheKey(Set<AEKey> members, Set<IPatternDetails> forbiddenPatterns, List<BoundaryDemand> demands,
-        Map<AEKey, Long> available, Set<AEKey> unbounded, Map<AEKey, Long> additionalReservations,
+        Map<AEKey, PlannerAmount> available, Set<AEKey> unbounded, Map<AEKey, Long> additionalReservations,
         Set<AEKey> delegatedInputs, boolean ignorePatternSubstitutions) {}
 
     private Outcome solveDeficits(CompiledNetwork network, CycleComponent cycle, Map<AEKey, Long> demands,
-        KeyCounter inventory, Set<AEKey> unboundedKeys, boolean ignorePatternSubstitutions,
-        ECOCancellation cancellation) throws InterruptedException {
+        PlannerInventorySnapshot inventory, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
         Set<IPatternDetails> forbiddenPatterns = cycle.patterns()
             .stream()
             .map(pattern -> pattern.details())
@@ -320,7 +290,7 @@ final class ExternalDemandPlanner {
             .collect(java.util.stream.Collectors.toSet());
         var solved = acyclicSolver.solveDemands(
             filtered,
-            PlannerInventorySnapshot.of(inventory, unboundedKeys),
+            inventory,
             demands,
             selection.choices(),
             deferredCyclePatterns,
@@ -467,26 +437,6 @@ final class ExternalDemandPlanner {
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf(),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
             diagnostic);
-    }
-
-    private static KeyCounter remainingInventory(KeyCounter inventory, SolveState base) {
-        KeyCounter result = new KeyCounter();
-        for (var entry : inventory) {
-            if (base.stored.isUnbounded(entry.getKey())) {
-                result.set(entry.getKey(), Long.MAX_VALUE);
-                continue;
-            }
-            long remaining = base.used.get(entry.getKey())
-                .compareTo(PlannerAmount.of(entry.getLongValue())) >= 0 ? 0L
-                    : PlannerAmount.of(entry.getLongValue())
-                        .subtract(base.used.get(entry.getKey()))
-                        .longValueExact();
-            if (remaining > 0) result.add(entry.getKey(), remaining);
-        }
-        // Creative supply belongs to the snapshot, even when the finite inventory API has no entry for it.
-        base.stored.unboundedKeys()
-            .forEach(key -> result.set(key, Long.MAX_VALUE));
-        return result;
     }
 
     private static Map<AEKey, Long> positive(KeyCounter counter) {

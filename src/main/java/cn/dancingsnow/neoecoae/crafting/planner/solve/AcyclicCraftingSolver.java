@@ -920,7 +920,7 @@ public final class AcyclicCraftingSolver {
         }
         for (var selected : state.selected.entrySet()) {
             CompiledPattern pattern = selected.getValue();
-            long times = traceLong(state.patternTimes.getOrDefault(pattern.details(), PlannerAmount.ZERO));
+            PlannerAmount times = state.patternTimes.getOrDefault(pattern.details(), PlannerAmount.ZERO);
             trace.addNode(
                 new PlanTraceNode(
                     PlanTraceNode.Kind.PATTERN,
@@ -930,12 +930,17 @@ public final class AcyclicCraftingSolver {
                     0,
                     0,
                     0,
-                    times,
+                    traceLong(times),
                     PlanTraceNode.Selection.SELECTED,
-                    null));
+                    null).withExact(
+                        java.math.BigInteger.ZERO,
+                        java.math.BigInteger.ZERO,
+                        java.math.BigInteger.ZERO,
+                        java.math.BigInteger.ZERO,
+                        times.toBigInteger()));
             for (CompiledInput input : pattern.inputs()) {
                 PlannerAmount exact = input.amountPerPattern()
-                    .multiply(state.patternTimes.getOrDefault(pattern.details(), PlannerAmount.ZERO));
+                    .multiply(times);
                 trace
                     .addEdge(new PlanTraceEdge(selected.getKey(), input.key(), traceLong(exact), exact.toBigInteger()));
             }

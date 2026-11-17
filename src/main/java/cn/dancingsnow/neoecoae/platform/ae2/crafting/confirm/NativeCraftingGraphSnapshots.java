@@ -11,10 +11,6 @@ import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.data.IAEStack;
-import appeng.crafting.v2.CraftingContext;
-import appeng.crafting.v2.CraftingJobV2;
-import appeng.crafting.v2.resolvers.CraftableItemResolver;
-import appeng.crafting.v2.resolvers.CraftingTask;
 import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshot;
 import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshotFactory;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
@@ -85,14 +81,10 @@ public final class NativeCraftingGraphSnapshots {
 
         Map<ICraftingPatternDetails, Long> executions = new IdentityHashMap<>();
         List<ICraftingPatternDetails> order = new ArrayList<>();
-        CraftingContext context = job instanceof CraftingJobV2 v2 ? v2.getContext() : null;
-        if (context != null) for (CraftingTask task : context.getResolvedTasks()) {
-            if (!(task instanceof CraftableItemResolver.CraftFromPatternTask craft)) continue;
-            long done = craft.getTotalCraftsDone();
-            if (done <= 0 || craft.pattern == null) continue;
-            if (!executions.containsKey(craft.pattern)) order.add(craft.pattern);
-            executions.merge(craft.pattern, done, Long::sum);
-        }
+        NativePlanExport.nativeTasks(job, (pattern, done) -> {
+            if (!executions.containsKey(pattern)) order.add(pattern);
+            executions.merge(pattern, done, Long::sum);
+        });
         for (ICraftingPatternDetails pattern : order) {
             BigInteger times = BigInteger.valueOf(executions.get(pattern));
             for (IAEStack<?> input : inputs(pattern)) {

@@ -15,10 +15,12 @@
 
 package cn.dancingsnow.neoecoae.platform.ae2.crafting;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import com.google.common.collect.ImmutableList;
@@ -89,7 +91,24 @@ public class CraftingPlanSummary {
     private static class KeyStats {
 
         public long stored;
-        public long crafting;
+    }
+
+    public static Map<AEKey, BigInteger> craftedAmounts(ICraftingPlan job) {
+        Map<AEKey, BigInteger> amounts = new HashMap<>();
+        for (var emitted : job.emittedItems())
+            amounts.merge(emitted.getKey(), BigInteger.valueOf(emitted.getLongValue()), BigInteger::add);
+        for (var entry : job.patternTimes()
+            .entrySet()) {
+            BigInteger times = BigInteger.valueOf(entry.getValue());
+            for (var output : entry.getKey()
+                .getOutputs())
+                amounts.merge(
+                    output.what(),
+                    BigInteger.valueOf(output.amount())
+                        .multiply(times),
+                    BigInteger::add);
+        }
+        return amounts;
     }
 
     /**
@@ -99,6 +118,11 @@ public class CraftingPlanSummary {
      * @param actionSource The action source used to determine the amount of items already stored.
      */
     public static CraftingPlanSummary fromJob(GridView grid, IActionSource actionSource, ICraftingPlan job) {
+        return fromJob(grid, actionSource, job, craftedAmounts(job));
+    }
+
+    public static CraftingPlanSummary fromJob(GridView grid, IActionSource actionSource, ICraftingPlan job,
+        Map<AEKey, BigInteger> craftedAmounts) {
         var plan = new HashMap<AEKey, KeyStats>() {
 
             private KeyStats mapping(AEKey key) {
@@ -117,15 +141,9 @@ public class CraftingPlanSummary {
         for (var emitted : job.emittedItems()) {
             var entry = plan.mapping(emitted.getKey());
             entry.stored += emitted.getLongValue();
-            entry.crafting += emitted.getLongValue();
         }
-        for (var entry : job.patternTimes()
-            .entrySet()) {
-            for (var out : entry.getKey()
-                .getOutputs()) {
-                plan.mapping(out.what()).crafting += out.amount() * entry.getValue();
-            }
-        }
+        craftedAmounts.keySet()
+            .forEach(plan::mapping);
 
         var entries = new ArrayList<CraftingPlanSummaryEntry>();
 
@@ -143,7 +161,9 @@ public class CraftingPlanSummary {
                 storedAmount = out.getValue().stored;
                 missingAmount = 0;
             }
-            long craftAmount = out.getValue().crafting;
+            long craftAmount = craftedAmounts.getOrDefault(out.getKey(), BigInteger.ZERO)
+                .min(BigInteger.valueOf(Long.MAX_VALUE))
+                .longValueExact();
 
             entries.add(new CraftingPlanSummaryEntry(out.getKey(), missingAmount, storedAmount, craftAmount));
 

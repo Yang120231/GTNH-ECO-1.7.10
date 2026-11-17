@@ -18,7 +18,6 @@ import cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleSolveStatus;
 import cn.dancingsnow.neoecoae.crafting.planner.graph.CondensationGraph;
 import cn.dancingsnow.neoecoae.crafting.planner.result.CycleExternalDemandStatus;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /**
  * Chooses which firing vector of one cyclic component is handed to the external supply check: the solved vector first,
@@ -53,7 +52,7 @@ final class CycleCandidateSearch {
     private final Map<AEKey, Long> solveStock;
     private final Map<AEKey, PlannerAmount> stockReservations;
     private final Map<AEKey, Long> plannedCycleInputs;
-    private final KeyCounter inventory;
+    private final PlannerInventorySnapshot inventory;
     private final SolveState base;
     private final boolean ignorePatternSubstitutions;
     private final CycleFailureCache failures;
@@ -66,8 +65,8 @@ final class CycleCandidateSearch {
     CycleCandidateSearch(CompiledNetwork network, CondensationGraph condensation, Map<AEKey, Integer> choices,
         CycleComponent cycle, Map<AEKey, PlannerAmount> exactRequiredOutputs, Map<AEKey, Long> stock,
         Map<AEKey, Long> solveStock, Map<AEKey, PlannerAmount> stockReservations, Map<AEKey, Long> plannedCycleInputs,
-        KeyCounter inventory, SolveState base, boolean ignorePatternSubstitutions, CycleFailureCache failures,
-        ExternalDemandPlanner externalDemandPlanner, ECOCancellation cancellation) {
+        PlannerInventorySnapshot inventory, SolveState base, boolean ignorePatternSubstitutions,
+        CycleFailureCache failures, ExternalDemandPlanner externalDemandPlanner, ECOCancellation cancellation) {
         this.network = network;
         this.condensation = condensation;
         this.choices = choices;

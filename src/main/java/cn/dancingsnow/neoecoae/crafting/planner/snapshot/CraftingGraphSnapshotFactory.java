@@ -1,7 +1,10 @@
 package cn.dancingsnow.neoecoae.crafting.planner.snapshot;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +25,7 @@ import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshot.M
 import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshot.PatternAmount;
 import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshot.PatternNode;
 import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshot.Relationship;
+import cn.dancingsnow.neoecoae.crafting.planner.trace.PlanTraceEdge;
 import cn.dancingsnow.neoecoae.crafting.planner.trace.PlanTraceNode;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
@@ -54,10 +58,16 @@ public final class CraftingGraphSnapshotFactory {
             current.merge(node);
             if (node.kind() == PlanTraceNode.Kind.GOAL) rootKey = node.key();
         }
+        Map<AEKey, List<PlanTraceEdge>> inputsByOutput = new HashMap<>();
         for (var edge : trace.edges()) {
             materials.computeIfAbsent(edge.from(), MutableMaterial::new);
             materials.computeIfAbsent(edge.to(), MutableMaterial::new);
+            inputsByOutput.computeIfAbsent(edge.from(), ignored -> new ArrayList<>())
+                .add(edge);
         }
+        Map<AEKey, Integer> componentsByMaterial = new HashMap<>();
+        for (var component : trace.components())
+            for (AEKey key : component.members()) componentsByMaterial.putIfAbsent(key, component.componentId());
         for (PlanTraceNode node : trace.nodes()) {
             if (node.kind() != PlanTraceNode.Kind.PATTERN || node.pattern() == null) continue;
             try {
@@ -138,7 +148,13 @@ public final class CraftingGraphSnapshotFactory {
             if (outputId == null) continue;
             int patternNodeId = patternNodeId(patterns.size());
             patternIds.put(node.pattern(), patternNodeId);
-            List<Relationship> inputs = selectedInputs(node.key(), trace.edges(), nodeIds);
+            List<Relationship> inputs = node.selection() == PlanTraceNode.Selection.SELECTED && node.exactFiringCount()
+                .signum() > 0
+                    ? selectedInputs(
+                        inputsByOutput.getOrDefault(node.key(), Collections.emptyList()),
+                        node.exactFiringCount(),
+                        nodeIds)
+                    : Collections.emptyList();
             if (inputs.isEmpty()) inputs = inputs(node.pattern(), nodeIds);
             List<Relationship> outputs = outputs(node.pattern(), nodeIds);
             if (outputs.stream()
@@ -151,7 +167,7 @@ public final class CraftingGraphSnapshotFactory {
                 case REJECTED -> CandidateStatus.REJECTED;
                 default -> CandidateStatus.UNSUPPORTED;
             };
-            int componentId = componentFor(node.key(), trace.components());
+            int componentId = componentsByMaterial.getOrDefault(node.key(), -1);
             PatternNode pattern = new PatternNode(
                 patternNodeId,
                 displayIdentity(node.pattern()),
@@ -376,14 +392,14 @@ public final class CraftingGraphSnapshotFactory {
         }
     }
 
-    private static List<Relationship> selectedInputs(AEKey output,
-        List<cn.dancingsnow.neoecoae.crafting.planner.trace.PlanTraceEdge> edges, Map<AEKey, Integer> nodeIds) {
-        List<Relationship> result = new ArrayList<>();
+    private static List<Relationship> selectedInputs(List<PlanTraceEdge> edges, BigInteger firings,
+        Map<AEKey, Integer> nodeIds) {
+        List<Relationship> result = new ArrayList<>(edges.size());
         for (var edge : edges) {
-            if (edge.from()
-                .equals(output) && nodeIds.containsKey(edge.to())) {
-                result.add(new Relationship(nodeIds.get(edge.to()), edge.amount()));
-            }
+            BigInteger perFiring = edge.exactAmount()
+                .divide(firings);
+            if (perFiring.bitLength() < Long.SIZE)
+                result.add(new Relationship(nodeIds.get(edge.to()), perFiring.longValueExact()));
         }
         return result;
     }
@@ -417,13 +433,6 @@ public final class CraftingGraphSnapshotFactory {
             // A malformed/rejected candidate is still represented, but without unsafe relationship data.
         }
         return result;
-    }
-
-    private static int componentFor(AEKey key,
-        List<cn.dancingsnow.neoecoae.crafting.planner.trace.ComponentTrace> components) {
-        for (var component : components) if (component.members()
-            .contains(key)) return component.componentId();
-        return -1;
     }
 
     private static String displayIdentity(IPatternDetails pattern) {

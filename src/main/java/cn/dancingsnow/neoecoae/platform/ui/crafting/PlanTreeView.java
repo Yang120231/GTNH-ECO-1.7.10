@@ -83,8 +83,8 @@ final class PlanTreeView {
     private static final int REQUEST_CYCLE_COLOR = 0xB89BE0;
     private static final int TASK_COLOR = 0x777777;
     private static final int MISSING_TEXT = 0xFF5555;
-    /** Nodes built before further branches are left collapsed; opening one builds it. */
     private static final int BUILD_BUDGET = 4000;
+    private static final int HARD_DEPTH = 128;
     private static final int[] DEPTHS = { 2, 4, 8, Integer.MAX_VALUE };
     /** Below this zoom an icon is a few pixels wide; the tinted frames alone show the shape of the tree. */
     private static final float ICON_MIN_ZOOM = 0.2F;
@@ -116,6 +116,7 @@ final class PlanTreeView {
         final Set<Integer> path;
         boolean built;
         boolean collapsed;
+        boolean truncated;
         int x;
         int y;
         /** The formatted count, made once instead of every frame. */
@@ -281,6 +282,7 @@ final class PlanTreeView {
         BigInteger amount = top.requestedBigInteger()
             .signum() > 0 ? top.requestedBigInteger() : top.toCraftBigInteger();
         root = new Node(Kind.REQUEST, null, top.nodeId(), null, amount, 0, Collections.singleton(top.nodeId()));
+        builtNodes++;
         build(root);
         layout();
         search(query);
@@ -298,14 +300,18 @@ final class PlanTreeView {
         BigInteger total = demand(material);
         BigInteger stored = share(material.fromInventoryBigInteger(), request.amount, total);
         BigInteger missing = share(material.missingBigInteger(), request.amount, total);
-        if (!missingOnly && stored.signum() > 0) add(
-            request,
-            new Node(Kind.STORAGE, request, request.materialId, null, stored, request.depth, request.path));
+        if (!missingOnly && stored.signum() > 0) {
+            if (atLimit(request)) return;
+            add(
+                request,
+                new Node(Kind.STORAGE, request, request.materialId, null, stored, request.depth, request.path));
+        }
         for (CraftingGraphSnapshot.PatternNode pattern : producers
             .getOrDefault(request.materialId, Collections.emptyList())) {
             BigInteger executions = shareCeil(BigInteger.valueOf(pattern.firingCount()), request.amount, total);
             if (executions.signum() <= 0) continue;
             if (missingOnly && !patternReachesMissing(pattern)) continue;
+            if (atLimit(request)) return;
             Node craft = new Node(
                 Kind.CRAFT,
                 request,
@@ -319,6 +325,7 @@ final class PlanTreeView {
                 if (missingOnly && !leadsToMissing.contains(input.materialNodeId())) continue;
                 BigInteger needed = executions.multiply(BigInteger.valueOf(input.amount()));
                 if (needed.signum() <= 0) continue;
+                if (atLimit(craft)) return;
                 if (request.path.contains(input.materialNodeId())) {
                     add(
                         craft,
@@ -343,11 +350,14 @@ final class PlanTreeView {
                     request.depth + 1,
                     path);
                 add(craft, child);
-                if (child.depth >= maxDepth() || builtNodes >= BUILD_BUDGET) child.collapsed = true;
+                if (child.depth >= HARD_DEPTH) {
+                    child.truncated = true;
+                    child.built = true;
+                } else if (child.depth >= maxDepth()) child.collapsed = true;
                 else build(child);
             }
         }
-        if (missing.signum() > 0) add(
+        if (missing.signum() > 0 && !atLimit(request)) add(
             request,
             new Node(Kind.MISSING, request, request.materialId, null, missing, request.depth, request.path));
     }
@@ -361,6 +371,12 @@ final class PlanTreeView {
     private void add(Node parentNode, Node child) {
         parentNode.children.add(child);
         builtNodes++;
+    }
+
+    private boolean atLimit(Node parentNode) {
+        if (builtNodes < BUILD_BUDGET) return false;
+        parentNode.truncated = true;
+        return true;
     }
 
     private static BigInteger demand(CraftingGraphSnapshot.MaterialNode material) {
@@ -891,6 +907,7 @@ final class PlanTreeView {
                 node.y * 2 + 22,
                 node.kind == Kind.MISSING ? MISSING_TEXT : textColor,
                 true);
+            if (node.truncated) font.drawString("...", node.x * 2, node.y * 2, 0xFFD36C, true);
         }
         GL11.glPopMatrix();
         GL11.glColor4f(1, 1, 1, 1);
@@ -1013,6 +1030,7 @@ final class PlanTreeView {
                 lines.add(EnumChatFormatting.RED + GuiText.Missing.getLocal() + ": " + amount);
                 break;
         }
+        if (node.truncated) lines.add(EnumChatFormatting.YELLOW + I18n.format("gui.neoecoae.crafting_graph.too_large"));
         return lines;
     }
 

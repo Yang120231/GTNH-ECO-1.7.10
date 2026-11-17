@@ -9,6 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CalculationStrategy;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
@@ -26,9 +27,14 @@ public final class ECOPlanningService {
 
     public static Future<ICraftingPlan> begin(World level, GridView grid, IActionSource source, AEKey goal, long amount,
         CalculationStrategy strategy, ECOPlannerOptions options) {
+        return begin(grid, grid.captureCraftingService(level), goal, amount, strategy, options);
+    }
+
+    public static Future<ICraftingPlan> begin(GridView grid, CraftingServiceView catalog, AEKey goal, long amount,
+        CalculationStrategy strategy, ECOPlannerOptions options) {
         var inventory = ECOPlannerInventory.capture(grid);
         ECOCraftingPlannerService.Session session = PLANNER.createSession(
-            grid.captureCraftingService(level),
+            catalog,
             goal,
             inventory,
             options.cyclePlanningEnabled(),

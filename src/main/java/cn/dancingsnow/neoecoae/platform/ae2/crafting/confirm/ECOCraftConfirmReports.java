@@ -121,7 +121,8 @@ public final class ECOCraftConfirmReports {
                     diagnostic);
         }
         PlanningStatus status = result == null ? null : result.status();
-        List<CraftingPlanSummaryEntry> summary = summary(plan, grid, source);
+        Map<AEKey, BigInteger> crafted = CraftingPlanSummary.craftedAmounts(plan);
+        List<CraftingPlanSummaryEntry> summary = summary(plan, grid, source, crafted);
         boolean exact = ECOCraftConfirmRules.useExactMaterialTable(
             status,
             plan.simulation(),
@@ -139,9 +140,10 @@ public final class ECOCraftConfirmReports {
             for (CraftingPlanSummaryEntry entry : summary) rows.add(
                 new ECOCraftConfirmReport.Row(
                     entry.getWhat(),
-                    entry.getStoredAmount(),
-                    entry.getMissingAmount(),
-                    entry.getCraftAmount()));
+                    BigInteger.valueOf(entry.getStoredAmount()),
+                    BigInteger.valueOf(entry.getMissingAmount()),
+                    crafted.getOrDefault(entry.getWhat(), BigInteger.ZERO),
+                    BigInteger.ZERO));
         }
         rows = withRoundsAndStock(rows, plan, grid);
         BigInteger theoretical = result == null ? BigInteger.ZERO : result.theoreticalBytes();
@@ -197,10 +199,10 @@ public final class ECOCraftConfirmReports {
     }
 
     private static List<CraftingPlanSummaryEntry> summary(ICraftingPlan plan, @Nullable GridView grid,
-        @Nullable IActionSource source) {
+        @Nullable IActionSource source, Map<AEKey, BigInteger> crafted) {
         if (grid != null && source != null) {
             try {
-                return CraftingPlanSummary.fromJob(grid, source, plan)
+                return CraftingPlanSummary.fromJob(grid, source, plan, crafted)
                     .getEntries();
             } catch (RuntimeException failure) {
                 LOGGER.warn("[craft-confirm] ECO summary failed for {}", plan.finalOutput(), failure);
@@ -209,24 +211,22 @@ public final class ECOCraftConfirmReports {
         // Without a live grid, describe the plan itself: used and emitted as stored, missing as missing.
         Map<AEKey, long[]> amounts = new LinkedHashMap<>();
         for (var entry : plan.usedItems())
-            amounts.computeIfAbsent(entry.getKey(), key -> new long[3])[0] += entry.getLongValue();
+            amounts.computeIfAbsent(entry.getKey(), key -> new long[2])[0] += entry.getLongValue();
         for (var entry : plan.missingItems())
-            amounts.computeIfAbsent(entry.getKey(), key -> new long[3])[1] += entry.getLongValue();
-        for (var task : plan.patternTimes()
-            .entrySet())
-            for (var output : task.getKey()
-                .getOutputs())
-                amounts.computeIfAbsent(
-                    output.what(),
-                    key -> new long[3])[2] += cn.dancingsnow.neoecoae.crafting.amount.NEMath
-                        .saturatingMultiply(output.amount(), task.getValue());
+            amounts.computeIfAbsent(entry.getKey(), key -> new long[2])[1] += entry.getLongValue();
+        for (var entry : plan.emittedItems())
+            amounts.computeIfAbsent(entry.getKey(), key -> new long[2])[0] += entry.getLongValue();
+        crafted.keySet()
+            .forEach(key -> amounts.computeIfAbsent(key, ignored -> new long[2]));
         List<CraftingPlanSummaryEntry> entries = new ArrayList<>(amounts.size());
         for (var entry : amounts.entrySet()) entries.add(
             new CraftingPlanSummaryEntry(
                 entry.getKey(),
                 entry.getValue()[1],
                 entry.getValue()[0],
-                entry.getValue()[2]));
+                crafted.getOrDefault(entry.getKey(), BigInteger.ZERO)
+                    .min(BigInteger.valueOf(Long.MAX_VALUE))
+                    .longValueExact()));
         Collections.sort(entries);
         return entries;
     }

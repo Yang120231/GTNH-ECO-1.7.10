@@ -62,7 +62,7 @@ public final class NativeECOCpuSelection {
     public static ICraftingLink submit(Iterable<CraftingCPUCluster> published, IGrid grid, NativeECOCraftingJob job,
         @Nullable ICraftingRequester requester, @Nullable ICraftingCPU target, boolean prioritizePower,
         BaseActionSource source, boolean follow) {
-        if (job.isSimulation()) return null;
+        if (job.isSimulation() || !job.belongsToGrid(grid)) return null;
         if (target != null && !(target instanceof NativeECOCpu)) return null;
         List<NativeECOCpu> candidates = new ArrayList<>();
         for (CraftingCPUCluster cpu : published)
@@ -98,7 +98,7 @@ public final class NativeECOCpuSelection {
             return null;
         }
         // 1.21: with no ECO CPU able to take it, a plan native CPUs can run falls back to them.
-        if (target != null || !job.supportsNativeCpus() || !job.belongsToGrid(grid)) return null;
+        if (target != null || !job.supportsNativeCpus()) return null;
         List<CraftingCPUCluster> natives = new ArrayList<>();
         for (CraftingCPUCluster cpu : published) if (!(cpu instanceof NativeECOCpu) && cpu.isActive()
             && !cpu.isBusy()

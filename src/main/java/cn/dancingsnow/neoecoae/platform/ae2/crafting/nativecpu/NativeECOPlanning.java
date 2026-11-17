@@ -25,6 +25,7 @@ import appeng.crafting.MECraftingInventory;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningService;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CalculationStrategy;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
@@ -127,15 +128,23 @@ public final class NativeECOPlanning {
                 entry.getKey()
                     .toNative(entry.getLongValue()),
                 Actionable.MODULATE);
+        var catalog = view.captureCraftingService(world);
         var future = ECOPlanningService.begin(
-            world,
             view,
-            action,
+            catalog,
             key,
             output.getStackSize(),
             CalculationStrategy.REPORT_MISSING_ITEMS,
             cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions.from(host));
-        Pending pending = new Pending(world, grid, output, future, snapshot, callback, ServerTasks.captureSession());
+        Pending pending = new Pending(
+            world,
+            grid,
+            output,
+            future,
+            snapshot,
+            callback,
+            ServerTasks.captureSession(),
+            catalog);
         PENDING.add(pending);
         return pending;
     }
@@ -166,7 +175,8 @@ public final class NativeECOPlanning {
                         String.valueOf(failed.getCause()),
                         pending.world,
                         pending.grid,
-                        pending.session));
+                        pending.session,
+                        pending.catalog));
             }
         }
     }
@@ -192,10 +202,11 @@ public final class NativeECOPlanning {
         final MECraftingInventory snapshot;
         final ICraftingCallback callback;
         final ServerTasks.Session session;
+        final CraftingServiceView catalog;
         private NativeECOCraftingJob job;
 
         Pending(World world, IGrid grid, IAEStack<?> output, Future<ICraftingPlan> source, MECraftingInventory snapshot,
-            ICraftingCallback callback, ServerTasks.Session session) {
+            ICraftingCallback callback, ServerTasks.Session session, CraftingServiceView catalog) {
             this.world = world;
             this.grid = grid;
             this.output = output.copy();
@@ -203,10 +214,22 @@ public final class NativeECOPlanning {
             this.snapshot = snapshot;
             this.callback = callback;
             this.session = session;
+            this.catalog = catalog;
         }
 
         private synchronized NativeECOCraftingJob wrap(ICraftingPlan plan) {
-            if (job == null) job = new NativeECOCraftingJob(
+            if (job != null) return job;
+            if (!session.isRunning() || !catalog.isCatalogCurrent()) {
+                job = new NativeECOCraftingJob(
+                    null,
+                    output,
+                    snapshot,
+                    "Crafting network or recipes changed during planning; retry the request",
+                    world,
+                    grid,
+                    session,
+                    catalog);
+            } else job = new NativeECOCraftingJob(
                 plan,
                 plan.finalOutput()
                     .what()
@@ -217,7 +240,8 @@ public final class NativeECOPlanning {
                 "",
                 world,
                 grid,
-                session);
+                session,
+                catalog);
             return job;
         }
 

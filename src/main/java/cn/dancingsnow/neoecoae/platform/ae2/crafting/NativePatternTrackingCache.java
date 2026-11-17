@@ -1,6 +1,5 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting;
 
-import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Map;
@@ -15,8 +14,9 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.IGridStorage;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
-import appeng.api.networking.events.MENetworkCraftingPatternChange;
+import appeng.api.networking.crafting.ICraftingPostPatternChangeListener;
 import appeng.api.networking.events.MENetworkEventSubscribe;
+import appeng.api.networking.events.MENetworkPostCacheConstruction;
 import appeng.me.cache.CraftingGridCache;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
@@ -24,10 +24,11 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 /** Native topology/provider invalidation for immutable source planner snapshots. No jobs or stock live here. */
 public final class NativePatternTrackingCache implements IGridCache {
 
-    private static final Field REFRESH = refreshField();
     private final IGrid grid;
+    private final ICraftingPostPatternChangeListener patternsPublished = this::invalidate;
     private volatile long revision;
-    private volatile boolean stable;
+    private volatile long catalogRevision;
+    private long recipeGeneration = PatternRuntime.reloadGeneration();
     private Set<AEKey> candidates = java.util.Collections.emptySet();
     private final Map<World, CraftingServiceView> views = new IdentityHashMap<>();
     /** Survives view invalidation: substitute acceptance depends only on the pattern, the key and the world. */
@@ -61,33 +62,24 @@ public final class NativePatternTrackingCache implements IGridCache {
         return substitutionPatterns;
     }
 
-    private static Field refreshField() {
-        try {
-            Field field = CraftingGridCache.class.getDeclaredField("updateList");
-            field.setAccessible(true);
-            return field;
-        } catch (ReflectiveOperationException failure) {
-            throw new IllegalStateException("Pinned native provider refresh field changed", failure);
-        }
-    }
-
     public long revision() {
         return revision;
     }
 
-    public boolean stable() {
-        return stable;
+    long catalogRevision() {
+        return catalogRevision;
     }
 
     private synchronized void invalidate() {
         revision++;
-        stable = false;
+        catalogRevision++;
         views.clear();
     }
 
     @MENetworkEventSubscribe
-    public void patternsChanged(MENetworkCraftingPatternChange event) {
-        invalidate();
+    public void afterCacheConstruction(MENetworkPostCacheConstruction event) {
+        ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
+        ((CraftingGridCache) crafting).addPostPatternChangeListeners(patternsPublished);
     }
 
     @Override
@@ -114,17 +106,17 @@ public final class NativePatternTrackingCache implements IGridCache {
     public void populateGridStorage(IGridStorage storage) { /* Only transient native cache identities are kept. */ }
 
     @Override
-    public void onUpdateTick() {
-        try {
-            stable = !REFRESH.getBoolean(grid.getCache(ICraftingGrid.class));
-        } catch (IllegalAccessException failure) {
-            throw new IllegalStateException("Cannot inspect native provider refresh", failure);
-        }
-    }
+    public void onUpdateTick() {}
 
     public synchronized CraftingServiceView view(World world, boolean captureInventory) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
         if (world == null) throw new IllegalStateException("Cannot capture a recipe view without its world");
+        long generation = PatternRuntime.reloadGeneration();
+        if (recipeGeneration != generation) {
+            recipeGeneration = generation;
+            substitutes.clear();
+            invalidate();
+        }
         var current = views.get(world);
         if (!captureInventory && current != null) return current;
         Set<AEKey> fresh = new HashSet<>(
@@ -144,7 +136,7 @@ public final class NativePatternTrackingCache implements IGridCache {
         if (current == null) {
             NativeSubstitutionIndex index = substitutes.computeIfAbsent(world, NativeSubstitutionIndex::new);
             index.begin(fresh);
-            current = new CraftingServiceView(grid, world, fresh, this, index);
+            current = new CraftingServiceView(grid, world, fresh, this, index, generation);
             index.retain(current.nativePatterns());
             views.put(world, current);
         }

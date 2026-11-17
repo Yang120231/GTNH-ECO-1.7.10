@@ -32,6 +32,9 @@ public final class CraftingServiceView
 
     private final ICraftingGrid crafting;
     private final NativePatternTrackingCache tracking;
+    private final long revision;
+    private final long catalogRevision;
+    private final long recipeGeneration;
     private final Map<ICraftingPatternDetails, NativePatternDetails> patterns = new IdentityHashMap<>();
     private final Map<AEKey, List<IPatternDetails>> byOutput;
     private final Set<AEKey> craftables;
@@ -39,9 +42,12 @@ public final class CraftingServiceView
     private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, ICraftingProvider>> providers = new IdentityHashMap<>();
 
     CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates, NativePatternTrackingCache tracking,
-        NativeSubstitutionIndex substitutes) {
+        NativeSubstitutionIndex substitutes, long recipeGeneration) {
         crafting = grid.getCache(ICraftingGrid.class);
         this.tracking = tracking;
+        this.revision = tracking.revision();
+        this.catalogRevision = tracking.catalogRevision();
+        this.recipeGeneration = recipeGeneration;
         // The source compiler runs off-thread. Resolve every native pattern/recipe query here on the server thread.
         Set<AEKey> keys = new LinkedHashSet<>(candidates);
         Set<AEKey> outputs = new LinkedHashSet<>();
@@ -177,11 +183,15 @@ public final class CraftingServiceView
 
     @Override
     public long neoecoae$getProviderRevision() {
-        return tracking.revision();
+        return revision;
     }
 
     @Override
     public boolean neoecoae$isProviderSnapshotStable() {
-        return tracking.stable();
+        return isCatalogCurrent() && revision == tracking.revision();
+    }
+
+    public boolean isCatalogCurrent() {
+        return catalogRevision == tracking.catalogRevision() && recipeGeneration == PatternRuntime.reloadGeneration();
     }
 }

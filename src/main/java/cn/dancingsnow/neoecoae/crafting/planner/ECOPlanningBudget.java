@@ -63,7 +63,7 @@ public final class ECOPlanningBudget implements ECOCancellation {
 
     /** Starts only after material closure and execution validation succeeded. */
     public synchronized void beginOptimization() {
-        if (optimizationDeadline == Long.MAX_VALUE) optimizationDeadline = Math
+        if (improveCompletedPlans() && optimizationDeadline == Long.MAX_VALUE) optimizationDeadline = Math
             .min(OPTIMIZATION_TOTAL_NANOS, clock.getAsLong() - started + OPTIMIZATION_MAX_NANOS);
     }
 

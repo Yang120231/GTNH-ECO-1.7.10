@@ -283,7 +283,7 @@ public final class JointRouteOptimizer {
                     bootstrap,
                     cycle,
                     prefixRequired,
-                    inventory.toKeyCounter(),
+                    inventory,
                     new SolveState(inventory),
                     cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(),
                     cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf(),

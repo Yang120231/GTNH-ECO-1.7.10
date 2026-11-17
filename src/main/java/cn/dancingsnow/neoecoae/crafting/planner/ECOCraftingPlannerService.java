@@ -149,7 +149,7 @@ public final class ECOCraftingPlannerService {
                                 if (!ECOPlanningImprovements.executable(ready)) return false;
                                 if (accepted[0] == null || ECOPlanningImprovements.better(ready, accepted[0]))
                                     accepted[0] = ready;
-                                sharedBudget.beginOptimization();
+                                if (callerCancellation.improveCompletedPlans()) sharedBudget.beginOptimization();
                                 return true;
                             });
                     } catch (InterruptedException | RuntimeException e) {

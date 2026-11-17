@@ -205,8 +205,8 @@ public final class SolveState {
     /** Commits external DAG work and its cycle as one copy-and-replace transaction. */
     boolean applyCycleTransaction(int componentId, Map<AEKey, Long> requiredOutputs, CycleSolveResult cycle,
         Map<AEKey, Long> ownedCycleReservations, Map<AEKey, Long> plannedCycleInputs,
-        Map<AEKey, Long> additionalCycleReservations, KeyCounter inventory, KeyCounter directExternalReservations,
-        List<SolveState> externalStates) {
+        Map<AEKey, Long> additionalCycleReservations, PlannerInventorySnapshot inventory,
+        KeyCounter directExternalReservations, List<SolveState> externalStates) {
         if (cycle == null || cycle.status() != cn.dancingsnow.neoecoae.crafting.planner.cycle.CycleSolveStatus.SUCCESS
             || !cycle.seedShortfall()
                 .isEmpty())
@@ -257,8 +257,8 @@ public final class SolveState {
                 }
             }
             for (var entry : candidate.used) {
-                if (!candidate.stored.isUnbounded(entry.getKey()) && entry.getValue()
-                    .compareTo(PlannerAmount.of(inventory.get(entry.getKey()))) > 0) return false;
+                if (!inventory.isUnbounded(entry.getKey()) && entry.getValue()
+                    .compareTo(inventory.amountOf(entry.getKey())) > 0) return false;
             }
             replaceWith(candidate);
             return true;

@@ -30,7 +30,6 @@ import cn.dancingsnow.neoecoae.crafting.planner.trace.PlannerDiagnostic;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
-import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.jdk.JdkCompat;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceSet;
@@ -126,17 +125,6 @@ final class SeedFloors {
                 .subtract(floor.reserved());
             if (missing.signum() > 0) result.merge(floor.key(), missing, PlannerAmount::add);
         }
-        return result;
-    }
-
-    KeyCounter reduce(KeyCounter inventory) {
-        if (floors.isEmpty()) return inventory;
-        KeyCounter result = new KeyCounter();
-        for (var entry : inventory) result.add(entry.getKey(), entry.getLongValue());
-        reservations().forEach((key, amount) -> {
-            long held = result.get(key);
-            if (held != Long.MAX_VALUE) result.set(key, Math.max(0L, held - amount.longValueExact()));
-        });
         return result;
     }
 

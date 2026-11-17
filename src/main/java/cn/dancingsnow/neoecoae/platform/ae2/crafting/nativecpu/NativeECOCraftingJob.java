@@ -9,6 +9,7 @@ import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.crafting.MECraftingInventory;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
@@ -23,14 +24,16 @@ public final class NativeECOCraftingJob implements ICraftingJob {
     private final net.minecraft.world.World world;
     private final appeng.api.networking.IGrid grid;
     private final cn.dancingsnow.neoecoae.platform.network.ServerTasks.Session session;
+    private final CraftingServiceView catalog;
     private volatile Boolean nativeCpuSupport;
 
     NativeECOCraftingJob(ICraftingPlan plan, IAEStack<?> output, MECraftingInventory snapshot, String error,
         net.minecraft.world.World world, appeng.api.networking.IGrid grid,
-        cn.dancingsnow.neoecoae.platform.network.ServerTasks.Session session) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.Session session, CraftingServiceView catalog) {
         this.world = world;
         this.grid = grid;
         this.session = session;
+        this.catalog = catalog;
         this.plan = plan;
         this.output = output.copy();
         this.snapshot = snapshot;
@@ -39,7 +42,7 @@ public final class NativeECOCraftingJob implements ICraftingJob {
 
     /** Planned against this grid in the running server session, including CPUs in other loaded dimensions. */
     public boolean belongsToGrid(appeng.api.networking.IGrid grid) {
-        return this.grid == grid && session.isRunning();
+        return this.grid == grid && session.isRunning() && catalog.isCatalogCurrent();
     }
 
     public ICraftingPlan sourcePlan() {
@@ -67,7 +70,8 @@ public final class NativeECOCraftingJob implements ICraftingJob {
             error,
             world,
             grid,
-            session);
+            session,
+            catalog);
     }
 
     /**
@@ -79,7 +83,7 @@ public final class NativeECOCraftingJob implements ICraftingJob {
             || !better.finalOutput()
                 .equals(plan.finalOutput()))
             throw new IllegalArgumentException("An improved plan must answer the same request");
-        return new NativeECOCraftingJob(better, output, snapshot, error, world, grid, session);
+        return new NativeECOCraftingJob(better, output, snapshot, error, world, grid, session, catalog);
     }
 
     @Override
