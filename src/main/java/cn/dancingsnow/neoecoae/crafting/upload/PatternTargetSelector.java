@@ -150,6 +150,7 @@ public final class PatternTargetSelector {
 
     public static AutoChoice choose(List<Evaluation> sorted) {
         List<Evaluation> routes = new ArrayList<>();
+        List<Evaluation> unverified = new ArrayList<>();
         boolean unknownSelector = false;
         for (Evaluation evaluation : sorted) {
             String reason = evaluation.match.reason;
@@ -158,13 +159,15 @@ public final class PatternTargetSelector {
                 || "gui.neoecoae.pattern_upload.reason.tunnel_missing".equals(reason)
                 || "gui.neoecoae.pattern_upload.reason.tunnel_invalid".equals(reason))
                 return new AutoChoice(null, reason);
-            if (evaluation.match.allowsAuto()
-                || evaluation.match.level == MatchResult.Level.UNVERIFIED && evaluation.match.allowsMapping()
-                    && !evaluation.match.categoryId.isEmpty()
-                    && !evaluation.match.routeSignature.isEmpty())
-                routes.add(evaluation);
+            if (evaluation.match.allowsAuto()) routes.add(evaluation);
+            else if (evaluation.match.level == MatchResult.Level.UNVERIFIED && evaluation.match.allowsMapping()
+                && !evaluation.match.categoryId.isEmpty()
+                && !evaluation.match.routeSignature.isEmpty()) unverified.add(evaluation);
             else if ("gui.neoecoae.pattern_upload.reason.circuit_unknown".equals(reason)) unknownSelector = true;
         }
+        // Bindable but unproven receivers must not make a verified route ambiguous.
+        // Keep the existing unverified fallback only when no receiver proves the route.
+        if (routes.isEmpty()) routes.addAll(unverified);
         if (unknownSelector) return new AutoChoice(
             null,
             routes.isEmpty() ? "gui.neoecoae.pattern_upload.reason.circuit_unknown"
