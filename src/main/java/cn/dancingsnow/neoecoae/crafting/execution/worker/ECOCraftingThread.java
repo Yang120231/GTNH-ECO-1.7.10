@@ -887,6 +887,10 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         if (belongsToJob(jobId)) {
             // Do not eject here: completion can be reported inside the current output insertion.
             completedJobOutputsReleased = true;
+            if (recoveryState == RecoveryState.WAITING_FOR_OWNER) {
+                recoveryState = RecoveryState.ACTIVE;
+                owningCpuMissingSinceGameTime = Long.MIN_VALUE;
+            }
             setChanged();
         }
     }

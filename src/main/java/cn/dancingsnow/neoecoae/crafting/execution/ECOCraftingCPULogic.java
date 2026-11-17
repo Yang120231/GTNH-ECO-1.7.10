@@ -278,7 +278,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         // Thunderbolt 会包装此处的 executeCrafting 调用；快速路径的批量操作不消耗此慢速路径额度。
         taskScheduler.beginSharedProbeBudget(operationLimit);
         try {
-            while (job != null) {
+            var current = job;
+            while (current != null && job == current && !current.suspended) {
                 int pushed = executeCrafting(operationLimit, cc, eg, level);
                 var pass = taskScheduler.lastPass();
                 taskScheduler.consumeSharedProbeBudget(pass.normalProbes());
@@ -353,7 +354,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             current,
             inventory,
             pattern -> collectAvailableProviders(craftingService, pattern),
-            () -> job == current,
+            () -> job == current && !current.suspended,
             createCpuContext(TickClock.currentTick()),
             this::invokeNormalProvider);
         return pass.totalPushed();

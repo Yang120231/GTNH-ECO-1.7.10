@@ -1,8 +1,7 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
 import appeng.api.config.Actionable;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
-import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
+import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
@@ -16,6 +15,9 @@ final class ECOCraftingCpuPersistence {
     }
 
     void read(CompoundTag data, HolderLookup.Provider registries) {
+        if (ECOCraftingJobLifecycle.isPersistedJobTerminated(host.cpu.getLevel(), data)) {
+            throw new IllegalStateException("Persisted ECO crafting CPU belongs to a terminal job");
+        }
 
         if (host.nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
             bridge.readTracking(
@@ -51,12 +53,6 @@ final class ECOCraftingCpuPersistence {
         host.outputDeliveryForPersistence()
             .loadPendingFinalOutputs(jobData, registries);
         host.loadJobAttachments(jobData, registries);
-
-        GridView grid = host.cpu.getGrid();
-        if (grid != null) {
-            // Publish the recovered link only after the complete job has decoded successfully.
-            ((ICraftingService) grid.getCraftingService()).addLink(restoredJob.link);
-        }
 
         // Migrate the legacy standalone final-output buffer into the shared CPU inventory once.
         long buffered = jobData.getLong("bufferedFinalOutput");

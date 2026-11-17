@@ -230,9 +230,9 @@ public class ECOCraftingCPU implements ICraftingCPU {
 
     /**
      * Restores this CPU. The caller treats a null {@link #getPlan()} as "this CPU could not be restored"
-     * and keeps the persisted data for a later retry, so the plan is decoded and validated <em>before</em>
-     * the logic is loaded: restoring a job registers a crafting link with the grid and can push items back
-     * into network storage, and neither may happen for a CPU that will be rejected and replayed.
+     * and keeps the persisted data for a later retry. Decode the plan before loading the logic so a rejected
+     * snapshot cannot push items back into network storage. The cluster publishes the restored link after
+     * settling its capacity reservation.
      */
     public void readFromNBT(CompoundTag data, HolderLookup.Provider registries) {
         CraftingPlan restoredPlan = null;

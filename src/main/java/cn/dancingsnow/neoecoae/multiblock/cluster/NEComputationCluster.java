@@ -205,7 +205,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
      * Own real byte capacity from installed computation cells, ignoring network pooling.
      */
     public long getTotalStorage() {
-        return collectStorage(upperDrives) + collectStorage(lowerDrives);
+        return NEMath.saturatingAdd(collectStorage(upperDrives), collectStorage(lowerDrives));
     }
 
     /**
@@ -266,7 +266,10 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
      * exactly as the 1.21 baseline publishes it. Free bytes are not required; a too-small CPU is still listed.
      */
     public boolean shouldPublishPlaceholder() {
-        return !reservationsPending && !memberRemovalPending && isNetworkRepresentative() && hasFreeThread();
+        return !reservationsPending && !memberRemovalPending
+            && isNetworkRepresentative()
+            && (networkCluster == null || !networkCluster.hasPendingCapacity())
+            && hasFreeThread();
     }
 
     public int getActiveCPUCount() {
@@ -613,10 +616,21 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
 
     public void pickup(ICraftingPlan plan, ECOCraftingCPU cpu) {
         putActiveCpu(plan, cpu);
-        // Restored CPUs are registered after the cluster's initial formed-state capacity calculation.
-        // Recalculate immediately so persisted jobs consume their bytes and jobs restored without enough
-        // computation cells are cancelled before they can intercept items from network storage.
-        if (!usesCompactGrid() || !MBCalculator.isModificationInProgress()) recalculateRemainingStorage();
+        deferCapacitySettlement();
+    }
+
+    public void deferCapacitySettlement() {
+        reservationsPending = true;
+        NELogicalNetworkManager.requestComputationCapacityRefresh(this);
+    }
+
+    public void settleCapacity() {
+        reservationsPending = false;
+        recalculateRemainingStorage();
+    }
+
+    public boolean hasPendingCapacity() {
+        return reservationsPending;
     }
 
     @Override
@@ -624,8 +638,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         super.updateFormed(formed);
         if (formed) {
             if (usesCompactGrid() && MBCalculator.isModificationInProgress()) {
-                reservationsPending = true;
-                NELogicalNetworkManager.requestComputationCapacityRefresh(this);
+                deferCapacitySettlement();
             } else recalculateRemainingStorage();
             // The placeholder CPU is created lazily by getFakeCPU() and must never be replaced while the
             // cluster lives, so it is deliberately not (re)assigned here.
@@ -818,7 +831,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     public void recalculateRemainingStorage() {
-        reservationsPending = false;
+        if (reservationsPending) return;
         long totalStorage = getTotalStorage();
         long usedStorage = getActiveJobBytes();
 
@@ -831,7 +844,11 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
 
         List<ICraftingPlan> plansToKill = new ArrayList<>(this.activeCpus.keySet());
         for (ICraftingPlan plan : plansToKill) {
+            ECOCraftingCPU cpu = activeCpus.get(plan);
+            if (cpu == null || cpu.getLogic()
+                .isMarkedForDeletion()) continue;
             this.killCpu(plan, false, false);
+            if (networkCluster != null ? networkCluster.reservationsFit() : getActiveJobBytes() <= totalStorage) break;
         }
 
         this.availableStorage = Math.max(0, totalStorage - getActiveJobBytes());
@@ -858,6 +875,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     public boolean replaceMergedPlan(ECOCraftingCPU cpu, ICraftingPlan next) {
         ICraftingPlan previous = cpu.getPlan();
         if (previous == null || activeCpus.get(previous) != cpu || bigOrderPlans.contains(previous)) return false;
+        if (reservationsPending || networkCluster != null && networkCluster.hasPendingCapacity()) return false;
         long extra = next.bytes() - previous.bytes();
         if (next.bytes() < 0 || extra < 0 || extra > getAvailableStorage()) return false;
         removeActiveCpu(previous);
@@ -869,8 +887,11 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
 
     private long getActiveJobBytes() {
         long usedStorage = 0L;
-        for (ICraftingPlan plan : new ArrayList<>(this.activeCpus.keySet())) {
-            if (bigOrderPlans.contains(plan)) continue;
+        for (var entry : activeCpus.entrySet()) {
+            ICraftingPlan plan = entry.getKey();
+            if (bigOrderPlans.contains(plan) || entry.getValue()
+                .getLogic()
+                .isMarkedForDeletion()) continue;
             usedStorage = NEMath.saturatingAdd(usedStorage, Math.max(0L, plan.bytes()));
         }
         return usedStorage;
@@ -897,6 +918,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     public List<ECOCraftingCPU> getActiveCPUs() {
+        if (reservationsPending) return Collections.emptyList();
         List<ECOCraftingCPU> cpus = new ArrayList<>();
         for (ECOCraftingCPU cpu : getAllocatedCPUs()) {
             if (cpu.getLogic()
@@ -919,6 +941,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
      */
     @Override
     public boolean pruneInactiveCPUs() {
+        if (reservationsPending) return false;
         List<ICraftingPlan> killList = null;
         for (Map.Entry<ICraftingPlan, ECOCraftingCPU> entry : activeCpus.entrySet()) {
             ECOCraftingCPU cpu = entry.getValue();

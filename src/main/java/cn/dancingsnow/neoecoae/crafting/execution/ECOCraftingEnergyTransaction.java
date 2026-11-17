@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.util.function.LongSupplier;
 
 import org.apache.logging.log4j.LogManager;
@@ -24,7 +25,7 @@ final class ECOCraftingEnergyTransaction {
 
     private final Runnable markDirty;
     private final LongSupplier currentTick;
-    // Exact credit includes interface rounding and refunds the network could not accept.
+    // Credit is kept in CONFIG-normalized units, including rounding residue from the raw grid boundary.
     private BigDecimal prepaidEnergyCredit = BigDecimal.ZERO;
     private long lastAccountingFailureLogTick = Long.MIN_VALUE;
     private long lastIdleRefundAttemptTick = Long.MIN_VALUE;
@@ -123,26 +124,21 @@ final class ECOCraftingEnergyTransaction {
 
     private void refundEnergyOrRetainCredit(IEnergyGrid service, BigDecimal amount) {
         if (amount.signum() <= 0) return;
-        // Round refunds down; retain every unrepresentable unit in the exact ledger.
-        double offered = Math.min(Double.MAX_VALUE, amount.doubleValue());
-        if (decimal(offered).compareTo(amount) > 0) offered = Math.nextDown(offered);
+        var multiplier = decimal(PowerMultiplier.CONFIG.multiplier);
+        var rawAmount = amount.multiply(multiplier);
+        double offered = Math.min(Double.MAX_VALUE, rawAmount.doubleValue());
+        if (decimal(offered).compareTo(rawAmount) > 0) offered = Math.nextDown(offered);
         if (offered <= 0) {
             restoreEnergyCredit(amount);
             return;
         }
+        restoreEnergyCredit(
+            rawAmount.subtract(decimal(offered))
+                .divide(multiplier, MathContext.DECIMAL128));
         try {
-            double overflow = service.injectPower(offered, Actionable.MODULATE);
-            if (!Double.isFinite(overflow) || overflow < 0 || overflow > offered) {
-                restoreEnergyCredit(amount);
-                logAccountingFailure("invalid refund overflow " + overflow + " of " + offered, null);
-                return;
-            }
-            restoreEnergyCredit(
-                amount.subtract(decimal(offered))
-                    .add(decimal(overflow)));
+            service.injectPower(offered, Actionable.MODULATE);
         } catch (RuntimeException failure) {
-            restoreEnergyCredit(amount);
-            logAccountingFailure("refund failed for " + amount + " energy", failure);
+            logAccountingFailure("unknown refund outcome for " + offered + " raw AE; not retrying", failure);
         }
     }
 

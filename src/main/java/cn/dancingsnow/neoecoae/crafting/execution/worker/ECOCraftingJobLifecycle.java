@@ -77,18 +77,12 @@ public final class ECOCraftingJobLifecycle extends net.minecraft.world.WorldSave
         if (link.hasUUID("craftId")) finish(level, link.getUUID("craftId"), false);
     }
 
-    /**
-     * Repairs the obsolete restore-failure cancellation marker once the complete persisted CPU has decoded again.
-     * Completed jobs remain terminal; only the false marker formerly written by the quarantine path is removed.
-     */
-    public static void resumePersistedJob(@Nullable World level, CompoundTag cpuData) {
+    public static boolean isPersistedJobTerminated(@Nullable World level, CompoundTag cpuData) {
+        if (!cpuData.contains("job")) return false;
         CompoundTag link = cpuData.getCompound("job")
             .getCompound("link");
-        if (!link.hasUUID("craftId")) return;
-        var data = get(level);
-        if (data != null && Boolean.FALSE.equals(data.terminatedJobs.remove(link.getUUID("craftId")))) {
-            data.markDirty();
-        }
+        UUID jobId = link.hasUUID("craftId") ? link.getUUID("craftId") : UUID.fromString(link.getString("CraftID"));
+        return isTerminated(level, jobId);
     }
 
     private static ECOCraftingJobLifecycle load(CompoundTag tag, HolderLookup.Provider registries) {

@@ -253,8 +253,14 @@ public class NEComputationNetworkCluster {
         return getReservedStorage() <= getTotalStorageCapacity();
     }
 
+    boolean hasPendingCapacity() {
+        for (NEComputationCluster member : members) if (member.hasPendingCapacity()) return true;
+        return false;
+    }
+
     public ICraftingSubmitResult submitJob(GridView grid, ICraftingPlan job, IActionSource src,
         ICraftingRequester requestingMachine) {
+        if (hasPendingCapacity()) return CraftingSubmitResult.CPU_OFFLINE;
         boolean anyActive = false;
         for (NEComputationCluster member : members) {
             if (member.hasUnvalidatedRemoval()) return CraftingSubmitResult.CPU_OFFLINE;

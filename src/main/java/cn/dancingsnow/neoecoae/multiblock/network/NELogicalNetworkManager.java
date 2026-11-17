@@ -156,6 +156,7 @@ public final class NELogicalNetworkManager {
         state.pendingGridRefresh.clear();
         boolean computationChanged = state.computationDirty;
         state.computationDirty = false;
+        Set<NetworkGroupKey> retunedGroups = null;
         Map<IGrid, ECOComputationSystemBlockEntity> plannerSources = new IdentityHashMap<>();
         for (NECluster<?> cluster : pending) {
             if (!cluster.isDestroyed() && getLevel(cluster) == level) {
@@ -179,6 +180,11 @@ public final class NELogicalNetworkManager {
                         assignComputationFrequencyIfNeeded(computation, state.computation);
                         NetworkGroupKey key = computationNetworkKey(computation);
                         if (!key.equals(oldKey)) computationChanged = true;
+                        if (oldKey != null && oldKey.frequency != key.frequency) {
+                            if (retunedGroups == null) retunedGroups = new HashSet<>();
+                            retunedGroups.add(oldKey);
+                            retunedGroups.add(key);
+                        }
                         state.computationKeys.put(computation, key);
                     } else if (state.computation.remove(computation)) {
                         state.computationKeys.remove(computation);
@@ -193,7 +199,7 @@ public final class NELogicalNetworkManager {
                 .nativeServer().theProfiler;
             profiler.startSection("ecoComputationGroups");
             try {
-                rebuildComputation(state);
+                rebuildComputation(state, retunedGroups);
             } finally {
                 profiler.endSection();
             }
@@ -208,12 +214,13 @@ public final class NELogicalNetworkManager {
             List<NEComputationCluster> capacity = new ArrayList<>(state.pendingCapacity);
             state.pendingCapacity.clear();
             for (NEComputationCluster cluster : capacity) {
+                state.awaitingCapacity.remove(cluster);
                 if (cluster.isDestroyed() || cluster.getController() == null
                     || cluster.getController()
                         .getCluster() != cluster)
                     continue;
                 if (cluster.canSettleCapacity(pendingStructures)) {
-                    cluster.recalculateRemainingStorage();
+                    cluster.settleCapacity();
                     cluster.notifyGridCpuChange();
                 } else {
                     state.awaitingCapacity.add(cluster);
@@ -351,7 +358,7 @@ public final class NELogicalNetworkManager {
             .retainAll(activeKeys);
     }
 
-    private static void rebuildComputation(LevelState state) {
+    private static void rebuildComputation(LevelState state, @Nullable Set<NetworkGroupKey> retunedGroups) {
         state.computation.removeIf(cluster -> {
             var controller = cluster.getController();
             boolean stale = cluster.isDestroyed() || controller == null || controller.getCluster() != cluster;
@@ -366,8 +373,13 @@ public final class NELogicalNetworkManager {
             return;
         }
 
+        Map<NEComputationCluster, List<NEComputationCluster>> previousPools = new IdentityHashMap<>();
         Map<NetworkGroupKey, List<NEComputationCluster>> groups = new HashMap<>();
         for (NEComputationCluster cluster : state.computation) {
+            NetworkGroupKey key = state.computationKeys.get(cluster);
+            if (retunedGroups != null && retunedGroups.contains(key)) {
+                previousPools.put(cluster, poolMembers(cluster));
+            }
             cluster.setNetworkCluster(null);
             groups.computeIfAbsent(computationNetworkKey(cluster), ignored -> new ArrayList<>())
                 .add(cluster);
@@ -401,6 +413,8 @@ public final class NELogicalNetworkManager {
         }
         state.computationNetworks.keySet()
             .retainAll(activeKeys);
+        previousPools.forEach(
+            (cluster, previous) -> { if (!previous.equals(poolMembers(cluster))) cluster.deferCapacitySettlement(); });
         // AE2 caches the published placeholder CPUs. Frequency changes do not replace a node,
         // so explicitly republish after grouping is final to update leaders and pooled capacity.
         Set<IGrid> notifiedGrids = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
@@ -410,6 +424,11 @@ public final class NELogicalNetworkManager {
                 .getGrid();
             if (grid != null && notifiedGrids.add(grid.nativeGrid())) cluster.notifyGridCpuChange();
         }
+    }
+
+    private static List<NEComputationCluster> poolMembers(NEComputationCluster cluster) {
+        var pool = cluster.getNetworkCluster();
+        return pool == null ? java.util.Collections.singletonList(cluster) : new ArrayList<>(pool.getMembers());
     }
 
     private static void assignCraftingFrequencyIfNeeded(NECraftingCluster cluster, Set<NECraftingCluster> clusters) {

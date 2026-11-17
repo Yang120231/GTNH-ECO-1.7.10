@@ -163,7 +163,7 @@ final class ECOCraftingTaskScheduler {
         int taskDispatchLimit = Math.max(1, Math.min(MAX_CANDIDATE_INSPECTIONS_PER_EXECUTE, Math.max(0, maxPatterns)));
         int acceptedDispatches = 0;
         BitSet blockedOrderedPhases = new BitSet();
-        while (jobStillActive.getAsBoolean()) {
+        dispatchPass: while (jobStillActive.getAsBoolean()) {
             var candidates = current.executionRuntime == null ? nativeDispatchCandidates(current)
                 : current.executionRuntime.candidates();
             stallDiagnostics.candidates(candidates.size());
@@ -401,8 +401,9 @@ final class ECOCraftingTaskScheduler {
                             },
                             normalPush);
                 }
+                if (dispatch.accepted()) totalPushed = addPushed(totalPushed, dispatch.acceptedCrafts());
+                if (!jobStillActive.getAsBoolean()) break dispatchPass;
                 if (dispatch.accepted()) {
-                    totalPushed = addPushed(totalPushed, dispatch.acceptedCrafts());
                     // Rebuild legal candidates and inputs after every acceptance. There is no
                     // streak cap; callback/tick budgets still bound the work.
                     preferredDispatchPattern = progress.value > 0L ? pattern : null;

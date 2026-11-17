@@ -147,6 +147,7 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
     @Unique
     private boolean neoecoae$isRegisteredCpu(ECOCraftingCPU cpu) {
         if (!(cpu.getCluster() instanceof NEComputationCluster cluster) || cluster.isDestroyed()
+            || cluster.hasPendingCapacity()
             || cluster.findCPU(cpu.getPlan()) != cpu) return false;
         var cpuGrid = cpu.getGrid();
         return cpuGrid != null && cpuGrid.nativeGrid() == grid;

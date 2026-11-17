@@ -484,14 +484,7 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
         if (Double.isFinite(charged) && charged > 0.0D) {
             try {
                 // extractAEPower(CONFIG) reports the divided amount; injectPower takes raw grid energy.
-                double overflow = energyService
-                    .injectPower(PowerMultiplier.CONFIG.multiply(charged), Actionable.MODULATE);
-                if (!Double.isFinite(overflow) || overflow > 0.01D) {
-                    LOGGER.error(
-                        "ECO virtual crafting energy refund was incomplete: overflow {} of {}",
-                        overflow,
-                        charged);
-                }
+                energyService.injectPower(PowerMultiplier.CONFIG.multiply(charged), Actionable.MODULATE);
             } catch (RuntimeException failure) {
                 LOGGER.error("ECO virtual crafting energy refund failed for {} energy", charged, failure);
             }

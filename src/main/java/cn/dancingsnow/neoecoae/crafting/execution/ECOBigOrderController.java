@@ -289,24 +289,22 @@ final class ECOBigOrderController {
         if (order == null) return false;
         if (order.state() != ECOBigOrderState.RUNNING_CHILD) return true;
         var child = host.getJob();
-        if (child == null || child.remainingAmount > 0
-            || !child.waitingFor.list.isEmpty()
-            || host.taskSchedulerForLifecycle()
-                .hasPendingTasks(child)
-            || host.outputDeliveryForPersistence()
-                .hasPendingFinalOutputs()
+        var delivery = host.outputDeliveryForPersistence();
+        if (child == null || !delivery.isRequestedWorkDelivered(child)
+            || delivery.hasPendingFinalOutputs()
             || child.executionRuntime != null && !child.executionRuntime.isComplete()) {
             order.fail("CHILD_INCOMPLETE");
             host.markCpuDirty();
             return true;
         }
         if (order.completeChild()) return false;
-        var previous = host.getJob();
+        if (!child.waitingFor.list.isEmpty()) {
+            ECOCraftingWorkerRecovery.releaseCompletedOutputs(host.cpu.getGrid(), child.link.getCraftingID());
+        }
         host.setJobFromLifecycle(
-            new ExecutingCraftingJob(admission().carrier(), host::postChange, previous.link, previous.playerId));
+            new ExecutingCraftingJob(admission().carrier(), host::postChange, child.link, child.playerId));
         flushIdleInventory();
-        for (var pattern : previous.tasks.keySet())
-            for (var output : pattern.getOutputs()) host.postChange(output.what());
+        for (var pattern : child.tasks.keySet()) for (var output : pattern.getOutputs()) host.postChange(output.what());
         host.outputDeliveryForPersistence()
             .clearPendingFinalOutputs();
         host.taskSchedulerForLifecycle()

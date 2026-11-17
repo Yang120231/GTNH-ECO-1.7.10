@@ -138,15 +138,13 @@ final class ECOCraftingFastPathDispatcher {
                 return null;
             }
         } catch (ECOIndeterminateBatchException failure) {
-            request.job()
-                .failPermanently("INDETERMINATE_EXACT_BATCH_ACCEPTANCE");
+            accounting.failPermanently(request, "INDETERMINATE_EXACT_BATCH_ACCEPTANCE");
             throw failure;
         }
         try {
             accounting.applyExact(request, batch, () -> {}, provider);
         } catch (RuntimeException failure) {
-            request.job()
-                .failPermanently("POST_ACCEPT_EXACT_BATCH_ACCOUNTING_FAILURE");
+            accounting.failPermanently(request, "POST_ACCEPT_EXACT_BATCH_ACCOUNTING_FAILURE");
             throw failure;
         }
         return batch.craftCount();
@@ -218,8 +216,7 @@ final class ECOCraftingFastPathDispatcher {
         try {
             accepted = batch.submit(ignored -> energyTransaction.reserve(energyService, singlePower, batchCount));
         } catch (ECOIndeterminateBatchException failure) {
-            request.job()
-                .failPermanently("INDETERMINATE_FAST_PATH_ACCEPTANCE");
+            accounting.failPermanently(request, "INDETERMINATE_FAST_PATH_ACCEPTANCE");
             throw failure;
         } catch (RuntimeException failure) {
             LOGGER.warn("Atomic batch rejected; inputs restored, trying ordinary provider push", failure);
@@ -234,8 +231,7 @@ final class ECOCraftingFastPathDispatcher {
         try {
             accounting.apply(request, result, () -> {}, provider);
         } catch (RuntimeException failure) {
-            request.job()
-                .failPermanently("POST_ACCEPT_FAST_PATH_ACCOUNTING_FAILURE");
+            accounting.failPermanently(request, "POST_ACCEPT_FAST_PATH_ACCOUNTING_FAILURE");
             throw failure;
         }
         diagnostics.progress(TickClock.currentTick());

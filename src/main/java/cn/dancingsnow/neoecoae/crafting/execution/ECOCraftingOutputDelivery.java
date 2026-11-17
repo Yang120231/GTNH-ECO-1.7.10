@@ -57,6 +57,11 @@ final class ECOCraftingOutputDelivery {
         return !pendingFinalOutputs.isEmpty();
     }
 
+    boolean isRequestedWorkDelivered(ExecutingCraftingJob current) {
+        return current.remainingAmount <= 0L && !host.taskSchedulerForOutput()
+            .hasPendingTasks(current);
+    }
+
     void deliverStoredFinalOutput() {
         blockedDeliveryJob = null;
         var current = host.getJob();
@@ -103,12 +108,9 @@ final class ECOCraftingOutputDelivery {
                 }
             }
         }
-        boolean tasksDone = !host.taskSchedulerForOutput()
-            .hasPendingTasks(current);
         // Like GTNH's completeJob, finish after all tasks and the requested output are delivered. Optional
         // byproducts (including chanced outputs) need not return, and surplus dynamic outputs stay in inventory.
-        boolean physicallyComplete = current.remainingAmount <= 0L && tasksDone;
-        if (physicallyComplete) {
+        if (isRequestedWorkDelivered(current)) {
             if (current.executionRuntime != null && !current.executionRuntime.isComplete()) {
                 LOGGER.warn(
                     "ECO crafting job {} reached terminal crafting state but execution runtime is incomplete; "
@@ -506,8 +508,7 @@ final class ECOCraftingOutputDelivery {
         if (host.getJob() != expected) {
             return !host.hasJob();
         }
-        if (expected.remainingAmount > 0L || host.taskSchedulerForOutput()
-            .hasPendingTasks(expected)) {
+        if (!isRequestedWorkDelivered(expected)) {
             return false;
         }
         host.finishJob(true);

@@ -120,7 +120,6 @@ public class ECOComputationThreadingCoreBlockEntity extends
                         cpu.nativeCPU();
                         cpu.readFromNBT(tag, registries);
                         if (cpu.getPlan() != null) {
-                            ECOCraftingJobLifecycle.resumePersistedJob(level.nativeWorld(), tag);
                             cpus[i] = cpu;
                             deferredInit[i] = null;
                             cluster.pickup(cpu.getPlan(), cpu);

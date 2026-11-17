@@ -39,6 +39,12 @@ final class ECOCraftingDispatchAccounting {
         this.dispatchEvent = dispatchEvent;
     }
 
+    void failPermanently(ECOCraftingDispatchRequest request, String reason) {
+        request.job()
+            .failPermanently(reason);
+        markDirty.run();
+    }
+
     /**
      * Applies the same task/output/runtime accounting for one ordinary craft or an accepted batch.
      * The hook runs after runtime progress and before menu notifications, matching the existing
