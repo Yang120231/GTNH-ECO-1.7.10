@@ -1587,6 +1587,7 @@ gui.neoecoae.crafting_report.card.bytes_partial=已算字节
 gui.neoecoae.crafting_report.card.patterns=样板总数
 gui.neoecoae.crafting_report.card.cycles=循环总数
 gui.neoecoae.crafting_report.card.unknown=未知
+gui.neoecoae.crafting_report.card.native_cycles_not_analyzed=原生未分析
 gui.neoecoae.crafting_report.card.incomplete=计算结果尚未完整
 gui.neoecoae.crafting_report.card.incomplete_hint=存在循环或未决分支，仅统计已求解部分。
 gui.neoecoae.crafting_report.card.available=可用数量

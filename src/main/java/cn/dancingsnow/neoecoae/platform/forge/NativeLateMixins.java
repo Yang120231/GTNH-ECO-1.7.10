@@ -35,6 +35,8 @@ public final class NativeLateMixins implements ILateMixinLoader {
                 "ProcessingTargetMixin",
                 "NetworkMonitorMixin",
                 "ContainerCraftConfirmAccessor",
+                "NativeCraftingCalculationTimeMixin",
+                "NativeLiteCalculationTimeMixin",
                 "ContainerCraftConfirmStartMixin",
                 "RemoteTileGuiReachMixin"));
         if (loadedMods.contains("gregtech")) {

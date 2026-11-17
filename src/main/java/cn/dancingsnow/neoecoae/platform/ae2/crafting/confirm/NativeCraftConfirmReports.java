@@ -45,13 +45,13 @@ public final class NativeCraftConfirmReports {
     static ECOCraftConfirmState state(ICraftingJob job, boolean cyclePlanningEnabled, long version) {
         boolean simulation = job.isSimulation();
         // A native shortage simulation still has a byte total. Missing inputs do not mean an unresolved ECO graph.
-        // Native jobs expose neither calculation duration nor ECO cycle groups; keep those statistics unknown.
+        // Native jobs do not produce ECO cycle analysis; distinguish that from an unavailable statistic.
         return new ECOCraftConfirmState(
             true,
             true,
             cyclePlanningEnabled,
             false,
-            -1L,
+            job instanceof NativeCraftingCalculationTime timed ? timed.neoecoae$calculationNanos() : -1L,
             BigInteger.ZERO,
             simulation
                 ? NativeForcedCraftingJob.supports(job) ? PlanningStatus.MISSING_ITEMS : PlanningStatus.UNSUPPORTED
@@ -62,7 +62,12 @@ public final class NativeCraftConfirmReports {
             job.getByteTotal(),
             version,
             null,
-            "").withSummary(new ECOCraftConfirmState.Summary(true, true, patternCount(job), -1));
+            "").withSummary(
+                new ECOCraftConfirmState.Summary(
+                    true,
+                    true,
+                    patternCount(job),
+                    ECOCraftConfirmState.Summary.NATIVE_CYCLES_NOT_ANALYZED));
     }
 
     private static int patternCount(ICraftingJob<?> job) {

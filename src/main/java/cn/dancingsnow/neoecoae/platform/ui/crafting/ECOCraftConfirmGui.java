@@ -761,8 +761,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         rows.add(
             ProcessingTooltip.Row.text(
                 card("cycles"),
-                state.summary.cycles() < 0 ? card("unknown")
-                    : DisplayNumbers.grouped(Integer.toString(state.summary.cycles()))));
+                state.summary.cycles() == ECOCraftConfirmState.Summary.NATIVE_CYCLES_NOT_ANALYZED
+                    ? card("native_cycles_not_analyzed")
+                    : state.summary.cycles() < 0 ? card("unknown")
+                        : DisplayNumbers.grouped(Integer.toString(state.summary.cycles()))));
         if (!state.summary.completeByteEstimate()) {
             rows.add(ProcessingTooltip.Row.separator());
             rows.add(ProcessingTooltip.Row.text(card("incomplete")));

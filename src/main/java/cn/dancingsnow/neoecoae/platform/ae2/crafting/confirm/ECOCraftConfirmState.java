@@ -67,12 +67,15 @@ public final class ECOCraftConfirmState {
     public final List<GenericStack> shortages;
     public final Summary summary;
 
-    /** Pattern and cycle counts use -1 when the planner does not expose them. */
+    /** Counts use -1 when unavailable; native plans explicitly carry no ECO cycle analysis. */
     @com.github.bsideup.jabel.Desugar
     public record Summary(boolean hasByteEstimate, boolean completeByteEstimate, int patterns, int cycles) {
 
+        public static final int NATIVE_CYCLES_NOT_ANALYZED = -2;
+
         public Summary {
-            if (patterns < -1 || cycles < -1) throw new IllegalArgumentException("Invalid report statistics");
+            if (patterns < -1 || cycles < NATIVE_CYCLES_NOT_ANALYZED)
+                throw new IllegalArgumentException("Invalid report statistics");
         }
     }
 

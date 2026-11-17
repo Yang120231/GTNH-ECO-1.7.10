@@ -1417,6 +1417,7 @@
   "gui.neoecoae.crafting_report.card.patterns": "Total patterns",
   "gui.neoecoae.crafting_report.card.cycles": "Total cycles",
   "gui.neoecoae.crafting_report.card.unknown": "Unknown",
+  "gui.neoecoae.crafting_report.card.native_cycles_not_analyzed": "Not analyzed by AE2",
   "gui.neoecoae.crafting_report.card.incomplete": "Calculation incomplete",
   "gui.neoecoae.crafting_report.card.incomplete_hint": "Unresolved cycles or branches; solved portions only.",
   "gui.neoecoae.crafting_report.card.available": "Available",
