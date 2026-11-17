@@ -6,6 +6,7 @@ import net.minecraftforge.common.MinecraftForge;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.Tags;
+import cn.dancingsnow.neoecoae.platform.registry.NativeContent;
 import cn.dancingsnow.neoecoae.platform.registry.WorkstationMachines;
 import cn.dancingsnow.neoecoae.platform.ui.crafting.ECOCraftConfirmGui;
 import cn.dancingsnow.neoecoae.platform.ui.upload.PatternUploadClient;
@@ -23,6 +24,7 @@ public final class NEINeoECOAEConfig implements IConfigureNEI, IContainerObjectH
     @Override
     public void loadConfig() {
         GuiContainerManager.addObjectHandler(this);
+        API.registerUsageHandler(new ECOCellViewHandler());
         for (var kind : WorkstationRecipeHandler.Kind.values()) {
             var handler = new WorkstationRecipeHandler(kind);
             API.registerRecipeHandler(handler);
@@ -57,6 +59,15 @@ public final class NEINeoECOAEConfig implements IConfigureNEI, IContainerObjectH
 
     @SubscribeEvent
     public void registerHandlerInfo(NEIRegisterHandlerInfosEvent event) {
+        event.registerHandlerInfo(
+            new HandlerInfo.Builder(ECOCellViewHandler.class, getName(), NeoECOAE.MODID)
+                .setDisplayStack(new ItemStack(NativeContent.item("eco_item_storage_cell_16m")))
+                .setWidth(ECOCellViewHandler.WIDTH)
+                .setHeight(ECOCellViewHandler.HEIGHT)
+                .setMultipleWidgetsAllowed(false)
+                .setShowOverlayButton(false)
+                .setShowFavoritesButton(false)
+                .build());
         for (var kind : WorkstationRecipeHandler.Kind.values()) event.registerHandlerInfo(
             new HandlerInfo.Builder(kind.id(), getName(), NeoECOAE.MODID)
                 .setDisplayStack(new ItemStack(WorkstationMachines.WORKSTATION))
