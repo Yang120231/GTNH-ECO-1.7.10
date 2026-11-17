@@ -303,7 +303,7 @@ public final class NativeLargeWorkstationInterfacePages {
                         + ".png",
                     0,
                     0,
-                    8,
+                    7,
                     15)
                 .draw(0, y, 9, 15);
         }

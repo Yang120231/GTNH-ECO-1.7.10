@@ -435,7 +435,8 @@ final class PatternUploadScreen extends GuiScreen {
         toggleY = top + 82;
         String text = search != null ? search.getText() : searchText == null ? "" : searchText;
         boolean focused = search != null && search.isFocused();
-        search = new GuiTextField(fontRendererObj, left + 8, toggleY + 5, dimensionX - left - 14, 10);
+        // The field uses local font coordinates; rendering and mouse input share the same scale.
+        search = new GuiTextField(fontRendererObj, 0, 0, (int) ((dimensionX - left - 14) / SMALL), 10);
         search.setEnableBackgroundDrawing(false);
         search.setMaxStringLength(128);
         search.setText(text);
@@ -514,14 +515,18 @@ final class PatternUploadScreen extends GuiScreen {
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
         if (button >= 0 && button < 8) mouseButtonsDown |= 1 << button;
-        if (inside(mouseX, mouseY, search.xPosition, search.yPosition, search.width, search.height) && button == 1) {
+        if (insideSearch(mouseX, mouseY) && button == 1) {
             search.setText("");
             search.setFocused(true);
             scroll = 0;
             refilter();
             return;
         }
-        search.mouseClicked(mouseX, mouseY, button);
+        search.mouseClicked(
+            (int) Math.floor((mouseX - left - 8) / SMALL),
+            (int) Math.floor((mouseY - toggleY - 4) / SMALL),
+            button);
+        search.setFocused(insideSearch(mouseX, mouseY));
         int index = rowAt(mouseX, mouseY);
         if (button == 1 && index >= 0) {
             if (tree.get(index)
@@ -644,7 +649,7 @@ final class PatternUploadScreen extends GuiScreen {
     private void dragScrollbar(int mouseY) {
         int[] thumb = thumb();
         if (thumb == null) return;
-        int track = visibleRows * ROW_HEIGHT - thumb[1];
+        int track = visibleRows * ROW_HEIGHT - 1 - thumb[1];
         int max = tree.size() - visibleRows;
         if (track <= 0 || max <= 0) return;
         float ratio = (mouseY - dragOffset - listY) / (float) track;
@@ -655,8 +660,8 @@ final class PatternUploadScreen extends GuiScreen {
     private int[] thumb() {
         int max = tree.size() - visibleRows;
         if (max <= 0) return null;
-        int track = visibleRows * ROW_HEIGHT;
-        int size = Math.max(10, track * visibleRows / tree.size());
+        int track = visibleRows * ROW_HEIGHT - 1;
+        int size = 15;
         int y = listY + Math.round((track - size) * (scroll / (float) max));
         return new int[] { y, size };
     }
@@ -782,17 +787,26 @@ final class PatternUploadScreen extends GuiScreen {
         small(trim(detail.toString(), textWidth), textX, y + 10, MUTED);
     }
 
+    private boolean insideSearch(int mouseX, int mouseY) {
+        return inside(mouseX, mouseY, left + 5, toggleY + 2, dimensionX - left - 8, 12);
+    }
+
     private void drawSearch(int mouseX, int mouseY) {
         NativePageLayout
             .texture("neoecoae:textures/gui/vendor/ae2/text_field.png", 0, search.isFocused() ? 24 : 0, 128, 12, 1, 0)
             .draw(left + 5, toggleY + 2, dimensionX - left - 8, 12);
+        GL11.glPushMatrix();
+        GL11.glTranslatef(left + 8, toggleY + 4, 0);
+        GL11.glScalef(SMALL, SMALL, 1);
         search.drawTextBox();
+        GL11.glPopMatrix();
+        GL11.glColor4f(1, 1, 1, 1);
         if (search.getText()
             .isEmpty() && !search.isFocused())
             small(
-                trim(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search"), search.width - 6),
-                search.xPosition + 3,
-                search.yPosition + 2,
+                trim(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search"), dimensionX - left - 14),
+                left + 8,
+                toggleY + 4,
                 0x707070);
         UploadDraw.button(
             dimensionX,
@@ -1177,7 +1191,7 @@ final class PatternUploadScreen extends GuiScreen {
             if (list.canMap) lines.add("§7" + text("gui.neoecoae.pattern_upload.mapping.add.tooltip"));
             return lines;
         }
-        if (inside(mouseX, mouseY, search.xPosition, search.yPosition, search.width, search.height)) {
+        if (insideSearch(mouseX, mouseY)) {
             lines.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.search.tooltip"));
             return lines;
         }
