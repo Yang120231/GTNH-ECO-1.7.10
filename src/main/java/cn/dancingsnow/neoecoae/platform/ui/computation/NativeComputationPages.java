@@ -9,12 +9,15 @@ import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
+import cn.dancingsnow.neoecoae.gui.common.HostText;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachineWidgets;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.NativeListCard;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.ProcessingTooltip;
 
 /** Source computation panel, synchronized task selector and exact CPU status pages. */
 public final class NativeComputationPages {
@@ -61,7 +64,16 @@ public final class NativeComputationPages {
                         () -> session.action(action, 0),
                         () -> Component.translatable(
                             "gui.neoecoae.computation.settings." + node.get("key")
-                                .getAsString()));
+                                .getAsString()))
+                        .tooltip(new com.cleanroommc.modularui.screen.RichTooltip())
+                        .tooltipDynamic(lines -> {
+                            var content = NativeComputationArtwork.switchTooltip(session.state(), action);
+                            for (int i = 0; i < content.size(); i++) {
+                                if (i > 0) lines.newLine();
+                                lines.add(
+                                    cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.tooltipLine(content.get(i)));
+                            }
+                        });
                 case "computation_toolbar":
                     return cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.left(
                         false,
@@ -71,13 +83,14 @@ public final class NativeComputationPages {
                             () -> Component.translatable("gui.neoecoae.guide"),
                             () -> cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage
                                 .open("computation_system", player, guide::openPanel)),
-                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
-                            160,
-                            16,
-                            () -> text(
-                                "selection",
-                                session.state()
-                                    .getString("selectionMode")),
+                        cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.multilineButton(
+                            () -> NativePageLayout
+                                .texture(cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.ATLAS, 160, 16, 16, 16),
+                            () -> java.util.Arrays.asList(
+                                Component.translatable("gui.neoecoae.computation.settings.cpu_mode"),
+                                cpuModeDescription(
+                                    session.state()
+                                        .getString("selectionMode"))),
                             () -> session.action(3, 0)),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.networkFrequency(
                             () -> session.state()
@@ -91,15 +104,18 @@ public final class NativeComputationPages {
                                 () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(
                                     "neoecoae:textures/gui/computation/eco_batching" + (session.state()
                                         .getBoolean("smartDoubling") ? "" : "_off") + ".png"),
-                                () -> smartDoublingTooltip(
-                                    session.state()
-                                        .getBoolean("smartDoubling")),
+                                java.util.Collections::emptyList,
                                 () -> session.action(15, 0))
+                            .tooltip(
+                                new NativeListCard(
+                                    () -> smartDoublingCard(
+                                        session.state()
+                                            .getBoolean("smartDoubling"))))
                             .name("computation-smart-doubling"),
                         cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar.button(
                             () -> com.cleanroommc.modularui.drawable.UITexture.fullImage(
                                 "neoecoae:textures/gui/widget/cpu_selector" + (view.list ? "" : "_closed") + ".png"),
-                            () -> text("tasks"),
+                            () -> Component.translatable("gui.neoecoae.computation.ui.cpu_list"),
                             () -> {
                                 view.list = !view.list;
                                 view.resize();
@@ -227,13 +243,34 @@ public final class NativeComputationPages {
         return grid;
     }
 
-    static java.util.List<Component> smartDoublingTooltip(boolean on) {
-        return java.util.Arrays.asList(
-            Component.translatable("gui.neoecoae.crafting.smart_doubling"),
-            Component.translatable("gui.neoecoae.computation.ui.switch." + (on ? "on" : "off"))
-                .withColor(on ? 0x55FF55 : 0xAAAAAA),
-            Component.translatable("gui.neoecoae.computation.ui.switch.smart_doubling.desc")
-                .withColor(0xAAAAAA));
+    static Component cpuModeDescription(String mode) {
+        return Component.translatable(
+            "gui.tooltips.appliedenergistics2." + (mode.equals("PLAYER_ONLY") ? "CPUOnlyAllowPlayerDesc"
+                : mode.equals("MACHINE_ONLY") ? "CPUOnlyAllowNonPlayerDesc" : "CPUAllowAllDesc"));
+    }
+
+    private static NativeListCard.Builder smartDoublingCard(boolean enabled) {
+        String key = "gui.neoecoae.computation.ui.switch.smart_doubling.";
+        return NativeListCard.builder()
+            .header(
+                NativeListCard.Glyph.BOLT,
+                Component.translatable("gui.neoecoae.crafting.smart_doubling"),
+                Component.translatable("gui.neoecoae.computation.ui.switch." + (enabled ? "on" : "off")),
+                enabled ? ProcessingTooltip.OK : ProcessingTooltip.MUTED)
+            .row(
+                null,
+                ProcessingTooltip.MUTED,
+                Component.translatable(key + "limit"),
+                Component.translatable(key + "limit_value", HostText.expandedNumber(16_384)),
+                ProcessingTooltip.PRIMARY)
+            .hint(null, Component.translatable(key + "limit_note"))
+            .divider()
+            .banner(
+                NativeListCard.Glyph.WARNING,
+                Component.translatable(key + "blocking"),
+                Component.translatable(key + "blocking_note"),
+                ProcessingTooltip.WARN,
+                NativeListCard.WARN_BACKGROUND);
     }
 
     private static Component text(String key, Object... arguments) {

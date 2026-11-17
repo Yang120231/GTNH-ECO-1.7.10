@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidTank;
 
@@ -17,6 +18,7 @@ import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.drawable.Stencil;
 import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.item.InvWrapper;
@@ -27,7 +29,9 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.slot.FluidSlot;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 
-import cn.dancingsnow.neoecoae.crafting.display.format.DurationFormatter;
+import cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationOverclock;
+import cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationThermal;
+import cn.dancingsnow.neoecoae.gui.common.HostText;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
@@ -41,6 +45,8 @@ import cn.dancingsnow.neoecoae.platform.ui.NativeOwnedFluidSync;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.NativeListCard;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.ProcessingTooltip;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -50,6 +56,8 @@ public final class NativeLargeWorkstationPages {
     public static final int PAGE_SIZE = 3, SNAPSHOT_PADDING = 2, SNAPSHOT_SIZE = 7;
     private static final String ATLAS = "neoecoae:textures/guis/workstation/integrated_working_station_widget.png";
     private static final int TEXT = 0xff303448, MUTED = 0xff596177, SUCCESS = 0xff226b58, WARNING = 0xff9b4438;
+
+    private static final int[] BAND_COLORS = { 0xFF8A7FA0, 0xFFA48AD0, 0xFFD08AC0, 0xFFF0A080 };
 
     private NativeLargeWorkstationPages() {}
 
@@ -97,9 +105,9 @@ public final class NativeLargeWorkstationPages {
                     }
                     return inventory;
                 case "input_fluid":
-                    return gauge(config.tile(), config.input());
+                    return gauge(config.tile(), config.input(), "input");
                 case "output_fluid":
-                    return gauge(config.tile(), config.output());
+                    return gauge(config.tile(), config.output(), "output");
                 default:
                     throw new IllegalArgumentException("Unknown large workstation node: " + node);
             }
@@ -120,23 +128,36 @@ public final class NativeLargeWorkstationPages {
             region(() -> parallelTooltip(session.state())).pos(99, 35)
                 .size(64, 32));
         panel.child(
-            region(() -> temperatureTooltip(session.state())).pos(172, 69)
+            cardRegion(() -> temperatureCard(session.state())).pos(172, 69)
                 .size(15, 55));
         panel.child(
-            region(() -> energyTooltip(session.state())).pos(189, 69)
+            cardRegion(() -> energyCard(session.state())).pos(189, 69)
                 .size(12, 55));
         panel.child(
-            region(() -> temperatureTooltip(session.state())).pos(99, 117)
+            cardRegion(() -> temperatureCard(session.state())).pos(99, 117)
                 .size(64, 10));
         panel.child(
-            region(() -> temperatureTooltip(session.state())).pos(176, 130)
+            cardRegion(() -> temperatureCard(session.state())).pos(176, 130)
                 .size(68, 24));
         panel.child(
-            region(() -> coolingTooltip(session.state())).pos(176, 155)
+            cardRegion(() -> coolingCard(session.state(), false)).pos(176, 155)
                 .size(68, 24));
         panel.child(
-            region(() -> overclockTooltip(session.state())).pos(176, 180)
+            cardRegion(() -> overclockCard(session.state(), false)).pos(176, 180)
                 .size(68, 24));
+        panel.child(
+            region(
+                () -> java.util.Arrays.asList(
+                    Component.translatable("block.neoecoae.large_integrated_working_station")
+                        .withStyle(EnumChatFormatting.YELLOW),
+                    pauseText(session.state()))).pos(25, 6)
+                        .size(115, 14));
+        panel.child(
+            region(() -> statusTooltip(session.state())).pos(6, 6)
+                .size(15, 15));
+        panel.child(
+            region(() -> statusTooltip(session.state())).pos(176, 34)
+                .size(69, 31));
         var guide = sync.syncedPanel(
             "workstation.large.guide",
             true,
@@ -169,19 +190,40 @@ public final class NativeLargeWorkstationPages {
         return panel;
     }
 
-    private static FluidSlot gauge(TileEntity tile, IFluidTank tank) {
-        return new FluidSlot().syncHandler(new NativeOwnedFluidSync(tile, tank, false, false))
+    private static FluidSlot gauge(TileEntity tile, IFluidTank tank, String role) {
+        return new FluidSlot() {
+
+            @Override
+            protected void addToolTip(RichTooltip tooltip) {
+                tooltip.addLine(
+                    Component.translatable("gui.neoecoae.large_integrated_working_station." + role + "_fluid")
+                        .withStyle(EnumChatFormatting.YELLOW)
+                        .nativeText()
+                        .getFormattedText());
+                super.addToolTip(tooltip);
+                tooltip.addLine(
+                    tr(role + "_fluid_hint").withStyle(EnumChatFormatting.GRAY)
+                        .nativeText()
+                        .getFormattedText());
+            }
+        }.syncHandler(new NativeOwnedFluidSync(tile, tank, false, false))
             .alwaysShowFull(false)
             .contentPadding(0)
             .background(IDrawable.EMPTY)
             .hoverBackground(IDrawable.EMPTY);
     }
 
+    private static Widget<?> cardRegion(Supplier<NativeListCard.Builder> content) {
+        return new Widget<>().tooltip(new NativeListCard(content));
+    }
+
     private static Widget<?> region(Supplier<List<Component>> description) {
         return new Widget<>()
             .tooltipDynamic(
                 lines -> {
-                    for (Component line : description.get()) lines.add(line.getString())
+                    for (Component line : description.get()) lines.add(
+                        line.nativeText()
+                            .getFormattedText())
                         .newLine();
                 })
             .onUpdateListener(widget -> widget.markTooltipDirty());
@@ -205,12 +247,9 @@ public final class NativeLargeWorkstationPages {
                 else return false;
                 return true;
             });
-            tooltipDynamic(lines -> {
-                for (Component line : overclock ? overclockTooltip(session.state()) : coolingTooltip(session.state()))
-                    lines.add(line.getString())
-                        .newLine();
-                lines.add(tr("toggle_hint").getString());
-            });
+            tooltip(
+                new NativeListCard(
+                    () -> overclock ? overclockCard(session.state(), true) : coolingCard(session.state(), true)));
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
 
@@ -358,34 +397,19 @@ public final class NativeLargeWorkstationPages {
             });
             tooltipDynamic(lines -> {
                 CompoundTag row = hovered();
-                if (row == null) {
-                    lines.add(tr("queue_empty_hint").getString());
-                    return;
-                }
-                GenericStack output = output(row);
-                lines.add(
-                    output == null ? tr("empty_task").getString()
-                        : output.what()
-                            .getDisplayName());
-                lines.add(
-                    tr(
-                        output != null && output.what() instanceof AEFluidKey ? "task_fluid_amount" : "task_amount",
-                        String.format(Locale.ROOT, "%,d", amount(row, output))).getString());
-                lines.add(
-                    Component.translatable(row.getString("status"))
-                        .getString());
-                if (!row.getString("detail")
-                    .isEmpty())
+                int y = (int) Math.floor(getContext().getMouseY() - scroll.rowShift());
+                boolean returning = row != null && row.getBoolean("returnable")
+                    && getContext().getMouseX() >= 56
+                    && y % 26 >= 13
+                    && y % 26 < 24;
+                List<Component> content = taskTooltip(row, returning);
+                for (int i = 0; i < content.size(); i++) {
+                    if (i > 0) lines.newLine();
                     lines.add(
-                        Component.translatable(row.getString("detail"))
-                            .getString());
-                lines.add(tr("progress", Math.max(0, Math.min(200, row.getInt("progress"))) / 2).getString());
-                if (row.getInt("processingTicks") > 0) lines.add(
-                    tr(
-                        "task_duration",
-                        DurationFormatter.format(row.getInt("elapsedTicks")),
-                        DurationFormatter.format(row.getInt("processingTicks"))).getString());
-                if (row.getBoolean("returnable")) lines.add(tr("task_return_hint").getString());
+                        content.get(i)
+                            .nativeText()
+                            .getFormattedText());
+                }
             });
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
@@ -498,6 +522,27 @@ public final class NativeLargeWorkstationPages {
             this.session = session;
             scroll = scrollFor(session);
             NativeUiStyle.plainHover(this);
+            tooltipDynamic(lines -> {
+                lines.add(
+                    tr("queue_heading").withStyle(EnumChatFormatting.YELLOW)
+                        .nativeText()
+                        .getFormattedText())
+                    .newLine();
+                int total = session.state()
+                    .getInt("totalTasks");
+                lines
+                    .add(
+                        (total == 0 ? tr("task_count", 0)
+                            : tr("queue_range", scroll.firstVisibleRow() + 1, scroll.lastVisibleRow(), total))
+                                .getString())
+                    .newLine();
+                lines.add(
+                    tr(total <= PAGE_SIZE ? "queue_all_visible" : "queue_scroll_hint")
+                        .withStyle(EnumChatFormatting.GRAY)
+                        .nativeText()
+                        .getFormattedText());
+            });
+            onUpdateListener(widget -> widget.markTooltipDirty());
             onMouseScrolled((direction, amount) -> {
                 scroll.scrollBy((direction.modifier > 0 ? -1 : 1) * amount);
                 request(session, scroll);
@@ -546,83 +591,292 @@ public final class NativeLargeWorkstationPages {
         return row.contains("amount") ? row.getLong("amount") : output == null ? 0 : output.amount();
     }
 
+    private static List<Component> taskTooltip(CompoundTag row, boolean returning) {
+        if (row == null) return java.util.Arrays.asList(
+            tr("empty_task").withStyle(EnumChatFormatting.YELLOW),
+            tr("queue_empty_hint").withStyle(EnumChatFormatting.GRAY));
+        GenericStack output = output(row);
+        Component title = output == null ? tr("empty_task")
+            : Component.literal(
+                output.what()
+                    .getDisplayName());
+        if (returning) return java.util.Arrays.asList(
+            tr("return_task").withStyle(EnumChatFormatting.YELLOW),
+            title,
+            tr("return_task_hint").withStyle(EnumChatFormatting.GRAY));
+        List<Component> lines = new ArrayList<>();
+        lines.add(title.withStyle(EnumChatFormatting.YELLOW));
+        lines.add(
+            tr(
+                output != null && output.what() instanceof AEFluidKey ? "task_fluid_amount" : "task_amount",
+                HostText.expandedNumber(amount(row, output))));
+        boolean current = row.getBoolean("current");
+        String status = row.getString("status");
+        boolean problem = current && !status.isEmpty() && !status.endsWith(".none") && !status.endsWith(".task_output");
+        lines.add(
+            Component.translatable(status)
+                .withStyle(
+                    !current ? EnumChatFormatting.YELLOW
+                        : row.getInt("progress") >= 200 ? EnumChatFormatting.GRAY
+                            : problem ? EnumChatFormatting.GOLD : EnumChatFormatting.GREEN));
+        if (!row.getString("detail")
+            .isEmpty()) lines.add(Component.translatable(row.getString("detail")));
+        lines.add(tr("progress", Math.max(0, Math.min(200, row.getInt("progress"))) / 2));
+        if (row.getInt("processingTicks") > 0) lines.add(
+            tr(
+                "task_duration",
+                HostText.expandedNumber(row.getInt("elapsedTicks")),
+                HostText.expandedNumber(row.getInt("processingTicks"))));
+        if (row.getBoolean("returnable")) lines.add(tr("task_return_hint").withStyle(EnumChatFormatting.GRAY));
+        return lines;
+    }
+
     private static List<Component> parallelTooltip(CompoundTag s) {
         return java.util.Arrays.asList(
-            tr("parallel"),
-            tr("parallel_used", number(s.getLong("parallelUsed"))),
-            tr("parallel_capacity", number(s.getLong("parallelCapacity"))),
-            tr("parallel_hint"));
+            tr("parallel").withStyle(EnumChatFormatting.YELLOW),
+            tr("parallel_used", HostText.expandedNumber(s.getLong("parallelUsed"))),
+            tr("parallel_capacity", HostText.expandedNumber(s.getLong("parallelCapacity"))),
+            tr("parallel_hint").withStyle(EnumChatFormatting.GRAY));
     }
 
-    private static List<Component> energyTooltip(CompoundTag s) {
-        return java.util.Arrays.asList(
-            tr("energy"),
-            tr("energy_value", decimal(s.getDouble("energyUsage"))),
-            tr("energy_stored", number(s.getDouble("energyStored")), number(s.getDouble("energyCapacity"))),
-            tr("energy_hint"));
+    private static NativeListCard.Builder energyCard(CompoundTag s) {
+        long stored = (long) s.getDouble("energyStored"), capacity = (long) s.getDouble("energyCapacity");
+        double fraction = ratio(stored, capacity);
+        return NativeListCard.builder()
+            .header(NativeListCard.Glyph.BATTERY, card("energy_monitor"), card("last_second"), ProcessingTooltip.MUTED)
+            .metricUnit(
+                card("actual_energy"),
+                Component.literal(number(s.getDouble("energyUsage"))),
+                ProcessingTooltip.PRIMARY,
+                Component.literal("AE/t"),
+                ProcessingTooltip.WARN)
+            .row(
+                null,
+                ProcessingTooltip.MUTED,
+                card("internal_storage"),
+                card("ae_stored", HostText.ae2Amount(stored), HostText.ae2Amount(capacity)),
+                ProcessingTooltip.PRIMARY)
+            .bar(fraction, ProcessingTooltip.WARN)
+            .row(
+                null,
+                ProcessingTooltip.MUTED,
+                Component.literal(HostText.percent(fraction))
+                    .withColor(ProcessingTooltip.MUTED),
+                card("ae_amount", HostText.expandedNumber(capacity)),
+                ProcessingTooltip.MUTED)
+            .divider()
+            .wrapped(NativeListCard.Glyph.INFO, tr("energy_hint"), ProcessingTooltip.MUTED);
     }
 
-    private static List<Component> temperatureTooltip(CompoundTag s) {
-        if (!thermal(s)) return java.util.Arrays.asList(
-            tr("thermal"),
-            Component.translatable("gui.neoecoae.large_integrated_working_station.temperature_disabled"),
-            tr("thermal_disabled_hint"));
-        List<Component> lines = new ArrayList<>();
-        lines.add(tr("temperature_setting"));
-        lines.add(tr("temperature_value", decimal(s.getDouble("temperature"))));
-        lines.add(tr("current_band", band(s)));
-        lines.add(
-            tr("temperature_net_rate", String.format(Locale.ROOT, "%+.2f", s.getDouble("temperatureChangePerSecond"))));
-        lines.add(tr("temperature_processing_rate", decimal(s.getDouble("processingHeatPerSecond"))));
-        lines.add(tr("temperature_preheat_rate", decimal(s.getDouble("preheatPerSecond"))));
-        lines.add(tr("temperature_cooling_rate", decimal(s.getDouble("coolingPerSecond"))));
-        lines.add(tr("temperature_natural_rate", decimal(s.getDouble("naturalCoolingPerSecond"))));
-        lines.add(tr("temperature_automatic_hint"));
-        lines.add(tr("temperature_slowing_hint"));
-        if (s.getBoolean("overheated")) lines.add(
-            tr(
-                "recovery_progress",
-                decimal(s.getInt("recoveryTicks") / 20d),
-                cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationThermal.RECOVERY_TICKS / 20));
-        else lines.add(tr("temperature_overheat_hint"));
-        return lines;
-    }
-
-    private static List<Component> overclockTooltip(CompoundTag s) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(tr("overclock"));
-        lines.add(tr(s.getBoolean("overclocked") ? "enabled" : "disabled"));
-        lines.add(tr("parallel_capacity", number(s.getLong("parallelCapacity"))));
-        lines.add(tr(thermal(s) ? "overclock_thermal_hint" : "overclock_coolant_hint"));
-        lines.add(tr("overclock_energy_hint"));
-        if (thermal(s)) {
-            lines.add(tr("preheat_right_click_hint"));
-            lines.add(tr(s.getBoolean("preheating") ? "preheat_on" : "preheat_off"));
-            lines.add(tr("preheat_stop_hint"));
+    private static NativeListCard.Builder overclockCard(CompoundTag s, boolean toggle) {
+        boolean enabled = s.getBoolean("overclocked");
+        boolean preheat = thermal(s);
+        var card = NativeListCard.builder()
+            .header(
+                NativeListCard.Glyph.BOLT,
+                tr("overclock"),
+                tr(enabled ? "enabled" : "disabled"),
+                enabled ? ProcessingTooltip.OK : ProcessingTooltip.MUTED)
+            .largeValue(
+                card("parallel_limit"),
+                HostText.expandedNumber(s.getLong("parallelCapacity")),
+                ProcessingTooltip.PRIMARY)
+            .row(null, ProcessingTooltip.MUTED, card("recipe_energy"), Component.literal("×1"), ProcessingTooltip.OK);
+        if (preheat) {
+            boolean running = s.getBoolean("preheating");
+            card.panel(
+                NativeListCard.Glyph.THERMOMETER,
+                card("auto_preheat"),
+                card(running ? "preheat_running" : "preheat_off"),
+                running ? ProcessingTooltip.WARN : ProcessingTooltip.MUTED,
+                java.util.Arrays.asList(
+                    new NativeListCard.PanelLine(
+                        null,
+                        card("preheat_max_energy"),
+                        ProcessingTooltip.MUTED,
+                        card("ae_rate", HostText.expandedNumber((long) LargeWorkstationThermal.PREHEAT_AE_PER_TICK)),
+                        ProcessingTooltip.WARN),
+                    new NativeListCard.PanelLine(
+                        null,
+                        card("preheat_stop"),
+                        ProcessingTooltip.MUTED,
+                        Component.empty(),
+                        ProcessingTooltip.MUTED)));
         }
-        return lines;
+        card.wrapped(
+            NativeListCard.Glyph.INFO,
+            tr(thermal(s) ? "overclock_thermal_hint" : "overclock_coolant_hint"),
+            ProcessingTooltip.MUTED);
+        if (toggle) {
+            card.divider()
+                .text(
+                    mouseHint("mouse_left", "toggle_overclock"),
+                    preheat ? mouseHint("mouse_right", "toggle_preheat") : Component.empty(),
+                    ProcessingTooltip.MUTED);
+        }
+        return card;
     }
 
-    private static List<Component> coolingTooltip(CompoundTag s) {
-        List<Component> lines = new ArrayList<>();
-        lines.add(tr("active_cooling"));
-        lines.add(tr(s.getBoolean("activeCooling") ? "enabled" : "disabled"));
-        lines.add(tr("coolant_value", coolant(s)));
-        if (thermal(s)) lines.add(tr("cooling_rate", decimal(s.getDouble("coolingPerSecond"))));
-        lines.add(tr(thermal(s) ? "cooling_thermal_hint" : "cooling_coolant_hint"));
+    private static Component mouseHint(String button, String action) {
+        return Component.empty()
+            .append(
+                card(button).withStyle(EnumChatFormatting.BOLD)
+                    .withColor(ProcessingTooltip.PRIMARY))
+            .append(" ")
+            .append(card(action).withColor(ProcessingTooltip.MUTED));
+    }
+
+    /** Temperature and automatic band card drawn inside the vanilla tooltip frame. */
+    private static NativeListCard.Builder temperatureCard(CompoundTag s) {
+        if (!thermal(s)) {
+            return NativeListCard.builder()
+                .header(
+                    NativeListCard.Glyph.THERMOMETER,
+                    tr("thermal"),
+                    Component.translatable("gui.neoecoae.large_integrated_working_station.temperature_disabled"),
+                    ProcessingTooltip.MUTED)
+                .text(tr("thermal_disabled_hint"), Component.empty(), ProcessingTooltip.MUTED);
+        }
+        double temperature = s.getDouble("temperature");
+        boolean overheated = s.getBoolean("overheated");
+        var profile = LargeWorkstationOverclock.forTemperature(true, temperature);
+        long limit = overheated ? 0 : profile.maxParallelism();
+        int[] tiers = { 2, 6, 9 };
+        List<NativeListCard.Band> bands = new ArrayList<>();
+        List<Component> ticks = new ArrayList<>();
+        List<NativeListCard.Tile> tiles = new ArrayList<>();
+        ticks.add(Component.literal("0%"));
+        for (int i = 0; i < tiers.length; i++) {
+            var threshold = LargeWorkstationOverclock.forCoolingTier(tiers[i]);
+            int minimum = (int) threshold.minimumTemperature();
+            bands.add(new NativeListCard.Band(minimum / 100.0, BAND_COLORS[i]));
+            ticks.add(Component.literal(minimum + "%"));
+            tiles.add(
+                new NativeListCard.Tile(
+                    Component.literal("≥" + minimum + "%"),
+                    Component.literal(HostText.expandedNumber(threshold.maxParallelism())),
+                    card("tile_caption", displayTier(tiers[i])),
+                    !overheated && profile.coolingTier() == tiers[i]));
+        }
+        bands.add(new NativeListCard.Band(1.0, BAND_COLORS[tiers.length]));
+        ticks.add(Component.literal("100%"));
+
+        var card = NativeListCard.builder()
+            .header(
+                NativeListCard.Glyph.THERMOMETER,
+                tr("temperature_setting"),
+                band(s),
+                overheated ? NativeListCard.DANGER : ProcessingTooltip.MUTED)
+            .metrics(
+                card("current_temperature"),
+                Component.literal(precise(temperature) + "%"),
+                overheated ? NativeListCard.DANGER : ProcessingTooltip.ACCENT,
+                card("current_parallel"),
+                Component.literal(HostText.expandedNumber(limit)),
+                ProcessingTooltip.PRIMARY)
+            .scale(bands, temperature / 100.0, ticks)
+            .divider()
+            .section(card("band_unlock"))
+            .tiles(tiles)
+            .divider()
+            .row(
+                null,
+                ProcessingTooltip.MUTED,
+                card("net_change"),
+                card("rate", signedRate(s.getDouble("temperatureChangePerSecond"))),
+                ProcessingTooltip.PRIMARY);
+        rateRow(card, "processing", "+", s.getDouble("processingHeatPerSecond"), ProcessingTooltip.WARN, true);
+        rateRow(card, "preheat", "+", s.getDouble("preheatPerSecond"), ProcessingTooltip.WARN, false);
+        rateRow(card, "cooling", "-", s.getDouble("coolingPerSecond"), ProcessingTooltip.CYAN, true);
+        rateRow(card, "natural", "-", s.getDouble("naturalCoolingPerSecond"), ProcessingTooltip.CYAN, false);
+        int recoverySeconds = LargeWorkstationThermal.RECOVERY_TICKS / 20;
+        if (overheated) {
+            card.banner(
+                NativeListCard.Glyph.WARNING,
+                tr("status_overheated"),
+                tr("recovery_progress", decimal(s.getInt("recoveryTicks") / 20.0), recoverySeconds),
+                NativeListCard.DANGER,
+                NativeListCard.DANGER_BACKGROUND);
+        } else {
+            card.banner(
+                NativeListCard.Glyph.WARNING,
+                card("overheat_warning"),
+                card("overheat_recovery", recoverySeconds),
+                NativeListCard.DANGER,
+                NativeListCard.DANGER_BACKGROUND);
+        }
+        return card.text(card("temperature_footer"), Component.empty(), ProcessingTooltip.MUTED);
+    }
+
+    private static void rateRow(NativeListCard.Builder card, String key, String sign, double value, int color,
+        boolean always) {
+        if (!always && !(value > 0)) return;
+        card.row(
+            null,
+            ProcessingTooltip.MUTED,
+            card(key).withColor(ProcessingTooltip.MUTED),
+            card("rate_short", sign + precise(value)),
+            color);
+    }
+
+    /** Active cooling card; {@code toggle} adds the left-click hint shown on the toggle button. */
+    private static NativeListCard.Builder coolingCard(CompoundTag s, boolean toggle) {
+        boolean enabled = s.getBoolean("activeCooling");
+        var card = NativeListCard.builder()
+            .header(
+                NativeListCard.Glyph.SNOW,
+                tr("active_cooling"),
+                tr(enabled ? "enabled" : "disabled"),
+                enabled ? ProcessingTooltip.OK : ProcessingTooltip.MUTED);
         String problem = s.getString("coolingProblem");
-        if (s.getBoolean("activeCooling") && !problem.isEmpty() && !problem.endsWith(".none"))
-            lines.add(Component.translatable(problem));
-        lines.add(tr("cooling_preheat_hint"));
-        return lines;
+        if (enabled && !problem.isEmpty() && !problem.endsWith(".none")) {
+            card.banner(
+                NativeListCard.Glyph.PAUSE,
+                Component.translatable(problem),
+                Component.empty(),
+                ProcessingTooltip.WARN,
+                NativeListCard.WARN_BACKGROUND);
+        }
+        boolean supplied = s.getInt("coolantTier") > 0;
+        card.divider()
+            .row(
+                null,
+                ProcessingTooltip.MUTED,
+                tr("coolant"),
+                supplied ? coolant(s) : card("coolant_unsupplied"),
+                supplied ? ProcessingTooltip.CYAN : ProcessingTooltip.WARN);
+        if (thermal(s)) {
+            card.row(
+                null,
+                ProcessingTooltip.MUTED,
+                card("actual_cooling"),
+                card("rate", precise(s.getDouble("coolingPerSecond"))),
+                ProcessingTooltip.PRIMARY)
+                .row(
+                    null,
+                    ProcessingTooltip.MUTED,
+                    card("cooling_capacity"),
+                    card("rate", precise(LargeWorkstationThermal.coolingPerSecond(s.getInt("coolantTier")))),
+                    ProcessingTooltip.PRIMARY);
+        }
+        card.divider();
+        card.text(
+            tr(thermal(s) ? "cooling_thermal_hint" : "cooling_coolant_hint"),
+            Component.empty(),
+            ProcessingTooltip.MUTED)
+            .text(tr("cooling_preheat_hint"), Component.empty(), ProcessingTooltip.MUTED);
+        Component hint = Component.empty();
+        if (toggle) hint.append(card("toggle_hint"));
+        if (!hint.getString()
+            .isEmpty()) card.text(hint, Component.empty(), ProcessingTooltip.MUTED);
+        return card;
     }
 
     private static List<Component> statusTooltip(CompoundTag s) {
         List<Component> lines = new ArrayList<>();
-        lines.add(tr("machine_status"));
-        lines.add(status(s));
-        if (!s.getString("pause")
-            .isEmpty()) lines.add(Component.translatable(s.getString("pause")));
+        lines.add(tr("machine_status").withStyle(EnumChatFormatting.YELLOW));
+        lines.add(status(s).withStyle(hasProblem(s) ? EnumChatFormatting.GOLD : EnumChatFormatting.GREEN));
+        if (hasProblem(s)) lines.add(pauseText(s));
         lines.add(tr("task_count", s.getInt("totalTasks")));
         return lines;
     }
@@ -657,6 +911,34 @@ public final class NativeLargeWorkstationPages {
             default:
                 return tr("no_coolant");
         }
+    }
+
+    private static boolean hasProblem(CompoundTag s) {
+        String pause = s.getString("pause");
+        return !pause.isEmpty() && !pause.endsWith(".none") && !s.getBoolean("preheating");
+    }
+
+    private static Component pauseText(CompoundTag s) {
+        String key = s.getString("pause");
+        return key.isEmpty() ? tr("status_idle")
+            : Component.translatable(key)
+                .withStyle(key.endsWith(".none") ? EnumChatFormatting.GRAY : EnumChatFormatting.GOLD);
+    }
+
+    private static int displayTier(int tier) {
+        return tier == 2 ? 4 : tier;
+    }
+
+    private static String precise(double value) {
+        return decimal(value);
+    }
+
+    private static String signedRate(double value) {
+        return String.format(Locale.ROOT, "%+.2f", value);
+    }
+
+    private static Component card(String key, Object... args) {
+        return tr("card." + key, args);
     }
 
     private static Component tr(String suffix, Object... args) {

@@ -15,6 +15,8 @@ import cn.dancingsnow.neoecoae.gui.computation.ComputationControllerPanelState;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.NativeListCard;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.ProcessingTooltip;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -37,9 +39,9 @@ public final class NativeComputationArtwork extends ParentWidget<NativeComputati
         size(253, 231);
         background(cn.dancingsnow.neoecoae.platform.ui.NativePageLayout.texture(BACKGROUND, 0, 0, 253, 231));
         // The source's nine hover regions: exact statistics, switch states, connection, multiplier and host item.
-        region(78, 99, 54, 43, lines -> lines(lines, storageTooltip(session.state())));
-        region(135, 99, 54, 43, lines -> lines(lines, threadTooltip(session.state())));
-        region(192, 99, 54, 43, lines -> lines(lines, parallelTooltip(session.state())));
+        cardRegion(78, 99, () -> storageCard(session.state()));
+        cardRegion(135, 99, () -> threadCard(session.state()));
+        cardRegion(192, 99, () -> parallelCard(session.state()));
         for (int index = 0; index < 3; index++) {
             final int toggle = index;
             region(178 + index * 24, 176, 16, 16, lines -> lines(lines, switchTooltip(session.state(), toggle)));
@@ -66,59 +68,92 @@ public final class NativeComputationArtwork extends ParentWidget<NativeComputati
         }
     }
 
-    static java.util.List<Component> storageTooltip(CompoundTag values) {
-        long total = values.getLong("bytes"), free = values.getLong("freeBytes"), used = Math.max(0, total - free);
-        return java.util.Arrays.asList(
-            Component.translatable("gui.neoecoae.host.computation.cpu_storage")
-                .append(": ")
-                .append(HostText.fullByteProgress(used, total)),
-            Component.translatable("gui.neoecoae.host.computation.free_memory")
-                .append(": ")
-                .append(
-                    Component.literal(HostText.expandedNumber(free) + " B")
-                        .withColor(HostText.VALUE)),
-            Component.translatable("gui.neoecoae.computation.ui.stat.usage")
-                .append(": ")
-                .append(
-                    Component.literal(HostText.percent(used, total))
-                        .withColor(HostText.usedValueColor(used, total))));
+    private void cardRegion(int x, int y, java.util.function.Supplier<NativeListCard.Builder> card) {
+        child(
+            new Widget<>().pos(x, y)
+                .size(54, 43)
+                .background(IDrawable.EMPTY)
+                .tooltip(new NativeListCard(card))
+                .setEnabledIf(widget -> panelState().formed()));
     }
 
-    static java.util.List<Component> threadTooltip(CompoundTag values) {
-        int used = values.getInt("usedThreads"), total = values.getInt("threads");
-        return java.util.Arrays.asList(
-            Component.translatable("gui.neoecoae.host.computation.thread_usage")
-                .append(": ")
-                .append(
-                    HostText.usedOfTotal(
-                        HostText.usedPart(HostText.expandedNumber(used), used, total),
-                        " / ",
-                        HostText.totalPart(HostText.expandedNumber(total)))),
-            Component.translatable("gui.neoecoae.computation.ui.stat.free")
-                .append(": " + HostText.expandedNumber(Math.max(0, total - used))),
-            Component.translatable("gui.neoecoae.computation.ui.stat.usage")
-                .append(": ")
-                .append(
-                    Component.literal(HostText.percent(used, total))
-                        .withColor(HostText.usedValueColor(used, total))));
+    private static NativeListCard.Builder storageCard(CompoundTag s) {
+        long total = Math.max(0, s.getLong("bytes")), used = Math.max(0, total - s.getLong("freeBytes"));
+        double ratio = ratio(used, total);
+        return NativeListCard.builder()
+            .header(
+                null,
+                card("storage_title"),
+                card("used_percent", cardPercent(ratio)),
+                ratio >= .9 ? ProcessingTooltip.WARN : ProcessingTooltip.OK)
+            .statistic(cardBytes(used), cardBytes(total), ratio, ProcessingTooltip.ACCENT)
+            .statRow(
+                card("available"),
+                Component.literal(cardBytes(Math.max(0, total - used))),
+                ProcessingTooltip.OK,
+                false);
     }
 
-    static java.util.List<Component> parallelTooltip(CompoundTag values) {
-        int parallel = values.getInt("parallel"), full = values.getInt("fullParallel");
-        return java.util.Arrays.asList(
-            Component.translatable("gui.neoecoae.host.computation.parallel_count")
-                .append(": " + HostText.expandedNumber(parallel)),
-            Component.translatable("gui.neoecoae.computation.ui.parallel_full")
-                .append(": ")
-                .append(
-                    Component.literal(HostText.percent(parallel, full))
-                        .withColor(HostText.usedValueColor(parallel, full))),
-            Component.translatable("gui.neoecoae.computation.ui.parallel_shared")
-                .withColor(0xAAAAAA),
-            Component.translatable("gui.neoecoae.computation.ui.stat.multiplier")
-                .append(": x" + Math.max(1, values.getInt("multiplier"))),
-            Component.translatable("gui.neoecoae.computation.ui.stat.threads")
-                .append(": " + HostText.expandedNumber(values.getInt("threads"))));
+    private static NativeListCard.Builder threadCard(CompoundTag s) {
+        long total = Math.max(0, s.getInt("threads")), used = Math.max(0, s.getInt("usedThreads"));
+        boolean full = total > 0 && used >= total;
+        return NativeListCard.builder()
+            .header(
+                null,
+                card("threads_title"),
+                card(full ? "full" : used == 0 ? "idle" : "busy"),
+                full ? ProcessingTooltip.WARN : used == 0 ? ProcessingTooltip.OK : ProcessingTooltip.CYAN)
+            .statistic(
+                NEByteFormatter.formatCpuCoProcessors(used),
+                NEByteFormatter.formatCpuCoProcessors(total),
+                ratio(used, total),
+                ProcessingTooltip.CYAN)
+            .statRow(
+                card("free_threads"),
+                Component.literal(NEByteFormatter.formatCpuCoProcessors(Math.max(0, total - used))),
+                ProcessingTooltip.OK,
+                false);
+    }
+
+    private static NativeListCard.Builder parallelCard(CompoundTag s) {
+        long parallel = Math.max(0, s.getInt("parallel"));
+        double built = ratio(parallel, s.getInt("fullParallel"));
+        return NativeListCard.builder()
+            .header(
+                null,
+                card("parallel_title"),
+                card("built", cardPercent(built)),
+                built >= 1 ? ProcessingTooltip.OK : ProcessingTooltip.WARN)
+            .statistic(NEByteFormatter.formatCpuCoProcessors(parallel), null, built, 0xFFE7A6F0)
+            .statRow(
+                card("multiplier"),
+                Component.literal("×" + Math.max(1, s.getInt("multiplier"))),
+                ProcessingTooltip.WARN,
+                true)
+            .statRow(
+                card("threads"),
+                Component.literal(NEByteFormatter.formatCpuCoProcessors(Math.max(0, s.getInt("threads")))),
+                ProcessingTooltip.PRIMARY,
+                false)
+            .statRow(card("full_per_thread"), Component.empty(), ProcessingTooltip.PRIMARY, false);
+    }
+
+    static String cardBytes(long amount) {
+        long safe = Math.max(0, amount);
+        String value = NEByteFormatter.format(safe);
+        int power = Math.min(6, safe == 0 ? 0 : (63 - Long.numberOfLeadingZeros(safe)) / 10);
+        java.math.BigDecimal exact = java.math.BigDecimal.valueOf(safe)
+            .divide(java.math.BigDecimal.valueOf(1L << (power * 10)));
+        return exact.stripTrailingZeros()
+            .scale() > 3 ? "≈" + value : value;
+    }
+
+    private static String cardPercent(double ratio) {
+        return ratio > 0 && ratio < .01 ? "<1%" : Math.round(ratio * 100) + "%";
+    }
+
+    private static Component card(String key, Object... args) {
+        return Component.translatable("gui.neoecoae.computation.ui.card." + key, args);
     }
 
     static java.util.List<Component> switchTooltip(CompoundTag values, int index) {

@@ -30,6 +30,7 @@ import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiDraw;
 import cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle;
+import cn.dancingsnow.neoecoae.platform.ui.crafting.NativeListCard;
 import cn.dancingsnow.neoecoae.platform.ui.crafting.NativeStatusCardTooltip;
 import cn.dancingsnow.neoecoae.platform.ui.crafting.ProcessingTooltip;
 import cpw.mods.fml.relauncher.Side;
@@ -251,94 +252,85 @@ public final class NativeCpuPages {
                         .getInt("offset") + (direction.modifier > 0 ? -2 : 2));
                 return true;
             });
-            tooltipDynamic(lines -> {
-                var cpu = row();
-                if (cpu.getInt("token") == 0) return;
-                java.util.List<String> out = new java.util.ArrayList<>();
-                out.add(NativeCpuPages.name(cpu));
-                out.add(field("gui.neoecoae.cpu.tooltip.storage", NEByteFormatter.format(cpu.getLong("storage"))));
-                out.add(
-                    field("gui.neoecoae.cpu.tooltip.parallel", grouped(BigInteger.valueOf(cpu.getInt("parallel")))));
-                if (cpu.getBoolean("busy")) {
-                    if (!cpu.getString("output")
-                        .isEmpty()) out.add(field("gui.neoecoae.cpu.tooltip.crafting", cpu.getString("output")));
-                    BigInteger requested = number(cpu.getString("requested")),
-                        completed = number(cpu.getString("completed"));
-                    if (requested.signum() > 0) {
-                        int percent = completed.multiply(BigInteger.valueOf(100))
-                            .divide(requested)
-                            .min(BigInteger.valueOf(100))
-                            .intValue();
-                        out.add(
-                            field(
-                                "gui.neoecoae.cpu.tooltip.progress",
-                                grouped(completed),
-                                grouped(requested),
-                                percent + "%"));
-                    }
-                } else out.add(
-                    EnumChatFormatting.GRAY + Component.translatable("gui.neoecoae.cpu.status.idle")
-                        .getString());
-                String bigOrder = bigOrderStatus(cpu);
-                if (!bigOrder.isEmpty()) out.add(EnumChatFormatting.GOLD + bigOrder);
-                emit(lines, out);
-            });
-            if (status) tooltip(new NativeStatusCardTooltip(this::cardRows));
+            tooltip(new NativeListCard(this::cpuCard));
             onUpdateListener(widget -> widget.markTooltipDirty());
         }
 
-        private List<ProcessingTooltip.Row> cardRows() {
+        private NativeListCard.Builder cpuCard() {
             CompoundTag cpu = row();
-            if (cpu.getInt("token") == 0) return Collections.emptyList();
-            List<ProcessingTooltip.Row> rows = new ArrayList<>();
+            NativeListCard.Builder card = NativeListCard.builder();
+            if (cpu.getInt("token") == 0) return card;
             String state = !cpu.getBoolean("busy") ? "idle" : cpu.getBoolean("suspended") ? "suspended" : "running";
-            rows.add(
-                ProcessingTooltip.Row.header(
-                    NativeCpuPages.name(cpu),
-                    Component.translatable("gui.neoecoae.cpu.status." + state)
-                        .getString(),
-                    !cpu.getBoolean("busy") ? ProcessingTooltip.OK
-                        : cpu.getBoolean("suspended") ? ProcessingTooltip.WARN : ProcessingTooltip.CYAN));
-            rows.add(ProcessingTooltip.Row.separator());
             boolean exact = com.cleanroommc.modularui.api.widget.Interactable.hasShiftDown();
-            rows.add(
-                ProcessingTooltip.Row.text(
-                    card("storage_capacity"),
-                    exact ? grouped(BigInteger.valueOf(cpu.getLong("storage"))) + " B"
-                        : NEByteFormatter.format(cpu.getLong("storage"))));
-            rows.add(
-                ProcessingTooltip.Row.text(
-                    card("co_processors"),
-                    exact ? grouped(BigInteger.valueOf(cpu.getInt("parallel")))
-                        : BigNumberFormatter.formatSI(BigInteger.valueOf(cpu.getInt("parallel")), 1),
-                    ProcessingTooltip.ACCENT));
-            if (cpu.getBoolean("busy")) {
+            card.header(
+                NativeListCard.Glyph.CHIP,
+                Component.literal(NativeCpuPages.name(cpu)),
+                Component.literal(
+                    Component.translatable("gui.neoecoae.cpu.status." + state)
+                        .getString()
+                        .toUpperCase(java.util.Locale.ROOT)),
+                !cpu.getBoolean("busy") ? ProcessingTooltip.OK
+                    : cpu.getBoolean("suspended") ? ProcessingTooltip.WARN : ProcessingTooltip.CYAN)
+                .divider()
+                .row(
+                    null,
+                    ProcessingTooltip.MUTED,
+                    Component.literal(card("storage_capacity")),
+                    Component.literal(
+                        exact ? HostText.expandedNumber(cpu.getLong("storage")) + " B"
+                            : NativeComputationArtwork.cardBytes(cpu.getLong("storage"))),
+                    ProcessingTooltip.PRIMARY)
+                .row(
+                    null,
+                    ProcessingTooltip.MUTED,
+                    Component.literal(card("co_processors")),
+                    Component.literal(
+                        exact ? HostText.expandedNumber(cpu.getInt("parallel"))
+                            : NEByteFormatter.formatCpuCoProcessors(cpu.getInt("parallel"))),
+                    ProcessingTooltip.ACCENT);
+            String mode = cpu.getString("mode");
+            if (!mode.isEmpty() && !mode.equals("ANY"))
+                card.text(NativeComputationPages.cpuModeDescription(mode), Component.empty(), ProcessingTooltip.MUTED);
+            if (cpu.getBoolean("busy") && !cpu.getString("output")
+                .isEmpty()) {
                 BigInteger requested = number(cpu.getString("requested")),
                     completed = number(cpu.getString("completed"));
-                float progress = requested.signum() <= 0 ? 0
+                double progress = requested.signum() <= 0 ? 0
                     : Math.max(
                         0,
                         Math.min(
                             1,
                             new java.math.BigDecimal(completed)
                                 .divide(new java.math.BigDecimal(requested), 6, java.math.RoundingMode.DOWN)
-                                .floatValue()));
-                rows.add(ProcessingTooltip.Row.separator());
-                rows.add(ProcessingTooltip.Row.text(cpu.getString("output"), Math.round(progress * 100) + "%"));
-                rows.add(ProcessingTooltip.Row.progress(progress, ProcessingTooltip.CYAN, 0xFF332E3B));
-                rows.add(
-                    ProcessingTooltip.Row.text(
-                        field(
-                            "gui.neoecoae.cpu.tooltip.progress",
-                            exact ? grouped(completed) : BigNumberFormatter.formatSI(completed, 1),
-                            exact ? grouped(requested) : BigNumberFormatter.formatSI(requested, 1),
-                            Math.round(progress * 100) + "%")));
+                                .doubleValue()));
+                AEKey key = AEKey.fromTagGeneric(RegistryAccess.EMPTY, cpu.getCompound("outputKey"));
+                card.divider()
+                    .row(
+                        null,
+                        ProcessingTooltip.MUTED,
+                        Component.literal(cpu.getString("output")),
+                        Component.literal(Math.round(progress * 100) + "%"),
+                        ProcessingTooltip.CYAN)
+                    .bar(progress, ProcessingTooltip.CYAN)
+                    .text(
+                        Component.translatable(
+                            "gui.neoecoae.cpu.remaining",
+                            exact ? grouped(number(cpu.getString("remaining")))
+                                : amount(cpu.getString("remaining"), key)),
+                        Component.empty(),
+                        ProcessingTooltip.PRIMARY)
+                    .text(
+                        Component.translatable(
+                            "gui.neoecoae.big_order.requested",
+                            exact ? grouped(requested) : amount(cpu.getString("requested"), key)),
+                        Component.empty(),
+                        ProcessingTooltip.PRIMARY);
             }
             String big = bigOrderStatus(cpu);
-            if (!big.isEmpty()) rows.add(ProcessingTooltip.Row.text(big));
-            if (!exact)
-                rows.add(ProcessingTooltip.Row.hint(appeng.core.localization.GuiText.HoldShiftForTooltip.getLocal()));
-            return rows;
+            if (!big.isEmpty()) card.text(Component.literal(big), Component.empty(), ProcessingTooltip.WARN);
+            if (!exact) card.divider()
+                .hint(NativeListCard.Glyph.INFO, Component.literal(card("hold_shift")));
+            return card;
         }
 
         private CompoundTag row() {

@@ -263,6 +263,10 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         snapshot.putBoolean("formed", formed);
         snapshot.putBoolean("overclocked", overclocked);
         snapshot.putBoolean("activeCooling", activeCooling);
+        snapshot.putString(
+            "coolingProblem",
+            PauseReason.values()[Math
+                .max(0, Math.min(coolingProblemId, PauseReason.values().length - 1))].translationKey);
         snapshot.putBoolean("temperatureEnabled", isTemperatureEnabled());
         snapshot.putBoolean("preheating", isTemperatureEnabled() && preheating);
         snapshot.putBoolean("overheated", isTemperatureEnabled() && overheated);
