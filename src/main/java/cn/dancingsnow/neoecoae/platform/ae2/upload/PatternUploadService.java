@@ -79,8 +79,9 @@ public final class PatternUploadService {
             notify(player, "gui.neoecoae.pattern_upload.reason.no_permission", true);
             return;
         }
-        // The upload buttons also work directly from an unencoded terminal draft.
-        if (mode == PatternUploadPackets.ENCODE_AND_OPEN || source.slots()
+        // Opening the menu must leave the result slot empty so the previous upload can be undone.
+        // Only explicit encoding and auto-upload may encode the terminal draft.
+        if (mode == PatternUploadPackets.ENCODE_AND_OPEN || mode == PatternUploadPackets.AUTO && source.slots()
             .get(source.slot()) == null) {
             ItemStack before = copy(
                 source.slots()
