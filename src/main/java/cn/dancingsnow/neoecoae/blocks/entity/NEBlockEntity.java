@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraftforge.common.util.ForgeDirection;
+
 import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.Nullable;
 
@@ -144,6 +146,19 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
     private boolean usesNativeMemberGrid() {
         return !defersGridNode()
             || cluster instanceof NEComputationCluster computation && !computation.usesCompactGrid();
+    }
+
+    /**
+     * A compact computation grid only gives the controller and the ingress a node, so the other members belong to the
+     * cluster without one. AE2's machine-level query ({@code UNKNOWN}) answers with the cluster's node; face queries
+     * stay empty because AE2 builds physical connections from them.
+     */
+    @Override
+    public IGridNode getGridNode(ForgeDirection side) {
+        IGridNode node = super.getGridNode(side);
+        if (node != null || side != ForgeDirection.UNKNOWN || !defersGridNode()) return node;
+        return cluster instanceof NEComputationCluster computation && computation.usesCompactGrid()
+            && !computation.isDestroyed() ? computation.getNode() : null;
     }
 
     private ECOPowerRole idlePowerRole = ECOPowerRole.COMPONENT;
