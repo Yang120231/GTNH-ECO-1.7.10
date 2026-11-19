@@ -6,6 +6,7 @@ import net.minecraft.item.ItemStack;
 
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEStack;
+import cn.dancingsnow.neoecoae.compat.gtnr.upload.CrossRecipePatternUpload;
 import cn.dancingsnow.neoecoae.crafting.upload.MatchResult;
 import cn.dancingsnow.neoecoae.crafting.upload.MatchResult.Level;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternContext;
@@ -96,8 +97,9 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         RecipeMap<?> resolvedMap = null;
         boolean ambiguous = false;
         for (Route route : routes) {
+            route = routeForPatternMap(host, route, request);
             boolean canProgram = canProgram(route, programmable);
-            Decision decision = evaluate(route, request, canProgram);
+            Decision decision = evaluate(host, route, request, canProgram);
             long voltage = GtRouteDiscovery.inputVoltage(route.receiver());
             MatchResult candidate = new MatchResult(
                 decision.level,
@@ -155,38 +157,69 @@ public final class GtPatternRoutes implements PatternRouteProbe {
 
     private static Request request(PatternContext context) {
         RouteHint source = context.hint != null && !context.hint.isEmpty() ? context.hint : null;
-        RecipeMap<?> sourceMap = source != null && source.hasRecipeMap() ? knownMap(source.getRecipeMapId()) : null;
+        String patternMap = CrossRecipePatternUpload.patternRecipeMap(context.pattern);
+        boolean hintHasMap = source != null && source.hasRecipeMap();
+        String sourceMapId = patternMap != null ? patternMap : hintHasMap ? source.getRecipeMapId() : "";
+        boolean hasRecipeMap = patternMap != null || hintHasMap;
+        RecipeMap<?> sourceMap = hasRecipeMap ? knownMap(sourceMapId) : null;
         IAEStack<?>[] inputs = context.recipeInputs;
         ItemStack patternCircuit = GtCircuits.patternCircuit(inputs);
         return new Request(
             context,
             source,
+            sourceMapId,
             sourceMap,
+            hasRecipeMap,
             patternCircuit,
             selectedCircuit(context, patternCircuit),
             GtCircuits.hasProgrammingCircuit(inputs),
             GtCircuits.conflictingCircuits(inputs));
     }
 
-    private Decision evaluate(Route route, Request request, boolean canProgram) {
+    private Decision evaluate(Object host, Route route, Request request, boolean canProgram) {
         ItemStack selected = request.selectedCircuit;
         if (request.circuitConflict) return new Decision(Level.CIRCUIT_CONFLICT, "circuits_multiple", selected);
 
-        Decision rejected = checkDestination(route, request);
+        Decision rejected = checkDestination(host, route, request);
         if (rejected != null) return rejected;
-        return request.source == null ? inferSelection(route, request, canProgram)
-            : checkCircuit(route, request, selected, canProgram);
+        return request.hasRecipeMap || request.source != null ? checkCircuit(route, request, selected, canProgram)
+            : inferSelection(route, request, canProgram);
     }
 
-    private static Decision checkDestination(Route route, Request request) {
+    private static Route routeForPatternMap(Object host, Route route, Request request) {
+        if (!CrossRecipePatternUpload.isBuffer(host) || !request.hasRecipeMap
+            || request.sourceMap == null
+            || !CrossRecipePatternUpload.selectsSupportedMap(host, request.sourceMapId)
+            || route.map() == request.sourceMap) return route;
+        if (!CrossRecipePatternUpload.controllerSupportsMap(route.receiver(), request.sourceMapId)) return route;
+        String name = route.name();
+        int mode = name == null ? -1 : name.indexOf(MODE_SEPARATOR);
+        if (mode >= 0) name = name.substring(0, mode);
+        if (name != null) name += MODE_SEPARATOR + request.sourceMap.unlocalizedName;
+        return new Route(
+            request.sourceMap,
+            route.circuit(),
+            route.icon(),
+            name,
+            route.receiver(),
+            route.programmingCover(),
+            route.programmable());
+    }
+
+    private static Decision checkDestination(Object host, Route route, Request request) {
         ItemStack selected = request.selectedCircuit;
         if (route.map() == null) return new Decision(Level.UNVERIFIED, "no_controller", selected);
 
         RouteHint source = request.source;
-        if (source != null && source.hasRecipeMap()) {
+        if (request.hasRecipeMap) {
             // An invalid captured source is not permission to infer a different map from the edited pattern.
             if (request.sourceMap == null) return new Decision(Level.UNVERIFIED, "source_map_unknown", selected);
-            if (request.sourceMap != route.map()) return new Decision(Level.WRONG_RECIPE, "hint_map", selected);
+            boolean crossRecipeBuffer = CrossRecipePatternUpload.isBuffer(host);
+            if ((crossRecipeBuffer && !CrossRecipePatternUpload.selectsSupportedMap(host, request.sourceMapId))
+                || (crossRecipeBuffer && request.sourceMap != route.map()
+                    && !CrossRecipePatternUpload.controllerSupportsMap(route.receiver(), request.sourceMapId))
+                || (!crossRecipeBuffer && request.sourceMap != route.map()))
+                return new Decision(Level.WRONG_RECIPE, "hint_map", selected);
         } else if (source != null && source.hasMachineTypes()
             && !source.matchesMachine(route.icon())
             && (route.receiver() == null || !source.matchesMachine(
@@ -225,7 +258,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             && !GtCircuits.programmingCircuitsMatch(request.context.recipeInputs, installed))
             return new Decision(Level.CIRCUIT_CONFLICT, "needs_programming", selected);
 
-        boolean sourceWithoutMap = request.source != null && !request.source.hasRecipeMap();
+        boolean sourceWithoutMap = request.source != null && !request.hasRecipeMap;
         if (selected != null) {
             if (installed != null && !GtCircuits.same(selected, installed))
                 return new Decision(Level.CIRCUIT_CONFLICT, "machine_circuit", selected);
@@ -265,12 +298,15 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     @com.github.bsideup.jabel.Desugar
-    private record Request(PatternContext context, RouteHint source, RecipeMap<?> sourceMap, ItemStack patternCircuit,
-        ItemStack selectedCircuit, boolean programmingCircuit, boolean circuitConflict) {
+    private record Request(PatternContext context, RouteHint source, String sourceMapId, RecipeMap<?> sourceMap,
+        boolean hasRecipeMap, ItemStack patternCircuit, ItemStack selectedCircuit, boolean programmingCircuit,
+        boolean circuitConflict) {
 
         String categoryId(Route route) {
             if (source != null && !source.getCategoryId()
-                .isEmpty()) return source.getCategoryId();
+                .isEmpty() && (!hasRecipeMap || sourceMapId.equals(source.getRecipeMapId())))
+                return source.getCategoryId();
+            if (hasRecipeMap && sourceMap != null) return "gt:" + sourceMap.unlocalizedName;
             return route.map() == null ? "" : "gt:" + route.map().unlocalizedName;
         }
 
