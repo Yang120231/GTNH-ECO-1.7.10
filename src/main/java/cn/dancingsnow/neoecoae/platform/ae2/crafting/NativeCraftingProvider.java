@@ -40,8 +40,11 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     private final ICraftingMedium medium;
     private final List<IPatternDetails> patterns;
     private final boolean assemblerMatrix;
+    private final boolean preserveInputSlots;
 
     private static final String ASSEMBLER_MATRIX = "com.science.gtnl.common.machine.multiblock.AssemblerMatrix";
+    private static final String GTSWN_ITEM_INPUT = "com.miaokatze.gtswn.common.assembly.MatrixItemInputBus";
+    private static final String GTSWN_FLUID_INPUT = "com.miaokatze.gtswn.common.assembly.MatrixFluidInputHatch";
     private static final ClassValue<AssemblerBatchAccess> ASSEMBLER_BATCH_ACCESS = new ClassValue<>() {
 
         @Override
@@ -74,6 +77,11 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
                 break;
             }
         this.assemblerMatrix = matrix;
+        // Both GTSWN endpoints are final. Match the optional medium once without loading either class.
+        String mediumType = medium.getClass()
+            .getName();
+        this.preserveInputSlots = assemblerMatrix || GTSWN_ITEM_INPUT.equals(mediumType)
+            || GTSWN_FLUID_INPUT.equals(mediumType);
     }
 
     public ICraftingMedium nativeMedium() {
@@ -263,8 +271,8 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
                 (slot, stack) -> table.setInventorySlotContents(slot, appeng.util.item.AEItemStack.create(stack)));
             for (var counter : copy)
                 if (!counter.isEmpty()) throw new IllegalArgumentException("Unexpected native crafting input surplus");
-        } else if (assemblerMatrix) {
-            table = assemblerTable(nativePattern, inputHolder, copies);
+        } else if (preserveInputSlots) {
+            table = orderedProcessingTable(nativePattern, inputHolder, copies);
             if (table == null) return false;
         } else {
             var stacks = new ArrayList<IAEStack<?>>();
@@ -315,9 +323,9 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         return accepted;
     }
 
-    /** GTNL resolves container returns from the physical pattern's sparse slot indices. */
+    /** Restore the physical slots for GTNL container returns and GTSWN ordered processing. */
     @Nullable
-    private static MEInventoryCrafting assemblerTable(NativePatternDetails pattern, KeyCounter[] inputHolder,
+    private static MEInventoryCrafting orderedProcessingTable(NativePatternDetails pattern, KeyCounter[] inputHolder,
         long copies) {
         var remaining = new KeyCounter();
         for (var counter : inputHolder) for (var entry : counter) {
