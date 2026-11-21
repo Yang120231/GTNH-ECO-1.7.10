@@ -44,6 +44,17 @@ public final class GtPatternRoutes implements PatternRouteProbe {
         return knownMap(id) != null;
     }
 
+    /**
+     * Whether a GTNR pattern tag and an NEI recipe map id name the same map. GTNR tags use the unlocalized name while
+     * NEI sources may use GT's old identifier, so the ids are compared as resolved maps.
+     */
+    public static boolean sameMap(String patternMap, String hintMapId) {
+        if (patternMap == null || hintMapId == null) return false;
+        if (patternMap.equals(hintMapId)) return true;
+        RecipeMap<?> tagged = RecipeMap.ALL_RECIPE_MAPS.get(patternMap);
+        return tagged != null && tagged == knownMap(hintMapId);
+    }
+
     public static void updateSelection(RouteHint hint, IAEStack<?>[] inputs) {
         if (GtCircuits.conflictingCircuits(inputs)) return;
         ItemStack selected = GtCircuits.patternCircuit(inputs);
@@ -96,23 +107,32 @@ public final class GtPatternRoutes implements PatternRouteProbe {
 
         boolean crossRecipeBuffer = CrossRecipePatternUpload.isBuffer(host);
         Request request = request(context, crossRecipeBuffer);
-        String configuredMap = crossRecipeBuffer ? CrossRecipePatternUpload.terminalRecipeMap(host) : "";
+        // null: the buffer's pool could not be read; "": no pool selected.
+        String terminalMap = crossRecipeBuffer ? CrossRecipePatternUpload.terminalRecipeMap(host) : "";
+        Pool pool = new Pool(
+            terminalMap == null,
+            terminalMap == null ? "" : terminalMap,
+            terminalMap == null ? null : CrossRecipePatternUpload.resolveMap(terminalMap));
+        String configuredMap = pool.id;
         MatchResult best = null;
         MatchResult bestProgrammable = null;
         MatchResult resolved = null;
         RecipeMap<?> resolvedMap = null;
         boolean ambiguous = false;
         for (Route route : routes) {
-            MapSupport mapSupport = crossRecipeBuffer && request.tagged
-                && request.sourceMap != null
+            RecipeMap<?> current = route.map();
+            // A GTNR pattern tag selects the map; otherwise the pool chosen in the buffer's terminal does. The
+            // controller's current mode is only the fallback, so buffers bound to different pools on one controller
+            // are matched (and grouped) against their own pools.
+            RecipeMap<?> requested = request.tagged ? request.sourceMap : pool.map;
+            MapSupport mapSupport = crossRecipeBuffer && requested != null
                 && route.receiver() instanceof MTEMultiBlockBase controller
-                    ? CrossRecipePatternUpload.mapSupport(controller, route.map(), request.sourceMap)
+                    ? CrossRecipePatternUpload.mapSupport(controller, current, requested)
                     : null;
-            boolean crossRecipe = mapSupport == MapSupport.VERIFIED && request.sourceMap != route.map();
-            if (crossRecipeBuffer && route.map() != null)
-                route = routeWithMap(route, crossRecipe ? request.sourceMap : route.map());
+            boolean crossRecipe = mapSupport == MapSupport.VERIFIED && requested != current;
+            if (crossRecipeBuffer && current != null) route = routeWithMap(route, crossRecipe ? requested : current);
             boolean canProgram = canProgram(route, programmable);
-            Decision decision = evaluate(route, request, canProgram, crossRecipeBuffer, mapSupport);
+            Decision decision = evaluate(route, request, canProgram, crossRecipeBuffer, pool, mapSupport);
             Level level = decision.level == Level.ROUTED && crossRecipeBuffer
                 ? crossRecipe ? Level.GTNR_CROSS_RECIPE : Level.GT_NATIVE
                 : decision.level;
@@ -209,12 +229,18 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     private Decision evaluate(Route route, Request request, boolean canProgram, boolean crossRecipeBuffer,
-        MapSupport mapSupport) {
+        Pool pool, MapSupport mapSupport) {
         ItemStack selected = request.selectedCircuit;
         if (request.circuitConflict) return new Decision(Level.CIRCUIT_CONFLICT, "circuits_multiple", selected);
         Decision rejected = checkDestination(route, request, crossRecipeBuffer, mapSupport);
         if (rejected != null) return rejected;
         if (crossRecipeBuffer && route.receiver() instanceof MTEMultiBlockBase controller) {
+            // An unreadable pool is unknown, never "unrestricted": the buffer could reject or misroute the pattern.
+            if (pool.unreadable) return new Decision(Level.UNVERIFIED, "gtnr_pool_unreadable", selected);
+            if (!pool.id.isEmpty() && pool.map == null)
+                return new Decision(Level.UNVERIFIED, "gtnr_pool_unknown", selected);
+            if (pool.map != null && pool.map != route.map())
+                return new Decision(Level.INCOMPATIBLE, "gtnr_pool_mismatch", selected);
             var lock = controller.isRecipeLockingEnabled() ? controller.getSingleRecipeCheck() : null;
             if (lock != null && lock.getRecipeMap() != route.map())
                 return new Decision(Level.INCOMPATIBLE, "gtnr_switch_unavailable", selected);
@@ -222,13 +248,14 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             var inference = lock == null ? cache.infer(route.map(), request.context, request.virtualCircuit)
                 : cache.inferLocked(route.map(), request.context, request.virtualCircuit, lock.getRecipe());
             Decision match = inferSelection(route, request, canProgram, inference);
-            if (lock == null && match.level == Level.WRONG_RECIPE
-                && !request.tagged
-                && request.sourceMap != null
-                && request.sourceMap != route.map()
-                && CrossRecipePatternUpload.mapSupport(controller, route.map(), request.sourceMap)
-                    != MapSupport.UNAVAILABLE)
-                return new Decision(Level.UNVERIFIED, "gtnr_missing_map", selected);
+            if (lock != null || match.level != Level.WRONG_RECIPE
+                || request.tagged
+                || request.sourceMap == null
+                || request.sourceMap == route.map()) return match;
+            // The NEI source names another map. A selected pool fixes the map, so this buffer cannot run it.
+            if (pool.map != null) return new Decision(Level.INCOMPATIBLE, "gtnr_pool_mismatch", selected);
+            if (CrossRecipePatternUpload.mapSupport(controller, route.map(), request.sourceMap)
+                != MapSupport.UNAVAILABLE) return new Decision(Level.UNVERIFIED, "gtnr_missing_map", selected);
             return match;
         }
         return request.hasRecipeMap || request.source != null ? checkCircuit(route, request, selected, canProgram)
@@ -337,12 +364,16 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     }
 
     private static RecipeMap<?> knownMap(String id) {
-        try {
-            return RecipeMap.getFromOldIdentifier(id);
-        } catch (RuntimeException unknown) {
-            return null;
-        }
+        // NEI sources report either the unlocalized name or GT's old identifier.
+        return CrossRecipePatternUpload.resolveMap(id);
     }
+
+    /**
+     * The recipe pool chosen in a GTNR buffer's terminal. {@code unreadable} means the buffer exposes a pool that could
+     * not be read; an empty {@code id} means none is selected; {@code map} is null when the id names no loaded map.
+     */
+    @com.github.bsideup.jabel.Desugar
+    private record Pool(boolean unreadable, String id, RecipeMap<?> map) {}
 
     @com.github.bsideup.jabel.Desugar
     private record Request(PatternContext context, RouteHint source, String sourceMapId, RecipeMap<?> sourceMap,

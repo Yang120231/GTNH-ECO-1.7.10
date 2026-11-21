@@ -117,7 +117,9 @@ public final class PatternUploadMappings {
             return new Scope(RouteHint.MATERIAL_ORDER_CATEGORY, "-", context.hint.getCategory());
         boolean nativeGt = NativeGregTech.isAvailable();
         String declaredMap = nativeGt ? CrossRecipePatternUpload.patternRecipeMap(context.pattern) : null;
-        if (declaredMap != null && !declaredMap.equals(context.hint.getRecipeMapId())) return null;
+        // GTNR tags and NEI sources spell the same map differently; compare the resolved maps.
+        if (declaredMap != null && !cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes
+            .sameMap(declaredMap, context.hint.getRecipeMapId())) return null;
         String selection = nativeGt ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
             : context.hint.selectionKey();
         return new Scope(context.hint.getCategoryId(), selection, context.hint.getCategory());
