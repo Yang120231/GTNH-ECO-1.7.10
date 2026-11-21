@@ -8,6 +8,7 @@ import java.util.Map;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 
+import cn.dancingsnow.neoecoae.compat.gtnr.upload.CrossRecipePatternUpload;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternTargetSelector.Evaluation;
 import cn.dancingsnow.neoecoae.platform.gt.NativeGregTech;
 
@@ -114,8 +115,10 @@ public final class PatternUploadMappings {
             .isEmpty()) return null;
         if (context.hint.isMaterialOrder())
             return new Scope(RouteHint.MATERIAL_ORDER_CATEGORY, "-", context.hint.getCategory());
-        String selection = NativeGregTech.isAvailable()
-            ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
+        boolean nativeGt = NativeGregTech.isAvailable();
+        String declaredMap = nativeGt ? CrossRecipePatternUpload.patternRecipeMap(context.pattern) : null;
+        if (declaredMap != null && !declaredMap.equals(context.hint.getRecipeMapId())) return null;
+        String selection = nativeGt ? cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes.selectionKey(context)
             : context.hint.selectionKey();
         return new Scope(context.hint.getCategoryId(), selection, context.hint.getCategory());
     }

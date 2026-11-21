@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoae.platform.gt.upload;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -59,13 +60,15 @@ final class GtRecipeVerifier {
         }
     }
 
-    private static Inference lookup(RecipeMap<?> map, Pattern pattern) {
+    private static Inference lookup(RecipeMap<?> map, Pattern pattern, GTRecipe lockedRecipe) {
         Inference result = new Inference();
         if (map == null || pattern == null || !pattern.hasEvidence()) return result;
         int inspected = 0;
         try {
+            Iterable<GTRecipe> recipes = lockedRecipe == null ? map.getAllRecipes()
+                : Collections.singletonList(lockedRecipe);
             // Inspect the entire map. A short first-match query loses gas/circuit variants and cannot prove uniqueness.
-            for (GTRecipe recipe : map.getAllRecipes()) {
+            for (GTRecipe recipe : recipes) {
                 if (++inspected > MAX_RECIPES) {
                     result.complete = false;
                     break;
@@ -218,18 +221,27 @@ final class GtRecipeVerifier {
         }
 
         Inference infer(RecipeMap<?> map, PatternContext context) {
-            PatternEntry entry = entry(context);
-            if (entry == null) return lookup(map, Pattern.of(context));
+            return infer(map, context, null);
+        }
+
+        Inference infer(RecipeMap<?> map, PatternContext context, ItemStack virtualCircuit) {
+            PatternEntry entry = entry(context, virtualCircuit);
+            if (entry == null) return lookup(map, Pattern.of(context, virtualCircuit), null);
             Inference known = entry.verdicts.get(map);
             if (known == null) {
-                known = lookup(map, entry.pattern);
+                known = lookup(map, entry.pattern, null);
                 entry.verdicts.put(map, known);
                 verdicts++;
             }
             return known;
         }
 
-        private PatternEntry entry(PatternContext context) {
+        Inference inferLocked(RecipeMap<?> map, PatternContext context, ItemStack virtualCircuit, GTRecipe recipe) {
+            PatternEntry entry = entry(context, virtualCircuit);
+            return lookup(map, entry == null ? Pattern.of(context, virtualCircuit) : entry.pattern, recipe);
+        }
+
+        private PatternEntry entry(PatternContext context, ItemStack virtualCircuit) {
             MinecraftServer server = MinecraftServer.getServer();
             if (server == null || context == null) {
                 clear();
@@ -241,7 +253,7 @@ final class GtRecipeVerifier {
                 clear();
                 tick = now;
             }
-            return patterns.computeIfAbsent(context, ignored -> new PatternEntry(Pattern.of(context)));
+            return patterns.computeIfAbsent(context, ignored -> new PatternEntry(Pattern.of(context, virtualCircuit)));
         }
     }
 
@@ -262,13 +274,17 @@ final class GtRecipeVerifier {
         ItemStack circuit;
         boolean reset;
 
-        static Pattern of(PatternContext context) {
+        static Pattern of(PatternContext context, ItemStack virtualCircuit) {
             if (context == null || !context.processing || context.inputError != null) return null;
             Pattern pattern = new Pattern();
             IAEStack<?>[] inputs = context.recipeInputs, outputs = context.details.getCondensedAEOutputs();
             if (inputs == null || outputs == null) return null;
             pattern.circuit = GtCircuits.patternCircuit(inputs);
             pattern.reset = GtCircuits.resetsSelector(inputs);
+            if (virtualCircuit != null) {
+                if (pattern.circuit == null) pattern.items.add(virtualCircuit.copy());
+                pattern.circuit = virtualCircuit;
+            }
             for (IAEStack<?> input : inputs) {
                 if (input instanceof IAEItemStack) {
                     ItemStack stack = GtCircuits.normalizeForRecipe(((IAEItemStack) input).getItemStack());

@@ -67,9 +67,7 @@ final class PatternUploadScreen extends GuiScreen {
     private static final int OFFLINE = PatternTargetSelector.SlotState.OFFLINE.ordinal();
     private static final int DUPLICATE = PatternTargetSelector.SlotState.DUPLICATE.ordinal();
     private static final String[] FILTERS = { "all", "available", "duplicate", "full", "offline", "incompatible" };
-    private static final int EXACT = MatchResult.Level.EXACT.ordinal();
     private static final int ACCEPTED = MatchResult.Level.ACCEPTED.ordinal();
-    private static final int ROUTED = MatchResult.Level.ROUTED.ordinal();
     private static final int INCOMPATIBLE = MatchResult.Level.INCOMPATIBLE.ordinal();
 
     /** Window offset from the centred position; kept for the session so the window reopens where it was left. */
@@ -1264,7 +1262,7 @@ final class PatternUploadScreen extends GuiScreen {
         tip.title = withVoltageTier(tip.title, row);
         tip.star = row.token == list.autoToken && list.autoToken != 0;
         tip.level = text(level(row).translationKey());
-        tip.levelColor = row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED ? UploadRowTooltip.GOOD
+        tip.levelColor = goodMatch(row) ? UploadRowTooltip.GOOD
             : row.level == INCOMPATIBLE ? UploadRowTooltip.BAD : UploadRowTooltip.WARN;
         tip.state = text(stateKey(row));
         tip.stateGood = row.state == FREE;
@@ -1274,6 +1272,13 @@ final class PatternUploadScreen extends GuiScreen {
         tip.emptySlots = row.emptySlots;
         tip.totalSlots = row.totalSlots;
         if (!row.reason.isEmpty()) tip.notes.add(text(row.reason));
+        int modeSeparator = row.route.indexOf(MODE_SEPARATOR);
+        if (!row.configuredRecipeMap.isEmpty()
+            && (modeSeparator < 0 || !row.configuredRecipeMap.equals(row.route.substring(modeSeparator + 1))))
+            tip.notes.add(
+                StatCollector.translateToLocalFormatted(
+                    "gui.neoecoae.pattern_upload.tooltip.configured_recipe_map",
+                    text(row.configuredRecipeMap)));
         if (mappingMode && !row.mappable && !row.mappingFailure.isEmpty()) tip.notes.add(text(row.mappingFailure));
         if (row.programmingCover)
             tip.notes.add(StatCollector.translateToLocal("gui.neoecoae.pattern_upload.programmable"));
@@ -1353,7 +1358,7 @@ final class PatternUploadScreen extends GuiScreen {
 
     private static int accent(Row row) {
         if (row.state != FREE) return 0xff9a9a9a;
-        if (row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED) return 0xff3fa03f;
+        if (goodMatch(row)) return 0xff3fa03f;
         if (row.level == INCOMPATIBLE) return 0xffb03030;
         return 0xffd0a020;
     }
@@ -1373,9 +1378,13 @@ final class PatternUploadScreen extends GuiScreen {
     }
 
     private static String levelColor(Row row) {
-        if (row.level == EXACT || row.level == ACCEPTED || row.level == ROUTED) return "§a";
+        if (goodMatch(row)) return "§a";
         if (row.level == INCOMPATIBLE) return "§c";
         return "§e";
+    }
+
+    private static boolean goodMatch(Row row) {
+        return row.level == ACCEPTED || level(row).allowsAuto();
     }
 
     private static int safe(int ordinal, int length) {

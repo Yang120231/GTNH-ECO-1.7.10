@@ -247,13 +247,13 @@ final class Ae2InterfaceTarget implements PatternUploadTarget {
             : context.hint == null ? null : context.hint.getCircuit();
         if ("!".equals(selection)) return MatchResult
             .of(MatchResult.Level.CIRCUIT_CONFLICT, "gui.neoecoae.pattern_upload.reason.circuits_multiple");
+        MatchResult routed = probe.match(viewable, context, kind == Kind.PROGRAMMABLE_HATCH);
+        if (routed != null) return routed;
         if (context.hint != null && context.hint.hasRecipeMap()
             && (!nativeGt || !cn.dancingsnow.neoecoae.platform.gt.upload.GtPatternRoutes
                 .isKnownMap(context.hint.getRecipeMapId())))
             return MatchResult
                 .of(MatchResult.Level.UNVERIFIED, "gui.neoecoae.pattern_upload.reason.source_map_unknown");
-        MatchResult routed = probe.match(viewable, context, kind == Kind.PROGRAMMABLE_HATCH);
-        if (routed != null) return routed;
         Set<String> machines = new TreeSet<>(), matched = new TreeSet<>();
         ItemStack shown = null, actual = null;
         if (viewable instanceof IInterfaceHost host) {

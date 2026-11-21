@@ -21,7 +21,9 @@ public final class MatchResult {
         /** The target cannot hold this pattern kind at all. */
         INCOMPATIBLE("incompatible"),
         /** The recipe category and selection parameters identify this processing route. */
-        ROUTED("routed");
+        ROUTED("routed"),
+        GT_NATIVE("gt_native"),
+        GTNR_CROSS_RECIPE("gtnr_cross_recipe");
 
         public final String key;
 
@@ -34,7 +36,11 @@ public final class MatchResult {
         }
 
         public int rank() {
-            return this == ROUTED ? 0 : ordinal();
+            return allowsAuto() ? 0 : ordinal();
+        }
+
+        public boolean allowsAuto() {
+            return this == EXACT || this == ROUTED || this == GT_NATIVE || this == GTNR_CROSS_RECIPE;
         }
     }
 
@@ -57,6 +63,7 @@ public final class MatchResult {
     /** Language-independent category and requested selector used by automatic route bindings. */
     public final String categoryId;
     public final String selectionKey;
+    public final String configuredRecipeMap;
 
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover) {
@@ -98,6 +105,25 @@ public final class MatchResult {
     public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
         String routeSignature, boolean programmingCover, String categoryId, String selectionKey, String voltageTier,
         ItemStack configuredCircuit, int voltageTierRank) {
+        this(
+            level,
+            reason,
+            circuit,
+            routeName,
+            routeIcon,
+            routeSignature,
+            programmingCover,
+            categoryId,
+            selectionKey,
+            voltageTier,
+            configuredCircuit,
+            voltageTierRank,
+            "");
+    }
+
+    public MatchResult(Level level, String reason, ItemStack circuit, String routeName, ItemStack routeIcon,
+        String routeSignature, boolean programmingCover, String categoryId, String selectionKey, String voltageTier,
+        ItemStack configuredCircuit, int voltageTierRank, String configuredRecipeMap) {
         this.level = level;
         this.reason = reason;
         this.circuit = circuit == null ? null : circuit.copy();
@@ -110,6 +136,7 @@ public final class MatchResult {
         this.programmingCover = programmingCover;
         this.categoryId = categoryId == null ? "" : categoryId;
         this.selectionKey = selectionKey == null ? "" : selectionKey;
+        this.configuredRecipeMap = configuredRecipeMap;
     }
 
     /**
@@ -139,7 +166,7 @@ public final class MatchResult {
     }
 
     public boolean allowsAuto() {
-        return level == Level.EXACT || level == Level.ROUTED;
+        return level.allowsAuto();
     }
 
     public boolean allowsManual() {
@@ -148,8 +175,7 @@ public final class MatchResult {
 
     /** A binding can declare an unknown source selector, but cannot override a known target conflict. */
     public static boolean allowsMapping(Level level, String reason) {
-        return level == Level.EXACT || level == Level.ROUTED
-            || level == Level.ACCEPTED
+        return level.allowsAuto() || level == Level.ACCEPTED
             || level == Level.UNVERIFIED && (reason == null || reason.isEmpty()
                 || "gui.neoecoae.pattern_upload.reason.no_route".equals(reason)
                 || "gui.neoecoae.pattern_upload.reason.no_machine".equals(reason)

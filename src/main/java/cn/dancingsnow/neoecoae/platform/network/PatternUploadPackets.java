@@ -7,6 +7,7 @@ import java.util.List;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 
+import cn.dancingsnow.neoecoae.crafting.upload.MatchResult.Level;
 import cn.dancingsnow.neoecoae.platform.ae2.upload.PatternUploadService;
 import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.NetworkRegistry;
@@ -381,6 +382,7 @@ public final class PatternUploadPackets {
         public String route = "";
         /** Formatted supply voltage tier of the route's receiver; no GT classes are needed by the client. */
         public String voltageTier = "";
+        public String configuredRecipeMap = "";
         /** Ordinals of {@code PatternUploadTarget.Kind}, {@code MatchResult.Level} and {@code SlotState}. */
         public int kind, level, state;
         /** Translation key explaining the match level; may be empty. */
@@ -404,7 +406,10 @@ public final class PatternUploadPackets {
             ByteBufUtils.writeUTF8String(buf, nameSuffix);
             ByteBufUtils.writeUTF8String(buf, route);
             buf.writeByte(kind);
-            buf.writeByte(level);
+            buf.writeByte(
+                level == Level.GT_NATIVE.ordinal() || level == Level.GTNR_CROSS_RECIPE.ordinal()
+                    ? Level.ROUTED.ordinal()
+                    : level);
             buf.writeByte(state);
             ByteBufUtils.writeUTF8String(buf, reason);
             ByteBufUtils.writeItemStack(buf, icon);
@@ -552,6 +557,10 @@ public final class PatternUploadPackets {
                 }
             }
             if (buf.isReadable()) for (Row row : rows) row.voltageTier = readString(buf, 64);
+            if (buf.isReadable()) for (Row row : rows) {
+                row.level = buf.readByte();
+                row.configuredRecipeMap = readString(buf, 256);
+            }
         }
 
         @Override
@@ -595,6 +604,10 @@ public final class PatternUploadPackets {
                 ByteBufUtils.writeUTF8String(buf, row.mappingFailure);
             }
             for (Row row : rows) ByteBufUtils.writeUTF8String(buf, row.voltageTier);
+            for (Row row : rows) {
+                buf.writeByte(row.level);
+                ByteBufUtils.writeUTF8String(buf, row.configuredRecipeMap);
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import java.util.WeakHashMap;
 import net.minecraft.tileentity.TileEntity;
 
 import cn.dancingsnow.neoecoae.compat.gregtech.ECOGregTechMachineStatus;
+import cn.dancingsnow.neoecoae.compat.gtnr.upload.CrossRecipePatternUpload;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
@@ -254,7 +255,10 @@ final class GregTechMachineAccess {
                 TileEntity base = hostTile(hatch);
                 if (base != null) tiles.add(base);
                 // A crafting input proxy feeds from its master buffer, which is where patterns are pushed.
-                TileEntity master = hostTile(craftingInputMaster(hatch));
+                Object masterHatch = craftingInputMaster(hatch);
+                if (masterHatch == null && "mDualInputHatches".equals(field.getName()))
+                    masterHatch = CrossRecipePatternUpload.mirrorMaster(hatch);
+                TileEntity master = hostTile(masterHatch);
                 if (master != null) tiles.add(master);
             }
         }
