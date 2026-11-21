@@ -419,9 +419,7 @@ public final class NELogicalNetworkManager {
         // so explicitly republish after grouping is final to update leaders and pooled capacity.
         Set<IGrid> notifiedGrids = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
         for (NEComputationCluster cluster : state.computation) {
-            var grid = cluster.getController()
-                .getMainNode()
-                .getGrid();
+            var grid = cluster.getGrid();
             if (grid != null && notifiedGrids.add(grid.nativeGrid())) cluster.notifyGridCpuChange();
         }
     }
@@ -506,11 +504,7 @@ public final class NELogicalNetworkManager {
                     .getGrid();
             }
         } else if (cluster instanceof NEComputationCluster computationCluster) {
-            var controller = computationCluster.getController();
-            if (controller != null && computationCluster.isGridOnline()) {
-                return controller.getMainNode()
-                    .getGrid();
-            }
+            if (computationCluster.isGridOnline()) return computationCluster.getGrid();
         }
         return null;
     }

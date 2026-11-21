@@ -10,8 +10,11 @@ import cn.dancingsnow.neoecoae.impl.storage.StorageInterfaceFilter;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEStorageClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECluster;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster;
+import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.BlockOrientation;
+import cn.dancingsnow.neoecoae.platform.ae2.grid.NodeListener;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
@@ -199,6 +202,21 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
 
     public boolean isClientSide() {
         return level != null && level.isClientSide;
+    }
+
+    @Override
+    public void onMainNodeStateChanged(NodeListener.State reason) {
+        super.onMainNodeStateChanged(reason);
+        if (cluster instanceof NEComputationCluster computation && computation.usesCompactGrid())
+            NELogicalNetworkManager.refreshAfterGridChange(computation);
+    }
+
+    @Override
+    protected void onMainNodeGridChanged() {
+        if (cluster instanceof NEComputationCluster computation && computation.usesCompactGrid()) {
+            computation.notifyGridCpuChange();
+            NELogicalNetworkManager.refreshAfterGridChange(computation);
+        }
     }
 
     @Override

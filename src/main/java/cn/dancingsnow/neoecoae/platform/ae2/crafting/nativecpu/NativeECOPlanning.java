@@ -22,8 +22,10 @@ import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.data.IAEStack;
 import appeng.crafting.MECraftingInventory;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningService;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CalculationStrategy;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
@@ -41,14 +43,10 @@ public final class NativeECOPlanning {
     private NativeECOPlanning() {}
 
     public static List<ECOComputationSystemBlockEntity> hosts(IGrid grid) {
-        List<ECOComputationSystemBlockEntity> hosts = new ArrayList<>();
-        for (Class<? extends IGridHost> type : grid.getMachinesClasses())
-            if (ECOComputationSystemBlockEntity.class.isAssignableFrom(type))
-                for (IGridNode node : grid.getMachines(type)) {
-                    var host = (ECOComputationSystemBlockEntity) node.getMachine();
-                    if (host.getCluster() != null && host.getCluster()
-                        .isActive()) hosts.add(host);
-                }
+        List<ECOComputationSystemBlockEntity> hosts = allHosts(grid);
+        hosts.removeIf(
+            host -> host.getCluster() == null || !host.getCluster()
+                .isActive());
         hosts.sort(
             Comparator.comparingInt(
                 (ECOComputationSystemBlockEntity host) -> host.getBlockPos()
@@ -69,10 +67,18 @@ public final class NativeECOPlanning {
     public static List<ECOComputationSystemBlockEntity> allHosts(IGrid grid) {
         List<ECOComputationSystemBlockEntity> hosts = new ArrayList<>();
         if (grid == null) return hosts;
-        for (Class<? extends IGridHost> type : grid.getMachinesClasses())
-            if (ECOComputationSystemBlockEntity.class.isAssignableFrom(type))
-                for (IGridNode node : grid.getMachines(type))
-                    hosts.add((ECOComputationSystemBlockEntity) node.getMachine());
+        for (Class<? extends IGridHost> type : grid.getMachinesClasses()) {
+            if (!ECOComputationSystemBlockEntity.class.isAssignableFrom(type)
+                && !ECOMachineInterfaceBlockEntity.class.isAssignableFrom(type)) continue;
+            for (IGridNode node : grid.getMachines(type)) {
+                if (node.getMachine() instanceof ECOComputationSystemBlockEntity host) hosts.add(host);
+                else if (node.getMachine() instanceof ECOMachineInterfaceBlockEntity<?>port
+                    && port.getCluster() instanceof NEComputationCluster cluster
+                    && !cluster.isDestroyed()
+                    && cluster.usesCompactGrid()
+                    && cluster.getNode() == node) hosts.add(cluster.getController());
+            }
+        }
         return hosts;
     }
 

@@ -149,19 +149,6 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
             || cluster instanceof NEComputationCluster computation && !computation.usesCompactGrid();
     }
 
-    /**
-     * A compact computation grid only gives the controller and the ingress a node, so the other members belong to the
-     * cluster without one. AE2's machine-level query ({@code UNKNOWN}) answers with the cluster's node; face queries
-     * stay empty because AE2 builds physical connections from them.
-     */
-    @Override
-    public IGridNode getGridNode(ForgeDirection side) {
-        IGridNode node = super.getGridNode(side);
-        if (node != null || side != ForgeDirection.UNKNOWN || !defersGridNode()) return node;
-        return cluster instanceof NEComputationCluster computation && computation.usesCompactGrid()
-            && !computation.isDestroyed() ? computation.getNode() : null;
-    }
-
     private ECOPowerRole idlePowerRole = ECOPowerRole.COMPONENT;
     private double idleBasePower = 16;
     private double idleCellDrain;

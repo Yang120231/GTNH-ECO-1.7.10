@@ -25,12 +25,14 @@ import appeng.api.networking.IGridNode;
 import appeng.me.cache.CraftingGridCache;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
+import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPU;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeCpuTargets;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpuSelection;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCraftingJob;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Include live ECO CPU identities in the exact set used for scheduling, link recovery and output routing. */
@@ -70,28 +72,21 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
     @Inject(method = NativeCpuTargets.PUBLISH, at = @At("TAIL"), require = 1)
     private void neoecoae$publish(CallbackInfo ci) {
         neoecoae$cpusByJob.clear();
-        Set<cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster> seen = java.util.Collections
-            .newSetFromMap(new java.util.IdentityHashMap<>());
-        for (Class<? extends IGridHost> type : grid.getMachinesClasses()) {
-            if (!ECOComputationSystemBlockEntity.class.isAssignableFrom(type)) continue;
-            for (IGridNode node : grid.getMachines(type)) {
-                ECOComputationSystemBlockEntity host = (ECOComputationSystemBlockEntity) node.getMachine();
-                var cluster = host.getCluster();
-                if (cluster == null || cluster.isDestroyed() || cluster.getController() != host || !seen.add(cluster))
-                    continue;
-                cluster.pruneInactiveCPUs();
-                // Same rule as 1.21's getCpus: the representative lists its placeholder while a thread is free.
-                if (cluster.shouldPublishPlaceholder())
-                    craftingCPUClusters.add((CraftingCPUCluster) cluster.nativeCPU(cluster.getFakeCPU()));
-                for (var cpu : cluster.getActiveCPUs()) {
-                    UUID jobId = cpu.getLogic()
-                        .getProcessingJobId();
-                    if (jobId != null) neoecoae$cpusByJob.put(jobId, cpu);
-                    CraftingCPUCluster nativeCpu = (CraftingCPUCluster) cluster.nativeCPU(cpu);
-                    craftingCPUClusters.add(nativeCpu);
-                    if (nativeCpu.getLastCraftingLink() != null)
-                        addLink((appeng.crafting.CraftingLink) nativeCpu.getLastCraftingLink());
-                }
+        for (var host : NativeECOPlanning.allHosts(grid)) {
+            var cluster = host.getCluster();
+            if (cluster == null || cluster.isDestroyed() || cluster.getController() != host) continue;
+            cluster.pruneInactiveCPUs();
+            // Same rule as 1.21's getCpus: the representative lists its placeholder while a thread is free.
+            if (cluster.shouldPublishPlaceholder())
+                craftingCPUClusters.add((CraftingCPUCluster) cluster.nativeCPU(cluster.getFakeCPU()));
+            for (var cpu : cluster.getActiveCPUs()) {
+                UUID jobId = cpu.getLogic()
+                    .getProcessingJobId();
+                if (jobId != null) neoecoae$cpusByJob.put(jobId, cpu);
+                CraftingCPUCluster nativeCpu = (CraftingCPUCluster) cluster.nativeCPU(cpu);
+                craftingCPUClusters.add(nativeCpu);
+                if (nativeCpu.getLastCraftingLink() != null)
+                    addLink((appeng.crafting.CraftingLink) nativeCpu.getLastCraftingLink());
             }
         }
     }
@@ -126,18 +121,14 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
             neoecoae$cpusByJob.remove(jobId);
         }
         // New and restored CPUs may receive output before the native cache publishes their identities.
-        Set<NEComputationCluster> visited = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
-        for (Class<? extends IGridHost> type : grid.getMachinesClasses()) {
-            if (!ECOComputationSystemBlockEntity.class.isAssignableFrom(type)) continue;
-            for (IGridNode node : grid.getMachines(type)) {
-                NEComputationCluster cluster = ((ECOComputationSystemBlockEntity) node.getMachine()).getCluster();
-                if (cluster == null || !visited.add(cluster)) continue;
-                for (ECOCraftingCPU cpu : cluster.getAllocatedCPUs()) {
-                    if (cpu.getLogic()
-                        .hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cpu)) {
-                        neoecoae$cpusByJob.put(jobId, cpu);
-                        return cpu;
-                    }
+        for (var host : NativeECOPlanning.allHosts(grid)) {
+            var cluster = host.getCluster();
+            if (cluster == null || cluster.isDestroyed() || cluster.getController() != host) continue;
+            for (ECOCraftingCPU cpu : cluster.getAllocatedCPUs()) {
+                if (cpu.getLogic()
+                    .hasCraftingJob(jobId) && neoecoae$isRegisteredCpu(cpu)) {
+                    neoecoae$cpusByJob.put(jobId, cpu);
+                    return cpu;
                 }
             }
         }
@@ -155,7 +146,8 @@ public abstract class CraftingCpuPublicationMixin implements ECOCraftingOutputRo
 
     @Inject(method = { NativeCpuTargets.ADD, NativeCpuTargets.REMOVE }, at = @At("HEAD"), require = 1)
     private void neoecoae$topology(IGridNode node, IGridHost machine, CallbackInfo ci) {
-        if (machine instanceof ECOComputationSystemBlockEntity) updateList = true;
+        if (machine instanceof ECOComputationSystemBlockEntity
+            || machine instanceof ECOMachineInterfaceBlockEntity<?>port && port.defersGridNode()) updateList = true;
     }
 
     @Group(name = "neoecoae$planningEntry", min = 1, max = 1)

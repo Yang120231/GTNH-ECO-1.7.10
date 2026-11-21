@@ -61,11 +61,8 @@ public final class NativeComputationSession extends NativeSnapshotSession {
             host.getCpuSelectionMode()
                 .name());
         tag.putInt("frequency", host.getNetworkFrequency());
-        tag.putBoolean(
-            "connected",
-            host.getMainNode()
-                .isOnline());
         var cluster = host.getCluster();
+        tag.putBoolean("connected", cluster != null && cluster.isGridOnline());
         boolean validCluster = cluster != null && !cluster.isDestroyed();
         var endgameBlockers = validCluster ? cluster.getEndgameBlockers() : Collections.singletonList("host_count");
         ListTag blockers = new ListTag();
@@ -199,8 +196,7 @@ public final class NativeComputationSession extends NativeSnapshotSession {
     private ArrayList<ECOCraftingCPU> displayedCpus() {
         var result = new ArrayList<ECOCraftingCPU>();
         var cluster = host.getCluster();
-        if (cluster == null || !host.getMainNode()
-            .isOnline()) return result;
+        if (cluster == null || !cluster.isGridOnline()) return result;
         var members = cluster.getNetworkCluster() == null ? java.util.Collections.singletonList(cluster)
             : cluster.getNetworkCluster()
                 .getMembers();

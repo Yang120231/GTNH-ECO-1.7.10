@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.blocks.entity.computation;
 
+import appeng.api.networking.IGridNode;
 import cn.dancingsnow.neoecoae.api.me.network.ECOCraftingNetworkSettings;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
@@ -170,6 +171,11 @@ public class ECOComputationSystemBlockEntity
         setChanged();
     }
 
+    @Override
+    public IGridNode getActionableNode() {
+        return cluster == null ? super.getActionableNode() : cluster.getNode();
+    }
+
     /** Largest ordinary dispatch ECO may submit at once; unlimited while smart doubling is enabled. */
     public static long smartDoublingDispatchLimit(boolean smartDoubling, long coProcessors) {
         return smartDoubling ? Long.MAX_VALUE : Math.min(16_384L, Math.max(1L, coProcessors));
@@ -181,8 +187,7 @@ public class ECOComputationSystemBlockEntity
      */
     @org.jetbrains.annotations.Nullable
     public ECOCraftingNetworkSettings networkSettings() {
-        var node = getMainNode();
-        var settings = node == null ? null : ECOCraftingNetworkSettings.of(node.getGrid());
+        var settings = cluster == null ? null : ECOCraftingNetworkSettings.of(cluster.getGrid());
         return settings != null && settings != this && settings.neoecoae$hasComputationHost() ? settings : null;
     }
 
@@ -312,7 +317,7 @@ public class ECOComputationSystemBlockEntity
     }
 
     public boolean neoecoae$hasComputationHost() {
-        return cluster != null && getMainNode().isOnline();
+        return cluster != null && cluster.isGridOnline();
     }
 
     public java.util.Set<ResourceLocation> neoecoae$getFuzzyPlanningItemIds() {
