@@ -33,6 +33,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlo
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationThreadingCoreBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.amount.NEMath;
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPU;
+import cn.dancingsnow.neoecoae.multiblock.calculator.NEComputationClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CpuSelectionMode;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingSubmitErrorCode;
@@ -372,15 +373,20 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         for (TileEntity tile : blockEntities) {
             if (!(tile instanceof NEBlockEntity<?, ?>member)) continue;
             legacy |= !member.defersGridNode();
+            if (!member.isComputationInterface()) continue;
             BlockPos position = member.getBlockPos();
             for (Direction side : Direction.values()) {
                 BlockPos neighbor = position.relative(side);
                 if (containsPosition(neighbor)) continue;
                 TileEntity adjacent = level.getBlockEntity(neighbor);
                 if (adjacent instanceof IGridHost host && !adjacent.isInvalid()) {
-                    if (adjacent instanceof NEBlockEntity<?, ?>part && part.defersGridNode()) {
-                        if (part.getCluster() != null && part.getCluster() != this && part.isFormed()) legacy = true;
-                        continue;
+                    if (adjacent instanceof NEBlockEntity<?, ?>part
+                        && part.getCalculator() instanceof NEComputationClusterCalculator) {
+                        if (!part.isComputationInterface() || !part.isFormed()) continue;
+                        if (part.defersGridNode()) {
+                            if (part.getCluster() != null && part.getCluster() != this) legacy = true;
+                            continue;
+                        }
                     }
                     IGridNode candidate = host.getGridNode(
                         side.getOpposite()
@@ -408,8 +414,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
             ISecurityGrid security = externalGrid == null ? null : externalGrid.getCache(ISecurityGrid.class);
             if (security instanceof SecurityCache nativeSecurity && nativeSecurity.getSecurityKey() != -1) {
                 boolean attached = connectionsMatch(level, nextIngress, EnumSet.of(ingressSide));
-                boolean linked = attached
-                    && (nextIngress == controller || previousController != null && hasIngressLink(previousController));
+                boolean linked = attached && previousController != null && hasIngressLink(previousController);
                 if (!linked) {
                     if (!security.isAvailable()) {
                         awaitingSecurity = true;
@@ -419,11 +424,10 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
                         && !security.hasPermission(nextIngress.getOwnerPlayerId(), SecurityPermissions.BUILD)) {
                             nextIngress.securityBreak();
                             nextIngress = null;
-                        } else if (nextIngress != controller
-                            && !security.hasPermission(controller.getOwnerPlayerId(), SecurityPermissions.BUILD)) {
-                                allowInternalLink = false;
-                                controller.securityBreak();
-                            }
+                        } else if (!security.hasPermission(controller.getOwnerPlayerId(), SecurityPermissions.BUILD)) {
+                            allowInternalLink = false;
+                            controller.securityBreak();
+                        }
                 }
             }
         }
@@ -451,15 +455,8 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
                 member.onGridConnectableSidesChanged();
                 continue;
             }
-            EnumSet<Direction> faces = EnumSet.noneOf(Direction.class);
-            if (legacy) {
-                BlockPos position = member.getBlockPos();
-                for (Direction side : Direction.values()) {
-                    if (level.getBlockEntity(position.relative(side)) instanceof IGridHost) faces.add(side);
-                }
-            } else if (member == ingress) {
-                faces.add(ingressSide);
-            }
+            Set<Direction> faces = legacy ? member.getGridConnectableSides()
+                : member == ingress ? EnumSet.of(ingressSide) : EnumSet.noneOf(Direction.class);
             boolean refresh = force || dirtyGridFaces.contains(member) && !connectionsMatch(level, member, faces);
             member.getMainNode()
                 .updateExposedOnSides(faces, refresh);
@@ -476,7 +473,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         } else if (!pendingNeighbor) retriedGridNeighbors = false;
 
         IGridNode controllerNode = getNode();
-        if (allowInternalLink && ingress != null && ingress != controller && controllerNode != null) {
+        if (allowInternalLink && ingress != null && controllerNode != null) {
             IGridNode portNode = ingress.getGridNode();
             if (portNode != null && (ingressConnection == null || !controllerNode.getConnections()
                 .contains(ingressConnection))) {
@@ -747,7 +744,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         IGridNode node = getNode();
         return !isDestroyed() && node != null
             && node.isActive()
-            && (!usesCompactGrid() || legacyGrid || ingress == controller || ingress != null && hasIngressLink(node));
+            && (!usesCompactGrid() || legacyGrid || ingress != null && hasIngressLink(node));
     }
 
     public boolean canSettleCapacity(boolean pendingStructures) {

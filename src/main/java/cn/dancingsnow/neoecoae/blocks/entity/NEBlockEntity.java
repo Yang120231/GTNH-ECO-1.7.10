@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
+import appeng.api.util.AECableType;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerProfiles;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEClusterCalculator;
@@ -248,6 +249,17 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
 
     protected void onMainNodeGridChanged() {}
 
+    public final boolean isComputationInterface() {
+        return calculator instanceof NEComputationClusterCalculator
+            && this instanceof ECOMachineInterfaceBlockEntity<?>;
+    }
+
+    @Override
+    public AECableType getCableConnectionType(ForgeDirection side) {
+        return calculator instanceof NEComputationClusterCalculator && !isComputationInterface() ? AECableType.NONE
+            : super.getCableConnectionType(side);
+    }
+
     @Override
     public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
         if (!formed) {
@@ -258,12 +270,16 @@ public abstract class NEBlockEntity<C extends NECluster<C>, E extends NEBlockEnt
         }
 
         EnumSet<Direction> directions = EnumSet.noneOf(Direction.class);
+        boolean internalOnly = calculator instanceof NEComputationClusterCalculator && !isComputationInterface();
         if (level != null) {
             for (Direction value : Direction.values()) {
                 BlockPos adjacentPos = this.worldPosition.relative(value);
-                if (level.hasChunkAt(adjacentPos) && level.getBlockEntity(adjacentPos) instanceof IGridHost) {
-                    directions.add(value);
-                }
+                if (!level.hasChunkAt(adjacentPos)) continue;
+                var adjacent = level.getBlockEntity(adjacentPos);
+                if (!(adjacent instanceof IGridHost)) continue;
+                if (internalOnly && (cluster == null || !(adjacent instanceof NEBlockEntity<?, ?>member)
+                    || member.getCluster() != cluster)) continue;
+                directions.add(value);
             }
         }
         return directions;

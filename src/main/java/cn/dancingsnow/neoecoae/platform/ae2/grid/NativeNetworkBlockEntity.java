@@ -340,13 +340,16 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
         return EnumSet.allOf(Direction.class);
     }
 
+    public final Set<Direction> getGridConnectableSides() {
+        return getGridConnectableSides(
+            new BlockOrientation(
+                state.getOptionalValue(BlockStateProperties.HORIZONTAL_FACING)
+                    .orElse(Direction.NORTH),
+                Direction.UP));
+    }
+
     public void onGridConnectableSidesChanged() {
-        mainNode.setExposedOnSides(
-            getGridConnectableSides(
-                new BlockOrientation(
-                    state.getOptionalValue(BlockStateProperties.HORIZONTAL_FACING)
-                        .orElse(Direction.NORTH),
-                    Direction.UP)));
+        mainNode.setExposedOnSides(getGridConnectableSides());
     }
 
     @Override
