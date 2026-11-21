@@ -37,23 +37,23 @@ public final class PatternTargetGroups {
         Group(String key, List<Evaluation> members) {
             this.key = key;
             this.members = Collections.unmodifiableList(members);
-            int free = 0, duplicate = 0, empty = 0, total = 0;
-            boolean manual = false, full = false;
+            int uploadable = 0, duplicate = 0, empty = 0, total = 0;
+            boolean free = false, full = false;
             for (Evaluation member : members) {
-                if (member.state == SlotState.FREE) free++;
+                if (member.state == SlotState.FREE) free = true;
                 else if (member.state == SlotState.DUPLICATE) duplicate++;
                 else if (member.state == SlotState.FULL) full = true;
                 empty = Math.max(empty, member.emptySlots);
                 total = Math.max(total, member.totalSlots);
-                manual |= member.canUploadManually();
+                if (member.canUploadManually()) uploadable++;
             }
-            this.freeMembers = free;
+            this.freeMembers = uploadable;
             this.duplicates = duplicate;
             this.emptySlots = empty;
             this.totalSlots = total;
-            this.manual = manual;
+            this.manual = uploadable > 0;
             // Members are alternate views of the same inventory.
-            this.state = free > 0 ? SlotState.FREE
+            this.state = free ? SlotState.FREE
                 : duplicate > 0 ? SlotState.DUPLICATE : full ? SlotState.FULL : SlotState.OFFLINE;
         }
 
