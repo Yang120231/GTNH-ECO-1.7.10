@@ -36,6 +36,7 @@ public final class ECOCraftConfirmSession {
     private ECOCraftConfirmReport report = ECOCraftConfirmReport.EMPTY;
     private int cpuTier;
     private boolean bigOrderCpu;
+    private boolean mergeOnStart;
     /** Planning result of the plan the report describes; its improvement search runs while the page is open. */
     @Nullable
     private ECOPlanningResult displayed;
@@ -113,6 +114,10 @@ public final class ECOCraftConfirmSession {
         bigOrderCpu = available;
     }
 
+    public void setMergeOnStart(boolean merge) {
+        mergeOnStart = merge;
+    }
+
     /** The result the header and report were last built from; identity-compared against the container's. */
     public @Nullable Object observedResult() {
         return observedResult;
@@ -178,6 +183,7 @@ public final class ECOCraftConfirmSession {
         if (!eco) return ECOCraftConfirmState.NONE;
         return base.withCpuTier(cpuTier)
             .withBigOrderCpu(bigOrderCpu)
+            .withMergeOnStart(mergeOnStart)
             .withError(error, errorDetail, shortages);
     }
 

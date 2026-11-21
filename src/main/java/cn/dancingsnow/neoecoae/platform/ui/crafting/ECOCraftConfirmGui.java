@@ -388,8 +388,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         replan.enabled = state.reportReady;
         var gate = ECOCraftConfirmRules.startGate(state, shift, container.hasNoCPU());
         start.enabled = !error && report != null && gate == ECOCraftConfirmRules.StartGate.READY;
-        CraftingCPUStatus selected = container.cpuTable.getSelectedCPU();
-        boolean merge = selected != null && container.cpuCraftingSameItem(selected);
+        // The server decides: an ECO CPU never merges an ECO plan, so "same item" alone is not a merge.
+        boolean merge = state.mergeOnStart;
         start.displayString = force ? I18n.format("gui.neoecoae.force_start")
             : merge ? GuiText.Merge.getLocal() : GuiText.Start.getLocal();
         // A big order goes through the ECO submission, which has no completion subscription.

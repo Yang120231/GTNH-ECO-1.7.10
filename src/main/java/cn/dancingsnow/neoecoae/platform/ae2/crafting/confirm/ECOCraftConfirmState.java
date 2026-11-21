@@ -63,6 +63,8 @@ public final class ECOCraftConfirmState {
     public final String errorDetail;
     /** An idle, online ECO CPU can take this plan as a big order (1.21's neoecoae$bigOrderCpu). */
     public final boolean bigOrderCpuAvailable;
+    /** The selected CPU is an AE2 cluster running a standalone job this plan can join; the start merges into it. */
+    public final boolean mergeOnStart;
     /** Inputs the network could no longer supply when the start was rejected; empty unless one was. */
     public final List<GenericStack> shortages;
     public final Summary summary;
@@ -154,6 +156,32 @@ public final class ECOCraftConfirmState {
         String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
         @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable,
         @Nullable List<GenericStack> shortages, Summary summary) {
+        this(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            bigOrderCpuAvailable,
+            shortages,
+            summary,
+            false);
+    }
+
+    public ECOCraftConfirmState(boolean plannerAvailable, boolean reportReady, boolean cyclePlanningEnabled,
+        boolean cycleDetected, long calculationNanos, BigInteger theoreticalBytes, @Nullable PlanningStatus status,
+        String diagnostic, int selectedCpuTier, boolean simulation, long usedBytes, long reportVersion,
+        @Nullable ECOCraftConfirmError error, String errorDetail, boolean bigOrderCpuAvailable,
+        @Nullable List<GenericStack> shortages, Summary summary, boolean mergeOnStart) {
         this.summary = Objects.requireNonNull(summary);
         this.plannerAvailable = plannerAvailable;
         this.reportReady = reportReady;
@@ -171,6 +199,7 @@ public final class ECOCraftConfirmState {
         this.error = error;
         this.errorDetail = truncate(errorDetail);
         this.bigOrderCpuAvailable = bigOrderCpuAvailable;
+        this.mergeOnStart = mergeOnStart;
         this.shortages = error == null || shortages == null || shortages.isEmpty() ? Collections.emptyList()
             : Collections
                 .unmodifiableList(new ArrayList<>(shortages.subList(0, Math.min(MAX_SHORTAGES, shortages.size()))));
@@ -195,7 +224,8 @@ public final class ECOCraftConfirmState {
             errorDetail,
             bigOrderCpuAvailable,
             shortages,
-            summary);
+            summary,
+            mergeOnStart);
     }
 
     public ECOCraftConfirmState withBigOrderCpu(boolean available) {
@@ -217,7 +247,31 @@ public final class ECOCraftConfirmState {
             errorDetail,
             available,
             shortages,
-            summary);
+            summary,
+            mergeOnStart);
+    }
+
+    public ECOCraftConfirmState withMergeOnStart(boolean merge) {
+        if (merge == mergeOnStart) return this;
+        return new ECOCraftConfirmState(
+            plannerAvailable,
+            reportReady,
+            cyclePlanningEnabled,
+            cycleDetected,
+            calculationNanos,
+            theoreticalBytes,
+            status,
+            diagnostic,
+            selectedCpuTier,
+            simulation,
+            usedBytes,
+            reportVersion,
+            error,
+            errorDetail,
+            bigOrderCpuAvailable,
+            shortages,
+            summary,
+            merge);
     }
 
     public ECOCraftConfirmState withError(@Nullable ECOCraftConfirmError error, String detail) {
@@ -243,7 +297,8 @@ public final class ECOCraftConfirmState {
             error == null ? "" : detail,
             bigOrderCpuAvailable,
             shortages,
-            summary);
+            summary,
+            mergeOnStart);
     }
 
     public ECOCraftConfirmState withSummary(Summary value) {
@@ -264,7 +319,8 @@ public final class ECOCraftConfirmState {
             errorDetail,
             bigOrderCpuAvailable,
             shortages,
-            value);
+            value,
+            mergeOnStart);
     }
 
     /** Bytes shown in the header: the exact planner estimate when present, otherwise AE2's long total. */
@@ -297,6 +353,7 @@ public final class ECOCraftConfirmState {
         data.writeBoolean(summary.completeByteEstimate());
         data.writeVarInt(summary.patterns());
         data.writeVarInt(summary.cycles());
+        data.writeBoolean(mergeOnStart);
     }
 
     public static ECOCraftConfirmState read(RegistryFriendlyByteBuf data) {
@@ -324,6 +381,7 @@ public final class ECOCraftConfirmState {
             if (key != null && amount > 0) shortages.add(new GenericStack(key, amount));
         }
         Summary summary = new Summary(data.readBoolean(), data.readBoolean(), data.readVarInt(), data.readVarInt());
+        boolean mergeOnStart = data.readBoolean();
         return new ECOCraftConfirmState(
             plannerAvailable,
             reportReady,
@@ -341,7 +399,8 @@ public final class ECOCraftConfirmState {
             errorDetail,
             bigOrderCpuAvailable,
             shortages,
-            summary);
+            summary,
+            mergeOnStart);
     }
 
     private static <T> @Nullable T byOrdinal(T[] values, int code) {
@@ -372,6 +431,7 @@ public final class ECOCraftConfirmState {
             && error == state.error
             && errorDetail.equals(state.errorDetail)
             && bigOrderCpuAvailable == state.bigOrderCpuAvailable
+            && mergeOnStart == state.mergeOnStart
             && shortages.equals(state.shortages)
             && summary.equals(state.summary);
     }
@@ -394,6 +454,7 @@ public final class ECOCraftConfirmState {
             error,
             errorDetail,
             bigOrderCpuAvailable,
+            mergeOnStart,
             shortages,
             summary);
     }

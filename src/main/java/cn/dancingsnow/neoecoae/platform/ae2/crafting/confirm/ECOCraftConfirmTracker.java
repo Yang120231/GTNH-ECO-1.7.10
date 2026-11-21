@@ -25,6 +25,7 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.PlayerSource;
 import appeng.container.implementations.ContainerCraftConfirm;
 import appeng.container.implementations.CraftingCPUStatus;
+import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.command.CraftingPlanExport;
@@ -67,6 +68,9 @@ public final class ECOCraftConfirmTracker {
         /** The last result an armed plan export looked at, so each calculated plan is offered once. */
         @Nullable
         Object exportObserved;
+        /** The last result whose CPU selection was checked for ECO compatibility, so that check runs once per plan. */
+        @Nullable
+        Object cpuCheckedResult;
 
         Tracked(ContainerCraftConfirm container) {
             this.container = container;
@@ -143,11 +147,26 @@ public final class ECOCraftConfirmTracker {
             session.observeResult(null, null);
             if (job == null) session.planningFailed(() -> "ECO planning ended without a plan; see the server log");
         }
+        if (result != null && result != tracked.cpuCheckedResult) {
+            // AE2 selects a CPU by default; one that cannot take this plan would reject every start, so drop it once.
+            tracked.cpuCheckedResult = result;
+            if (nativeIncompatible(selectedCpu(container), result)) container.cpuTable.selectCPU(-1);
+        }
         session.setCpuTier(selectedCpuTier(container));
         session.setBigOrderCpu(
             ECOBigOrderSubmission.resolveCpu(container.getGrid(), selectedCpu(container), actionSource(container))
                 != null);
+        session.setMergeOnStart(willMerge(container, result));
         push(player, container, session);
+    }
+
+    /**
+     * Whether a CPU can take this job without ECO and AE2 disagreeing: an ECO-only plan never fits a plain AE2 CPU,
+     * and a native ECO job the CPU refuses on its own terms.
+     */
+    public static boolean nativeIncompatible(@Nullable ICraftingCPU cpu, @Nullable ICraftingJob job) {
+        return cpu instanceof CraftingCPUCluster && !(cpu instanceof NativeECOCpu)
+            && job instanceof NativeECOCraftingJob eco && !eco.supportsNativeCpus();
     }
 
     /**
@@ -158,6 +177,24 @@ public final class ECOCraftConfirmTracker {
         Tracked tracked = lookup(player, windowId);
         if (tracked == null) return true;
         return tracked.session.state().reportVersion == version && tracked.session.observedResult() == result;
+    }
+
+    /**
+     * Whether starting this plan joins the selected AE2 CPU's running standalone job instead of queueing a new one,
+     * with the same preconditions AE2's CraftingCPUCluster.submitJob applies before a merge.
+     */
+    private static boolean willMerge(ContainerCraftConfirm container, @Nullable ICraftingJob result) {
+        if (result == null || result.isSimulation()) return false;
+        ICraftingCPU selected = selectedCpu(container);
+        // An ECO CPU never merges an ECO plan: it either starts a new thread or rejects the start.
+        if (!(selected instanceof CraftingCPUCluster c) || c instanceof NativeECOCpu) return false;
+        if (result instanceof NativeECOCraftingJob eco && !eco.supportsNativeCpus()) return false;
+        return c.isActive() && c.isBusy()
+            && c.isCraftingLinkStandalone()
+            && c.getFinalMultiOutput() != null
+            && result.getOutput() != null
+            && result.getOutput().isSameType((Object) c.getFinalMultiOutput())
+            && c.getAvailableStorage() >= c.getUsedStorage() + result.getByteTotal();
     }
 
     /**
@@ -271,6 +308,13 @@ public final class ECOCraftConfirmTracker {
         try {
             ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
             ICraftingCPU target = selectedCpu(container);
+            if (nativeIncompatible(target, submitted)) {
+                LOGGER.info(
+                    "[craft-confirm] Selected CPU {} cannot take the ECO plan; using automatic selection: container={}",
+                    target.getName(),
+                    windowId);
+                target = null;
+            }
             link = crafting.submitJob(submitted, null, target, true, actionSource(container), follow);
         } catch (RuntimeException | LinkageError failure) {
             container.setAutoStart(false);
@@ -440,6 +484,7 @@ public final class ECOCraftConfirmTracker {
             tracked.session.restart(host != null && host.isCyclePlanningEnabled());
             tracked.options = host == null ? null : ECOPlannerOptions.from(host);
             tracked.exportObserved = null;
+            tracked.cpuCheckedResult = null;
             access.neoecoae$setResult(null);
             container.setAutoStart(false);
             container.setAutoStartAndFollow(false);
