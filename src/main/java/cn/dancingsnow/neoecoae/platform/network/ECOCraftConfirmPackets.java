@@ -91,8 +91,8 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.sendTo(new ItemActionResult(windowId, result), player);
     }
 
-    public static void start(int windowId, boolean forced, boolean follow) {
-        CHANNEL.sendToServer(new Start(windowId, forced, follow));
+    public static void start(int windowId, boolean forced, boolean follow, long reportVersion) {
+        CHANNEL.sendToServer(new Start(windowId, forced, follow, reportVersion));
     }
 
     public static void requestIngredients(int windowId, long sequence,
@@ -234,8 +234,8 @@ public final class ECOCraftConfirmPackets {
         }
     }
 
-    public static void startBigOrder(int windowId, boolean forced) {
-        CHANNEL.sendToServer(new BigOrderStart(windowId, forced));
+    public static void startBigOrder(int windowId, boolean forced, long reportVersion) {
+        CHANNEL.sendToServer(new BigOrderStart(windowId, forced, reportVersion));
     }
 
     /** Server to client: the ECO header, plus the material/cycle report when it changed. */
@@ -289,13 +289,16 @@ public final class ECOCraftConfirmPackets {
         boolean forced;
         /** Subscribe the player to the completion message, like GTNH's "Start and follow". */
         boolean follow;
+        /** The report version the player saw; the server starts only that report, not a newer one. */
+        long reportVersion;
 
         public Start() {}
 
-        Start(int windowId, boolean forced, boolean follow) {
+        Start(int windowId, boolean forced, boolean follow, long reportVersion) {
             this.windowId = windowId;
             this.forced = forced;
             this.follow = follow;
+            this.reportVersion = reportVersion;
         }
 
         @Override
@@ -303,6 +306,7 @@ public final class ECOCraftConfirmPackets {
             windowId = buf.readInt();
             forced = buf.readBoolean();
             follow = buf.readBoolean();
+            reportVersion = buf.readLong();
         }
 
         @Override
@@ -310,6 +314,7 @@ public final class ECOCraftConfirmPackets {
             buf.writeInt(windowId);
             buf.writeBoolean(forced);
             buf.writeBoolean(follow);
+            buf.writeLong(reportVersion);
         }
     }
 
@@ -319,7 +324,9 @@ public final class ECOCraftConfirmPackets {
         public IMessage onMessage(Start message, MessageContext context) {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
-                .execute(() -> ECOCraftConfirmTracker.start(player, message.windowId, message.forced, message.follow));
+                .execute(
+                    () -> ECOCraftConfirmTracker
+                        .start(player, message.windowId, message.forced, message.follow, message.reportVersion));
             return null;
         }
     }
@@ -365,24 +372,29 @@ public final class ECOCraftConfirmPackets {
 
         int windowId;
         boolean forced;
+        /** The report version the player saw; the server starts only that report, not a newer one. */
+        long reportVersion;
 
         public BigOrderStart() {}
 
-        BigOrderStart(int windowId, boolean forced) {
+        BigOrderStart(int windowId, boolean forced, long reportVersion) {
             this.windowId = windowId;
             this.forced = forced;
+            this.reportVersion = reportVersion;
         }
 
         @Override
         public void fromBytes(ByteBuf buf) {
             windowId = buf.readInt();
             forced = buf.readBoolean();
+            reportVersion = buf.readLong();
         }
 
         @Override
         public void toBytes(ByteBuf buf) {
             buf.writeInt(windowId);
             buf.writeBoolean(forced);
+            buf.writeLong(reportVersion);
         }
     }
 
@@ -392,7 +404,9 @@ public final class ECOCraftConfirmPackets {
         public IMessage onMessage(BigOrderStart message, MessageContext context) {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
-                .execute(() -> ECOCraftConfirmTracker.startBigOrder(player, message.windowId, message.forced));
+                .execute(
+                    () -> ECOCraftConfirmTracker
+                        .startBigOrder(player, message.windowId, message.forced, message.reportVersion));
             return null;
         }
     }

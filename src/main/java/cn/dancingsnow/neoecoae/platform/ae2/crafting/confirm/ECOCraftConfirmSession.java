@@ -113,6 +113,11 @@ public final class ECOCraftConfirmSession {
         bigOrderCpu = available;
     }
 
+    /** The result the header and report were last built from; identity-compared against the container's. */
+    public @Nullable Object observedResult() {
+        return observedResult;
+    }
+
     /** Records the planning result behind the report, whose background improvements the page may adopt. */
     public void display(@Nullable ECOPlanningResult result) {
         displayed = result;

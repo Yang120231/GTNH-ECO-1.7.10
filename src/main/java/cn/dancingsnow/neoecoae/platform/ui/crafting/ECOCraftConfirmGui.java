@@ -1224,11 +1224,21 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         else if (button == cancel) {
             addMissingToBookmarks();
             goBack();
-        } else if (button == retry) submit(lastSubmissionForced, lastSubmissionFollow);
-        else if (button == forceRetry) {
+        } else if (button == retry) {
+            if (state.error == ECOCraftConfirmError.PLAN_STALE) {
+                // The network or recipes changed since planning: plan again instead of resubmitting the old plan.
+                if (replan.enabled) {
+                    replan.enabled = start.enabled = startWithFollow.enabled = false;
+                    ECOCraftConfirmPackets.replan(container.windowId);
+                }
+            } else if (state.error == ECOCraftConfirmError.PLAN_CHANGED) {
+                // Let the player look at the report the server now holds before submitting anything.
+                ECOCraftConfirmPackets.clearError(container.windowId);
+            } else submit(lastSubmissionForced, lastSubmissionFollow);
+        } else if (button == forceRetry) {
             // Always the ordinary start packet: the server turns the shortfall into awaited inputs.
             lastSubmissionForced = true;
-            ECOCraftConfirmPackets.start(container.windowId, true, lastSubmissionFollow);
+            ECOCraftConfirmPackets.start(container.windowId, true, lastSubmissionFollow, state.reportVersion);
         } else if (button == back) ECOCraftConfirmPackets.clearError(container.windowId);
         else if (button == graph || button == viewButton) toggleView();
         else if (button == saveButton) saveAsImage();
@@ -1243,8 +1253,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         lastSubmissionFollow = follow;
         // An extended amount or a forced cycle shortage goes to an ECO CPU as a big order (1.21).
         if (ECOCraftConfirmRules.usesBigOrderSubmission(state, forced))
-            ECOCraftConfirmPackets.startBigOrder(container.windowId, forced);
-        else ECOCraftConfirmPackets.start(container.windowId, forced, follow);
+            ECOCraftConfirmPackets.startBigOrder(container.windowId, forced, state.reportVersion);
+        else ECOCraftConfirmPackets.start(container.windowId, forced, follow, state.reportVersion);
     }
 
     /** Switches between the report tables and the plan tree of the plan on screen. */

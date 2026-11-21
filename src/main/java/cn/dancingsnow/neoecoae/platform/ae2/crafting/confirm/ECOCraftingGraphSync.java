@@ -78,6 +78,8 @@ public final class ECOCraftingGraphSync {
             answer(player, windowId, version, ECOCraftingGraphStream.Status.EMPTY);
             return;
         }
+        // A stale version gets no reply; the client re-requests when it receives the new report.
+        if (!ECOCraftConfirmTracker.isCurrentReport(player, windowId, version, result)) return;
         Encoded encoded = ENCODED.get(player);
         if (encoded == null || encoded.container != container || encoded.result != result) {
             encoded = encode(container, result);

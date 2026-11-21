@@ -151,6 +151,16 @@ public final class ECOCraftConfirmTracker {
     }
 
     /**
+     * Whether the report version and result still match the server's current session: returns true when both match,
+     * and true for an untracked session, which needs no check.
+     */
+    public static boolean isCurrentReport(EntityPlayerMP player, int windowId, long version, Object result) {
+        Tracked tracked = lookup(player, windowId);
+        if (tracked == null) return true;
+        return tracked.session.state().reportVersion == version && tracked.session.observedResult() == result;
+    }
+
+    /**
      * 1.21's hook on the confirmation's plan summary: when this container receives a calculated plan and its player
      * armed {@code /neoecoae export_plan}, the plan is exported once. Ordinary confirmations only compare the result
      * identity; diagnostics are resolved for an armed export alone, so their behavior is unchanged.
@@ -206,12 +216,17 @@ public final class ECOCraftConfirmTracker {
     }
 
     /** Start request from the ECO report; mirrors AE2's startJob but observes whether a CPU accepted the job. */
-    public static void start(EntityPlayerMP player, int windowId, boolean forced, boolean follow) {
+    public static void start(EntityPlayerMP player, int windowId, boolean forced, boolean follow, long reportVersion) {
         Tracked tracked = lookup(player, windowId);
         if (tracked == null) return;
         ContainerCraftConfirm container = tracked.container;
         ECOCraftConfirmSession session = tracked.session;
         ICraftingJob result = ((ContainerCraftConfirmAccessor) container).neoecoae$getResult();
+        if (reportVersion != session.state().reportVersion || session.observedResult() != result) {
+            // The client confirmed a report the server has since replaced; it must review the new plan first.
+            reject(player, tracked, ECOCraftConfirmError.PLAN_CHANGED, "");
+            return;
+        }
         NativeECOCraftingJob job = result instanceof NativeECOCraftingJob eco ? eco : null;
         if (result == null || job != null && job.sourcePlan() == null) {
             reject(player, tracked, ECOCraftConfirmError.NO_PLAN, "");
@@ -225,6 +240,11 @@ public final class ECOCraftConfirmTracker {
         IGrid grid = container.getGrid();
         if (grid == null) {
             reject(player, tracked, ECOCraftConfirmError.NO_CPU_ACCEPTED, "");
+            return;
+        }
+        if (job != null && !job.belongsToGrid(grid)) {
+            LOGGER.info("[craft-confirm] ECO start rejected: plan was built for another grid, container={}", windowId);
+            reject(player, tracked, ECOCraftConfirmError.PLAN_STALE, "");
             return;
         }
         ICraftingJob submitted = result;
@@ -295,7 +315,7 @@ public final class ECOCraftConfirmTracker {
      * Big-order request from the ECO report (1.21's ECOBigOrderStartC2SPacket): the server resolves the displayed
      * result, the ECO CPU and the admission itself; the client only states its intent.
      */
-    public static void startBigOrder(EntityPlayerMP player, int windowId, boolean forced) {
+    public static void startBigOrder(EntityPlayerMP player, int windowId, boolean forced, long reportVersion) {
         Tracked tracked = lookup(player, windowId);
         if (tracked == null) {
             LOGGER.warn(
@@ -307,6 +327,10 @@ public final class ECOCraftConfirmTracker {
         ContainerCraftConfirm container = tracked.container;
         ECOCraftConfirmSession session = tracked.session;
         ICraftingJob result = ((ContainerCraftConfirmAccessor) container).neoecoae$getResult();
+        if (reportVersion != session.state().reportVersion || session.observedResult() != result) {
+            rejectBigOrder(player, tracked, ECOCraftConfirmError.PLAN_CHANGED, "REPORT_VERSION_CHANGED", "");
+            return;
+        }
         if (!(result instanceof NativeECOCraftingJob job) || job.sourcePlan() == null) {
             rejectBigOrder(player, tracked, ECOCraftConfirmError.NO_PLAN, "NO_PLAN", "");
             return;

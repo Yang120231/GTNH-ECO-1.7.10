@@ -24,7 +24,11 @@ public enum ECOCraftConfirmError {
     /** A big order needs an idle, online ECO crafting CPU and none is available. */
     BIG_ORDER_NO_CPU("gui.neoecoae.crafting_report.error.big_order_no_cpu"),
     /** A fresh calculation could not be scheduled. */
-    REPLAN_FAILED("gui.neoecoae.crafting_report.error.replan_failed");
+    REPLAN_FAILED("gui.neoecoae.crafting_report.error.replan_failed"),
+    /** The crafting network or the patterns changed since the plan was built; replan before starting. */
+    PLAN_STALE("gui.neoecoae.crafting_report.error.plan_stale"),
+    /** The displayed plan was replaced since it was reviewed; the new plan must be confirmed first. */
+    PLAN_CHANGED("gui.neoecoae.crafting_report.error.plan_changed");
 
     private final String translationKey;
 
