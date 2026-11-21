@@ -151,6 +151,8 @@ final class PlanTreeView {
     private final Map<Integer, List<CraftingGraphSnapshot.PatternNode>> producers = new HashMap<>();
     private final Map<Integer, Integer> cycleOf = new HashMap<>();
     private final Set<Integer> leadsToMissing = new HashSet<>();
+    /** Rounds already shown per pattern node, so the branches of one pattern never show more than it fired. */
+    private final Map<Integer, BigInteger> allocatedExecutions = new HashMap<>();
     /** One native stack per material for its icon; drawing ignores the amount, so it is never copied per frame. */
     private final Map<Integer, IAEStack<?>> icons = new HashMap<>();
 
@@ -276,6 +278,7 @@ final class PlanTreeView {
         root = null;
         visible.clear();
         builtNodes = 0;
+        allocatedExecutions.clear();
         if (snapshot == null) return;
         CraftingGraphSnapshot.MaterialNode top = materials.get(snapshot.rootNodeId());
         if (top == null) return;
@@ -308,10 +311,15 @@ final class PlanTreeView {
         }
         for (CraftingGraphSnapshot.PatternNode pattern : producers
             .getOrDefault(request.materialId, Collections.emptyList())) {
-            BigInteger executions = shareCeil(BigInteger.valueOf(pattern.firingCount()), request.amount, total);
-            if (executions.signum() <= 0) continue;
+            BigInteger share = shareCeil(BigInteger.valueOf(pattern.firingCount()), request.amount, total);
+            if (share.signum() <= 0) continue;
             if (missingOnly && !patternReachesMissing(pattern)) continue;
             if (atLimit(request)) return;
+            // Branches of one pattern split its rounds: a share that was already shown elsewhere shows as 0 rounds.
+            BigInteger allocated = allocatedExecutions.getOrDefault(pattern.patternNodeId(), BigInteger.ZERO);
+            BigInteger remaining = BigInteger.valueOf(pattern.firingCount()).subtract(allocated);
+            BigInteger executions = share.min(remaining.max(BigInteger.ZERO));
+            if (executions.signum() > 0) allocatedExecutions.put(pattern.patternNodeId(), allocated.add(executions));
             Node craft = new Node(
                 Kind.CRAFT,
                 request,
@@ -321,6 +329,7 @@ final class PlanTreeView {
                 request.depth,
                 request.path);
             add(request, craft);
+            if (executions.signum() <= 0) continue;
             for (CraftingGraphSnapshot.Relationship input : pattern.inputs()) {
                 if (missingOnly && !leadsToMissing.contains(input.materialNodeId())) continue;
                 BigInteger needed = executions.multiply(BigInteger.valueOf(input.amount()));
@@ -899,8 +908,7 @@ final class PlanTreeView {
             Node node = visible.get(i);
             if (outsideRows(node, top, bottom)) continue;
             String text = node.countText;
-            if (text == null)
-                node.countText = text = ReadableNumberConverter.INSTANCE.toWideReadableForm(clamp(node.amount));
+            if (text == null) node.countText = text = count(node);
             font.drawString(
                 text,
                 node.x * 2 + 32 - font.getStringWidth(text),
@@ -911,6 +919,13 @@ final class PlanTreeView {
         }
         GL11.glPopMatrix();
         GL11.glColor4f(1, 1, 1, 1);
+    }
+
+    /** A step's round count, or the shared-batch hint for a step whose rounds are shown under another branch. */
+    private static String count(Node node) {
+        if (node.kind == Kind.CRAFT && node.amount.signum() <= 0)
+            return I18n.format("gui.neoecoae.plan_tree.shared_batch_short");
+        return ReadableNumberConverter.INSTANCE.toWideReadableForm(clamp(node.amount));
     }
 
     private boolean showsMissing(Node node) {
@@ -1021,7 +1036,9 @@ final class PlanTreeView {
                 break;
             case CRAFT:
                 lines.add(GuiText.Crafting.getLocal() + ": " + name(node.materialId));
-                lines.add(GuiText.ToCraftRequests.getLocal() + ": " + exact(node.amount));
+                if (node.amount.signum() > 0)
+                    lines.add(GuiText.ToCraftRequests.getLocal() + ": " + exact(node.amount));
+                else lines.add(I18n.format("gui.neoecoae.plan_tree.shared_batch"));
                 break;
             case STORAGE:
                 lines.add(GuiText.StoredItems.getLocal() + ": " + amount);
