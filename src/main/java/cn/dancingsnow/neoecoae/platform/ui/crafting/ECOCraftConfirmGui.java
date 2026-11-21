@@ -1341,6 +1341,11 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             goBack();
             return;
         }
+        // The inventory key closes through goBack() too, so an NEE preview is cancelled rather than continued.
+        if (!search.isFocused() && key == mc.gameSettings.keyBindInventory.getKeyCode()) {
+            goBack();
+            return;
+        }
         boolean enter = key == Keyboard.KEY_RETURN || key == Keyboard.KEY_NUMPADENTER;
         if (search.isFocused() && key != Keyboard.KEY_ESCAPE) {
             // Enter in the tree view jumps to the next match, as in GTNH's tree search.
