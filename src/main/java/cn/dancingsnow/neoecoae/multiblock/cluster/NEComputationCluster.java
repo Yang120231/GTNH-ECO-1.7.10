@@ -936,7 +936,8 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
 
     public GridView getGrid() {
         IGridNode node = getNode();
-        return node == null ? null : GridView.of(node.getGrid());
+        var grid = node == null ? null : node.getGrid();
+        return grid == null ? null : GridView.of(grid);
     }
 
     public cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions getPlanningOptions() {

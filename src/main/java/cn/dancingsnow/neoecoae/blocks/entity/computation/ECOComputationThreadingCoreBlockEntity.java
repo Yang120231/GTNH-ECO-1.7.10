@@ -144,6 +144,8 @@ public class ECOComputationThreadingCoreBlockEntity extends
     @Override
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         super.loadTag(data, registries);
+        for (var cpu : cpus) if (cpu != null) cpu.getLogic()
+            .releaseExactRefill();
         Arrays.fill(cpus, null);
         Arrays.fill(deferredInit, null);
         for (int i = 0; i < cpus.length; i++) {
@@ -151,6 +153,13 @@ public class ECOComputationThreadingCoreBlockEntity extends
                 deferredInit[i] = data.getCompound("CPU" + i);
             }
         }
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        for (var cpu : cpus) if (cpu != null) cpu.getLogic()
+            .releaseExactRefill();
+        super.onChunkUnloaded();
     }
 
     /** Ends ownership without dropping inventory; callers retain or drop only the unreturned remainder. */
@@ -299,6 +308,8 @@ public class ECOComputationThreadingCoreBlockEntity extends
      * persisted there, so the identity must neither stay registered with AE2 nor deliver them a second time.
      */
     private static void discardNativeIdentity(ECOCraftingCPU cpu) {
+        cpu.getLogic()
+            .releaseExactRefill();
         if (cpu
             .boundNativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge) {
             if (bridge.getLastCraftingLink() instanceof appeng.crafting.CraftingLink link) link.setNexus(null);
@@ -307,6 +318,8 @@ public class ECOComputationThreadingCoreBlockEntity extends
     }
 
     public void deactivate(ECOCraftingCPU cpu) {
+        cpu.getLogic()
+            .releaseExactRefill();
         for (int i = 0; i < cpus.length; i++) {
             if (cpus[i] == cpu) {
                 cpus[i] = null;

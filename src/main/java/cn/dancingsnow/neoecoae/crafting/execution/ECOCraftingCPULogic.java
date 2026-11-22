@@ -97,6 +97,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     private final ECOCraftingCpuView view;
     private final ECOCraftingCpuPersistence persistence;
     private final ECOCraftingJobLifecycleController lifecycle;
+    private final ECOExactRefillSchedule refillSchedule = new ECOExactRefillSchedule();
     private final ECOCraftingPlanUpdater planUpdater;
     private final ECOVanillaCraftingExecutor vanillaExecutor = new ECOVanillaCraftingExecutor(this);
     final ECOBigOrderController bigOrder = new ECOBigOrderController(this);
@@ -244,9 +245,9 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             return;
         }
 
-        if (!job.suspended) refillExactMaterials();
-
         long currentTick = TickClock.currentTick();
+        if (!job.suspended) refillExactMaterials(currentTick);
+
         taskScheduler.bindDiagnostics(job.link.getCraftingID(), currentTick);
         taskScheduler.beginResolveTick(currentTick);
         deliverStoredFinalOutput();
@@ -724,6 +725,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     }
 
     void setJobFromPersistence(@Nullable ExecutingCraftingJob restoredJob) {
+        releaseExactRefill();
         planUpdater.reset();
         this.job = restoredJob;
         viewRevision++;
@@ -731,6 +733,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     }
 
     void setJobFromLifecycle(@Nullable ExecutingCraftingJob nextJob) {
+        releaseExactRefill();
         planUpdater.reset();
         vanillaExecutor.reset();
         this.job = nextJob;
@@ -906,10 +909,15 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     }
 
     /** Refill physical buffers within one job, without creating or replanning child orders. */
-    private void refillExactMaterials() {
+    private void refillExactMaterials(long currentTick) {
         if (!job.exactOrder) return;
         var grid = cpu.getGrid();
-        if (grid == null) return;
+        refillSchedule.clearIfGridChanged(grid);
+        if (grid == null || (job.deferredStock.isEmpty() && job.deferredEmitted.isEmpty())) return;
+        if (!job.deferredStock.isEmpty()) {
+            refillSchedule.bind(grid, job.deferredStock.keySet(), currentTick);
+            if (!refillSchedule.hasDue(currentTick) && job.deferredEmitted.isEmpty()) return;
+        }
         var source = cpu.getActionSource();
         if (job.playerId != null) {
             var level = cpu.getLevel();
@@ -923,38 +931,35 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
                 source.machine()
                     .orElse(null));
         }
-        for (var entry : job.deferredStock.entrySet()) {
+        AEKey key;
+        while ((key = refillSchedule.poll(currentTick)) != null) {
+            var remaining = job.deferredStock.get(key);
             var generated = cn.dancingsnow.neoecoae.impl.storage.ECOCreativeSupply
-                .extract(grid, entry.getKey(), entry.getValue(), source);
+                .extract(grid, key, remaining, source);
             if (generated.signum() > 0) {
-                ((cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory) inventory)
-                    .restore(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(entry.getKey(), generated));
-                entry.setValue(
-                    entry.getValue()
-                        .subtract(generated));
-                taskScheduler.recordPhysicalInsert(entry.getKey());
-                postChange(entry.getKey());
-                markCpuDirty();
-                continue;
+                exactInventory().restore(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(key, generated));
+            } else {
+                long wanted = cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(remaining);
+                long extracted = grid.getStorageService()
+                    .getInventory()
+                    .extract(key, wanted, appeng.api.config.Actionable.MODULATE, source);
+                if (extracted > 0) {
+                    inventory.insert(key, extracted, appeng.api.config.Actionable.MODULATE);
+                    generated = java.math.BigInteger.valueOf(extracted);
+                }
             }
-            // Finite storage retains one network call per key/tick.
-            long wanted = cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(entry.getValue());
-            if (wanted <= 0) continue;
-            long extracted = grid.getStorageService()
-                .getInventory()
-                .extract(entry.getKey(), wanted, appeng.api.config.Actionable.MODULATE, source);
-            if (extracted > 0) {
-                inventory.insert(entry.getKey(), extracted, appeng.api.config.Actionable.MODULATE);
-                entry.setValue(
-                    entry.getValue()
-                        .subtract(java.math.BigInteger.valueOf(extracted)));
-                taskScheduler.recordPhysicalInsert(entry.getKey());
-                postChange(entry.getKey());
+            boolean progress = generated.signum() > 0;
+            if (progress) {
+                remaining = remaining.subtract(generated);
+                if (remaining.signum() == 0) job.deferredStock.remove(key);
+                else job.deferredStock.put(key, remaining);
+                taskScheduler.recordPhysicalInsert(key);
+                postChange(key);
                 markCpuDirty();
             }
+            if (remaining.signum() > 0) refillSchedule.retry(key, currentTick, progress);
         }
-        job.deferredStock.values()
-            .removeIf(amount -> amount.signum() == 0);
+        if (job.deferredStock.isEmpty()) releaseExactRefill();
         for (var entry : job.deferredEmitted.entrySet()) {
             ((cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory) job.waitingFor)
                 .restore(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(entry.getKey(), entry.getValue()));
@@ -964,6 +969,14 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         }
         job.deferredEmitted.values()
             .removeIf(amount -> amount.signum() == 0);
+    }
+
+    public void releaseExactRefill() {
+        refillSchedule.clear();
+    }
+
+    public void refreshExactRefillGrid() {
+        refillSchedule.clearIfGridChanged(cpu.getGrid());
     }
 
     /**

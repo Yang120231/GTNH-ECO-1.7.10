@@ -96,8 +96,10 @@ public final class NELogicalNetworkManager {
         }
         LevelState state = LEVELS.computeIfAbsent(serverLevel, ignored -> new LevelState());
         state.pendingGridRefresh.add(cluster);
-        if (cluster instanceof NEComputationCluster computation && state.awaitingCapacity.remove(computation)) {
-            state.pendingCapacity.add(computation);
+        if (cluster instanceof NEComputationCluster computation) {
+            for (var cpu : computation.getAllocatedCPUs()) cpu.getLogic()
+                .refreshExactRefillGrid();
+            if (state.awaitingCapacity.remove(computation)) state.pendingCapacity.add(computation);
         }
     }
 
