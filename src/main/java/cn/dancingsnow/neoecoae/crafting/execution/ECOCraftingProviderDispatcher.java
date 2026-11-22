@@ -1,6 +1,6 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
-import java.util.List;
+import java.util.Iterator;
 import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
@@ -77,7 +77,7 @@ final class ECOCraftingProviderDispatcher {
                 .smartDoublingDispatchLimit(controller.isSmartDoublingEnabled(), owner.cpu.getCoProcessors());
     }
 
-    Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, List<ICraftingProvider> providers,
+    Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, Iterator<ICraftingProvider> providers,
         ECOCraftingDispatchBudget budget, IEnergyGrid energyService, ECODispatchStallDiagnostics diagnostics,
         Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
         long cappedLimit = dispatchLimit();
@@ -94,7 +94,8 @@ final class ECOCraftingProviderDispatcher {
                 originalRequest.level());
         double singlePower = CraftingCpuHelper.calculatePatternPower(originalRequest.inputs());
 
-        for (var provider : providers) {
+        while (providers.hasNext()) {
+            var provider = providers.next();
             boolean blocking = NativeProviderAdapters.isEnabled(provider);
             if (!blocking && request.job().exactOrder) {
                 var exact = cappedLimit == Long.MAX_VALUE

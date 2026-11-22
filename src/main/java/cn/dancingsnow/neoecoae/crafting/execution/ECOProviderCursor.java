@@ -1,14 +1,14 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-
-import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
@@ -37,18 +37,8 @@ final class ECOProviderCursor {
         }
     }
 
-    @Nullable
-    ICraftingProvider nextAvailable(IPatternDetails pattern, Supplier<Iterable<ICraftingProvider>> providers,
-        Predicate<ICraftingProvider> eligible) {
-        var available = availableProviders(pattern, providers, eligible);
-        if (available.isEmpty()) return null;
-        var selected = cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.first(available);
-        advanceAfter(pattern, selected);
-        return selected;
-    }
-
     /**
-     * Returns each eligible provider once, starting at the transient round-robin cursor.
+     * Checks each provider on demand, starting at the transient round-robin cursor.
      *
      * <p>
      * The caller can try the providers in this order without resolving the pattern inputs again. Scanning
@@ -56,23 +46,9 @@ final class ECOProviderCursor {
      * attempting a provider, so skipped providers cannot undo rejection fairness.
      * </p>
      */
-    List<ICraftingProvider> availableProviders(IPatternDetails pattern, Supplier<Iterable<ICraftingProvider>> providers,
-        Predicate<ICraftingProvider> eligible) {
-        return availableProviders(pattern, providers, eligible, (provider, busy) -> {});
-    }
-
-    List<ICraftingProvider> availableProviders(IPatternDetails pattern, Supplier<Iterable<ICraftingProvider>> providers,
-        Predicate<ICraftingProvider> eligible, BiConsumer<ICraftingProvider, Boolean> observer) {
-        return availableProviders(pattern, providers, eligible, observer, (provider, busy) -> !busy);
-    }
-
-    /**
-     * Variant that lets the CPU's dispatch policy make the final availability decision after the native busy
-     * state has been observed. The observer still receives the native state for diagnostics.
-     */
-    List<ICraftingProvider> availableProviders(IPatternDetails pattern, Supplier<Iterable<ICraftingProvider>> providers,
-        Predicate<ICraftingProvider> eligible, BiConsumer<ICraftingProvider, Boolean> observer,
-        BiPredicate<ICraftingProvider, Boolean> availability) {
+    Iterator<ICraftingProvider> availableProviders(IPatternDetails pattern,
+        Supplier<Iterable<ICraftingProvider>> providers, Predicate<ICraftingProvider> eligible,
+        BiConsumer<ICraftingProvider, Boolean> observer, BiPredicate<ICraftingProvider, Boolean> availability) {
         Cursor previous = cursors.get(pattern);
         Cursor cursor = previous;
         if (cursor == null || (!(service instanceof ECOCraftingProviderRevision) && cursor.tick != tick)) {
@@ -88,24 +64,33 @@ final class ECOProviderCursor {
             }
             cursors.put(pattern, cursor);
         }
-        if (cursor.providers.isEmpty()) return cursor.readyProviders;
+        var snapshot = cursor.providers;
+        int start = cursor.next;
+        return new Iterator<>() {
 
-        var available = cursor.readyProviders;
-        available.clear();
-        int size = cursor.providers.size();
-        int scanIndex = cursor.next;
-        for (int checked = 0; checked < size; checked++) {
-            var provider = cursor.providers.get(scanIndex);
-            scanIndex = (scanIndex + 1) % size;
-            // Enumeration never moves the shared cursor, even if a provider's busy check throws.
-            // Only advanceAfter records a dispatch attempt.
-            if (eligible.test(provider)) {
-                boolean busy = provider.isBusy();
-                observer.accept(provider, busy);
-                if (availability.test(provider, busy)) available.add(provider);
+            private int checked;
+            private ICraftingProvider next;
+
+            @Override
+            public boolean hasNext() {
+                while (next == null && checked < snapshot.size()) {
+                    var provider = snapshot.get((start + checked++) % snapshot.size());
+                    if (!eligible.test(provider)) continue;
+                    boolean busy = provider.isBusy();
+                    observer.accept(provider, busy);
+                    if (availability.test(provider, busy)) next = provider;
+                }
+                return next != null;
             }
-        }
-        return available;
+
+            @Override
+            public ICraftingProvider next() {
+                if (!hasNext()) throw new NoSuchElementException();
+                var provider = next;
+                next = null;
+                return provider;
+            }
+        };
     }
 
     /** Records the provider currently being attempted so the next pass starts after it. */
@@ -133,7 +118,6 @@ final class ECOProviderCursor {
 
         final List<ICraftingProvider> providers;
         final Reference2IntOpenHashMap<ICraftingProvider> indices;
-        final List<ICraftingProvider> readyProviders;
         final long tick;
         int next;
 
@@ -144,7 +128,6 @@ final class ECOProviderCursor {
             for (int index = 0; index < providers.size(); index++) {
                 this.indices.put(providers.get(index), index);
             }
-            this.readyProviders = new ArrayList<>(providers.size());
             this.tick = tick;
         }
     }

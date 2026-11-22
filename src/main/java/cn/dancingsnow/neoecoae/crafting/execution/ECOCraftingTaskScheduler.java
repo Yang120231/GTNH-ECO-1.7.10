@@ -286,7 +286,7 @@ final class ECOCraftingTaskScheduler {
                         (providerCandidate, busy) -> stallDiagnostics.provider(pattern, providerCandidate, busy),
                         (providerCandidate, busy) -> ECOCraftingDispatchPolicyRegistry
                             .isProviderAvailable(cpuContext, providerCandidate, busy));
-                if (providers.isEmpty()) {
+                if (!providers.hasNext()) {
                     logReason(
                         current,
                         candidate,
@@ -387,12 +387,12 @@ final class ECOCraftingTaskScheduler {
                     inventory,
                     level);
                 ECOCraftingProviderDispatcher.Result dispatch;
-                boolean[] providerAttempted = { false };
+                int[] providerAttempts = { 0 };
                 try (var ignored = cn.dancingsnow.neoecoae.crafting.ECOProcessingComponentMatching
                     .openDispatch(current.fuzzyPlanningItemIds)) {
                     dispatch = providerDispatcher
                         .dispatchCandidate(request, providers, budget, energyService, stallDiagnostics, provider -> {
-                            providerAttempted[0] = true;
+                            providerAttempts[0]++;
                             providerCursor.advanceAfter(pattern, provider);
                         },
                             () -> {
@@ -417,8 +417,8 @@ final class ECOCraftingTaskScheduler {
                     current,
                     candidate,
                     "provider-dispatch-not-accepted",
-                    "providersTried=" + providers.size() + " allowedCrafts=" + allowedCount);
-                if (providerAttempted[0]) releasePreferredPattern(pattern);
+                    "providerAttempts=" + providerAttempts[0] + " allowedCrafts=" + allowedCount);
+                if (providerAttempts[0] > 0) releasePreferredPattern(pattern);
                 if (candidate.blocksOrderedPhase()) blockedOrderedPhases.set(candidate.phaseIndex());
             }
             if (!acceptedInPass && step >= 0 && step < size) {
