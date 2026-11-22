@@ -7,12 +7,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.me.storage.NetworkInventoryHandler;
+import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeNetworkReads;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeStackAmounts;
 
 /** Preserve the imported network listing semantics in GTNH's per-network accumulator. */
 @Mixin(value = NetworkInventoryHandler.class, remap = false)
-public abstract class NetworkInventoryHandlerMixin
-    implements cn.dancingsnow.neoecoae.platform.ae2.storage.NativeNetworkReads {
+public abstract class NetworkInventoryHandlerMixin implements NativeNetworkReads {
 
     @org.spongepowered.asm.mixin.Shadow
     @org.spongepowered.asm.mixin.Final
@@ -25,11 +25,24 @@ public abstract class NetworkInventoryHandlerMixin
     private boolean neoecoae$readsOtherNetwork;
 
     @org.spongepowered.asm.mixin.Unique
-    private long neoecoae$craftingInsertionVersion;
+    private long neoecoae$craftingInsertedAmount;
+
+    @org.spongepowered.asm.mixin.Unique
+    private long neoecoae$monitoredCraftingInsertedAmount;
 
     @Override
-    public long neoecoae$craftingInsertionVersion() {
-        return neoecoae$craftingInsertionVersion;
+    public long neoecoae$craftingInsertedAmount() {
+        return neoecoae$craftingInsertedAmount;
+    }
+
+    @Override
+    public long neoecoae$monitoredCraftingInsertedAmount() {
+        return neoecoae$monitoredCraftingInsertedAmount;
+    }
+
+    @Override
+    public void neoecoae$reportMonitoredCraftingInsertion(long amount) {
+        neoecoae$monitoredCraftingInsertedAmount += amount;
     }
 
     /** Re-evaluated at most once per server tick: a storage bus can retarget without rebuilding this handler. */
@@ -71,11 +84,18 @@ public abstract class NetworkInventoryHandlerMixin
     private IAEStack neoecoae$insertPhysicalTarget(appeng.api.storage.IMEInventoryHandler inventory, IAEStack offered,
         appeng.api.config.Actionable mode, appeng.api.networking.security.BaseActionSource source) {
         if (cn.dancingsnow.neoecoae.platform.ae2.storage.NativeTransferFilters.excluded(inventory)) return offered;
+        if (mode != appeng.api.config.Actionable.MODULATE) return inventory.injectItems(offered, mode, source);
+        boolean crafting = inventory.isAutoCraftingInventory();
+        NativeNetworkReads external = !crafting
+            && inventory.getExternalNetworkInventory() instanceof NativeNetworkReads reads ? reads : null;
         long before = offered.getStackSize();
+        long externalBefore = external == null ? 0L : external.neoecoae$monitoredCraftingInsertedAmount();
         IAEStack remaining = inventory.injectItems(offered, mode, source);
-        if (mode == appeng.api.config.Actionable.MODULATE && inventory.isAutoCraftingInventory()
-            && (remaining == null || remaining.getStackSize() < before)) {
-            neoecoae$craftingInsertionVersion++;
+        long accepted = before - (remaining == null ? 0L : remaining.getStackSize());
+        if (accepted > 0L) {
+            if (crafting) neoecoae$craftingInsertedAmount += accepted;
+            else if (external != null) neoecoae$craftingInsertedAmount += Math
+                .min(accepted, external.neoecoae$monitoredCraftingInsertedAmount() - externalBefore);
         }
         return remaining;
     }

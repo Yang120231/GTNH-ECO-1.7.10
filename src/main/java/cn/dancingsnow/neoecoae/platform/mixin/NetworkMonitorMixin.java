@@ -11,10 +11,17 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Share;
+import com.llamalad7.mixinextras.sugar.ref.LocalLongRef;
+
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.IMEInventoryHandler;
+import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IAEStackType;
 import appeng.api.storage.data.IItemList;
+import appeng.me.cache.ItemFlowGridCache;
 import appeng.me.cache.NetworkMonitor;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeIncrementalStorageList;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeNetworkReads;
@@ -64,6 +71,12 @@ public abstract class NetworkMonitorMixin implements NativeNetworkReads.Listing 
     @Shadow
     private volatile boolean locked;
 
+    @Shadow
+    private int localDepthSemaphore;
+
+    @Unique
+    private long neoecoae$craftingAccepted;
+
     @Unique
     private boolean neoecoae$removal;
 
@@ -90,13 +103,49 @@ public abstract class NetworkMonitorMixin implements NativeNetworkReads.Listing 
     private appeng.api.storage.data.IAEStack neoecoae$insertAndInvalidateCrafting(IMEInventoryHandler handler,
         appeng.api.storage.data.IAEStack input, appeng.api.config.Actionable mode, BaseActionSource source) {
         NativeNetworkReads reads = handler instanceof NativeNetworkReads ? (NativeNetworkReads) handler : null;
-        long before = reads == null ? 0 : reads.neoecoae$craftingInsertionVersion();
+        long before = reads == null ? 0L : reads.neoecoae$craftingInsertedAmount();
         appeng.api.storage.data.IAEStack remaining = handler.injectItems(input, mode, source);
-        // AE2's insertion difference includes items consumed by CPUs. Those are not listed as stored stock.
-        // Rebuild before serving the next list instead of adding that difference to the cached stock.
-        if (mode == appeng.api.config.Actionable.MODULATE
-            && (reads == null || before != reads.neoecoae$craftingInsertionVersion())) hasChanged = true;
+        if (mode == appeng.api.config.Actionable.MODULATE) {
+            long acceptedByCrafting = reads == null ? 0L : reads.neoecoae$craftingInsertedAmount() - before;
+            if (reads == null || acceptedByCrafting > 0L) hasChanged = true;
+            if (localDepthSemaphore == 1) {
+                neoecoae$craftingAccepted = acceptedByCrafting;
+                if (reads != null && acceptedByCrafting > 0L) {
+                    reads.neoecoae$reportMonitoredCraftingInsertion(acceptedByCrafting);
+                }
+            }
+        }
         return remaining;
+    }
+
+    @Inject(method = "monitorDifference", at = @At("HEAD"), require = 1)
+    private void neoecoae$captureCraftingAccepted(IAEStack<?> diff, IAEStack<?> leftover, boolean extraction,
+        BaseActionSource source, CallbackInfoReturnable<IAEStack<?>> cir,
+        @Share("craftingAccepted") LocalLongRef craftingAccepted) {
+        if (!extraction) {
+            craftingAccepted.set(neoecoae$craftingAccepted);
+            neoecoae$craftingAccepted = 0L;
+        }
+    }
+
+    @WrapOperation(
+        method = "monitorDifference",
+        at = @At(
+            value = "INVOKE",
+            target = "Lappeng/me/cache/ItemFlowGridCache;recordFlow(Lappeng/api/storage/data/IAEStack;Lappeng/api/networking/security/BaseActionSource;)V"),
+        require = 1)
+    private void neoecoae$recordPhysicalFlow(ItemFlowGridCache cache, IAEStack<?> diff, BaseActionSource source,
+        Operation<Void> recordFlow, @Share("craftingAccepted") LocalLongRef craftingAccepted) {
+        long acceptedByCrafting = craftingAccepted.get();
+        if (acceptedByCrafting == 0L) {
+            recordFlow.call(cache, diff, source);
+        } else if (diff.getStackSize() > acceptedByCrafting) {
+            recordFlow.call(
+                cache,
+                diff.copy()
+                    .setStackSize(diff.getStackSize() - acceptedByCrafting),
+                source);
+        }
     }
 
     // notifyListenersOfChange receives removal batches unsigned; those always take AE2's rebuild.

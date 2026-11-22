@@ -19,6 +19,11 @@ public interface NativeNetworkReads {
      */
     boolean neoecoae$readsOtherNetwork();
 
-    /** Changes whenever an insertion is accepted by crafting rather than physical storage. */
-    long neoecoae$craftingInsertionVersion();
+    /** Running counter of the amount accepted by crafting during committed insertions. */
+    long neoecoae$craftingInsertedAmount();
+
+    /** Counts only insertions reported by the outermost monitor call, for storage-bus forwarding. */
+    long neoecoae$monitoredCraftingInsertedAmount();
+
+    void neoecoae$reportMonitoredCraftingInsertion(long amount);
 }
