@@ -3,6 +3,7 @@ package cn.dancingsnow.neoecoae.platform.ae2.multiblock;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 import net.minecraft.tileentity.TileEntity;
 
@@ -154,6 +155,16 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
     private void calculate(ServerWorldView level, BlockPos location, Map<BlockPos, MBCalculator<?, ?>> remaining) {
         MBCalculator<T, C> calculator = this;
         try {
+            C current = target.getCluster();
+            if (current != null && revalidateCluster(level, current)) {
+                BlockPos min = current.getBoundsMin(), max = current.getBoundsMax();
+                discardMemberChecks(min, max, remaining);
+                boolean claimedOwner = shareOwner(level, min, max);
+                setModificationInProgress(current);
+                updateExistingCluster(current, claimedOwner);
+                faults.recovered("discovery");
+                return;
+            }
             BlockPos min = location, max = location;
             for (Direction side : MIN_SIDES)
                 while (span(location, min, side) < maxDiscoverySpan() && validAt(level, min.relative(side)))
@@ -175,6 +186,15 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
 
     protected MBCalculator<T, C> discoveryOwner(ServerWorldView level, BlockPos min, BlockPos max) {
         return this;
+    }
+
+    protected boolean revalidateCluster(ServerWorldView level, C cluster) {
+        return false;
+    }
+
+    protected final boolean validateKnownBounds(ServerWorldView level, BlockPos min, BlockPos max,
+        BooleanSupplier validate) {
+        return checkMultiblockScale(min, max) && unownedBoundary(level, min, max) && profileValidation(level, validate);
     }
 
     private static int span(BlockPos first, BlockPos second, Direction side) {
@@ -204,24 +224,8 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
             invalidateStructure();
             return;
         }
-        if (remaining != null && !remaining.isEmpty()) {
-            for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
-                MBCalculator<?, ?> other = remaining.get(pos);
-                if (other != null && other.getClass() == getClass()
-                    && other.target instanceof TileEntity member
-                    && isValidBlockEntity(member)) remaining.remove(pos);
-            }
-        }
-        var profiler = level.getServer()
-            .nativeServer().theProfiler;
-        profiler.startSection("ecoStructureValidation");
-        boolean valid;
-        try {
-            valid = verifyInternalStructure(level, min, max);
-        } finally {
-            profiler.endSection();
-        }
-        if (!valid) {
+        discardMemberChecks(min, max, remaining);
+        if (!profileValidation(level, () -> verifyInternalStructure(level, min, max))) {
             invalidateStructure();
             return;
         }
@@ -251,6 +255,27 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
             }
             updateNewCluster(cluster);
         } else updateExistingCluster(cluster, claimedOwner);
+    }
+
+    private void discardMemberChecks(BlockPos min, BlockPos max, Map<BlockPos, MBCalculator<?, ?>> remaining) {
+        if (remaining == null || remaining.isEmpty()) return;
+        for (BlockPos pos : BlockPos.betweenClosed(min, max)) {
+            MBCalculator<?, ?> other = remaining.get(pos);
+            if (other != null && other.getClass() == getClass()
+                && other.target instanceof TileEntity member
+                && isValidBlockEntity(member)) remaining.remove(pos);
+        }
+    }
+
+    private static boolean profileValidation(ServerWorldView level, BooleanSupplier validate) {
+        var profiler = level.getServer()
+            .nativeServer().theProfiler;
+        profiler.startSection("ecoStructureValidation");
+        try {
+            return validate.getAsBoolean();
+        } finally {
+            profiler.endSection();
+        }
     }
 
     /**

@@ -11,7 +11,7 @@
 
 ## 调用链与批处理边界
 
-- ECO：`NEBlockEntity.onReady/updateMultiBlock` → `MBCalculator.tick` → 发现边界 → `NEComputationClusterCalculator.verifyInternalStructure` → `NEStructureShape.check`。验收通过后创建或调整逻辑簇，再同步真正需要的 AE2 节点和连接面。
+- 首次成型时，`MBCalculator.tick` 发现边界并查找主机，再由 `NEStructureShape.check` 验收。已成型的计算主机优先用现有簇的边界和镜像方向复查，确认外沿、既有成员和蓝图后复用当前簇。外沿变化、成员替换或校验失败时，重新发现结构，再创建、调整或拆除簇。
 - AE2 `rv3-beta-1095-GTNH`：`AENetworkProxy.setValidSides` → `GridNode.updateState` → `FindConnections`。新增边可能合并网络；`GridConnection.destroy` 除了标记待寻路，还同步调用两端的 `validateGrid` 检查连通性。`MULTIBLOCK` 用于共享频道分配，原生合成 CPU 也用它；并不把多个节点变成一个节点。
 - `PathGridCache.addNode/removeNode` 和连接变化会触发 `repath()`。它只标记待更新；`onUpdateTick()` 才分配频道，有在线 ME 控制器时走 `PathingCalculation.compute()`。因此不要把 `repath()` 次数当作实际寻路次数。
 - `CraftingGridCache.pauseRebuilds()/unpauseRebuilds()` 合并样板缓存重建，不暂停拓扑拆分、供电或频道计算。ECO 另按 grid 合并 CPU 列表失效事件。这两类缓存应分别观察。

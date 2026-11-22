@@ -246,22 +246,25 @@ public abstract class NEClusterCalculator<C extends NECluster<C>> extends MBCalc
         if (!validControllerPositions.contains(blockEntity.getBlockPos())) {
             return Optional.empty();
         }
-        BlockState state = blockEntity.getBlockState();
+        return Optional.of(controllerContext(blockEntity));
+    }
+
+    protected static <T extends NEBlockEntity<?, ?>> ControllerContext<T> controllerContext(T controller) {
+        BlockState state = controller.getBlockState();
         IOrientationStrategy strategy = OrientationStrategies.horizontalFacing();
         Direction back = strategy.getSide(state, RelativeSide.BACK);
         Direction top = strategy.getSide(state, RelativeSide.TOP);
         Direction left = strategy.getSide(state, RelativeSide.LEFT);
-        return Optional.of(
-            new ControllerContext<>(
-                blockEntity,
-                blockEntity.getBlockPos(),
-                state,
-                back.getOpposite(),
-                back,
-                top,
-                top.getOpposite(),
-                left,
-                left.getOpposite()));
+        return new ControllerContext<>(
+            controller,
+            controller.getBlockPos(),
+            state,
+            back.getOpposite(),
+            back,
+            top,
+            top.getOpposite(),
+            left,
+            left.getOpposite());
     }
 
     protected final <T extends NEBlockEntity<?, ?>> Optional<T> findCandidateController(ServerWorldView level,

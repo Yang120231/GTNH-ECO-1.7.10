@@ -128,6 +128,22 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
     }
 
     @Override
+    protected boolean revalidateCluster(ServerWorldView level, NEComputationCluster cluster) {
+        ECOComputationSystemBlockEntity controller = cluster.getController();
+        if (!usesStructureLib() || controller == null || controller != owner) return false;
+        BlockPos min = cluster.getBoundsMin(), max = cluster.getBoundsMax();
+        if (!chunksLoaded(level, min, max)) return false;
+        var context = controllerContext(controller);
+        boolean mirrored = context.state()
+            .getValue(NativeMachineBlock.MIRRORED);
+        return validateKnownBounds(
+            level,
+            min,
+            max,
+            () -> sameMembers(level, cluster) && verifyLayout(level, min, max, context, mirrored));
+    }
+
+    @Override
     public boolean verifyInternalStructure(ServerWorldView level, BlockPos min, BlockPos max) {
         if (!chunksLoaded(level, min, max)) return false;
         Optional<ControllerContext<ECOComputationSystemBlockEntity>> contextResult = findUniqueController(
@@ -141,45 +157,45 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
         ECOComputationSystemBlockEntity controller = context.controller();
         if (controller != owner && controller.getCalculator() instanceof NEComputationClusterCalculator calculator)
             return calculator.verifyInternalStructure(level, min, max);
-        BlockPos controllerPos = context.position();
-        StorageTierDescriptor tier = controller.getTier();
-        BlockState controllerState = context.state();
-        Direction front = context.front();
-        Direction back = context.back();
-        Direction top = context.top();
-        Direction down = context.down();
-        Direction left = context.left();
-        Direction right = context.right();
-        boolean useBlueprint = usesStructureLib();
-        var definition = useBlueprint ? controller.getBuildDefinition() : null;
-        int repeats = Math.max(max.getX() - min.getX(), max.getZ() - min.getZ()) - 3;
-        if (useBlueprint ? NEStructureLib.check(controller, definition, repeats, front, false, min, max)
-            : verifyStructure(level, controllerPos, tier, front, back, top, down, right, left, right, false)) {
-            controller.setMirrored(false);
-            setCoolingControllersMirrored(
-                level,
-                min,
-                max,
-                false,
-                useBlueprint ? controllerPos.relative(left, repeats + 2) : null);
-            syncNetworkSwitchState(level, controllerPos, controllerState, false);
-            return true;
-        }
-        if (useBlueprint ? NEStructureLib.check(controller, definition, repeats, front, true, min, max)
-            : verifyStructure(level, controllerPos, tier, front, back, top, down, left, right, left, true)) {
-            controller.setMirrored(true);
-            setCoolingControllersMirrored(
-                level,
-                min,
-                max,
-                true,
-                useBlueprint ? controllerPos.relative(right, repeats + 2) : null);
-            syncNetworkSwitchState(level, controllerPos, controllerState, true);
-            return true;
-        }
-        clearNetworkSwitchState(level, controllerPos, controllerState);
+        if (verifyLayout(level, min, max, context, false) || verifyLayout(level, min, max, context, true)) return true;
+        clearNetworkSwitchState(level, context.position(), context.state());
         controller.setMirrored(false);
         return false;
+    }
+
+    private boolean verifyLayout(ServerWorldView level, BlockPos min, BlockPos max,
+        ControllerContext<ECOComputationSystemBlockEntity> context, boolean mirrored) {
+        ECOComputationSystemBlockEntity controller = context.controller();
+        BlockPos controllerPos = context.position();
+        Direction interfaceSide = mirrored ? context.left() : context.right();
+        Direction expandSide = interfaceSide.getOpposite();
+        boolean useBlueprint = usesStructureLib();
+        int repeats = Math.max(max.getX() - min.getX(), max.getZ() - min.getZ()) - 3;
+        boolean valid = useBlueprint
+            ? NEStructureLib
+                .check(controller, controller.getBuildDefinition(), repeats, context.front(), mirrored, min, max)
+            : verifyStructure(
+                level,
+                controllerPos,
+                controller.getTier(),
+                context.front(),
+                context.back(),
+                context.top(),
+                context.down(),
+                interfaceSide,
+                expandSide,
+                interfaceSide,
+                mirrored);
+        if (!valid) return false;
+        controller.setMirrored(mirrored);
+        setCoolingControllersMirrored(
+            level,
+            min,
+            max,
+            mirrored,
+            useBlueprint ? controllerPos.relative(expandSide, repeats + 2) : null);
+        syncNetworkSwitchState(level, controllerPos, context.state(), mirrored);
+        return true;
     }
 
     @Override
