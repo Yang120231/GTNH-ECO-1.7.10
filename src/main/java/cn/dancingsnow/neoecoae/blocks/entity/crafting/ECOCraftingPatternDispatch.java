@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.blocks.entity.crafting;
 
-import java.util.List;
-
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
@@ -12,7 +10,7 @@ final class ECOCraftingPatternDispatch {
     private ECOCraftingPatternDispatch() {}
 
     @Nullable
-    static Candidate best(List<ECOCraftingWorkerBlockEntity> candidates) {
+    static Candidate best(Iterable<ECOCraftingWorkerBlockEntity> candidates) {
         Candidate best = null;
         for (ECOCraftingWorkerBlockEntity worker : candidates) {
             int availableSlots = worker.getAvailableThreadSlots();

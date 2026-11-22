@@ -381,10 +381,11 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
 
     @com.github.bsideup.jabel.Desugar
     public record BatchFastPathOffer(ECOCraftingWorkerBlockEntity worker, ECOVerifiedFastPathRecipe recipe,
-        int maxBatchSize) {}
+        int maxBatchSize, NECraftingCluster workerCluster, Object domain, long domainGeneration) {}
 
     @com.github.bsideup.jabel.Desugar
-    public record VirtualFastPathOffer(ECOCraftingWorkerBlockEntity worker, ECOVerifiedFastPathRecipe recipe) {}
+    public record VirtualFastPathOffer(ECOCraftingWorkerBlockEntity worker, ECOVerifiedFastPathRecipe recipe,
+        NECraftingCluster workerCluster, Object domain, long domainGeneration) {}
 
     @Override
     public void addAdditionalDrops(WorldView world, BlockPos pos, List<net.minecraft.item.ItemStack> drops) {

@@ -16,7 +16,7 @@ import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCa
 import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
-import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceSet;
 
 public class NECraftingCluster extends NECluster<NECraftingCluster> {
@@ -38,7 +38,7 @@ public class NECraftingCluster extends NECluster<NECraftingCluster> {
 
     private final ECOCraftingFastPathCache localFastPathCache = new ECOCraftingFastPathCache();
     private long localPatternDomainGeneration;
-    private final ReferenceSet<ECOCraftingWorkerBlockEntity> localAvailableWorkers = new ReferenceOpenHashSet<>();
+    private final ReferenceSet<ECOCraftingWorkerBlockEntity> localAvailableWorkers = new ReferenceLinkedOpenHashSet<>();
     private long localAvailabilityTick = Long.MIN_VALUE;
 
     public NECraftingCluster(BlockPos boundMin, BlockPos boundMax) {
@@ -114,11 +114,25 @@ public class NECraftingCluster extends NECluster<NECraftingCluster> {
     /** Allocation-free reachability check used by busy reporting. */
     public boolean hasAvailableDispatchCandidate() {
         NECraftingNetworkCluster network = this.networkCluster;
+        if (network != null) return network.hasAvailableCandidateWorker();
+        return !availableDispatchWorkers().isEmpty();
+    }
+
+    public List<ECOCraftingWorkerBlockEntity> snapshotAvailableDispatchWorkers() {
+        return new ArrayList<>(availableDispatchWorkers());
+    }
+
+    public Iterable<ECOCraftingWorkerBlockEntity> availableDispatchCandidates() {
+        return availableDispatchWorkers();
+    }
+
+    private ReferenceSet<ECOCraftingWorkerBlockEntity> availableDispatchWorkers() {
+        NECraftingNetworkCluster network = this.networkCluster;
         if (network != null) {
-            return network.hasAvailableCandidateWorker();
+            return network.availableDispatchWorkers();
         }
         refreshLocalDispatchAvailability();
-        return !localAvailableWorkers.isEmpty();
+        return localAvailableWorkers;
     }
 
     /**

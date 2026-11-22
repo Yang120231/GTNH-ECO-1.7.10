@@ -15,7 +15,7 @@ import cn.dancingsnow.neoecoae.crafting.amount.NEMath;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCache;
 import cn.dancingsnow.neoecoae.platform.fluid.FluidStack;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
-import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ReferenceLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ReferenceSet;
 
 /**
@@ -41,7 +41,7 @@ public class NECraftingNetworkCluster {
      * dispatch reachability is re-read from the live membership on every push.
      */
     private long patternDomainGeneration;
-    private final ReferenceSet<ECOCraftingWorkerBlockEntity> availableWorkerSnapshot = new ReferenceOpenHashSet<>();
+    private final ReferenceSet<ECOCraftingWorkerBlockEntity> availableWorkerSnapshot = new ReferenceLinkedOpenHashSet<>();
     private long availabilitySnapshotTick = Long.MIN_VALUE;
 
     /** Group-wide once-per-tick bookkeeping for {@link #VIRTUAL_CRAFTING_POWER_PER_TICK}. */
@@ -178,10 +178,13 @@ public class NECraftingNetworkCluster {
                 .getController();
     }
 
-    /** Allocation-free counterpart of {@link #collectCandidateWorkers()} for busy checks. */
     public boolean hasAvailableCandidateWorker() {
+        return !availableDispatchWorkers().isEmpty();
+    }
+
+    ReferenceSet<ECOCraftingWorkerBlockEntity> availableDispatchWorkers() {
         refreshDispatchAvailability();
-        return !availableWorkerSnapshot.isEmpty();
+        return availableWorkerSnapshot;
     }
 
     /** Invalidates membership-derived availability after a network topology change. */

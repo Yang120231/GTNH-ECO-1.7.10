@@ -13,6 +13,7 @@ import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOStatefulBatchCalcu
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedFastPathExecution;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedFastPathRecipe;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOVerifiedVirtualExecution;
+import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
@@ -65,7 +66,7 @@ final class ECOCraftingPatternBusDispatcher {
         // Match AdvancedAE's ordinary provider routing: visit reachable workers from a rotating cursor and advance
         // only after a successful push. Batch offers use the capacity-ranked path below, but a single craft should
         // not keep concentrating on the worker with the most free slots.
-        List<ECOCraftingWorkerBlockEntity> candidates = cluster.collectDispatchCandidateWorkers();
+        List<ECOCraftingWorkerBlockEntity> candidates = cluster.snapshotAvailableDispatchWorkers();
         if (candidates.isEmpty()) {
             return false;
         }
@@ -74,7 +75,8 @@ final class ECOCraftingPatternBusDispatcher {
             int candidateIndex = (start + offset) % candidates.size();
             ECOCraftingWorkerBlockEntity worker = candidates.get(candidateIndex);
             // The worker performs the authoritative capacity check immediately before accepting ownership.
-            if (worker.pushPattern(execution, craftingJobId)) {
+            if (host.getCraftingCluster() == cluster && cluster.isDispatchCandidate(worker)
+                && worker.pushPattern(execution, craftingJobId)) {
                 roundRobinIndex = (candidateIndex + 1) % candidates.size();
                 return recordAccepted(worker, true);
             }
@@ -154,8 +156,7 @@ final class ECOCraftingPatternBusDispatcher {
                 .durabilityModel() != null)
             return null;
         return new ECOFastPathDispatchProvider.ExactPreparation(requested, () -> {
-            var cluster = host.getCraftingCluster();
-            return cluster != null && cluster.isDispatchCandidate(offer.worker())
+            return isOfferCurrent(offer.worker(), offer.workerCluster(), offer.domain(), offer.domainGeneration(), 1)
                 && recordAccepted(
                     offer.worker(),
                     offer.worker()
@@ -165,8 +166,7 @@ final class ECOCraftingPatternBusDispatcher {
 
     boolean acceptVerifiedBatch(ECOVerifiedFastPathExecution verified,
         @Nullable ECOCraftingPatternBusBlockEntity.BatchFastPathOffer offer) {
-        var cluster = host.getCraftingCluster();
-        if (offer == null || cluster == null) {
+        if (offer == null) {
             return false;
         }
         // The credential must be the one minted for this offer. That single reference check replaces the value
@@ -176,9 +176,8 @@ final class ECOCraftingPatternBusDispatcher {
         }
         int batchSize = verified.batchSize();
         ECOCraftingWorkerBlockEntity worker = offer.worker();
-        if (offer.maxBatchSize() < batchSize || !cluster.isDispatchCandidate(worker)
-            || worker.getAvailableThreadSlots() < batchSize
-            || availableThreadSlots() < batchSize) {
+        if (offer.maxBatchSize() < batchSize
+            || !isOfferCurrent(worker, offer.workerCluster(), offer.domain(), offer.domainGeneration(), batchSize)) {
             return false;
         }
         return recordAccepted(worker, worker.pushBatch(verified));
@@ -186,13 +185,23 @@ final class ECOCraftingPatternBusDispatcher {
 
     boolean pushVirtualBatch(ECOVerifiedVirtualExecution verified,
         @Nullable ECOCraftingPatternBusBlockEntity.VirtualFastPathOffer offer) {
-        var cluster = host.getCraftingCluster();
-        if (offer == null || cluster == null || verified.recipe() != offer.recipe()) {
+        if (offer == null || verified.recipe() != offer.recipe()) {
             return false;
         }
         ECOCraftingWorkerBlockEntity worker = offer.worker();
-        return cluster.isDispatchCandidate(worker) && worker.getAvailableBatchCapacity() > 0
+        return isOfferCurrent(worker, offer.workerCluster(), offer.domain(), offer.domainGeneration(), 1)
             && recordAccepted(worker, worker.pushVirtualBatch(verified));
+    }
+
+    private boolean isOfferCurrent(ECOCraftingWorkerBlockEntity worker, NECraftingCluster workerCluster, Object domain,
+        long domainGeneration, int requiredCapacity) {
+        var cluster = host.getCraftingCluster();
+        return cluster != null && host.getCraftingController() != null
+            && cluster.getPatternDomain() == domain
+            && cluster.getPatternDomainGeneration() == domainGeneration
+            && worker.getCluster() == workerCluster
+            && cluster.isDispatchCandidate(worker)
+            && worker.getAvailableBatchCapacity() >= requiredCapacity;
     }
 
     @Nullable
@@ -212,7 +221,13 @@ final class ECOCraftingPatternBusDispatcher {
         }
         ECOCraftingPatternDispatch.Candidate best = findBestDispatchCandidate(cluster);
         return best == null ? null
-            : new ECOCraftingPatternBusBlockEntity.VirtualFastPathOffer(best.worker(), lookup.recipe());
+            : new ECOCraftingPatternBusBlockEntity.VirtualFastPathOffer(
+                best.worker(),
+                lookup.recipe(),
+                best.worker()
+                    .getCluster(),
+                cluster.getPatternDomain(),
+                cluster.getPatternDomainGeneration());
     }
 
     @Nullable
@@ -251,7 +266,14 @@ final class ECOCraftingPatternBusDispatcher {
         if (maxBatchSize <= 0) {
             return null;
         }
-        return new ECOCraftingPatternBusBlockEntity.BatchFastPathOffer(best.worker(), verifiedRecipe, maxBatchSize);
+        return new ECOCraftingPatternBusBlockEntity.BatchFastPathOffer(
+            best.worker(),
+            verifiedRecipe,
+            maxBatchSize,
+            best.worker()
+                .getCluster(),
+            cluster.getPatternDomain(),
+            cluster.getPatternDomainGeneration());
     }
 
     private static boolean batchRecipe(ECOVerifiedFastPathRecipe recipe, ECOExtractedPatternExecution execution) {
@@ -264,9 +286,8 @@ final class ECOCraftingPatternBusDispatcher {
         return calculator == null ? recipe.arithmeticBatchLimit() : calculator.arithmeticBatchLimit();
     }
 
-    private static ECOCraftingPatternDispatch.Candidate findBestDispatchCandidate(
-        cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster cluster) {
-        return ECOCraftingPatternDispatch.best(cluster.collectDispatchCandidateWorkers());
+    private static ECOCraftingPatternDispatch.Candidate findBestDispatchCandidate(NECraftingCluster cluster) {
+        return ECOCraftingPatternDispatch.best(cluster.availableDispatchCandidates());
     }
 
     boolean recoverJobToNetwork(UUID craftingJobId, cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage storage) {
@@ -296,7 +317,7 @@ final class ECOCraftingPatternBusDispatcher {
             return 0;
         }
         long available = 0L;
-        for (ECOCraftingWorkerBlockEntity worker : cluster.collectDispatchCandidateWorkers()) {
+        for (ECOCraftingWorkerBlockEntity worker : cluster.availableDispatchCandidates()) {
             available = cn.dancingsnow.neoecoae.crafting.amount.NEMath
                 .saturatingAdd(available, worker.getAvailableBatchCapacity());
         }
