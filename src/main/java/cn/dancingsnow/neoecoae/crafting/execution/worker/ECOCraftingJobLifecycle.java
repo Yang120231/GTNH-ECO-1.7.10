@@ -59,15 +59,11 @@ public final class ECOCraftingJobLifecycle extends net.minecraft.world.WorldSave
     public static void cancelAndRecover(@Nullable World level, @Nullable UUID jobId) {
         if (jobId == null) return;
         finish(level, jobId, false);
-        if (level == null || cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldStorage.server(level) == null)
-            return;
-        for (var worker : cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingWorkers.loaded()) {
-            if (worker.getNativeLevel() != null
-                && cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldStorage.server(worker.getNativeLevel())
-                    == cn.dancingsnow.neoecoae.platform.minecraft.NativeWorldStorage.server(level)) {
-                worker.recoverTerminatedJob(jobId);
-            }
-        }
+        recoverTerminatedWorkers(level, jobId);
+    }
+
+    public static void recoverTerminatedWorkers(@Nullable World level, UUID jobId) {
+        for (var worker : ECOCraftingWorkers.forJob(level, jobId)) worker.recoverTerminatedJob(jobId);
     }
 
     /** Works without decoding a plan, so even a quarantined CPU can terminate its worker ownership. */

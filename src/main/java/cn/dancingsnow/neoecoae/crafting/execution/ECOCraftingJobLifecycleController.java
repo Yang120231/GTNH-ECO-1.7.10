@@ -149,7 +149,8 @@ final class ECOCraftingJobLifecycleController {
         ECOCraftingJobLifecycle.finish(host.cpu.getLevel(), finishingJob.link.getCraftingID(), success);
         if (success) {
             finishingJob.link.markDone();
-            ECOCraftingWorkerRecovery.releaseCompletedOutputs(host.cpu.getGrid(), finishingJob.link.getCraftingID());
+            ECOCraftingWorkerRecovery
+                .releaseCompletedOutputs(host.cpu.getLevel(), host.cpu.getGrid(), finishingJob.link.getCraftingID());
         } else {
             finishingJob.link.cancel();
         }
@@ -188,11 +189,11 @@ final class ECOCraftingJobLifecycleController {
         if (host.bigOrder.progress() != null) {
             host.bigOrder.cancel();
             ECOCraftingJobLifecycle.finish(host.cpu.getLevel(), craftingJobId, false);
-            ECOCraftingWorkerRecovery.recoverTerminatedInputs(host.cpu.getLevel(), craftingJobId);
+            ECOCraftingJobLifecycle.recoverTerminatedWorkers(host.cpu.getLevel(), craftingJobId);
             finish(false);
         } else {
             finish(false);
-            ECOCraftingWorkerRecovery.recoverTerminatedInputs(host.cpu.getLevel(), craftingJobId);
+            ECOCraftingJobLifecycle.recoverTerminatedWorkers(host.cpu.getLevel(), craftingJobId);
         }
     }
 

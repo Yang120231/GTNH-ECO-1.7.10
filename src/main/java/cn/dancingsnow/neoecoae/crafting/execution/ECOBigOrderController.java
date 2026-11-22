@@ -299,7 +299,8 @@ final class ECOBigOrderController {
         }
         if (order.completeChild()) return false;
         if (!child.waitingFor.list.isEmpty()) {
-            ECOCraftingWorkerRecovery.releaseCompletedOutputs(host.cpu.getGrid(), child.link.getCraftingID());
+            ECOCraftingWorkerRecovery
+                .releaseCompletedOutputs(host.cpu.getLevel(), host.cpu.getGrid(), child.link.getCraftingID());
         }
         host.setJobFromLifecycle(
             new ExecutingCraftingJob(admission().carrier(), host::postChange, child.link, child.playerId));

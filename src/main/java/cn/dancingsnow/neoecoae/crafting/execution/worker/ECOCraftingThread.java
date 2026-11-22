@@ -883,8 +883,12 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         return this.isBusy && Objects.equals(jobId, this.craftingJobId);
     }
 
+    public @Nullable UUID activeJobId() {
+        return isBusy ? craftingJobId : null;
+    }
+
     public void releaseCompletedJobOutputs(UUID jobId) {
-        if (belongsToJob(jobId)) {
+        if (belongsToJob(jobId) && !completedJobOutputsReleased) {
             // Do not eject here: completion can be reported inside the current output insertion.
             completedJobOutputsReleased = true;
             if (recoveryState == RecoveryState.WAITING_FOR_OWNER) {

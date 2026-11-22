@@ -82,14 +82,15 @@ public class ECOCraftingWorkerBlockEntity extends
     @Override
     public void onReady() {
         super.onReady();
-        cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingWorkers.loaded(this);
         if (level instanceof ServerWorldView) {
+            cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingWorkers.loaded(this);
             synchronized (LOADED_SERVER_WORKERS) {
                 LOADED_SERVER_WORKERS.add(this);
             }
         }
         applyIdlePower(ECOPowerRole.CRAFTING_WORKER, 64, 0);
         reconcileJobTermination();
+        onThreadAvailabilityChanged();
         refreshDisplayedJob();
     }
 
@@ -334,6 +335,14 @@ public class ECOCraftingWorkerBlockEntity extends
 
     /** Updates a previously-built tick-local cluster snapshot after this worker starts or stops work. */
     public void onThreadAvailabilityChanged() {
+        if (level instanceof ServerWorldView) {
+            var jobs = new java.util.HashSet<UUID>();
+            for (var thread : craftingThreads) {
+                UUID jobId = thread.activeJobId();
+                if (jobId != null) jobs.add(jobId);
+            }
+            cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingWorkers.updateJobs(this, jobs);
+        }
         if (cluster != null) {
             cluster.onWorkerAvailabilityChanged(this);
         }
@@ -523,6 +532,7 @@ public class ECOCraftingWorkerBlockEntity extends
         craftingThreads.clear();
         runningThreads = 0;
         nextFreeThreadIndex = 0;
+        onThreadAvailabilityChanged();
         displayedJob = null;
         displayDirty = false;
         if (cluster != null && cluster.getController() != null) {
@@ -581,6 +591,7 @@ public class ECOCraftingWorkerBlockEntity extends
         }
         runningThreads = (int) Math.min(Integer.MAX_VALUE, busyThreads);
         nextFreeThreadIndex = 0;
+        onThreadAvailabilityChanged();
         if (cluster != null && cluster.getController() != null) {
             cluster.getController()
                 .recalculateRunningThreadCountFromWorkers();
