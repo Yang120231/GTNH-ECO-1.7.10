@@ -228,8 +228,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             circuitConflict);
     }
 
-    private Decision evaluate(Route route, Request request, boolean canProgram, boolean crossRecipeBuffer,
-        Pool pool, MapSupport mapSupport) {
+    private Decision evaluate(Route route, Request request, boolean canProgram, boolean crossRecipeBuffer, Pool pool,
+        MapSupport mapSupport) {
         ItemStack selected = request.selectedCircuit;
         if (request.circuitConflict) return new Decision(Level.CIRCUIT_CONFLICT, "circuits_multiple", selected);
         Decision rejected = checkDestination(route, request, crossRecipeBuffer, mapSupport);

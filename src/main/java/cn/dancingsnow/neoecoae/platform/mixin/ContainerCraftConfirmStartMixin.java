@@ -16,7 +16,6 @@ import appeng.api.networking.security.BaseActionSource;
 import appeng.container.implementations.ContainerCraftConfirm;
 import appeng.container.implementations.CraftingCPUStatus;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker;
-import cn.dancingsnow.neoecoae.platform.mixin.ContainerCraftConfirmAccessor;
 
 /**
  * AE2 auto-start submits from {@code detectAndSendChanges}, outside the ECO start packet. Guard that submission
@@ -37,8 +36,8 @@ public abstract class ContainerCraftConfirmStartMixin {
     private void neoecoae$rejectIncompatibleCpu(CraftingCPUStatus status, CallbackInfoReturnable<Boolean> cir) {
         var cpu = status.getServerCluster();
         if (cpu != null && ECOCraftConfirmTracker
-            .nativeIncompatible(cpu, ((ContainerCraftConfirmAccessor) (Object) this).neoecoae$getResult())) cir
-                .setReturnValue(false);
+            .nativeIncompatible(cpu, ((ContainerCraftConfirmAccessor) (Object) this).neoecoae$getResult()))
+            cir.setReturnValue(false);
     }
 
     @Redirect(

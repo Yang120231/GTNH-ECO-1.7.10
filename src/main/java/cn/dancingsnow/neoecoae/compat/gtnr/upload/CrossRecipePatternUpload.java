@@ -198,8 +198,8 @@ public final class CrossRecipePatternUpload {
     private static void reportUnreadable(Class<?> type, String detail) {
         if (!REPORTED.add(type)) return;
         List<String> candidates = new ArrayList<>();
-        for (Class<?> declaring = type; declaring != null && declaring != Object.class; declaring = declaring
-            .getSuperclass()) {
+        for (Class<?> declaring = type; declaring != null
+            && declaring != Object.class; declaring = declaring.getSuperclass()) {
             try {
                 for (Method method : declaring.getDeclaredMethods())
                     if (method.getParameterTypes().length == 0 && looksLikePool(method.getName())) candidates.add(

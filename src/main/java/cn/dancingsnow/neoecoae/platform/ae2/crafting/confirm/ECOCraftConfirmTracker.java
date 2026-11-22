@@ -166,7 +166,8 @@ public final class ECOCraftConfirmTracker {
      */
     public static boolean nativeIncompatible(@Nullable ICraftingCPU cpu, @Nullable ICraftingJob job) {
         return cpu instanceof CraftingCPUCluster && !(cpu instanceof NativeECOCpu)
-            && job instanceof NativeECOCraftingJob eco && !eco.supportsNativeCpus();
+            && job instanceof NativeECOCraftingJob eco
+            && !eco.supportsNativeCpus();
     }
 
     /**
@@ -193,7 +194,8 @@ public final class ECOCraftConfirmTracker {
             && c.isCraftingLinkStandalone()
             && c.getFinalMultiOutput() != null
             && result.getOutput() != null
-            && result.getOutput().isSameType((Object) c.getFinalMultiOutput())
+            && result.getOutput()
+                .isSameType((Object) c.getFinalMultiOutput())
             && c.getAvailableStorage() >= c.getUsedStorage() + result.getByteTotal();
     }
 

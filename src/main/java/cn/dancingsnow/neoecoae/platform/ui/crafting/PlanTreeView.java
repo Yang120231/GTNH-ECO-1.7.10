@@ -317,7 +317,8 @@ final class PlanTreeView {
             if (atLimit(request)) return;
             // Branches of one pattern split its rounds: a share that was already shown elsewhere shows as 0 rounds.
             BigInteger allocated = allocatedExecutions.getOrDefault(pattern.patternNodeId(), BigInteger.ZERO);
-            BigInteger remaining = BigInteger.valueOf(pattern.firingCount()).subtract(allocated);
+            BigInteger remaining = BigInteger.valueOf(pattern.firingCount())
+                .subtract(allocated);
             BigInteger executions = share.min(remaining.max(BigInteger.ZERO));
             if (executions.signum() > 0) allocatedExecutions.put(pattern.patternNodeId(), allocated.add(executions));
             Node craft = new Node(
@@ -1036,8 +1037,7 @@ final class PlanTreeView {
                 break;
             case CRAFT:
                 lines.add(GuiText.Crafting.getLocal() + ": " + name(node.materialId));
-                if (node.amount.signum() > 0)
-                    lines.add(GuiText.ToCraftRequests.getLocal() + ": " + exact(node.amount));
+                if (node.amount.signum() > 0) lines.add(GuiText.ToCraftRequests.getLocal() + ": " + exact(node.amount));
                 else lines.add(I18n.format("gui.neoecoae.plan_tree.shared_batch"));
                 break;
             case STORAGE:
