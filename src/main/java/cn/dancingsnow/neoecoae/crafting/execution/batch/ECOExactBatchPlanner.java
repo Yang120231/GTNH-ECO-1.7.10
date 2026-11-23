@@ -18,13 +18,6 @@ public final class ECOExactBatchPlanner {
 
     public static @Nullable PreparedBatch prepare(ECOFastPathDispatchProvider provider, ECOBatchDispatchContext context,
         ECOExactInventory inventory, BigInteger requested, Map<AEKey, Long> protectedSeeds) {
-        return prepare(provider, context, inventory, requested, protectedSeeds, ignored -> {});
-    }
-
-    /** Reports the material-limited request before asking the provider for admission. */
-    public static @Nullable PreparedBatch prepare(ECOFastPathDispatchProvider provider, ECOBatchDispatchContext context,
-        ECOExactInventory inventory, BigInteger requested, Map<AEKey, Long> protectedSeeds,
-        java.util.function.Consumer<BigInteger> materialAllowance) {
         if (!inventory.isEnabled() || requested.signum() <= 0) return null;
         var initialRequest = requested;
         var unitInputs = ECOExactInventory.totals(context.inputItems(), BigInteger.ONE);
@@ -35,7 +28,6 @@ public final class ECOExactBatchPlanner {
             requested = requested.min(available.divide(input.getValue()));
         }
         requested = new ECOBatchPlanner().planExact(initialRequest, requested, initialRequest, initialRequest);
-        materialAllowance.accept(requested);
         if (requested.signum() <= 0) return null;
         var admission = provider.eco$prepareExactFastPath(context, requested);
         if (admission == null) return null;

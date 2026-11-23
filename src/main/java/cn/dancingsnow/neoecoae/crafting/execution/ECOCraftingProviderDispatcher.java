@@ -3,14 +3,12 @@ package cn.dancingsnow.neoecoae.crafting.execution;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.energy.IEnergyGrid;
-import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOPatternPushDiagnostics;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOParallelCraftingProviders;
+import cn.dancingsnow.neoecoae.compat.proghatches.ProgrammableHatchCrafting;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchAdmission;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchExecutor;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchMode;
@@ -19,8 +17,9 @@ import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOFastPathStacks;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeProviderAdapters;
-import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
 
 /**
  * Tries providers in the already-selected order. This is the boundary between task scheduling and provider-level
@@ -29,7 +28,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
  */
 final class ECOCraftingProviderDispatcher {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.dispatch");
     private final ECOCraftingCPULogic owner;
     private final ECOCraftingFastPathDispatcher fastPath;
     private final ECOProcessingPatternDispatcher processing;
@@ -66,7 +64,7 @@ final class ECOCraftingProviderDispatcher {
      * Smart doubling off: ordinary dispatch is capped at the host's actual parallelism (at most 16,384).
      * Every native medium follows the same limit; successful probes never grant a permanent capacity exemption.
      */
-    private long dispatchLimit() {
+    long dispatchLimit() {
         if (owner == null || owner.cpu == null) return Long.MAX_VALUE;
         var host = owner.cpu.getCluster();
         var controller = host instanceof cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster
@@ -78,7 +76,7 @@ final class ECOCraftingProviderDispatcher {
     }
 
     Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, Iterator<ICraftingProvider> providers,
-        ECOCraftingDispatchBudget budget, IEnergyGrid energyService, ECODispatchStallDiagnostics diagnostics,
+        ECOCraftingDispatchBudget budget, IEnergyGrid energyService,
         Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
         long cappedLimit = dispatchLimit();
         var request = originalRequest.allowedCrafts() <= cappedLimit ? originalRequest
@@ -111,12 +109,19 @@ final class ECOCraftingProviderDispatcher {
                     .accepted(cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(exact), true);
                 if (request.job().suspended) return Result.none();
             }
+            long counted = processing
+                .tryCountedDispatch(request, provider, singlePower, energyService, markProviderAttempt);
+            if (counted > 0) {
+                request.job().singleProcessingReason = "";
+                return Result.accepted(counted, true);
+            }
+            if (request.job().suspended) return Result.none();
+
             // Blocking media join the scaled lane too; eligibility still excludes known crafting locks.
             boolean scaledProvider = processing.supportsScaledDispatchCached(request, provider);
             if (scaledProvider) {
                 if (processing.isScaledAttemptBudgetExhausted(request.pattern())) {
                     // Exhausted submissions pause this pattern until the next tick; the provider did not fail.
-                    diagnostics.budget();
                     continue;
                 }
                 if (processing.isScaledFallbackDeferred(request, provider)) continue;
@@ -129,6 +134,7 @@ final class ECOCraftingProviderDispatcher {
                         markProviderAttempt,
                         normalPush);
                     if (scaledProcessingResult != null) {
+                        request.job().singleProcessingReason = "";
                         return Result.accepted(scaledProcessingResult.acceptedCrafts(), true);
                     }
                     if (request.job().suspended) return Result.none();
@@ -143,7 +149,7 @@ final class ECOCraftingProviderDispatcher {
             }
 
             var fastResult = blocking ? null
-                : fastPath.tryDispatch(request, provider, singlePower, energyService, diagnostics, markProviderAttempt);
+                : fastPath.tryDispatch(request, provider, singlePower, energyService, markProviderAttempt);
             if (fastResult != null) {
                 return Result.accepted(fastResult.acceptedCrafts(), true);
             }
@@ -156,7 +162,6 @@ final class ECOCraftingProviderDispatcher {
                     singlePower,
                     energyService,
                     budget,
-                    diagnostics,
                     markProviderAttempt,
                     markNormalResume);
             if (parallelResult != null) {
@@ -166,7 +171,6 @@ final class ECOCraftingProviderDispatcher {
             // A batch is an optional optimization. If it is unavailable, rejected, or dynamically ambiguous,
             // the same provider still receives the normal one-copy fallback.
             if (!budget.canAttemptOrdinary()) {
-                diagnostics.budget();
                 continue;
             }
 
@@ -175,7 +179,6 @@ final class ECOCraftingProviderDispatcher {
             if (plan == null) continue;
 
             if (scaledProvider && !processing.claimFallbackAttempt(request.pattern())) {
-                diagnostics.budget();
                 continue;
             }
             ECOBatchAdmission admission;
@@ -192,9 +195,7 @@ final class ECOCraftingProviderDispatcher {
                     batch -> {
                         markProviderAttempt.accept(provider);
                         budget.recordNormalProbe();
-                        diagnostics.probe();
                         markNormalResume.run();
-                        if (diagnostics.isActive()) clearProviderDiagnostics(provider);
                         var single = new ECOCraftingDispatchRequest(
                             request.job(),
                             request.candidate(),
@@ -210,14 +211,13 @@ final class ECOCraftingProviderDispatcher {
                             : ECOBatchAdmission.rejected();
                     });
             } catch (ECOIndeterminateBatchException failure) {
-                failAmbiguousDispatch(request, provider, "ordinary", failure);
+                failAmbiguousDispatch(request, "ordinary");
                 return Result.none();
             } catch (RuntimeException failure) {
                 accounting.failPermanently(request, "ORDINARY_BATCH_SETTLEMENT_FAILURE");
                 throw failure;
             }
             if (admission.status() != ECOBatchAdmission.Status.ACCEPTED) {
-                diagnostics.pushRejected(request.pattern(), provider);
                 continue;
             }
             try {
@@ -231,7 +231,14 @@ final class ECOCraftingProviderDispatcher {
                 accounting.failPermanently(request, "POST_ACCEPT_ORDINARY_ACCOUNTING_FAILURE");
                 throw failure;
             }
-            diagnostics.progress(TickClock.currentTick());
+            if (provider instanceof NativeCraftingProvider nativeProvider) {
+                ProgrammableHatchCrafting.completeAcceptedPush(nativeProvider.nativeMedium());
+                if (request.pattern() instanceof NativePatternDetails nativePattern && !nativePattern.nativeDetails()
+                    .isCraftable()) {
+                    String reason = nativeProvider.singleCopyReason();
+                    request.job().singleProcessingReason = reason == null ? "single_copy" : reason;
+                }
+            }
             return Result.accepted(1L, false);
         }
 
@@ -245,7 +252,7 @@ final class ECOCraftingProviderDispatcher {
     @Nullable
     private Result tryDispatchOrdinaryBatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
         double singlePower, IEnergyGrid energyService, ECOCraftingDispatchBudget budget,
-        ECODispatchStallDiagnostics diagnostics, Consumer<ICraftingProvider> markProviderAttempt,
+        Consumer<ICraftingProvider> markProviderAttempt,
         Runnable markNormalResume) {
         var parallelProvider = ECOParallelCraftingProviders.find(provider);
         if (parallelProvider == null) {
@@ -275,7 +282,6 @@ final class ECOCraftingProviderDispatcher {
                 batch -> {
                     markProviderAttempt.accept(provider);
                     budget.recordNormalProbe();
-                    diagnostics.probe();
                     markNormalResume.run();
                     return parallelProvider.eco$pushPatternBatch(
                         batch.identity()
@@ -286,14 +292,13 @@ final class ECOCraftingProviderDispatcher {
                             : ECOBatchAdmission.rejected();
                 });
         } catch (ECOIndeterminateBatchException failure) {
-            failAmbiguousDispatch(request, provider, "parallel", failure);
+            failAmbiguousDispatch(request, "parallel");
             return Result.none();
         } catch (RuntimeException failure) {
             accounting.failPermanently(request, "PARALLEL_BATCH_SETTLEMENT_FAILURE");
             throw failure;
         }
         if (admission.status() != ECOBatchAdmission.Status.ACCEPTED) {
-            diagnostics.pushRejected(request.pattern(), provider);
             return null;
         }
         long accepted = admission.acceptedCrafts();
@@ -307,30 +312,12 @@ final class ECOCraftingProviderDispatcher {
             accounting.failPermanently(request, "POST_ACCEPT_PARALLEL_ACCOUNTING_FAILURE");
             throw failure;
         }
-        diagnostics.progress(TickClock.currentTick());
         return Result.accepted(accepted, false);
     }
 
-    private void failAmbiguousDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider, String path,
-        RuntimeException failure) {
+    private void failAmbiguousDispatch(ECOCraftingDispatchRequest request, String path) {
         String reason = "AMBIGUOUS_" + path.toUpperCase(java.util.Locale.ROOT) + "_PROVIDER_OWNERSHIP";
         accounting.failPermanently(request, reason);
-        LOGGER.error(
-            "ECO {} provider {} threw after dispatch began; the job is suspended without replaying inputs",
-            path,
-            provider.getClass()
-                .getName(),
-            failure);
-    }
-
-    private static void clearProviderDiagnostics(ICraftingProvider provider) {
-        if (provider instanceof ECOPatternPushDiagnostics diagnostics) {
-            try {
-                diagnostics.neoecoae$clearPushDiagnostics();
-            } catch (RuntimeException ignored) {
-                // Observability must not prevent dispatch or interfere with ownership transfer.
-            }
-        }
     }
 
     @FunctionalInterface

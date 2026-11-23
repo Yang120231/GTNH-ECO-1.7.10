@@ -33,10 +33,17 @@ import appeng.me.cache.CraftingGridCache;
 import appeng.util.Platform;
 import appeng.util.inv.MEInventoryCrafting;
 import appeng.util.item.AEItemStack;
+import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
+import cn.dancingsnow.neoecoae.compat.proghatches.ProgrammableHatchCrafting;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cpw.mods.fml.common.FMLCommonHandler;
 
 /**
@@ -46,9 +53,8 @@ import cpw.mods.fml.common.FMLCommonHandler;
  * <p>
  * Such a job must behave exactly like it would on a native crafting CPU with as many co-processors as the ECO host
  * pools: the native medium list, busy/blocking checks, round-robin, substitution, tunnel expansion, power, fake
- * crafting and the three-tick operation window are all reproduced here. None of ECO's FastPath, batch, scaled,
- * phase-barrier, probe-budget or dispatch-policy machinery participates. Only the CPU-owned inventory and the waiting
- * ledger are ECO's, and both are used with native semantics.
+ * crafting and the three-tick operation window are all reproduced here. Counted Programmable Hatches submissions
+ * share ECO's resource settlement without enabling scaled probes or FastPath for these jobs.
  * </p>
  */
 final class ECOVanillaCraftingExecutor {
@@ -92,6 +98,7 @@ final class ECOVanillaCraftingExecutor {
 
     private final ECOCraftingCPULogic host;
     private final MediumTraits traits;
+    private final ECOCraftingEnergyTransaction energy;
     private final int[] usedOps = new int[3];
     private final HashSet<ICraftingMedium> knownBusyMediums = new HashSet<>();
     private final HashMap<ICraftingPatternDetails, List<ICraftingMedium>> parallelismProvider = new HashMap<>();
@@ -115,13 +122,10 @@ final class ECOVanillaCraftingExecutor {
     /** Native view of the CPU inventory for {@code findFuzzy}; rebuilt lazily once per executeCrafting pass. */
     private IItemList<IAEItemStack> fuzzyView;
 
-    ECOVanillaCraftingExecutor(ECOCraftingCPULogic host) {
-        this(host, MediumTraits.NATIVE);
-    }
-
-    ECOVanillaCraftingExecutor(ECOCraftingCPULogic host, MediumTraits traits) {
+    ECOVanillaCraftingExecutor(ECOCraftingCPULogic host, ECOCraftingEnergyTransaction energy) {
         this.host = host;
-        this.traits = traits;
+        this.traits = MediumTraits.NATIVE;
+        this.energy = energy;
     }
 
     void reset() {
@@ -136,13 +140,21 @@ final class ECOVanillaCraftingExecutor {
     }
 
     /** {@code CraftingCPUCluster#updateCraftingLogic} after the native completion/cancel preamble. */
-    void tick(ExecutingCraftingJob job, IEnergyGrid eg, CraftingGridCache cc, World world, int accelerator) {
-        tick(job, eg, cc::getMediums, cc, world, accelerator);
+    void tick(ExecutingCraftingJob job, IEnergyGrid eg, CraftingGridCache cc, World world, int accelerator,
+        ICraftingService service) {
+        tick(
+            job,
+            eg,
+            cc::getMediums,
+            cc,
+            world,
+            accelerator,
+            service instanceof CraftingServiceView view ? view : null);
     }
 
     /** @param tunnels the cache resolving tunnel patterns; null expands nothing, as natively without a cache */
     void tick(ExecutingCraftingJob job, IEnergyGrid eg, Mediums mediums, CraftingGridCache tunnels, World world,
-        int accelerator) {
+        int accelerator, CraftingServiceView service) {
         if (job.tasks.isEmpty()) return;
 
         long operations = (long) Math.max(0, accelerator) + 1L - ((long) usedOps[0] + usedOps[1] + usedOps[2]);
@@ -161,7 +173,7 @@ final class ECOVanillaCraftingExecutor {
         if (remainingOperations > 0) {
             do {
                 somethingChanged = false;
-                executeCrafting(job, eg, mediums, tunnels, world);
+                executeCrafting(job, eg, mediums, tunnels, world, service);
             } while (somethingChanged && remainingOperations > 0 && host.getJob() == job);
         }
         usedOps[2] = usedOps[1];
@@ -174,7 +186,7 @@ final class ECOVanillaCraftingExecutor {
     }
 
     private void executeCrafting(ExecutingCraftingJob job, IEnergyGrid eg, Mediums mediums, CraftingGridCache cc,
-        World world) {
+        World world, CraftingServiceView service) {
         if (job.suspended) return;
         fuzzyView = null;
 
@@ -201,6 +213,19 @@ final class ECOVanillaCraftingExecutor {
             }
 
             final ICraftingPatternDetails details = ((NativePatternDetails) pattern).nativeDetails();
+            List<ICraftingMedium> mediumsList = mediums.of(details);
+            Map<ICraftingMedium, NativePatternDetails> rebound = java.util.Collections.emptyMap();
+            if (mediumsList.isEmpty() && !details.isCraftable() && service != null) {
+                rebound = new java.util.IdentityHashMap<>();
+                mediumsList = new ArrayList<>();
+                for (var provider : service.getProviders(pattern))
+                    if (provider instanceof NativeCraftingProvider nativeProvider) {
+                        var medium = nativeProvider.nativeMedium();
+                        rebound.put(medium, nativeProvider.nativePatternFor(pattern));
+                        mediumsList.add(medium);
+                    }
+            }
+            job.recordProcessingProviderAvailability(pattern, !mediumsList.isEmpty());
             final List<IAEStack<?>> condensedInputs = getExpandedCondensedInputs(details, cc);
             // Native AE2 throws here; a broken tunnel must stall only its own task instead of the server tick.
             if (condensedInputs == null || !canCraft(details, condensedInputs, world)) {
@@ -211,11 +236,11 @@ final class ECOVanillaCraftingExecutor {
             boolean pushedPattern = false;
             boolean didPatternCraft;
 
-            List<ICraftingMedium> mediumsList = mediums.of(details);
             List<ICraftingMedium> mediumListCheck = null;
 
             if (mediumsList.size() > 1) {
                 mediumListCheck = parallelismProvider.getOrDefault(details, new ArrayList<>(mediumsList));
+                if (!rebound.isEmpty()) mediumListCheck.retainAll(mediumsList);
             }
 
             doWhileCraftingLoop: do {
@@ -240,6 +265,45 @@ final class ECOVanillaCraftingExecutor {
                     if (medium.isBusy()) {
                         knownBusyMediums.add(medium);
                         continue;
+                    }
+
+                    var published = rebound.getOrDefault(medium, (NativePatternDetails) pattern);
+                    var liveDetails = published.nativeDetails();
+                    if (craftingInventory == null && progress.value > 1
+                        && !job.vanillaFakeCrafting
+                        && ProgrammableHatchCrafting.supportsCountedBatch(
+                            medium,
+                            liveDetails,
+                            published.supportsPushInputsToExternalInventory())) {
+                        long accepted = tryCountedPush(job, published, medium, progress.value, eg, cc, world);
+                        if (job.suspended) return;
+                        if (accepted > 0) {
+                            somethingChanged = true;
+                            remainingOperations--;
+                            pushedPattern = didPatternCraft = true;
+                            fuzzyView = null;
+                            host.getProcessingMonitor()
+                                .dispatchedNative(job.link.getCraftingID(), medium, details);
+                            for (var output : details.getCondensedAEOutputs()) {
+                                var key = AEKey.fromNative(output);
+                                if (key != null) job.batchedOutputs.add(key);
+                                await(
+                                    job,
+                                    output.copy()
+                                        .setStackSize(Math.multiplyExact(output.getStackSize(), accepted)),
+                                    false);
+                            }
+                            progress.accept(accepted);
+                            host.markCpuDirty();
+                            ProgrammableHatchCrafting.completeAcceptedPush(medium);
+                            if (host.getJob() != job) return;
+                            if (remainingOperations == 0 || stopForTimeBudget()) {
+                                if (mediumListCheck != null) parallelismProvider.put(details, mediumListCheck);
+                                return;
+                            }
+                            if (progress.value <= 0) break doWhileCraftingLoop;
+                            break;
+                        }
                     }
 
                     // Find a valid craftingInventory for this craft. As natively, a table reused from a previous
@@ -307,7 +371,7 @@ final class ECOVanillaCraftingExecutor {
                         }
                     }
 
-                    if (medium.pushPattern(details, craftingInventory)) {
+                    if (medium.pushPattern(liveDetails, craftingInventory)) {
                         eg.extractAEPower(sum, Actionable.MODULATE, PowerMultiplier.CONFIG);
                         somethingChanged = true;
                         remainingOperations--;
@@ -366,6 +430,8 @@ final class ECOVanillaCraftingExecutor {
                         host.markCpuDirty();
 
                         progress.accept(1);
+                        ProgrammableHatchCrafting.completeAcceptedPush(medium);
+                        if (host.getJob() != job) return;
                         if (progress.value <= 0) {
                             // This craftingEntry is done.
                             break doWhileCraftingLoop;
@@ -398,6 +464,55 @@ final class ECOVanillaCraftingExecutor {
                 // no need to revisit this task on next executeCrafting this tick
                 craftingTaskIterator.remove();
             }
+        }
+    }
+
+    private long tryCountedPush(ExecutingCraftingJob job, NativePatternDetails pattern, ICraftingMedium medium,
+        long crafts, IEnergyGrid service, CraftingGridCache cache, World world) {
+        var details = pattern.nativeDetails();
+        var inputs = new ArrayList<KeyCounter>();
+        if (!NativePatternDetails.mightHaveEmptyInputs(details)) {
+            var expanded = getExpandedInputs(details, cache);
+            if (expanded == null) return 0;
+            for (var input : expanded) {
+                if (input == null) continue;
+                var key = AEKey.fromNative(input);
+                if (key == null || input.getStackSize() <= 0) return 0;
+                var counter = new KeyCounter();
+                counter.set(key, input.getStackSize());
+                inputs.add(counter);
+            }
+        }
+        var outputs = new KeyCounter();
+        for (var output : pattern.getOutputs()) outputs.add(output.what(), output.amount());
+        var perCopy = inputs.toArray(new KeyCounter[0]);
+        var request = new ECOCraftingDispatchRequest(
+            job,
+            null,
+            pattern,
+            perCopy,
+            outputs,
+            new KeyCounter(),
+            crafts,
+            host.getInventory(),
+            world);
+        var provider = new NativeCraftingProvider(medium, java.util.Collections.singletonList(pattern));
+        try {
+            return ECOProcessingPatternDispatcher.dispatchCounted(
+                request,
+                provider,
+                CraftingCpuHelper.calculatePatternPower(perCopy),
+                service,
+                energy,
+                () -> {});
+        } catch (ECOIndeterminateBatchException failure) {
+            job.failPermanently("AMBIGUOUS_VANILLA_COUNTED_PROVIDER_OWNERSHIP");
+            host.markCpuDirty();
+            return 0;
+        } catch (RuntimeException failure) {
+            job.failPermanently("VANILLA_COUNTED_BATCH_SETTLEMENT_FAILURE");
+            host.markCpuDirty();
+            throw failure;
         }
     }
 

@@ -16,8 +16,6 @@ import net.minecraft.inventory.Container;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.IGrid;
@@ -55,7 +53,6 @@ import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
  */
 public final class ECOCraftingStatusTracker {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     private static final Map<EntityPlayerMP, Tracked> TRACKED = new WeakHashMap<>();
     /** Ticks between processing samples; the monitor drops a survey nobody sampled for 20 ticks. */
     private static final int PROCESSING_INTERVAL = 5;
@@ -91,8 +88,6 @@ public final class ECOCraftingStatusTracker {
         boolean eligible;
         long nextEligibilityTick = Long.MIN_VALUE;
         @Nullable
-        ICraftingCPU diagnosedCpu;
-        boolean diagnosedItems;
 
         Tracked(ContainerCraftingStatus container) {
             this.container = container;
@@ -122,7 +117,6 @@ public final class ECOCraftingStatusTracker {
                 update(player, tracked);
             } catch (RuntimeException | LinkageError failure) {
                 // The ECO page is presentation only; never let it break AE2's status container.
-                LOGGER.warn("[craft-status] ECO status update failed for {}", player.getCommandSenderName(), failure);
             }
         }
     }
@@ -147,12 +141,6 @@ public final class ECOCraftingStatusTracker {
         int tier = eco ? ECOCraftConfirmTracker.tier(cpu) : 0;
         ICraftingPlan plan = eco ? runningPlan(cpu) : null;
         boolean planChanged = plan != tracked.plan;
-        if (cpu instanceof NativeECOCpu nativeCpu
-            && (!tracked.diagnosedItems || tracked.diagnosedCpu != cpu || planChanged)) {
-            tracked.diagnosedItems = true;
-            tracked.diagnosedCpu = cpu;
-            diagnoseItems(container, nativeCpu);
-        }
         syncProcessing(player, tracked, eco ? ecoRuntime(cpu) : null);
         if (tracked.sent && eco == tracked.eco && tier == tracked.tier && !planChanged) return;
         ECOCycleItemList cycles = null;
@@ -162,49 +150,6 @@ public final class ECOCraftingStatusTracker {
         tracked.tier = tier;
         tracked.plan = plan;
         ECOCraftConfirmPackets.syncStatus(player, container.windowId, eco, tier, cycles);
-    }
-
-    private static void diagnoseItems(ContainerCraftingStatus container, NativeECOCpu cpu) {
-        try {
-            KeyCounter source = new KeyCounter();
-            cpu.runtime()
-                .getAllItems(source);
-            var nativeItems = appeng.api.AEApi.instance()
-                .storage()
-                .createAEStackList();
-            cpu.getModernListOfItem(nativeItems, CraftingItemList.ALL);
-            int nativeCount = 0;
-            for (var ignored : nativeItems) nativeCount++;
-            AEKey key = source.isEmpty() ? null
-                : source.iterator()
-                    .next()
-                    .getKey();
-            var stack = key == null ? null : key.toNative(1);
-            long[] direct = key == null ? new long[3]
-                : new long[] { cpu.runtime()
-                    .getItemAmount(key, CraftingItemList.STORAGE),
-                    cpu.runtime()
-                        .getItemAmount(key, CraftingItemList.ACTIVE),
-                    cpu.runtime()
-                        .getItemAmount(key, CraftingItemList.PENDING) };
-            long[] terminal = stack == null ? new long[3]
-                : new long[] { cpu.getStackAmount(stack, CraftingItemList.STORAGE),
-                    cpu.getStackAmount(stack, CraftingItemList.ACTIVE),
-                    cpu.getStackAmount(stack, CraftingItemList.PENDING) };
-            LOGGER.info(
-                "[craft-status] window={} cpuSerial={} bound={} busy={} sourceEntries={} nativeEntries={} sameKey={} direct={} terminal={}",
-                container.windowId,
-                container.getCPUTable().selectedCpuSerial,
-                container.getCpu() == cpu,
-                cpu.isBusy(),
-                source.size(),
-                nativeCount,
-                key == null || key.equals(AEKey.fromNative(stack)),
-                java.util.Arrays.toString(direct),
-                java.util.Arrays.toString(terminal));
-        } catch (RuntimeException | LinkageError failure) {
-            LOGGER.warn("[craft-status] Could not diagnose CPU item synchronization", failure);
-        }
     }
 
     /**
@@ -288,13 +233,22 @@ public final class ECOCraftingStatusTracker {
             if (!next.containsKey(key)) removed.add(key.toTagGeneric(RegistryAccess.EMPTY));
         }
         boolean deliveryBlocked = logic.isFinalOutputDeliveryBlocked();
+        boolean patternUnavailable = logic.hasUnavailableProcessingPattern();
+        String singleProcessing = logic.getSingleProcessingReason();
+        long dispatchCopyLimit = logic.getDispatchCopyLimit();
         if (!reset && entries.isEmpty()
             && removed.isEmpty()
-            && deliveryBlocked == tracked.processing.getBoolean("deliveryBlocked")) return;
+            && deliveryBlocked == tracked.processing.getBoolean("deliveryBlocked")
+            && patternUnavailable == tracked.processing.getBoolean("patternUnavailable")
+            && singleProcessing.equals(tracked.processing.getString("singleProcessing"))
+            && dispatchCopyLimit == tracked.processing.getLong("dispatchCopyLimit")) return;
         CompoundTag payload = new CompoundTag();
         payload.putBoolean("eco", true);
         payload.putInt("cpuSerial", serial);
         payload.putBoolean("deliveryBlocked", deliveryBlocked);
+        payload.putBoolean("patternUnavailable", patternUnavailable);
+        payload.putString("singleProcessing", singleProcessing);
+        payload.putLong("dispatchCopyLimit", dispatchCopyLimit);
         payload.putString("job", job);
         if (!reset) payload.putBoolean("delta", true);
         payload.put("entries", entries);
@@ -356,7 +310,6 @@ public final class ECOCraftingStatusTracker {
                 ? new ECOCycleItemList(new ArrayList<>(items.subList(0, ECOCraftConfirmReport.MAX_CYCLE_ITEMS)))
                 : cycles;
         } catch (RuntimeException failure) {
-            LOGGER.warn("[craft-status] ECO cycle list failed for {}", plan.finalOutput(), failure);
             return ECOCycleItemList.EMPTY;
         }
     }

@@ -4,8 +4,6 @@ import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
@@ -15,12 +13,10 @@ import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.me.network.CraftingCapabilitySnapshot;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.amount.NEMath;
-import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingThread;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NECraftingClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingNetworkCluster;
@@ -47,8 +43,6 @@ import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluster, ECOCraftingSystemBlockEntity>
     implements ManagedHolder, IGridTickable,
     cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingControllerHost {
-
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
 
     public static final int MAX_COOLANT = 1_000_000;
     public static final int VIRTUAL_COOLANT_PER_LANE_TICK = 10_000;
@@ -485,8 +479,7 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
             try {
                 // extractAEPower(CONFIG) reports the divided amount; injectPower takes raw grid energy.
                 energyService.injectPower(PowerMultiplier.CONFIG.multiply(charged), Actionable.MODULATE);
-            } catch (RuntimeException failure) {
-                LOGGER.error("ECO virtual crafting energy refund failed for {} energy", charged, failure);
+            } catch (RuntimeException ignored) {
             }
         }
         return false;

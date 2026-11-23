@@ -7,8 +7,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,7 +16,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 /** Registration point for factories that add state to every matching ECO crafting job. */
 public final class ECOCraftingJobAttachmentRegistry {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.api");
     private static final Map<ResourceLocation, Function<ECOCraftingJobContext, ? extends ECOCraftingJobAttachment>> FACTORIES = new LinkedHashMap<>();
 
     private ECOCraftingJobAttachmentRegistry() {}
@@ -52,12 +49,10 @@ public final class ECOCraftingJobAttachmentRegistry {
                     .apply(context);
                 if (attachment == null || !registered.id()
                     .equals(attachment.id())) {
-                    LOGGER.warn("Ignoring ECO job attachment factory {} with mismatched result", registered.id());
                     continue;
                 }
                 result.add(attachment);
-            } catch (RuntimeException failure) {
-                LOGGER.error("ECO job attachment factory {} failed", registered.id(), failure);
+            } catch (RuntimeException ignored) {
             }
         }
         return result;
@@ -75,7 +70,6 @@ public final class ECOCraftingJobAttachmentRegistry {
             ECOCraftingJobAttachment attachment = factory.apply(context);
             return attachment != null && id.equals(attachment.id()) ? attachment : null;
         } catch (RuntimeException failure) {
-            LOGGER.error("ECO job attachment factory {} failed while resolving persisted state", id, failure);
             return null;
         }
     }

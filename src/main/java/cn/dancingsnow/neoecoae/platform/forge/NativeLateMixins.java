@@ -8,6 +8,7 @@ import java.util.Set;
 import com.gtnewhorizon.gtnhmixins.ILateMixinLoader;
 import com.gtnewhorizon.gtnhmixins.LateMixin;
 
+import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.relauncher.FMLLaunchHandler;
 
 /** Native mod classes are transformed after FML has discovered their actual jars. */
@@ -42,6 +43,14 @@ public final class NativeLateMixins implements ILateMixinLoader {
         if (loadedMods.contains("gregtech")) {
             mixins.add("GTProcessingControllerMixin");
             mixins.add("GTRemoteGuiReachMixin");
+        }
+        if (loadedMods.contains("programmablehatches")) {
+            mixins.add("ProgrammableCircuitHoistMixin");
+            var mod = Loader.instance()
+                .getIndexedModList()
+                .get("programmablehatches");
+            if (mod != null && mod.getVersion()
+                .matches("0\\.2\\.1p[1-4](-beta)?")) mixins.add("ProgrammableCircuitBufferMixin");
         }
         // The NEI route capture only exists on the physical client.
         if (loadedMods.contains("neenergistics")) {

@@ -12,22 +12,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.world.World;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
+import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.me.cache.CraftingGridCache;
 import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Frozen pattern contracts captured on the owning server thread; revision reads stay lock-free for the planner. */
 public final class CraftingServiceView
     implements ICraftingService, ECOCraftingProviderRevision, ECOCraftingOutputRouter {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.crafting");
     private static final Set<String> REJECTED_TYPES = ConcurrentHashMap.newKeySet();
 
     private final ICraftingGrid crafting;
@@ -37,6 +35,7 @@ public final class CraftingServiceView
     private final long recipeGeneration;
     private final Map<ICraftingPatternDetails, NativePatternDetails> patterns = new IdentityHashMap<>();
     private final Map<AEKey, List<IPatternDetails>> byOutput;
+    private final Map<AEItemKey, List<NativePatternDetails>> processingByDefinition = new java.util.HashMap<>();
     private final Set<AEKey> craftables;
     private final Set<AEKey> emitters;
     private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, ICraftingProvider>> providers = new IdentityHashMap<>();
@@ -95,14 +94,12 @@ public final class CraftingServiceView
             if (REJECTED_TYPES.add(
                 pattern.getClass()
                     .getName()))
-                LOGGER.warn(
-                    "Ignoring native pattern {} that ECO cannot represent: {}",
-                    pattern.getClass()
-                        .getName(),
-                    rejected.getMessage());
-            return null;
+                return null;
         }
         patterns.put(pattern, details);
+        if (!pattern.isCraftable() && details.getDefinition() != null)
+            processingByDefinition.computeIfAbsent(details.getDefinition(), ignored -> new ArrayList<>())
+                .add(details);
         return details;
     }
 
@@ -131,16 +128,39 @@ public final class CraftingServiceView
 
     public List<ICraftingProvider> getProviders(IPatternDetails pattern) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        if (!(pattern instanceof NativePatternDetails) || !(crafting instanceof CraftingGridCache))
+        if (!(pattern instanceof NativePatternDetails requested) || !(crafting instanceof CraftingGridCache cache))
             throw new IllegalArgumentException("Unmapped source/native pattern provider identity");
+        if (!isCatalogCurrent()) return Collections.emptyList();
+        var direct = cache.getMediums(requested.nativeDetails());
+        if (requested.nativeDetails()
+            .isCraftable() || patterns.get(requested.nativeDetails()) == requested) {
+            var result = new ArrayList<ICraftingProvider>();
+            for (var medium : direct) result.add(provider(medium, requested, requested));
+            return result;
+        }
+
+        var bindings = new IdentityHashMap<ICraftingMedium, NativePatternDetails>();
+        var rebound = new ArrayList<ICraftingProvider>();
+        for (var published : processingByDefinition.getOrDefault(requested.getDefinition(), Collections.emptyList())) {
+            if (requested != published && !requested.matchesProcessingContract(published)) continue;
+            for (var medium : cache.getMediums(published.nativeDetails())) {
+                if (medium instanceof NativeSourceCraftingMedium && !direct.contains(medium)) continue;
+                if (bindings.putIfAbsent(medium, published) == null)
+                    rebound.add(provider(medium, requested, published));
+            }
+        }
         var result = new ArrayList<ICraftingProvider>();
-        for (var medium : ((CraftingGridCache) crafting).getMediums(((NativePatternDetails) pattern).nativeDetails()))
-            result.add(
-                providers.computeIfAbsent(medium, ignored -> new IdentityHashMap<>())
-                    .computeIfAbsent(
-                        pattern,
-                        ignored -> NativeCraftingProvider.wrap(medium, Collections.singletonList(pattern))));
-        return result;
+        for (var medium : direct) {
+            var published = bindings.get(medium);
+            if (published != null) result.add(provider(medium, requested, published));
+        }
+        return result.isEmpty() ? rebound : result;
+    }
+
+    private ICraftingProvider provider(ICraftingMedium medium, NativePatternDetails requested,
+        NativePatternDetails published) {
+        return providers.computeIfAbsent(medium, ignored -> new IdentityHashMap<>())
+            .computeIfAbsent(requested, ignored -> NativeCraftingProvider.wrap(medium, requested, published));
     }
 
     @Override

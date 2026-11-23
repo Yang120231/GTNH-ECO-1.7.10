@@ -6,8 +6,6 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
@@ -36,8 +34,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
  * </p>
  */
 public final class ECOParallelCraftingProviders {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.parallel");
 
     /**
      * Supplies the parallel contract of one provider class.
@@ -107,11 +103,6 @@ public final class ECOParallelCraftingProviders {
             } catch (RuntimeException broken) {
                 // A broken adapter must not take the dispatch path down with it: this is called while a CPU is
                 // choosing where to send a craft, where a throw would strand the job rather than skip a provider.
-                LOGGER.warn(
-                    "Parallel provider adapter for {} failed; treating the provider as slot-only",
-                    entry.getKey()
-                        .getName(),
-                    broken);
                 return null;
             }
             if (adapted != null) {

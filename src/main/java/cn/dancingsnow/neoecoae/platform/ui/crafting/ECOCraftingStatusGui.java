@@ -76,12 +76,6 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class ECOCraftingStatusGui extends GuiCraftingStatus {
 
-    private static final org.apache.logging.log4j.Logger STATUS_LOG = org.apache.logging.log4j.LogManager
-        .getLogger("neoecoae");
-    private int diagnosedWindow = Integer.MIN_VALUE, diagnosedStateWindow = Integer.MIN_VALUE;
-    private boolean diagnosedEco;
-    private boolean diagnosedVisualPacket;
-
     private static final ResourceLocation PROCESSING = new ResourceLocation(
         "neoecoae",
         "textures/guis/eco_crafting_processing.png");
@@ -206,6 +200,9 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     /** Whether the selected CPU is an ECO CPU whose processing monitor reports machines at all. */
     private boolean processingMonitored;
     private boolean finalOutputDeliveryBlocked;
+    private boolean patternUnavailable;
+    private String singleProcessing = "";
+    private long dispatchCopyLimit = Long.MAX_VALUE;
     /** Machine details the tooltip wants, and those last asked of the server. */
     @Nullable
     private AEKey detailKey;
@@ -264,19 +261,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         state = ECOCraftingStatusClient.state(inventorySlots);
-        if (diagnosedWindow != inventorySlots.windowId || diagnosedStateWindow != state.windowId
-            || diagnosedEco != state.eco) {
-            diagnosedWindow = inventorySlots.windowId;
-            diagnosedStateWindow = state.windowId;
-            diagnosedEco = state.eco;
-            STATUS_LOG.info(
-                "[craft-status] GUI window={} metadataWindow={} eco={} selectedCpu={} entries={}",
-                inventorySlots.windowId,
-                state.windowId,
-                state.eco,
-                getCPUTable().getContainer().selectedCpuSerial,
-                entries.size());
-        }
         boolean eco = ecoCapable && !unsupported && state.eco;
         boolean cycle = eco;
         if (eco != ecoLayout || cycle != taskLayout) {
@@ -304,7 +288,19 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         } else if (processingTooltip != null) {
             ProcessingTooltip.draw(fontRendererObj, processingTooltip, mouseX, mouseY, width, height);
             GL11.glDisable(GL11.GL_LIGHTING);
-        }
+        } else if (mouseX >= guiLeft + TITLE_X && mouseX < guiLeft + TITLE_RIGHT
+            && mouseY >= guiTop + TITLE_Y
+            && mouseY < guiTop + TITLE_Y + fontRendererObj.FONT_HEIGHT) {
+                var rows = new ArrayList<ProcessingTooltip.Row>();
+                if (patternUnavailable) rows.add(
+                    ProcessingTooltip.Row.hint(I18n.format("gui.neoecoae.crafting_status.pattern_unavailable_help")));
+                if (!singleProcessing.isEmpty()) rows.add(ProcessingTooltip.Row.hint(dispatchTitle(singleProcessing)));
+                if (dispatchCopyLimit != Long.MAX_VALUE) rows.add(ProcessingTooltip.Row.hint(dispatchLimitTitle()));
+                if (!rows.isEmpty()) {
+                    ProcessingTooltip.draw(fontRendererObj, rows, mouseX, mouseY, width, height);
+                    GL11.glDisable(GL11.GL_LIGHTING);
+                }
+            }
     }
 
     @Override
@@ -454,16 +450,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             if (update.getTotalAmount() <= 0) entries.remove(key);
             else entries.put(key, update);
         }
-        if (clearFirst || !diagnosedVisualPacket) {
-            diagnosedVisualPacket = true;
-            STATUS_LOG.info(
-                "[craft-status] GUI item packet window={} cpuSerial={} clear={} updates={} visible={}",
-                inventorySlots.windowId,
-                getCPUTable().getContainer().selectedCpuSerial,
-                clearFirst,
-                updates == null ? 0 : updates.length,
-                entries.size());
-        }
         super.postVisualEntryUpdate(updates, clearFirst, remainingOperations);
     }
 
@@ -594,8 +580,12 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     /** AE2's title and elapsed time beside the ECO logo. */
     private void drawHeader() {
         String title = finalOutputDeliveryBlocked ? I18n.format("gui.neoecoae.crafting_status.destination_full")
-            : GuiText.CraftingStatus.getLocal();
-        if (!finalOutputDeliveryBlocked && cpuContainer.getElapsedTime() > 0 && hasVisualEntries()) {
+            : patternUnavailable ? I18n.format("gui.neoecoae.crafting_status.pattern_unavailable")
+                : !singleProcessing.isEmpty() ? dispatchTitle(singleProcessing)
+                    : dispatchCopyLimit != Long.MAX_VALUE ? dispatchLimitTitle() : GuiText.CraftingStatus.getLocal();
+        if (!finalOutputDeliveryBlocked && !patternUnavailable
+            && cpuContainer.getElapsedTime() > 0
+            && hasVisualEntries()) {
             long millis = TimeUnit.MILLISECONDS.convert(cpuContainer.getElapsedTime(), TimeUnit.NANOSECONDS);
             title = title + " - " + DurationFormatUtils.formatDuration(millis, GuiText.ETAFormat.getLocal());
         }
@@ -604,8 +594,17 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         GL11.glPushMatrix();
         GL11.glTranslatef(TITLE_X, TITLE_Y, 0);
         GL11.glScalef(scale, scale, 1);
-        fontRendererObj.drawStringWithShadow(title, 0, 0, finalOutputDeliveryBlocked ? 0xFFAA00 : 0xFFFFFF);
+        fontRendererObj
+            .drawStringWithShadow(title, 0, 0, finalOutputDeliveryBlocked || patternUnavailable ? 0xFFAA00 : 0xFFFFFF);
         GL11.glPopMatrix();
+    }
+
+    private static String dispatchTitle(String reason) {
+        return I18n.format("gui.neoecoae.crafting_status.dispatch." + reason);
+    }
+
+    private String dispatchLimitTitle() {
+        return I18n.format("gui.neoecoae.crafting_status.dispatch.copy_limit", dispatchCopyLimit);
     }
 
     private void drawEntries(int localX, int localY) {
@@ -698,6 +697,10 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         tasksDirty = true;
         boolean current = tag.contains("cpuSerial") && tag.getInt("cpuSerial") == serial;
         finalOutputDeliveryBlocked = current && tag.getBoolean("deliveryBlocked");
+        patternUnavailable = current && tag.getBoolean("patternUnavailable");
+        singleProcessing = current ? tag.getString("singleProcessing") : "";
+        dispatchCopyLimit = current && tag.contains("dispatchCopyLimit") ? tag.getLong("dispatchCopyLimit")
+            : Long.MAX_VALUE;
         processingMonitored = current && tag.getBoolean("eco");
         taskJob = current ? tag.getString("job") : "";
         processing = current ? received.values : Collections.emptyMap();

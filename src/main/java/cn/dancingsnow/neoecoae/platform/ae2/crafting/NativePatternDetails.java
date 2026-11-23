@@ -193,6 +193,21 @@ public class NativePatternDetails implements IPatternDetails {
         return nativePattern;
     }
 
+    final boolean matchesProcessingContract(NativePatternDetails candidate) {
+        if (nativePattern.isCraftable() || candidate.nativePattern.isCraftable()
+            || !Objects.equals(definition, candidate.definition)
+            || nativePattern.canSubstitute() != candidate.nativePattern.canSubstitute()
+            || nativePattern.canBeSubstitute() != candidate.nativePattern.canBeSubstitute()
+            || !java.util.Arrays.equals(sparse, candidate.sparse)
+            || !outputs.equals(candidate.outputs)
+            || inputs.length != candidate.inputs.length) return false;
+        for (int index = 0; index < inputs.length; index++) {
+            if (inputs[index].getMultiplier() != candidate.inputs[index].getMultiplier() || !java.util.Arrays
+                .equals(inputs[index].getPossibleInputs(), candidate.inputs[index].getPossibleInputs())) return false;
+        }
+        return true;
+    }
+
     /** Processing IO is probed without a class whitelist; known per-push patterns remain single-copy. */
     private static boolean isPlainProcessingPattern(ICraftingPatternDetails pattern) {
         if (pattern.isCraftable() || mightHaveEmptyInputs(pattern)) return false;

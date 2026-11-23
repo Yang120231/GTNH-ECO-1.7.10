@@ -7,8 +7,6 @@ import java.util.Map;
 import net.minecraft.inventory.Container;
 import net.minecraftforge.client.event.GuiOpenEvent;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.storage.ITerminalHost;
@@ -32,8 +30,6 @@ import cpw.mods.fml.relauncher.SideOnly;
  */
 @SideOnly(Side.CLIENT)
 public final class ECOCraftingStatusClient {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     /** What the server reported for one status window. */
     public static final class State {
@@ -170,8 +166,7 @@ public final class ECOCraftingStatusClient {
             var gui = new ECOCraftingStatusGui(container.getPlayerInv(), host);
             event.gui = gui;
             statusContainer = gui.inventorySlots;
-        } catch (RuntimeException | LinkageError failure) {
-            LOGGER.warn("[craft-status] Could not create the ECO crafting status page; keeping AE2's", failure);
+        } catch (RuntimeException | LinkageError ignored) {
         }
     }
 }

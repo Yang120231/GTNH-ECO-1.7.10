@@ -5,7 +5,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -48,7 +47,7 @@ final class ECOProviderCursor {
      */
     Iterator<ICraftingProvider> availableProviders(IPatternDetails pattern,
         Supplier<Iterable<ICraftingProvider>> providers, Predicate<ICraftingProvider> eligible,
-        BiConsumer<ICraftingProvider, Boolean> observer, BiPredicate<ICraftingProvider, Boolean> availability) {
+        BiPredicate<ICraftingProvider, Boolean> availability) {
         Cursor previous = cursors.get(pattern);
         Cursor cursor = previous;
         if (cursor == null || (!(service instanceof ECOCraftingProviderRevision) && cursor.tick != tick)) {
@@ -77,7 +76,6 @@ final class ECOProviderCursor {
                     var provider = snapshot.get((start + checked++) % snapshot.size());
                     if (!eligible.test(provider)) continue;
                     boolean busy = provider.isBusy();
-                    observer.accept(provider, busy);
                     if (availability.test(provider, busy)) next = provider;
                 }
                 return next != null;

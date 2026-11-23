@@ -4,9 +4,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingJobContext;
 import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingJobResult;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
@@ -16,8 +13,6 @@ import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 
 /** Owns extension attachment binding and lossless persistence for one CPU job. */
 public final class ECOCraftingJobAttachments {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     private final Map<ResourceLocation, ECOCraftingJobAttachment> bound = new LinkedHashMap<>();
     private final Map<ResourceLocation, CompoundTag> unboundData = new LinkedHashMap<>();
@@ -53,7 +48,6 @@ public final class ECOCraftingJobAttachments {
                     persisted.getCompound(id)
                         .copy());
             } catch (RuntimeException | LinkageError failure) {
-                LOGGER.error("ECO job attachment {} could not be restored; preserving raw state", id, failure);
                 bound.remove(entry.getKey());
                 unboundData.put(
                     entry.getKey(),
@@ -63,9 +57,7 @@ public final class ECOCraftingJobAttachments {
         }
         for (String idString : persisted.getAllKeys()) {
             ResourceLocation id = ResourceLocation.tryParse(idString);
-            if (id == null) {
-                LOGGER.warn("Ignoring ECO job attachment with invalid id {}", idString);
-            } else if (!bound.containsKey(id)) {
+            if (id != null && !bound.containsKey(id)) {
                 unboundData.put(
                     id,
                     persisted.getCompound(idString)
@@ -96,10 +88,6 @@ public final class ECOCraftingJobAttachments {
                     entry.getKey()
                         .toString(),
                     previous.copy());
-                LOGGER.error(
-                    "ECO job attachment {} save failed; retaining its previous payload",
-                    entry.getKey(),
-                    failure);
             }
         }
         for (var entry : unboundData.entrySet()) {
@@ -118,8 +106,7 @@ public final class ECOCraftingJobAttachments {
         for (var attachment : new ArrayList<>(bound.values())) {
             try {
                 attachment.clear(result);
-            } catch (RuntimeException | LinkageError failure) {
-                LOGGER.warn("ECO job attachment {} failed to clear", attachment.id(), failure);
+            } catch (RuntimeException | LinkageError ignored) {
             }
         }
         reset();
@@ -138,8 +125,7 @@ public final class ECOCraftingJobAttachments {
                     registries);
                 bound.put(entry.getKey(), attachment);
                 unboundData.remove(entry.getKey());
-            } catch (RuntimeException | LinkageError failure) {
-                LOGGER.error("ECO job attachment {} could not be restored", entry.getKey(), failure);
+            } catch (RuntimeException | LinkageError ignored) {
             }
         }
     }

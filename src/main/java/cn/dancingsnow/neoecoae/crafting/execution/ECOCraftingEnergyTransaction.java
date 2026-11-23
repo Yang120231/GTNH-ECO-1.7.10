@@ -4,14 +4,11 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.function.LongSupplier;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.energy.IEnergyGrid;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelper;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
@@ -21,13 +18,10 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
  */
 final class ECOCraftingEnergyTransaction {
 
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
-
     private final Runnable markDirty;
     private final LongSupplier currentTick;
     // Credit is kept in CONFIG-normalized units, including rounding residue from the raw grid boundary.
     private BigDecimal prepaidEnergyCredit = BigDecimal.ZERO;
-    private long lastAccountingFailureLogTick = Long.MIN_VALUE;
     private long lastIdleRefundAttemptTick = Long.MIN_VALUE;
 
     ECOCraftingEnergyTransaction(Runnable markDirty, LongSupplier currentTick) {
@@ -40,8 +34,7 @@ final class ECOCraftingEnergyTransaction {
         if (data.contains("prepaidEnergyCreditExact", cn.dancingsnow.neoecoae.platform.nbt.Tag.TAG_STRING)) {
             try {
                 prepaidEnergyCredit = new BigDecimal(data.getString("prepaidEnergyCreditExact")).max(BigDecimal.ZERO);
-            } catch (NumberFormatException invalid) {
-                LOGGER.error("Invalid exact crafting energy credit", invalid);
+            } catch (NumberFormatException ignored) {
             }
         } else {
             double restored = data.getDouble("prepaidEnergyCredit");
@@ -83,7 +76,6 @@ final class ECOCraftingEnergyTransaction {
             try {
                 charged = service.extractAEPower(request, Actionable.MODULATE, PowerMultiplier.CONFIG);
             } catch (RuntimeException failure) {
-                logAccountingFailure("energy reservation failed", failure);
                 return null;
             }
             // GTNH CraftingCPUCluster accepts power within 0.01 of the sum. AE2 routes CONFIG extraction through
@@ -92,7 +84,6 @@ final class ECOCraftingEnergyTransaction {
             if (!Double.isFinite(charged) || charged <= 0
                 || charged < request - ECOBatchCraftingHelper.energyTolerance(request)) {
                 if (Double.isFinite(charged) && charged > 0) refundEnergyOrRetainCredit(service, decimal(charged));
-                logAccountingFailure("reservation charged " + charged + " of " + request, null);
                 return null;
             }
         }
@@ -137,8 +128,7 @@ final class ECOCraftingEnergyTransaction {
                 .divide(multiplier, MathContext.DECIMAL128));
         try {
             service.injectPower(offered, Actionable.MODULATE);
-        } catch (RuntimeException failure) {
-            logAccountingFailure("unknown refund outcome for " + offered + " raw AE; not retrying", failure);
+        } catch (RuntimeException ignored) {
         }
     }
 
@@ -146,18 +136,6 @@ final class ECOCraftingEnergyTransaction {
         if (amount.signum() <= 0) return;
         prepaidEnergyCredit = prepaidEnergyCredit.add(amount);
         markDirty.run();
-    }
-
-    private void logAccountingFailure(String reason, @Nullable RuntimeException failure) {
-        long tick = currentTick.getAsLong();
-        long elapsed = tick - lastAccountingFailureLogTick;
-        if (lastAccountingFailureLogTick != Long.MIN_VALUE && elapsed >= 0L && elapsed < 1200L) return;
-        lastAccountingFailureLogTick = tick;
-        if (failure == null) {
-            LOGGER.error("ECO crafting energy accounting anomaly: {}", reason);
-        } else {
-            LOGGER.error("ECO crafting energy accounting anomaly: {}", reason, failure);
-        }
     }
 
     final class Reservation implements cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchExecutor.LinearEnergy {

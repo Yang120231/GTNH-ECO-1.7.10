@@ -11,15 +11,12 @@ import java.util.function.Predicate;
 
 import net.minecraft.item.ItemStack;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
 import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
 import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress.Machine;
@@ -50,7 +47,6 @@ public class ECOCraftingWorkerBlockEntity extends
     cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity<cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster, ECOCraftingWorkerBlockEntity>
     implements IGridTickable, cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingWorkerRuntimeHost {
 
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
     private static final int MAX_PERSISTED_THREAD_RECORDS = 65_536;
     private static final Set<ECOCraftingWorkerBlockEntity> LOADED_SERVER_WORKERS = Collections
         .newSetFromMap(new WeakHashMap<>());
@@ -479,7 +475,6 @@ public class ECOCraftingWorkerBlockEntity extends
     public void onBatchStopped() {
         runningThreads -= 1;
         if (runningThreads < 0) {
-            LOGGER.warn("ECO worker running batch count underflow: worker={} before correction", getBlockPos());
             runningThreads = 0;
         }
         if (cluster != null && cluster.getController() != null) {
@@ -574,12 +569,6 @@ public class ECOCraftingWorkerBlockEntity extends
         // The fast-path cache is no longer per worker, so a worker load must not wipe knowledge its whole
         // cluster shares. Staleness is already impossible: every key carries the reload generation and the
         // dimension, and losing the cluster drops the cache with it.
-        if (threads.size() > MAX_PERSISTED_THREAD_RECORDS) {
-            LOGGER.error(
-                "ECO worker persisted too many crafting threads; excess records will be ignored: worker={} count={}",
-                getBlockPos(),
-                threads.size());
-        }
         long busyThreads = 0L;
         for (int i = 0; i < Math.min(threads.size(), MAX_PERSISTED_THREAD_RECORDS); i++) {
             ECOCraftingThread thread = new ECOCraftingThread(this);

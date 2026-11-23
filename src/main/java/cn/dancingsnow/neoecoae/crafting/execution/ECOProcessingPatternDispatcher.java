@@ -10,6 +10,7 @@ import cn.dancingsnow.neoecoae.api.me.pattern.ECOPatternWrappers;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOParallelCraftingProvider;
 import cn.dancingsnow.neoecoae.compat.ae2.ECOProcessingExecutionPattern;
+import cn.dancingsnow.neoecoae.compat.proghatches.ProgrammableHatchCrafting;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchAdmission;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchExecutor;
 import cn.dancingsnow.neoecoae.crafting.execution.batch.ECOBatchMode;
@@ -81,10 +82,8 @@ final class ECOProcessingPatternDispatcher {
 
     /** Whether a scaled provider may still receive a submission for this pattern this tick. */
     boolean mayAttemptScaled(ICraftingProvider provider, IPatternDetails pattern) {
-        return !isScaledAttemptBudgetExhausted(pattern) && scaledTransportAllowed(provider)
-            && provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider
-            && ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider) provider)
-                .supportsScaledProcessing();
+        return !isScaledAttemptBudgetExhausted(pattern) && provider instanceof NativeCraftingProvider nativeProvider
+            && (nativeProvider.supportsCountedBatch(pattern) || nativeProvider.supportsScaledProcessing());
     }
 
     boolean claimFallbackAttempt(IPatternDetails pattern) {
@@ -120,6 +119,57 @@ final class ECOProcessingPatternDispatcher {
         boolean supported = supportsScaledDispatch(request, provider);
         byPattern.put(request.pattern(), new Eligibility(tick, supported));
         return supported;
+    }
+
+    long tryCountedDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider, double onePower,
+        IEnergyGrid service, Consumer<ICraftingProvider> mark) {
+        if (!(provider instanceof NativeCraftingProvider nativeProvider)
+            || isScaledAttemptBudgetExhausted(request.pattern())
+            || !nativeProvider.supportsCountedBatch(request.pattern())) return 0;
+        long accepted;
+        try {
+            accepted = dispatchCounted(request, nativeProvider, onePower, service, energy, () -> {
+                claimAttempt(request.pattern());
+                mark.accept(provider);
+            });
+        } catch (ECOIndeterminateBatchException failure) {
+            accounting.failPermanently(request, "AMBIGUOUS_COUNTED_PROVIDER_OWNERSHIP");
+            return 0;
+        } catch (RuntimeException failure) {
+            accounting.failPermanently(request, "COUNTED_BATCH_SETTLEMENT_FAILURE");
+            throw failure;
+        }
+        if (accepted == 0) return 0;
+        try {
+            accounting.apply(request, scaledResult(request, accepted), () -> {}, provider);
+        } catch (RuntimeException failure) {
+            accounting.failPermanently(request, "POST_ACCEPT_COUNTED_ACCOUNTING_FAILURE");
+            throw failure;
+        }
+        ProgrammableHatchCrafting.completeAcceptedPush(nativeProvider.nativeMedium());
+        return accepted;
+    }
+
+    static long dispatchCounted(ECOCraftingDispatchRequest request, NativeCraftingProvider provider, double onePower,
+        IEnergyGrid service, ECOCraftingEnergyTransaction energy, Runnable markAttempt) {
+        var plan = ECOBatchDispatchPlanning
+            .plan(request, provider, Integer.MAX_VALUE, Long.MAX_VALUE, onePower, service, ECOBatchMode.LINEAR);
+        if (plan == null || plan.craftCount() <= 1) return 0;
+        return ECOBatchExecutor.execute(
+            plan,
+            request.inputs(),
+            request.outputs(),
+            request.remainders(),
+            request.inventory(),
+            request.level(),
+            request.job().link.getCraftingID(),
+            () -> energy.reserve(service, onePower, plan.craftCount()),
+            batch -> {
+                markAttempt.run();
+                int accepted = provider.pushCountedBatch(request.pattern(), request.inputs(), (int) batch.craftCount());
+                return accepted == 0 ? ECOBatchAdmission.rejected() : ECOBatchAdmission.accepted(accepted, false);
+            })
+            .acceptedCrafts();
     }
 
     /** Learns from fully inserted chunks; target saturation ends a visit without erasing its successes. */

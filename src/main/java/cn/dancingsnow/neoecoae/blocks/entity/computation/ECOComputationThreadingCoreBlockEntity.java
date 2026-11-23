@@ -5,8 +5,6 @@ import java.util.List;
 
 import net.minecraft.item.ItemStack;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPU;
@@ -31,8 +29,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 public class ECOComputationThreadingCoreBlockEntity extends
     cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity<cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster, ECOComputationThreadingCoreBlockEntity>
     implements cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPUOwner {
-
-    private static final Logger LOGGER = LogManager.getLogger(ECOComputationThreadingCoreBlockEntity.class);
 
     private final StorageTierDescriptor tier;
 
@@ -125,16 +121,9 @@ public class ECOComputationThreadingCoreBlockEntity extends
                             cluster.pickup(cpu.getPlan(), cpu);
                         } else {
                             discardNativeIdentity(cpu);
-                            LOGGER.error(
-                                "Deferred ECO crafting CPU at {} has no valid plan; keeping it quarantined for retry",
-                                worldPosition);
                         }
                     } catch (RuntimeException e) {
                         discardNativeIdentity(cpu);
-                        LOGGER.error(
-                            "Unable to restore deferred ECO crafting CPU at {}; keeping its data for retry",
-                            worldPosition,
-                            e);
                     }
                 }
             }
@@ -280,8 +269,7 @@ public class ECOComputationThreadingCoreBlockEntity extends
             if (finalOutput != null) {
                 out.add(finalOutput.what(), buffered);
             }
-        } catch (RuntimeException e) {
-            LOGGER.error("Unable to decode buffered output from deferred ECO crafting CPU", e);
+        } catch (RuntimeException ignored) {
         }
     }
 
@@ -298,7 +286,6 @@ public class ECOComputationThreadingCoreBlockEntity extends
                     drops.add(itemKey.toStack(taken));
                 }
             } else {
-                LOGGER.warn("Non-item CPU custody is preserved by the portable core snapshot at {}", pos);
             }
         }
     }

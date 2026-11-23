@@ -40,7 +40,6 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
     private UUID jobId;
     private long budgetTick = Long.MIN_VALUE;
     private int readsRemaining;
-    private boolean failureReported;
 
     public static void initialize() {
         ECOCraftingJobAttachmentRegistry.register(ID, context -> {
@@ -75,8 +74,7 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 if (output.amount() <= 0) continue;
                 for (Target target : destinations) observe(output.what(), target);
             }
-        } catch (RuntimeException | LinkageError incompatible) {
-            report(incompatible);
+        } catch (RuntimeException | LinkageError ignored) {
         }
     }
 
@@ -103,8 +101,7 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 if (key == null) continue;
                 for (Target target : destinations) observe(key, target);
             }
-        } catch (RuntimeException | LinkageError incompatible) {
-            report(incompatible);
+        } catch (RuntimeException | LinkageError ignored) {
         }
     }
 
@@ -225,7 +222,6 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
             } catch (RuntimeException | LinkageError incompatible) {
                 survey.scan = null;
                 survey.nextTick = tick + 100;
-                report(incompatible);
             }
         }
     }
@@ -330,14 +326,6 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
         pending.clear();
         jobId = null;
         budgetTick = Long.MIN_VALUE;
-        failureReported = false;
-    }
-
-    private void report(Throwable failure) {
-        if (failureReported) return;
-        failureReported = true;
-        org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-            .warn("Optional processing status could not be read; crafting continues normally", failure);
     }
 
     private static final class Survey {

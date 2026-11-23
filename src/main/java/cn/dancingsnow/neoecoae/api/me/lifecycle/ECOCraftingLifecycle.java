@@ -2,14 +2,11 @@ package cn.dancingsnow.neoecoae.api.me.lifecycle;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.ApiStatus;
 
 /** Process-wide registration point for ECO crafting lifecycle observers. */
 public final class ECOCraftingLifecycle {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.api");
     private static final CopyOnWriteArrayList<ECOCraftingLifecycleListener> LISTENERS = new CopyOnWriteArrayList<>();
 
     private ECOCraftingLifecycle() {}
@@ -46,8 +43,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onJobStarted(context);
-            } catch (RuntimeException | LinkageError failure) {
-                LOGGER.warn("ECO crafting lifecycle listener failed during job start", failure);
+            } catch (RuntimeException | LinkageError ignored) {
             }
         }
     }
@@ -57,8 +53,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onPatternDispatched(event);
-            } catch (RuntimeException | LinkageError failure) {
-                LOGGER.warn("ECO crafting lifecycle listener failed during dispatch notification", failure);
+            } catch (RuntimeException | LinkageError ignored) {
             }
         }
     }
@@ -68,8 +63,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onJobFinished(context, result);
-            } catch (RuntimeException | LinkageError failure) {
-                LOGGER.warn("ECO crafting lifecycle listener failed during job finish", failure);
+            } catch (RuntimeException | LinkageError ignored) {
             }
         }
     }

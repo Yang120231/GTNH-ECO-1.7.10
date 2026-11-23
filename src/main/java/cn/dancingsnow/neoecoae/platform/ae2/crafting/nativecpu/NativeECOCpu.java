@@ -134,16 +134,14 @@ public final class NativeECOCpu extends CraftingCPUCluster
                 for (var listener : new java.util.ArrayList<>(craftCompleteListeners)) {
                     try {
                         listener.apply(nativeOutput, output.amount(), elapsed);
-                    } catch (RuntimeException failure) {
-                        appeng.core.AELog.error(failure, "ECO crafting completion listener failed");
+                    } catch (RuntimeException ignored) {
                     }
                 }
             } else if (!success) {
                 for (var listener : new java.util.ArrayList<>(craftCancelListeners)) {
                     try {
                         listener.run();
-                    } catch (RuntimeException failure) {
-                        appeng.core.AELog.error(failure, "ECO crafting cancellation listener failed");
+                    } catch (RuntimeException ignored) {
                     }
                 }
             }
@@ -436,10 +434,21 @@ public final class NativeECOCpu extends CraftingCPUCluster
         return runtime.neoecoae$insertExactIntoCpuForJob(job, key, amount, mode);
     }
 
+    public static void addInstantCraftingStorage(CraftingCPUCluster cpu, IAEStack<?> stack) {
+        if (cpu instanceof NativeJobPlan collector) {
+            var key = AEKey.fromNative(stack);
+            if (key != null)
+                collector.generated.set(key, Math.addExact(collector.generated.get(key), stack.getStackSize()));
+        } else {
+            cpu.addStorage(stack);
+        }
+    }
+
     /** Snapshot native job by using its original staging transaction without committing any network extraction. */
     private static final class NativeJobPlan extends CraftingCPUCluster {
 
         private final KeyCounter used = new KeyCounter(), emitted = new KeyCounter();
+        private final KeyCounter generated = new KeyCounter();
         private final Map<IPatternDetails, Long> patterns = new LinkedHashMap<>();
         private final net.minecraft.world.World world;
 
@@ -489,7 +498,7 @@ public final class NativeECOCpu extends CraftingCPUCluster
                 collector.used,
                 collector.emitted,
                 new KeyCounter(),
-                collector.patterns).markVanillaExecution();
+                collector.patterns).markVanillaExecution(collector.generated);
         }
     }
 }

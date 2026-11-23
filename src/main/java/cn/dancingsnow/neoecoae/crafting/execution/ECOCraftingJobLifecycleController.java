@@ -6,8 +6,8 @@ import net.minecraft.entity.player.EntityPlayerMP;
 
 import org.jetbrains.annotations.Nullable;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.crafting.ICraftingRequester;
-import appeng.core.AELog;
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOCraftingPlanDiagnostics;
 import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingJobResult;
 import cn.dancingsnow.neoecoae.api.me.lifecycle.ECOCraftingLifecycle;
@@ -16,6 +16,7 @@ import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingJobStatusPacket;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingLink;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingSubmitResult;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
@@ -49,9 +50,6 @@ final class ECOCraftingJobLifecycleController {
             .isEnabled()) {
             return CraftingSubmitResult.CPU_BUSY;
         }
-        if (!host.getInventory().list.isEmpty()) {
-            AELog.warn("Crafting CPU inventory is not empty yet a job was submitted.");
-        }
 
         var attachedPlanningResult = (Object) plan instanceof ECOCraftingPlanDiagnostics diagnostics
             ? diagnostics.neoecoae$getPlanningResult()
@@ -82,6 +80,10 @@ final class ECOCraftingJobLifecycleController {
             CraftingCpuHelper.generateLinkData(craftId, requester == null, false),
             host.nativeCPU());
         var job = new ExecutingCraftingJob(plan, executionPlan, host::postChange, linkCpu, playerId);
+        if (plan instanceof CraftingPlan nativePlan) {
+            for (var entry : nativePlan.generatedAtStart()) host.getInventory()
+                .insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
+        }
         if (contract != null) job.fuzzyPlanningItemIds = contract.fuzzyPlanningItemIds();
         if (contract != null && attachedPlanningResult != null
             && contract.planningId()
@@ -107,7 +109,6 @@ final class ECOCraftingJobLifecycleController {
 
         var taskScheduler = host.taskSchedulerForLifecycle();
         taskScheduler.resetDispatchState();
-        taskScheduler.bindDiagnostics(craftId, cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
         // Publish planned outputs immediately so AE2 can display and cancel the new job before the first machine tick.
         var initialStatusItems = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter();
         host.getAllItems(initialStatusItems);

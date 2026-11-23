@@ -2,8 +2,6 @@ package cn.dancingsnow.neoecoae.crafting.execution;
 
 import java.util.UUID;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
@@ -25,8 +23,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 
 /** Owns CPU output claims, delivery retries and the dynamic final-output buffer. */
 final class ECOCraftingOutputDelivery {
-
-    private static final Logger LOGGER = LogManager.getLogger(ECOCraftingCPULogic.class);
 
     private final ECOCraftingCPULogic host;
     private final Object2LongLinkedOpenHashMap<AEKey> pendingFinalOutputs = new Object2LongLinkedOpenHashMap<>();
@@ -99,24 +95,11 @@ final class ECOCraftingOutputDelivery {
                     .extract(key, inserted, Actionable.MODULATE);
                 current.remainingAmount = Math.max(0L, current.remainingAmount - inserted);
                 host.markCpuDirty();
-                if (inserted > 0L) {
-                    host.taskSchedulerForOutput()
-                        .progress(cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
-                } else {
-                    host.taskSchedulerForOutput()
-                        .finalDeliveryBlocked(key, amount);
-                }
             }
         }
         // Like GTNH's completeJob, finish after all tasks and the requested output are delivered. Optional
         // byproducts (including chanced outputs) need not return, and surplus dynamic outputs stay in inventory.
         if (isRequestedWorkDelivered(current)) {
-            if (current.executionRuntime != null && !current.executionRuntime.isComplete()) {
-                LOGGER.warn(
-                    "ECO crafting job {} reached terminal crafting state but execution runtime is incomplete; "
-                        + "forcing finalization",
-                    current.link.getCraftingID());
-            }
             host.finishJob(true);
         }
     }
@@ -198,8 +181,6 @@ final class ECOCraftingOutputDelivery {
                 current.producedTotals.merge(what, java.math.BigInteger.valueOf(claimed), java.math.BigInteger::add);
             host.recordCompletedCraftingWork(accepted, what.getType());
             host.markCpuDirty();
-            host.taskSchedulerForOutput()
-                .progress(cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
         }
         return accepted;
     }
@@ -263,8 +244,7 @@ final class ECOCraftingOutputDelivery {
                     .setEnabled(true);
                 host.exactInventory()
                     .restore(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(key, amount));
-            } catch (RuntimeException listenerFailure) {
-                LOGGER.warn("ECO exact output retained after an inventory listener failed", listenerFailure);
+            } catch (RuntimeException ignored) {
             }
             if (host.getJob() == current) {
                 current.producedTotals.merge(key, claimed, java.math.BigInteger::add);
@@ -274,8 +254,6 @@ final class ECOCraftingOutputDelivery {
                     key.getType());
                 host.taskSchedulerForOutput()
                     .recordPhysicalInsert(key);
-                host.taskSchedulerForOutput()
-                    .progress(cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
             }
             host.markCpuDirty();
             return amount;
@@ -381,8 +359,6 @@ final class ECOCraftingOutputDelivery {
             host.postChange(request.actualKey());
         }
         host.markCpuDirty();
-        host.taskSchedulerForOutput()
-            .progress(cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
 
         boolean finished = finishIfComplete(current);
         long remaining = finished ? 0L : Math.max(0L, current.remainingAmount);
@@ -415,7 +391,6 @@ final class ECOCraftingOutputDelivery {
                 inserted = clampRoutedAmount(inserted, amount);
                 return new OutputRoute(inserted, 0L, amount - inserted);
             } catch (RuntimeException failure) {
-                LOGGER.warn("ECO crafting requester rejected a claimed output; retaining it in the CPU", failure);
                 return new OutputRoute(0L, 0L, amount);
             }
         }
@@ -431,7 +406,6 @@ final class ECOCraftingOutputDelivery {
             inserted = clampRoutedAmount(inserted, amount);
             return new OutputRoute(0L, inserted, amount - inserted);
         } catch (RuntimeException failure) {
-            LOGGER.warn("ECO crafting network rejected a claimed output; retaining it in the CPU", failure);
             return new OutputRoute(0L, 0L, amount);
         }
     }
@@ -467,11 +441,6 @@ final class ECOCraftingOutputDelivery {
                 }
                 if (!order) current.remainingAmount = Math.max(0L, current.remainingAmount - inserted);
                 host.markCpuDirty();
-                host.taskSchedulerForOutput()
-                    .progress(cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick());
-            } else {
-                host.taskSchedulerForOutput()
-                    .finalDeliveryBlocked(key, amount);
             }
         }
     }
@@ -493,7 +462,6 @@ final class ECOCraftingOutputDelivery {
             if (accepted < amount) blockedDeliveryJob = current;
             return accepted;
         } catch (RuntimeException failure) {
-            LOGGER.error("Final output delivery failed; items remain in the CPU inventory", failure);
             return 0L;
         } finally {
             deliveringFinalOutput = false;
@@ -523,8 +491,7 @@ final class ECOCraftingOutputDelivery {
                 if (stack != null && stack.amount() > 0L) {
                     pendingFinalOutputs.mergeLong(stack.what(), stack.amount(), NEMath::saturatingAdd);
                 }
-            } catch (RuntimeException failure) {
-                LOGGER.warn("Ignoring invalid persisted dynamic final-output delivery entry {}", index, failure);
+            } catch (RuntimeException ignored) {
             }
         }
     }

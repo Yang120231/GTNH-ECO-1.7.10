@@ -121,7 +121,6 @@ final class ECOCraftingPatternBusCatalog {
         try {
             return decoder.decode(stack, world);
         } catch (RuntimeException invalid) {
-            cn.dancingsnow.neoecoae.NeoECOAE.LOG.warn("Invalid ECO bus pattern in slot {}", slot, invalid);
             return null;
         }
     }

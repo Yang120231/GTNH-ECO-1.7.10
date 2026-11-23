@@ -9,14 +9,11 @@ import java.util.function.BooleanSupplier;
 
 import net.minecraft.world.World;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.energy.IEnergyGrid;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.me.ECOFastPathFacade;
 import cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOBatchDispatchContext;
@@ -32,8 +29,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** Prepares a batch for the selected provider; job accounting remains owned by the CPU. */
 public final class ECOStatefulBatchPlanner {
-
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
 
     private ECOStatefulBatchPlanner() {}
 
@@ -157,7 +152,6 @@ public final class ECOStatefulBatchPlanner {
                 () -> preparation.push(batch),
                 exactInputs ? exactTotal : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf());
         } catch (RuntimeException unavailable) {
-            LOGGER.debug("ECO batch preparation unavailable; no inputs extracted", unavailable);
             return null;
         }
     }

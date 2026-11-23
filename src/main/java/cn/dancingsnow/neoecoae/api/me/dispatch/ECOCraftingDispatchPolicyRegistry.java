@@ -2,8 +2,6 @@ package cn.dancingsnow.neoecoae.api.me.dispatch;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.ApiStatus;
 
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
@@ -11,7 +9,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 /** Process-wide registration point for scheduler policies. Every registered policy is a fail-closed veto. */
 public final class ECOCraftingDispatchPolicyRegistry {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.api");
     private static final CopyOnWriteArrayList<ECOCraftingDispatchPolicy> POLICIES = new CopyOnWriteArrayList<>();
 
     private ECOCraftingDispatchPolicyRegistry() {}
@@ -30,7 +27,6 @@ public final class ECOCraftingDispatchPolicyRegistry {
             try {
                 if (!policy.mayTick(context)) return false;
             } catch (RuntimeException failure) {
-                LOGGER.warn("ECO crafting dispatch policy failed during mayTick; denying this tick", failure);
                 return false;
             }
         }
@@ -51,7 +47,6 @@ public final class ECOCraftingDispatchPolicyRegistry {
             try {
                 if (!policy.isProviderAvailable(context, provider)) return false;
             } catch (RuntimeException failure) {
-                LOGGER.warn("ECO crafting dispatch policy failed during provider selection; denying provider", failure);
                 return false;
             }
         }

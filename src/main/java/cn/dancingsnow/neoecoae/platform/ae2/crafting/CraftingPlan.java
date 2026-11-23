@@ -20,6 +20,7 @@ public final class CraftingPlan implements ICraftingPlan, ECOCraftingPlanDiagnos
     private volatile ECOPlanningResult diagnostics;
     /** Planned by AE2's own planner: an ECO CPU must then execute it exactly like a native crafting CPU. */
     private boolean vanillaExecution;
+    private KeyCounter generatedAtStart = new KeyCounter();
 
     public CraftingPlan(GenericStack output, long bytes, boolean simulation, boolean multiplePaths, KeyCounter used,
         KeyCounter emitted, KeyCounter missing, Map<IPatternDetails, Long> tasks) {
@@ -36,6 +37,15 @@ public final class CraftingPlan implements ICraftingPlan, ECOCraftingPlanDiagnos
     public CraftingPlan markVanillaExecution() {
         vanillaExecution = true;
         return this;
+    }
+
+    public CraftingPlan markVanillaExecution(KeyCounter generatedAtStart) {
+        this.generatedAtStart = generatedAtStart.copy();
+        return markVanillaExecution();
+    }
+
+    public KeyCounter generatedAtStart() {
+        return generatedAtStart.copy();
     }
 
     public boolean vanillaExecution() {

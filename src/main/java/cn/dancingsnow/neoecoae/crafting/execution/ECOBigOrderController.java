@@ -102,14 +102,6 @@ final class ECOBigOrderController {
             try {
                 var answer = planning.get();
                 planning = null;
-                org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                    .info(
-                        "[big-order] Segment plan ready: order={}, status={}, capacity={}, fatal={}",
-                        order.id(),
-                        answer.result()
-                            .status(),
-                        answer.capacity(),
-                        answer.fatal());
                 var liveGrid = host.cpu.getGrid();
                 if (planningRevision != Long.MIN_VALUE && liveGrid != null
                     && liveGrid
@@ -117,8 +109,6 @@ final class ECOBigOrderController {
                     && revision.neoecoae$getProviderRevision() != planningRevision
                     && !patternsStillAvailable(liveGrid.getCraftingService(), answer.result())) {
                     order.planning();
-                    org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                        .info("[big-order] Replanning after provider revision changed: order={}", order.id());
                     host.markCpuDirty();
                     return true;
                 }
@@ -161,14 +151,6 @@ final class ECOBigOrderController {
                                     order.startChild(
                                         plan.finalOutput()
                                             .amount());
-                                    org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                                        .info(
-                                            "[big-order] Child started: order={}, amount={}, patterns={}",
-                                            order.id(),
-                                            plan.finalOutput()
-                                                .amount(),
-                                            plan.patternTimes()
-                                                .size());
                                     safeSegment = plan.finalOutput()
                                         .amount();
                                     safeRevision = planningRevision;
@@ -189,8 +171,6 @@ final class ECOBigOrderController {
                 if (failure instanceof InterruptedException) Thread.currentThread()
                     .interrupt();
                 order.fail("PLANNING_FAILED");
-                org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                    .warn("[big-order] Segment planning failed", failure);
             }
             host.markCpuDirty();
             if (order.terminal()) {
@@ -224,13 +204,6 @@ final class ECOBigOrderController {
             if (planningRevision != Long.MIN_VALUE && planningRevision == safeRevision && safeSegment > 0)
                 candidate = Math.min(candidate, safeSegment);
             planning = ECOBigOrderPlanner.begin(grid, goal, candidate, host.cpu.getAvailableStorage(), options);
-            org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                .info(
-                    "[big-order] Planning segment: order={}, goal={}, candidate={}, bytes={}",
-                    order.id(),
-                    goal,
-                    candidate,
-                    host.cpu.getAvailableStorage());
         } catch (java.util.concurrent.RejectedExecutionException busy) {
             order.waitFor(ECOBigOrderState.WAITING_CAPACITY, "PLANNER_BUSY");
         }

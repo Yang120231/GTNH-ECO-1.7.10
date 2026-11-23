@@ -141,9 +141,6 @@ final class ECOCraftingPlanUpdater {
         job.replaceRemainingPlan(prepared);
         var scheduler = host.taskSchedulerForLifecycle();
         scheduler.reset();
-        long tick = cn.dancingsnow.neoecoae.platform.minecraft.TickClock.currentTick();
-        scheduler.bindDiagnostics(job.link.getCraftingID(), tick);
-        scheduler.beginResolveTick(tick);
         changed.forEach(host::postChange);
         host.markCpuDirty();
         return true;

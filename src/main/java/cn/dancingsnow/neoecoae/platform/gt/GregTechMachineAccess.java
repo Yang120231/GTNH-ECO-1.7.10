@@ -178,6 +178,10 @@ final class GregTechMachineAccess {
         return true;
     }
 
+    static IMetaTileEntity metaTile(TileEntity tile) {
+        return tile instanceof IGregTechTileEntity host ? host.getMetaTileEntity() : null;
+    }
+
     static String machineName(TileEntity tile) {
         if (!(tile instanceof IGregTechTileEntity)) return null;
         IMetaTileEntity machine = ((IGregTechTileEntity) tile).getMetaTileEntity();

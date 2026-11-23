@@ -8,8 +8,6 @@ import java.util.function.Consumer;
 
 import net.minecraft.world.World;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.common.base.Preconditions;
@@ -17,7 +15,6 @@ import com.google.common.base.Preconditions;
 import appeng.api.config.Actionable;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.energy.IEnergyGrid;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.me.attachment.ECOCraftingJobAttachments;
 import cn.dancingsnow.neoecoae.api.me.completion.ECOVirtualCraftingCompletionSink;
 import cn.dancingsnow.neoecoae.api.me.dispatch.ECOCraftingCpuContext;
@@ -55,8 +52,6 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 
 public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCraftingProgressSink,
     ECOCraftingOutputClaimSink, ECOVirtualCraftingCompletionSink {
-
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
 
     final ECOCraftingCPU cpu;
 
@@ -99,12 +94,13 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     private final ECOCraftingJobLifecycleController lifecycle;
     private final ECOExactRefillSchedule refillSchedule = new ECOExactRefillSchedule();
     private final ECOCraftingPlanUpdater planUpdater;
-    private final ECOVanillaCraftingExecutor vanillaExecutor = new ECOVanillaCraftingExecutor(this);
+    private final ECOVanillaCraftingExecutor vanillaExecutor;
     final ECOBigOrderController bigOrder = new ECOBigOrderController(this);
 
     public ECOCraftingCPULogic(ECOCraftingCPU cpu) {
         this.cpu = cpu;
         this.energyTransaction = new ECOCraftingEnergyTransaction(this::markCpuDirty, TickClock::currentTick);
+        this.vanillaExecutor = new ECOVanillaCraftingExecutor(this, energyTransaction);
         this.dispatchAccounting = new ECOCraftingDispatchAccounting(
             this::postChange,
             this::markCpuDirty,
@@ -206,6 +202,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         for (var entry : staged.list) {
             if (entry.getLongValue() > 0) inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
         }
+        for (var entry : plan.generatedAtStart())
+            inventory.insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE);
         // The vanilla executor re-reads job.tasks every tick and keeps its native three-tick operation window.
         current.mergeVanillaPlan(plan);
         if (nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
@@ -248,8 +246,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         long currentTick = TickClock.currentTick();
         if (!job.suspended) refillExactMaterials(currentTick);
 
-        taskScheduler.bindDiagnostics(job.link.getCraftingID(), currentTick);
-        taskScheduler.beginResolveTick(currentTick);
         deliverStoredFinalOutput();
         if (job == null || job.suspended) {
             return;
@@ -257,8 +253,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         if (job.vanillaExecution) {
             // AE2-planned job: behave exactly like a native CPU with this host's co-processors. ECO dispatch
             // policies, plan improvements and the ECO scheduler never see it.
-            taskScheduler.finishResolveTick();
-            tickVanillaCrafting(eg);
+            tickVanillaCrafting(eg, cc);
             return;
         }
         planUpdater.tick(currentTick);
@@ -269,7 +264,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
         if (!ECOCraftingDispatchPolicyRegistry.mayTick(createCpuContext(currentTick))) {
             dispatchStrategy.finishTick(0);
-            taskScheduler.finishResolveTick();
             return;
         }
 
@@ -290,23 +284,24 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             }
         } finally {
             taskScheduler.endSharedProbeBudget();
-            taskScheduler.finishResolveTick();
         }
         // 只有普通推送计入滚动操作窗口。
         dispatchStrategy.finishTick(acceptedNormalPushes);
-        if (job != null) {
-            taskScheduler.check(job);
-        }
     }
 
-    private void tickVanillaCrafting(IEnergyGrid eg) {
+    private void tickVanillaCrafting(IEnergyGrid eg, ICraftingService craftingService) {
         World level = cpu.getLevel();
         var grid = cpu.getGrid();
         var nativeGrid = grid == null ? null : grid.nativeGrid();
         var cache = nativeGrid == null ? null : nativeGrid.getCache(appeng.api.networking.crafting.ICraftingGrid.class);
         if (level == null || eg == null || !(cache instanceof appeng.me.cache.CraftingGridCache)) return;
-        vanillaExecutor
-            .tick(job, eg, (appeng.me.cache.CraftingGridCache) cache, level, Math.max(0, cpu.getCoProcessors()));
+        vanillaExecutor.tick(
+            job,
+            eg,
+            (appeng.me.cache.CraftingGridCache) cache,
+            level,
+            Math.max(0, cpu.getCoProcessors()),
+            craftingService);
     }
 
     /** 从所有配方输入共用的实际库存中重试交付产物。 */
@@ -321,7 +316,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return (int) Math.min(Integer.MAX_VALUE, Math.min(baseLimit, safeConfiguredLimit));
     }
 
-    private Iterable<ICraftingProvider> collectAvailableProviders(ICraftingService craftingService,
+    private java.util.List<ICraftingProvider> collectAvailableProviders(ICraftingService craftingService,
         IPatternDetails details) {
         // 此处必须且只能保留一次 getProviders 调用；仅在 CPU 中提供转发桩方法不足以满足兼容要求。
         return craftingService.getProviders(details);
@@ -347,17 +342,15 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         World level) {
         var current = job;
         if (current == null) return 0;
-        var pass = taskScheduler.execute(
-            maxPatterns,
-            craftingService,
-            energyService,
-            level,
-            current,
-            inventory,
-            pattern -> collectAvailableProviders(craftingService, pattern),
-            () -> job == current && !current.suspended,
-            createCpuContext(TickClock.currentTick()),
-            this::invokeNormalProvider);
+        var pass = taskScheduler
+            .execute(maxPatterns, craftingService, energyService, level, current, inventory, pattern -> {
+                var providers = collectAvailableProviders(craftingService, pattern);
+                current.recordProcessingProviderAvailability(pattern, !providers.isEmpty());
+                return providers;
+            },
+                () -> job == current && !current.suspended,
+                createCpuContext(TickClock.currentTick()),
+                this::invokeNormalProvider);
         return pass.totalPushed();
     }
 
@@ -483,7 +476,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
                 .accept(completedCrafts);
         }
 
-        taskScheduler.progress(TickClock.currentTick());
         markCpuDirty();
 
         if (!taskScheduler.hasPendingTasks(current) && current.waitingFor.list.isEmpty()
@@ -670,7 +662,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             : job.stoppedProcessingOutputs.remove(output);
         if (changed) {
             taskScheduler.resetDispatchState();
-            taskScheduler.progress(TickClock.currentTick());
             markCpuDirty();
             for (var pattern : getProcessingPatterns(output))
                 for (var result : pattern.getOutputs()) postChange(result.what());
@@ -761,6 +752,18 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     /** Production has ended, but the destination did not accept all of the final output. */
     public boolean isFinalOutputDeliveryBlocked() {
         return outputDelivery.isFinalOutputDeliveryBlocked();
+    }
+
+    public boolean hasUnavailableProcessingPattern() {
+        return job != null && job.hasUnavailableProcessingPattern();
+    }
+
+    public String getSingleProcessingReason() {
+        return job == null ? "" : job.singleProcessingReason;
+    }
+
+    public long getDispatchCopyLimit() {
+        return job == null || job.vanillaExecution ? Long.MAX_VALUE : providerDispatcher.dispatchLimit();
     }
 
     /**
@@ -1011,7 +1014,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         }
         if (job != null && job.suspended != suspended) {
             job.suspended = suspended;
-            taskScheduler.progress(TickClock.currentTick());
             markCpuDirty();
         }
     }

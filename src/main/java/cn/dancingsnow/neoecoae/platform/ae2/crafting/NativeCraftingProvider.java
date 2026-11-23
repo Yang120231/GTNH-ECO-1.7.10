@@ -12,8 +12,6 @@ import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.glodblock.github.common.tile.TileFluidAutoFiller;
-
 import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.util.IInterfaceViewable;
@@ -21,6 +19,7 @@ import appeng.container.ContainerNull;
 import appeng.helpers.DualityInterface;
 import appeng.helpers.IInterfaceHost;
 import appeng.parts.AEBasePart;
+import appeng.parts.p2p.PartP2PInterface;
 import appeng.util.inv.MEInventoryCrafting;
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
@@ -39,49 +38,81 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
 
     private final ICraftingMedium medium;
     private final List<IPatternDetails> patterns;
-    private final boolean assemblerMatrix;
+    private final @Nullable NativePatternDetails publishedPattern;
+    private final boolean usesAssemblerBatchSize;
     private final boolean preserveInputSlots;
+    private final boolean scalesProcessingInputs;
+    private boolean assemblerBatchRejected;
 
     private static final String ASSEMBLER_MATRIX = "com.science.gtnl.common.machine.multiblock.AssemblerMatrix";
+    private static final String ME_CHISEL = "com.science.gtnl.common.block.blocks.tile.TileEntityMEChisel";
+    private static final String SUPER_CRAFTING_INPUT_HATCH = "com.science.gtnl.common.machine.hatch.SuperCraftingInputHatchME";
+    private static final String GT_CRAFTING_INPUT_HATCH = "gregtech.common.tileentities.machines.MTEHatchCraftingInputME";
+    private static final String GT_INPUT_BUS = "gregtech.api.metatileentity.implementations.MTEHatchInputBus";
+    private static final String GT_INPUT_HATCH = "gregtech.api.metatileentity.implementations.MTEHatchInput";
     private static final String GTSWN_ITEM_INPUT = "com.miaokatze.gtswn.common.assembly.MatrixItemInputBus";
     private static final String GTSWN_FLUID_INPUT = "com.miaokatze.gtswn.common.assembly.MatrixFluidInputHatch";
     private static final ClassValue<AssemblerBatchAccess> ASSEMBLER_BATCH_ACCESS = new ClassValue<>() {
 
         @Override
         protected AssemblerBatchAccess computeValue(Class<?> type) {
-            try {
-                Method setter = type.getMethod("setAssemblerSize", long.class);
-                Method getter = type.getMethod("getAssemblerSize");
-                return setter.getReturnType() == void.class && getter.getReturnType() == long.class
-                    ? new AssemblerBatchAccess(setter, getter)
-                    : new AssemblerBatchAccess(null, null);
-            } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
-                return new AssemblerBatchAccess(null, null);
-            }
+            return new AssemblerBatchAccess(
+                findBatchMethod(type, "setAssemblerSize", void.class, long.class),
+                findBatchMethod(type, "getAssemblerSize", long.class));
         }
     };
 
+    @Nullable
+    private static Method findBatchMethod(Class<?> type, String name, Class<?> result, Class<?>... parameters) {
+        try {
+            Method method = type.getMethod(name, parameters);
+            return method.getReturnType() == result ? method : null;
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+            return null;
+        }
+    }
+
     public static ICraftingProvider wrap(ICraftingMedium medium, List<? extends IPatternDetails> patterns) {
-        if (medium instanceof NativeSourceCraftingMedium) return java.util.Objects
-            .requireNonNull(((NativeSourceCraftingMedium) medium).sourceCraftingProvider(), "Native ECO provider");
+        if (medium instanceof NativeSourceCraftingMedium source)
+            return java.util.Objects.requireNonNull(source.sourceCraftingProvider(), "Native ECO provider");
         return new NativeCraftingProvider(medium, patterns);
     }
 
+    static ICraftingProvider wrap(ICraftingMedium medium, NativePatternDetails requested,
+        NativePatternDetails published) {
+        if (medium instanceof NativeSourceCraftingMedium || requested == published)
+            return wrap(medium, Collections.singletonList(requested));
+        return new NativeCraftingProvider(medium, Collections.singletonList(requested), published);
+    }
+
     public NativeCraftingProvider(ICraftingMedium medium, List<? extends IPatternDetails> patterns) {
+        this(medium, patterns, null);
+    }
+
+    private NativeCraftingProvider(ICraftingMedium medium, List<? extends IPatternDetails> patterns,
+        @Nullable NativePatternDetails publishedPattern) {
         this.medium = java.util.Objects.requireNonNull(medium);
         this.patterns = Collections.unmodifiableList(new ArrayList<>(patterns));
+        this.publishedPattern = publishedPattern;
         boolean matrix = false;
         for (Class<?> type = medium.getClass(); type != null; type = type.getSuperclass())
             if (ASSEMBLER_MATRIX.equals(type.getName())) {
                 matrix = true;
                 break;
             }
-        this.assemblerMatrix = matrix;
         // Both GTSWN endpoints are final. Match the optional medium once without loading either class.
-        String mediumType = medium.getClass()
-            .getName();
-        this.preserveInputSlots = assemblerMatrix || GTSWN_ITEM_INPUT.equals(mediumType)
-            || GTSWN_FLUID_INPUT.equals(mediumType);
+        Class<?> mediumClass = medium.getClass();
+        String mediumType = mediumClass.getName();
+        boolean orderedMatrix = GTSWN_ITEM_INPUT.equals(mediumType) || GTSWN_FLUID_INPUT.equals(mediumType);
+        this.usesAssemblerBatchSize = matrix || ME_CHISEL.equals(mediumType);
+        this.preserveInputSlots = matrix || orderedMatrix;
+        this.scalesProcessingInputs = mediumClass == DualityInterface.class
+            || medium instanceof DualityInterface && mediumClass.getEnclosingClass() == PartP2PInterface.class
+            || GT_CRAFTING_INPUT_HATCH.equals(mediumType)
+            || ASSEMBLER_MATRIX.equals(mediumType)
+            || ME_CHISEL.equals(mediumType)
+            || SUPER_CRAFTING_INPUT_HATCH.equals(mediumType)
+            || orderedMatrix;
     }
 
     public ICraftingMedium nativeMedium() {
@@ -173,21 +204,78 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     }
 
     /**
-     * Native processing media participate in adaptive probing by default. Interfaces opting out of pattern
-     * optimization,
-     * per-push producers, programmable variants and crafting-lock modes retain their single-copy semantics:
-     * pulse/redstone locks meter pushes, and
-     * LOCK_UNTIL_RESULT unlocks on one copy's outputs.
+     * Adaptive probing requires a medium that can accept the entire scaled input as one batch.
+     * Interface settings can still require single-copy pushes for a compatible medium.
      */
     public boolean supportsScaledProcessing() {
-        // AE2FC's auto filler ignores the input table and emits one pattern output per push.
-        if (medium instanceof TileFluidAutoFiller) return false;
-        DualityInterface duality = medium instanceof DualityInterface direct ? direct
-            : medium instanceof IInterfaceHost host ? host.getInterfaceDuality() : null;
-        return ProgrammableHatchCrafting.supportsScaledProcessing(medium)
-            && (duality == null || (duality.getConfigManager()
-                .getSetting(appeng.api.config.Settings.PATTERN_OPTIMIZATION) == appeng.api.config.YesNo.YES
-                && !hasCraftingLock(duality)));
+        return singleCopyReason() == null;
+    }
+
+    @Nullable
+    public String singleCopyReason() {
+        if (!scalesProcessingInputs) return "single_copy";
+        if (usesAssemblerBatchSize) {
+            var access = ASSEMBLER_BATCH_ACCESS.get(MEInventoryCrafting.class);
+            if (assemblerBatchRejected || access.setter() == null || access.getter() == null)
+                return "batch_size_unavailable";
+        }
+        if (!(medium instanceof DualityInterface duality)) return null;
+        if (hasCraftingLock(duality)) return "crafting_lock";
+        if (duality.getConfigManager()
+            .getSetting(appeng.api.config.Settings.PATTERN_OPTIMIZATION) != appeng.api.config.YesNo.YES)
+            return "optimization_disabled";
+        return singleCopyTargetReason(duality);
+    }
+
+    @Nullable
+    private static String singleCopyTargetReason(DualityInterface duality) {
+        boolean programmable = cpw.mods.fml.common.Loader.isModLoaded("programmablehatches");
+        if (!(duality.getHost() instanceof IInterfaceHost host)) return null;
+        TileEntity origin = host.getTileEntity();
+        if (origin == null || origin.getWorldObj() == null) return null;
+        for (ForgeDirection direction : host.getTargets()) {
+            int x = origin.xCoord + direction.offsetX;
+            int y = origin.yCoord + direction.offsetY;
+            int z = origin.zCoord + direction.offsetZ;
+            if (y < 0 || y >= origin.getWorldObj()
+                .getHeight()) continue;
+            if (!origin.getWorldObj()
+                .blockExists(x, y, z)) {
+                if (programmable) return "single_copy";
+                continue;
+            }
+            TileEntity target = origin.getWorldObj()
+                .getTileEntity(x, y, z);
+            if (programmable && ProgrammableHatchCrafting.requiresSingleCopy(target, direction.getOpposite()))
+                return "single_copy";
+            Object meta = NativeGregTech.metaTile(target);
+            if (meta != null) {
+                String type = meta.getClass()
+                    .getName();
+                if (GT_INPUT_BUS.equals(type) || GT_INPUT_HATCH.equals(type)) return "limited_gt_input";
+            }
+        }
+        return null;
+    }
+
+    public boolean supportsCountedBatch(IPatternDetails pattern) {
+        if (!(pattern instanceof NativePatternDetails)) return false;
+        var nativePattern = nativePatternFor(pattern);
+        return ProgrammableHatchCrafting.supportsCountedBatch(
+            medium,
+            nativePattern.nativeDetails(),
+            nativePattern.supportsPushInputsToExternalInventory());
+    }
+
+    public int pushCountedBatch(IPatternDetails pattern, KeyCounter[] inputs, int offered) {
+        var nativePattern = nativePatternFor(pattern);
+        var table = processingTable(nativePattern, inputs);
+        return table == null ? 0
+            : ProgrammableHatchCrafting.pushCountedBatch(medium, nativePattern.nativeDetails(), table, offered);
+    }
+
+    public NativePatternDetails nativePatternFor(IPatternDetails pattern) {
+        return publishedPattern != null ? publishedPattern : (NativePatternDetails) pattern;
     }
 
     static boolean hasCraftingLock(appeng.helpers.DualityInterface medium) {
@@ -255,9 +343,9 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             ? execution.providerLookupPattern()
             : pattern;
         if (!(physical instanceof NativePatternDetails) || !patterns.contains(physical)) return false;
-        if (physical != pattern && (!supportsScaledProcessing() || !physical.supportsPushInputsToExternalInventory()))
-            return false;
-        var nativePattern = (NativePatternDetails) physical;
+        var nativePattern = nativePatternFor(physical);
+        if (physical != pattern
+            && (!supportsScaledProcessing() || !nativePattern.supportsPushInputsToExternalInventory())) return false;
         if (inputHolder.length != pattern.getInputs().length)
             throw new IllegalArgumentException("Source input dimensions differ from native pattern");
         long copies = pattern instanceof ECOProcessingExecutionPattern execution ? execution.copies() : 1L;
@@ -275,26 +363,13 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             table = orderedProcessingTable(nativePattern, inputHolder, copies);
             if (table == null) return false;
         } else {
-            var stacks = new ArrayList<IAEStack<?>>();
-            for (var counter : inputHolder) for (var entry : counter) {
-                if (entry.getLongValue() <= 0) throw new IllegalArgumentException("Nonpositive native dispatch input");
-                var stack = entry.getKey()
-                    .toNative(entry.getLongValue());
-                if (stack == null)
-                    throw new IllegalArgumentException("Resource has no native dispatch channel: " + entry.getKey());
-                stacks.add(stack);
-            }
-            if (stacks.isEmpty()) {
-                // Input-less Programmable Hatches patterns receive an empty grid, like native MEInvDummy.
-                if (pattern.getInputs().length > 0
-                    || !NativePatternDetails.mightHaveEmptyInputs(nativePattern.nativeDetails())) return false;
-                table = new MEInventoryCrafting(new ContainerNull(), 3, 3);
-            } else {
-                table = new MEInventoryCrafting(new ContainerNull(), stacks.size(), 1);
-                for (int i = 0; i < stacks.size(); i++) table.setInventorySlotContents(i, stacks.get(i));
-            }
+            table = processingTable(nativePattern, inputHolder);
+            if (table == null) return false;
         }
-        if (assemblerMatrix && !applyAssemblerBatchSize(table, copies)) return false;
+        if (usesAssemblerBatchSize && !applyAssemblerBatchSize(table, copies)) {
+            if (copies > 1L) assemblerBatchRejected = true;
+            return false;
+        }
         var before = new ArrayList<IAEStack<?>>();
         var beforeItems = new ArrayList<ItemStack>();
         for (int i = 0; i < table.getSizeInventory(); i++) {
@@ -321,6 +396,27 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         }
         if (accepted) for (var counter : inputHolder) counter.clear();
         return accepted;
+    }
+
+    @Nullable
+    private static MEInventoryCrafting processingTable(NativePatternDetails pattern, KeyCounter[] inputs) {
+        var stacks = new ArrayList<IAEStack<?>>();
+        for (var counter : inputs) for (var entry : counter) {
+            if (entry.getLongValue() <= 0) throw new IllegalArgumentException("Nonpositive native dispatch input");
+            var stack = entry.getKey()
+                .toNative(entry.getLongValue());
+            if (stack == null)
+                throw new IllegalArgumentException("Resource has no native dispatch channel: " + entry.getKey());
+            stacks.add(stack);
+        }
+        if (stacks.isEmpty()) {
+            return pattern.getInputs().length == 0 && NativePatternDetails.mightHaveEmptyInputs(pattern.nativeDetails())
+                ? new MEInventoryCrafting(new ContainerNull(), 3, 3)
+                : null;
+        }
+        var table = new MEInventoryCrafting(new ContainerNull(), stacks.size(), 1);
+        for (int slot = 0; slot < stacks.size(); slot++) table.setInventorySlotContents(slot, stacks.get(slot));
+        return table;
     }
 
     /** Restore the physical slots for GTNL container returns and GTSWN ordered processing. */
@@ -352,8 +448,14 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     private static boolean applyAssemblerBatchSize(InventoryCrafting table, long copies) {
         AssemblerBatchAccess access = ASSEMBLER_BATCH_ACCESS.get(table.getClass());
         // Older integrations without long metadata can still use the native one-copy path.
-        if (access.setter() == null || access.getter() == null) return copies == 1L;
+        if (access.getter() == null) return copies == 1L;
         try {
+            if (copies == 1L && Long.valueOf(1L)
+                .equals(
+                    access.getter()
+                        .invoke(table)))
+                return true;
+            if (access.setter() == null) return false;
             access.setter()
                 .invoke(table, copies);
             return Long.valueOf(copies)

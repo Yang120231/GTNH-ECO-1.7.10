@@ -8,15 +8,12 @@ import java.util.UUID;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.WorldServer;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.UnknownNullability;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
 import appeng.api.networking.ticking.TickRateModulation;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.NEFakePlayer;
 import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
 import cn.dancingsnow.neoecoae.api.storage.ECOBigIntegerStorage;
@@ -55,11 +52,9 @@ import cpw.mods.fml.common.gameevent.PlayerEvent;
 public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     private static final int CURRENT_NBT_VERSION = 4;
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
     public static final int MAX_PROGRESS = 100;
     private static final int MAX_SERIALIZED_ITEM_STACK_COUNT = 99;
     private static final int MAX_PERSISTED_ITEM_STACK_ENTRIES = 256;
-    private static final long BLOCKED_PROGRESS_LOG_INTERVAL_TICKS = 100L;
     private static final long VIRTUAL_BLOCKED_NOTICE_DURATION_TICKS = 100L;
     private static final long OWNING_CPU_RECOVERY_TIMEOUT_TICKS = 2_400L;
 
@@ -105,15 +100,11 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     private boolean outputsReady = false;
     private String processingBlockReason;
     private RecoveryState recoveryState = RecoveryState.CLEARED;
-    private long lastEjectionFailureLogTick = Long.MIN_VALUE;
-    private long lastRecoveryFailureLogTick = Long.MIN_VALUE;
-    private long lastBlockedProgressLogTick = Long.MIN_VALUE;
     // Batch-owned diagnostics only: never serialized and never used to admit or advance work.
     private VirtualLaneStartResult lastVirtualLaneStartResult = VirtualLaneStartResult.STARTED;
     private long lastVirtualLaneStartTick = Long.MIN_VALUE;
     private @Nullable Object lastVirtualLaneStartScope;
     private long owningCpuMissingSinceGameTime = Long.MIN_VALUE;
-    private final ECOCraftingThreadOutputDiagnostics outputDiagnostics = new ECOCraftingThreadOutputDiagnostics();
 
     private final TransientCraftingContainer craftingInv;
     private final ECOCraftingFastPathVerifier fastPathVerifier;
@@ -152,14 +143,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             lastVirtualLaneStartTick = TickClock.currentTick();
             lastVirtualLaneStartScope = controller.getDispatchScope();
             if (startResult != ECOCraftingControllerHost.VirtualLaneStartResult.STARTED) {
-                logBlockedProgress(
-                    controller,
-                    startResult == ECOCraftingControllerHost.VirtualLaneStartResult.COOLANT_UNAVAILABLE
-                        ? "virtual-coolant-unavailable"
-                        : "virtual-energy-unavailable",
-                    MAX_PROGRESS,
-                    overlockTimes,
-                    powerMultiply);
+                setProcessingBlockedByCoolant(startResult == VirtualLaneStartResult.COOLANT_UNAVAILABLE);
                 return TickRateModulation.SLOWER;
             }
             // Virtual execution has its own explicit one-tick path. It never depends on ordinary overclock.
@@ -173,13 +157,12 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         int bonusValue = calculateProgressPerTick(overlockTimes);
         int attemptedProgress = calculateRequestedProgress(ticksSinceLastCall, bonusValue, MAX_PROGRESS - progress);
         if (!controller.tryConsumeTickBasedCoolant(finiteBatchCraftCount, attemptedProgress, overlockTimes)) {
-            logBlockedProgress(controller, "coolant-unavailable", attemptedProgress, overlockTimes, powerMultiply);
+            setProcessingBlockedByCoolant(true);
             return TickRateModulation.SLOWER;
         }
         int progressed = userPower(controller, ticksSinceLastCall, bonusValue, powerMultiply, MAX_PROGRESS - progress);
         if (attemptedProgress > 0 && progressed <= 0) {
-            String reason = worker.getWorkerGrid() == null ? "grid-unavailable" : "energy-unavailable";
-            logBlockedProgress(controller, reason, attemptedProgress, overlockTimes, powerMultiply);
+            setProcessingBlockedByCoolant(false);
         }
         progress += progressed;
 
@@ -254,13 +237,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             UUID orphanedJobId = craftingJobId;
             ECOCraftingJobLifecycle.finish(worker.getNativeLevel(), orphanedJobId, false);
             markRecoveryPending(true);
-            LOGGER.warn(
-                "ECO crafting worker stopped waiting for an unavailable owning CPU after {} ticks; "
-                    + "the orphaned job was cancelled and its outputs will be recovered to network storage: "
-                    + "worker={} job={}",
-                OWNING_CPU_RECOVERY_TIMEOUT_TICKS,
-                worker.getBlockPos(),
-                orphanedJobId);
         }
         if (!isBusy || !isRecoveringToNetwork()) return null;
         return retryRecoveryToNetwork() ? TickRateModulation.URGENT : TickRateModulation.SLOWER;
@@ -628,7 +604,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     private boolean ejectOutputs() {
         GridView grid = worker.getWorkerGrid();
         if (grid == null) {
-            logBlockedOutput("network-unavailable", null);
             return false;
         }
 
@@ -669,9 +644,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
                 ? RecoveryState.WAITING_FOR_OWNER
                 : RecoveryState.ACTIVE;
             retainRemainderForRetry(remainder, retryState);
-            if (retryState != RecoveryState.WAITING_FOR_OWNER) {
-                logBlockedOutput("network-capacity", remainder);
-            }
             return false;
         }
 
@@ -690,69 +662,14 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             }
             return TickRateModulation.URGENT;
         } catch (RuntimeException e) {
-            long tick = TickClock.currentTick();
-            long elapsed = tick - lastEjectionFailureLogTick;
-            if (lastEjectionFailureLogTick == Long.MIN_VALUE || elapsed < 0L || elapsed >= 100L) {
-                lastEjectionFailureLogTick = tick;
-                LOGGER.error("ECO crafting output ejection failed; pending outputs will be retried", e);
-            }
             return TickRateModulation.SLOWER;
         }
     }
 
-    private void logBlockedProgress(ECOCraftingControllerHost controller, String reason, int attemptedProgress,
-        int overclockTimes, int powerMultiply) {
-        processingBlockReason = reason.contains("coolant")
+    private void setProcessingBlockedByCoolant(boolean coolant) {
+        processingBlockReason = coolant
             ? "gui.neoecoae.large_integrated_working_station.pause.coolant_insufficient"
             : "gui.neoecoae.large_integrated_working_station.pause.power_missing";
-        long tick = TickClock.currentTick();
-        long elapsed = tick - lastBlockedProgressLogTick;
-        if (lastBlockedProgressLogTick != Long.MIN_VALUE && elapsed >= 0L
-            && elapsed < BLOCKED_PROGRESS_LOG_INTERVAL_TICKS) {
-            return;
-        }
-        lastBlockedProgressLogTick = tick;
-        LOGGER.warn(
-            "ECO crafting progress blocked: worker={} reason={} job={} progress={}/{} attemptedProgress={} "
-                + "batchCrafts={} craftCount={} virtualBatch={} overclockTimes={} powerMultiply={} "
-                + "activeCooling={} coolant={}/{} coolantMaxOverclock={} "
-                + "requiredVirtualOverclock={} requiredVirtualCoolant={} requiredVirtualPower={}",
-            worker.getBlockPos(),
-            reason,
-            craftingJobId,
-            progress,
-            MAX_PROGRESS,
-            attemptedProgress,
-            finiteBatchCraftCount,
-            craftCount,
-            virtualBatch,
-            overclockTimes,
-            powerMultiply,
-            controller.isActiveCooling(),
-            controller.getDisplayedCoolantAmount(),
-            controller.getDisplayedCoolantCapacity(),
-            controller.getDisplayedCoolingMaxOverclock(),
-            virtualBatch ? ECOCraftingControllerHost.MAX_OVERCLOCK_TIMES : 0,
-            virtualBatch ? ECOCraftingControllerHost.VIRTUAL_COOLANT_PER_LANE_TICK : 0,
-            virtualBatch ? ECOCraftingControllerHost.VIRTUAL_CRAFTING_POWER_PER_TICK : 0);
-    }
-
-    private void logBlockedOutput(String reason, @Nullable KeyCounter pending) {
-        outputDiagnostics.blocked(
-            worker,
-            craftingJobId,
-            reason,
-            pending,
-            progress,
-            MAX_PROGRESS,
-            finiteBatchCraftCount,
-            craftCount,
-            virtualBatch,
-            TickClock.currentTick());
-    }
-
-    private void finishBlockedOutputDiagnostic() {
-        outputDiagnostics.finished(worker, craftingJobId, TickClock.currentTick());
     }
 
     private KeyCounter collectOutputItems() {
@@ -819,7 +736,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
                 // A missing owner is transient until the job is explicitly cancelled. Keep the output owned
                 // by this worker and retry job-directed delivery; never leak it into generic ME storage.
                 retainRemainderForRetry(stacks, RecoveryState.WAITING_FOR_OWNER);
-                logBlockedOutput("waiting-for-owning-cpu", stacks);
                 continue;
             }
 
@@ -931,7 +847,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
                 return true;
             } catch (RuntimeException failure) {
                 markRecoveryPending(recoverOutputs);
-                logRecoveryFailure(failure);
                 return false;
             }
         }
@@ -956,7 +871,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             }
         } catch (RuntimeException e) {
             markRecoveryPending(recoverOutputs);
-            logRecoveryFailure(e);
             return false;
         }
         recoveryState = RecoveryState.RECOVERED_TO_NETWORK;
@@ -1052,7 +966,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         clearVirtualCraftingDiagnostic();
         boolean availabilityChanged = isBusy;
         exactVirtual = null;
-        finishBlockedOutputDiagnostic();
         worker.markDisplayDirty();
         outputItems.clear();
         inputItems.clear();
@@ -1075,8 +988,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         outputsReady = false;
         recoveryState = RecoveryState.CLEARED;
         owningCpuMissingSinceGameTime = Long.MIN_VALUE;
-        lastBlockedProgressLogTick = Long.MIN_VALUE;
-        outputDiagnostics.reset();
         if (availabilityChanged) {
             worker.onThreadAvailabilityChanged();
         }
@@ -1086,9 +997,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         worker.markDisplayDirty();
         List<GenericStack> stacks = ECOCraftingStackCodec.toGenericStacks(remainder, false);
         if (stacks.isEmpty() && !ECOCraftingStackCodec.isEmpty(remainder)) {
-            LOGGER.error(
-                "ECO crafting thread cannot retain non-item output remainder for retry: worker={}",
-                worker.getBlockPos());
             worker.onBatchStopped();
             clearWork();
             return;
@@ -1118,9 +1026,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         worker.markDisplayDirty();
         List<GenericStack> stacks = ECOCraftingStackCodec.toGenericStacks(remainder, true);
         if (stacks.isEmpty() && !ECOCraftingStackCodec.isEmpty(remainder)) {
-            LOGGER.error(
-                "ECO crafting thread cannot retain non-item input remainder for retry: worker={}",
-                worker.getBlockPos());
             worker.onBatchStopped();
             clearWork();
             return;
@@ -1139,15 +1044,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         setChanged();
     }
 
-    private void logRecoveryFailure(RuntimeException e) {
-        long tick = TickClock.currentTick();
-        long elapsed = tick - lastRecoveryFailureLogTick;
-        if (lastRecoveryFailureLogTick == Long.MIN_VALUE || elapsed < 0L || elapsed >= 100L) {
-            lastRecoveryFailureLogTick = tick;
-            LOGGER.error("ECO crafting recovery failed; pending items will be retried", e);
-        }
-    }
-
     private void postCraftingEventSafely(ItemStack craftedOutput) {
         try {
             FMLCommonHandler.instance()
@@ -1157,8 +1053,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
                         NEFakePlayer.getFakePlayer((WorldServer) worker.getNativeLevel()),
                         craftedOutput,
                         craftingInv));
-        } catch (RuntimeException e) {
-            LOGGER.warn("ECO crafting post-crafting event failed: worker={}", worker.getBlockPos(), e);
+        } catch (RuntimeException ignored) {
         }
     }
 
@@ -1494,10 +1389,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     private void quarantineInvalidDeserializedWork() {
         boolean recoverOutputs = shouldRecoverOutputs();
-        LOGGER.error(
-            "Invalid persisted ECO crafting work was quarantined for recovery: worker={} recoverOutputs={}",
-            worker.getBlockPos(),
-            recoverOutputs);
         progress = 0;
         progressRemainder = 0.0D;
         reboot = true;

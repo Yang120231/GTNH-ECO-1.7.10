@@ -5,8 +5,6 @@ import java.util.List;
 
 import net.minecraft.item.ItemStack;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOCraftingFastPathCache;
@@ -26,8 +24,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.crafting.TransientCraftingCont
 
 /** Produces one verified worker input/output snapshot; it never mutates thread lifecycle state. */
 final class ECOCraftingFastPathVerifier {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     private final ECOCraftingWorkerRuntimeHost worker;
     private final TransientCraftingContainer craftingInventory;
@@ -147,12 +143,6 @@ final class ECOCraftingFastPathVerifier {
             remainingSlots,
             execution.fastPathType() == ECORecipeClassifier.Type.DURABILITY_MUTATION);
         if (analysis.rejected()) {
-            if ("STATE_SLOT_COUNT_MISMATCH".equals(analysis.rejectReason())) {
-                LOGGER.warn(
-                    "Fast path state slot mismatch: expected={} actual={}",
-                    formatSlots(beforeSlots),
-                    formatSlots(remainingSlots));
-            }
             return negative(cache, key, tick, analysis.rejectReason());
         }
         if (!verifySecondStateStep(execution, output, beforeSlots, remainingSlots, analysis.model())) {

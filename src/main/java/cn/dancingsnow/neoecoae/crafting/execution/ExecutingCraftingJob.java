@@ -121,6 +121,25 @@ public class ExecutingCraftingJob {
     @Nullable
     Integer playerId;
     boolean suspended;
+    private final java.util.Set<IPatternDetails> unavailableProcessingPatterns = new java.util.HashSet<>();
+    String singleProcessingReason = "";
+
+    void recordProcessingProviderAvailability(IPatternDetails pattern, boolean available) {
+        if (available) unavailableProcessingPatterns.remove(pattern);
+        else if (pattern instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails nativePattern
+            && !nativePattern.nativeDetails()
+                .isCraftable()
+            && pattern.getDefinition() != null) unavailableProcessingPatterns.add(pattern);
+    }
+
+    boolean hasUnavailableProcessingPattern() {
+        unavailableProcessingPatterns.removeIf(pattern -> {
+            var progress = tasks.get(pattern);
+            return progress == null || progress.value <= 0 || isProcessingStepStopped(pattern);
+        });
+        return !unavailableProcessingPatterns.isEmpty();
+    }
+
     @Nullable
     String permanentExecutionError;
 

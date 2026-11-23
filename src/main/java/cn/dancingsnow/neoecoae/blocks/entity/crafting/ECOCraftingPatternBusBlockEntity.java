@@ -37,8 +37,6 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
     appeng.api.networking.crafting.ICraftingProvider, NativeSourceCraftingMedium, appeng.api.util.IInterfaceViewable,
     cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider {
 
-    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
-        .getLogger(cn.dancingsnow.neoecoae.NeoECOAE.MODID);
     private static final String BETA_PATTERNS = "Patterns";
     private static final String BETA_OVERFLOW = "neoecoae_beta_patterns";
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
@@ -320,13 +318,6 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
             if (stack == null || next >= inventory.size()) betaOverflow.add(raw);
             else inventory.loadStack(next++, stack);
         }
-        if (!betaOverflow.isEmpty()) LOGGER.warn(
-            "Beta pattern bus at {},{},{} kept {} pattern(s) without a free slot or a resolvable item; "
-                + "they refill freed slots and drop when the bus is broken",
-            xCoord,
-            yCoord,
-            zCoord,
-            betaOverflow.size());
     }
 
     @Override
@@ -398,10 +389,6 @@ public class ECOCraftingPatternBusBlockEntity extends NEBlockEntity<NECraftingCl
             if (stack == null) unresolved++;
             else drops.add(stack);
         }
-        if (unresolved > 0) LOGGER.warn(
-            "Broken beta pattern bus at {} drops without {} pattern(s) whose items no longer resolve",
-            pos,
-            unresolved);
     }
 
     static int calculateBatchOfferSize(int requested, int worker, int host, long arithmetic) {

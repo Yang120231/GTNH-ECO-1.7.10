@@ -138,16 +138,6 @@ public final class PlanningSettings {
         @Config.LangKey("neoecoae.configuration.ecoPlanningMaxMemoryMiB")
         public static int ecoPlanningMaxMemoryMiB = 64;
 
-        @Config.Comment("Log source dispatch runtime diagnostics")
-        @Config.DefaultBoolean(false)
-        @Config.LangKey("neoecoae.configuration.ecoDispatchWatchdogDebug")
-        public static boolean ecoDispatchWatchdogDebug;
-
-        @Config.Comment("Log blocked worker output delivery diagnostics")
-        @Config.DefaultBoolean(false)
-        @Config.LangKey("neoecoae.configuration.ecoCraftingOutputDeliveryDebug")
-        public static boolean ecoCraftingOutputDeliveryDebug;
-
         // Unloaded settings (unit tests) keep the hard ceiling; the configured default is lower.
         @Config.Comment("Ordinary CPU dispatch safety limit; source algorithm applies its per-tick budget")
         @Config.DefaultInt(200_000)

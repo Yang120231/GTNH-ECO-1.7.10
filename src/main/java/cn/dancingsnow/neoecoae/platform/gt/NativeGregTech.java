@@ -2,7 +2,6 @@ package cn.dancingsnow.neoecoae.platform.gt;
 
 import net.minecraft.tileentity.TileEntity;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cpw.mods.fml.common.Loader;
 
 /** Optional entry point: no GregTech type appears on a class loaded by the normal core runtime. */
@@ -17,11 +16,6 @@ public final class NativeGregTech {
     public static void initialize() {
         if (!isAvailable()) return;
         GregTechMachineAccess.verifyApi();
-        String version = Loader.instance()
-            .getIndexedModList()
-            .get("gregtech")
-            .getVersion();
-        NeoECOAE.LOG.info("NEOECOAE_NATIVE_GT_AVAILABLE version={} reviewed_api=5.09.54.264", version);
         GregTechMachineRecipes.register();
     }
 
@@ -65,6 +59,10 @@ public final class NativeGregTech {
     /** The GT block hosting a meta tile entity (e.g. a pattern hatch acting as crafting medium), else null. */
     public static TileEntity hostTile(Object machine) {
         return isAvailable() ? GregTechMachineAccess.hostTile(machine) : null;
+    }
+
+    public static Object metaTile(TileEntity tile) {
+        return isAvailable() ? GregTechMachineAccess.metaTile(tile) : null;
     }
 
     /** Input parts and proxy masters of a formed controller, shared by route and machine-status discovery. */

@@ -10,8 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
@@ -24,7 +22,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingPattern;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
-import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
@@ -50,7 +47,6 @@ import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
  */
 public final class ECOExecutionRuntime {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.dispatch");
     private static final int MAX_DIAGNOSTIC_PHASES = 16;
     private static final int MAX_DIAGNOSTIC_TASKS = 8;
     private static final int MAX_DIAGNOSTIC_LENGTH = 4096;
@@ -188,7 +184,6 @@ public final class ECOExecutionRuntime {
             inputKeysByTaskId.add(inputKeys(pattern));
         }
         rebuildProgressState();
-        logSharedProgressAliases();
     }
 
     public ECOExecutionPlan plan() {
@@ -253,41 +248,6 @@ public final class ECOExecutionRuntime {
             }
         }
         text.append(']');
-        return text.length() <= 2048 ? text.toString() : text.substring(0, 2048) + "...";
-    }
-
-    String describeDispatchState(DispatchCandidate candidate) {
-        int phaseIndex = candidate.phaseIndex();
-        if (phaseIndex < 0 || phaseIndex >= plan.phases()
-            .size()) return "phase=<invalid>";
-        var phase = plan.phases()
-            .get(phaseIndex);
-        var text = new StringBuilder("phase=").append(phaseIndex)
-            .append(':')
-            .append(phase.type())
-            .append(" completed=")
-            .append(completedPhases.get(phaseIndex))
-            .append(" dependencies=")
-            .append(remainingDependencies[phaseIndex])
-            .append(" unfinishedTasks=")
-            .append(unfinishedTasksByPhase[phaseIndex])
-            .append(" startupSeeds=")
-            .append(startupSeedRemainingByPhase.get(phaseIndex));
-        if (phase.type() == ECOExecutionSchedule.Type.CYCLE) {
-            text.append(" cycleStep=")
-                .append(stepCursor[phaseIndex])
-                .append('/')
-                .append(
-                    phase.steps()
-                        .size());
-            if (stepCursor[phaseIndex] < remainingSteps.get(phaseIndex).length) {
-                text.append(" stepRemaining=")
-                    .append(remainingSteps.get(phaseIndex)[stepCursor[phaseIndex]]);
-            }
-        } else if (phase.type() == ECOExecutionSchedule.Type.DYNAMIC_CYCLE) {
-            text.append(" dynamicFirings=")
-                .append(remainingDynamicFirings.get(phaseIndex));
-        }
         return text.length() <= 2048 ? text.toString() : text.substring(0, 2048) + "...";
     }
 
@@ -386,17 +346,7 @@ public final class ECOExecutionRuntime {
             && completedPhases.cardinality() < plan.phases()
                 .size()) {
             reconciledEmptyCandidates = true;
-            String before = PlanningSettings.Crafting.ecoDispatchWatchdogDebug ? describeProgressCache() : null;
             rebuildProgressState();
-            if (PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
-                String after = describeProgressCache();
-                if (!Objects.equals(before, after)) {
-                    LOGGER.warn(
-                        "[ECO Execution Cache Reconciliation] repaired stale cache before=[{}] after=[{}]",
-                        before,
-                        after);
-                }
-            }
             return candidatesInternal(null, false);
         }
         return cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf();
@@ -1337,39 +1287,6 @@ public final class ECOExecutionRuntime {
         unfinishedTasksByPhase[phaseIndex] = unfinished;
     }
 
-    private String describeProgressCache() {
-        var text = new StringBuilder("completed=").append(completedPhases.cardinality())
-            .append('/')
-            .append(
-                plan.phases()
-                    .size())
-            .append(" mismatches=[");
-        int mismatches = 0;
-        int included = 0;
-        for (int phaseIndex = 0; phaseIndex < plan.phases()
-            .size(); phaseIndex++) {
-            int actual = actualUnfinishedTasks(phaseIndex);
-            int cached = unfinishedTasksByPhase[phaseIndex];
-            if (actual == cached) continue;
-            mismatches++;
-            if (included >= MAX_DIAGNOSTIC_PHASES) continue;
-            if (included++ > 0) text.append(',');
-            text.append("phase=")
-                .append(phaseIndex)
-                .append(" cached=")
-                .append(cached)
-                .append(" actual=")
-                .append(actual);
-        }
-        if (mismatches > included) text.append(",...")
-            .append(mismatches - included)
-            .append(" omitted");
-        text.append("] remainingDependencies=")
-            .append(Arrays.toString(remainingDependencies));
-        return text.length() <= MAX_DIAGNOSTIC_LENGTH ? text.toString()
-            : text.substring(0, MAX_DIAGNOSTIC_LENGTH) + "...";
-    }
-
     private int actualUnfinishedTasks(int phaseIndex) {
         int actual = 0;
         for (int taskId : plan.phases()
@@ -1421,12 +1338,6 @@ public final class ECOExecutionRuntime {
         }
         if (aliases.length > limit) text.append(",...");
         text.append(']');
-    }
-
-    private void logSharedProgressAliases() {
-        if (!PlanningSettings.Crafting.ecoDispatchWatchdogDebug || progressByTaskId == null) return;
-        String aliases = describeProgressAliases();
-        if (!"[]".equals(aliases)) LOGGER.warn("[ECO Execution] shared TaskProgress aliases={}", aliases);
     }
 
     private void maybeCompletePhase(int phaseIndex) {
@@ -1542,22 +1453,18 @@ public final class ECOExecutionRuntime {
     /** Rebuilds cycle-only progress from the one-to-one live task counters that record accepted provider pushes. */
     private void reconcileCycleProgress() {
         if (progressByTaskId == null) return;
-        boolean changed = false;
         for (int phaseIndex = 0; phaseIndex < plan.phases()
             .size(); phaseIndex++) {
             var phase = plan.phases()
                 .get(phaseIndex);
             if (phase.type() == ECOExecutionSchedule.Type.CYCLE && !phase.steps()
                 .isEmpty()) {
-                long[] steps = remainingSteps.get(phaseIndex);
                 long[] completedByTask = new long[plan.tasks()
                     .size()];
                 for (int taskId : phase.taskIds()) {
                     completedByTask[taskId] = Math.max(0L, completedTaskCount(taskId));
                 }
-                long[] before = steps.clone();
                 restoreOrderedProgress(phaseIndex, completedByTask);
-                changed |= !Arrays.equals(before, steps);
                 stepCursor[phaseIndex] = 0;
                 advanceFinishedSteps(phaseIndex);
             } else if (phase.type() == ECOExecutionSchedule.Type.DYNAMIC_CYCLE) {
@@ -1573,13 +1480,9 @@ public final class ECOExecutionRuntime {
                     long rebuilt = Math.max(0L, initial.getValue() - completed);
                     if (dynamic.getOrDefault(taskId, -1L) != rebuilt) {
                         dynamic.put(taskId, rebuilt);
-                        changed = true;
                     }
                 }
             }
-        }
-        if (changed && PlanningSettings.Crafting.ecoDispatchWatchdogDebug) {
-            LOGGER.warn("[ECO Execution] reconciled cycle witness counters to accepted AE2 task progress");
         }
     }
 

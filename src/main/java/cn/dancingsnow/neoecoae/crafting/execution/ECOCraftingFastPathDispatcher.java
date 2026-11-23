@@ -1,33 +1,19 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Consumer;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.energy.IEnergyGrid;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.me.ECOFastPathFacade;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
-import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
 
 /**
  * Optional batch dispatch boundary. It owns FastPath preparation, energy reservation, physical push, and rollback;
  * the task scheduler only observes an accepted immutable result.
  */
 final class ECOCraftingFastPathDispatcher {
-
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
-    // Server-thread only; release diagnostics when this CPU starts another job.
-    private final Set<ExactDiagnosticKey> exactDiagnostics = new HashSet<>();
-    private java.util.UUID diagnosticJob;
-
-    @com.github.bsideup.jabel.Desugar
-    private record ExactDiagnosticKey(Object provider, Object pattern, String reason) {}
 
     private final Object dynamicOutputOwner;
     private final ECOCraftingEnergyTransaction energyTransaction;
@@ -57,23 +43,18 @@ final class ECOCraftingFastPathDispatcher {
         @Nullable Long dispatchLimit) {
         if (!request.job().exactOrder
             || !(request.inventory() instanceof cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory inventory)) {
-            exactDiagnostic(request, provider, "not-an-exact-inventory", null);
             return null;
         }
         var target = ECOFastPathFacade.resolveProvider(provider);
         if (target == null) {
-            exactDiagnostic(request, provider, "no-fast-path-adapter", null);
             return null;
         }
         var initialRequest = request.job().tasks.get(request.pattern())
             .remainingExact();
         var requested = dispatchLimit == null ? initialRequest
             : initialRequest.min(java.math.BigInteger.valueOf(dispatchLimit));
-        exactDiagnostic(request, provider, "requested", requested);
         var runtime = request.job().executionRuntime;
         if (runtime != null) requested = runtime.exactAllowance(request.candidate(), requested);
-        exactDiagnostic(request, provider, "after-runtime-allowance", requested);
-        var runtimeAllowance = requested;
         if (!Double.isFinite(singlePower) || singlePower < 0) return null;
         if (singlePower > 0) {
             requested = cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOBatchCraftingHelper.maxAffordableCrafts(
@@ -84,11 +65,9 @@ final class ECOCraftingFastPathDispatcher {
                     appeng.api.config.Actionable.SIMULATE,
                     appeng.api.config.PowerMultiplier.CONFIG));
             if (requested.signum() <= 0) {
-                exactDiagnostic(request, provider, "energy-limit", requested);
                 return null;
             }
         }
-        exactDiagnostic(request, provider, "after-energy-allowance", requested);
         var context = cn.dancingsnow.neoecoae.api.me.provider.ECOBatchDispatchContext.create(
             request.pattern(),
             request.inputs(),
@@ -96,45 +75,24 @@ final class ECOCraftingFastPathDispatcher {
             request.remainders(),
             request.level(),
             request.job().link.getCraftingID());
-        var energyAllowance = requested;
-        var materialAllowance = new java.math.BigInteger[1];
         var batch = cn.dancingsnow.neoecoae.crafting.execution.batch.ECOExactBatchPlanner.prepare(
             target,
             context,
             inventory,
             requested,
             runtime == null ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf()
-                : runtime.protectedStartupSeed(request.candidate()),
-            amount -> {
-                materialAllowance[0] = amount;
-                exactDiagnostic(request, provider, "after-material-allowance", amount);
-            });
+                : runtime.protectedStartupSeed(request.candidate()));
         if (batch == null) {
-            exactDiagnostic(request, provider, "provider-rejected-or-long-only", requested);
             return null;
         }
-        exactDiagnostic(
-            request,
-            provider,
-            "provider-admitted",
-            batch.craftCount(),
-            () -> "initial=" + initialRequest
-                + " runtime="
-                + runtimeAllowance
-                + " energy="
-                + energyAllowance
-                + " material="
-                + materialAllowance[0]);
 
         var energy = energyTransaction.reserve(energyService, singlePower, batch.craftCount());
         if (energy == null) {
-            exactDiagnostic(request, provider, "exact-energy-reservation-failed", batch.craftCount());
             return null;
         }
         recordAttempt.accept(provider);
         try {
             if (!batch.submit(energy)) {
-                exactDiagnostic(request, provider, "provider-commit-rejected", batch.craftCount());
                 return null;
             }
         } catch (ECOIndeterminateBatchException failure) {
@@ -150,40 +108,12 @@ final class ECOCraftingFastPathDispatcher {
         return batch.craftCount();
     }
 
-    private void exactDiagnostic(ECOCraftingDispatchRequest request, ICraftingProvider provider, String reason,
-        java.math.BigInteger amount) {
-        exactDiagnostic(request, provider, reason, amount, () -> "");
-    }
-
-    private void exactDiagnostic(ECOCraftingDispatchRequest request, ICraftingProvider provider, String reason,
-        java.math.BigInteger amount, java.util.function.Supplier<String> details) {
-        var jobId = request.job().link.getCraftingID();
-        if (!java.util.Objects.equals(jobId, diagnosticJob)) {
-            exactDiagnostics.clear();
-            diagnosticJob = jobId;
-        }
-        var key = new ExactDiagnosticKey(provider, request.pattern(), reason);
-        if (exactDiagnostics.size() < 4096 && exactDiagnostics.add(key)) {
-            LOGGER.warn(
-                "[big-order] exact dispatch diagnostic reason={} requested={} provider={} job={} pattern={} inputs={} limits={}",
-                reason,
-                amount,
-                provider.getClass()
-                    .getName(),
-                jobId,
-                request.pattern()
-                    .getOutputs(),
-                java.util.Arrays.toString(request.inputs()),
-                details.get());
-        }
-    }
-
     /**
      * Attempts only the optional batch path. {@code null} means ordinary one-copy fallback remains available.
      */
     @Nullable
     ECOCraftingDispatchResult tryDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
-        double singlePower, IEnergyGrid energyService, ECODispatchStallDiagnostics diagnostics,
+        double singlePower, IEnergyGrid energyService,
         Consumer<ICraftingProvider> recordProviderAttempt) {
         ECOFastPathFacade.PreparedBatch batch = ECOFastPathFacade.prepare(
             provider,
@@ -218,11 +148,9 @@ final class ECOCraftingFastPathDispatcher {
         } catch (ECOIndeterminateBatchException failure) {
             accounting.failPermanently(request, "INDETERMINATE_FAST_PATH_ACCEPTANCE");
             throw failure;
-        } catch (RuntimeException failure) {
-            LOGGER.warn("Atomic batch rejected; inputs restored, trying ordinary provider push", failure);
+        } catch (RuntimeException ignored) {
         }
         if (!accepted) {
-            diagnostics.batchRejected(request.pattern(), provider);
             return null;
         }
 
@@ -234,7 +162,6 @@ final class ECOCraftingFastPathDispatcher {
             accounting.failPermanently(request, "POST_ACCEPT_FAST_PATH_ACCOUNTING_FAILURE");
             throw failure;
         }
-        diagnostics.progress(TickClock.currentTick());
         return result;
     }
 
