@@ -38,7 +38,6 @@ public final class BasicBlocks {
         } catch (java.io.IOException error) {
             throw new IllegalStateException("Cannot read source block catalog", error);
         }
-        cn.dancingsnow.neoecoae.NeoECOAE.LOG.info("NEOECOAE_BASIC_BLOCKS_REGISTERED count={}", BLOCKS.size());
     }
 
     public static Map<String, Block> blocks() {

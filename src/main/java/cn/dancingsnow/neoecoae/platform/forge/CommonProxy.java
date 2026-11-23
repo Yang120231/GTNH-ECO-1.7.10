@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.platform.forge;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-import cn.dancingsnow.neoecoae.Tags;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -9,7 +7,6 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
-        NeoECOAE.LOG.info("Neo ECO AE Extension {} (GTNH business port)", Tags.VERSION);
         try {
             PlanningSettings.register();
         } catch (com.gtnewhorizon.gtnhlib.config.ConfigException failure) {

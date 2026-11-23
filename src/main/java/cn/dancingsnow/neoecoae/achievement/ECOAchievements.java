@@ -17,7 +17,6 @@ import net.minecraftforge.common.util.FakePlayer;
 
 import com.google.gson.JsonObject;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.platform.recipe.SourceRecipes;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.PlayerEvent;
@@ -113,7 +112,6 @@ public final class ECOAchievements {
         cpw.mods.fml.common.FMLCommonHandler.instance()
             .bus()
             .register(new Events());
-        NeoECOAE.LOG.info("NEOECOAE_ACHIEVEMENTS_REGISTERED count={}", ACHIEVEMENTS.size());
     }
 
     private static Item item(String id) {

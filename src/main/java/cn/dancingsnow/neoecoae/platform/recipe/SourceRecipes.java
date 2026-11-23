@@ -18,7 +18,6 @@ import com.google.gson.JsonParser;
 import appeng.api.AEApi;
 import appeng.api.features.InscriberProcessType;
 import appeng.core.features.registries.entries.InscriberRecipe;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cpw.mods.fml.common.Loader;
 import cpw.mods.fml.common.registry.GameRegistry;
 
@@ -90,12 +89,6 @@ public final class SourceRecipes {
             }
         }
         WorldTransformRecipes.bind();
-        var counts = new LinkedHashMap<String, Integer>();
-        for (String status : STATUS.values()) counts.merge(status.split(":", 2)[0], 1, Integer::sum);
-        NeoECOAE.LOG.info("NEOECOAE_SOURCE_RECIPES_REGISTERED totals={} native_crafting={}", counts, CRAFTING.size());
-        for (var entry : STATUS.entrySet()) if (entry.getValue()
-            .startsWith("pending:"))
-            NeoECOAE.LOG.debug("Source recipe deferred {} {}", entry.getKey(), entry.getValue());
     }
 
     private static boolean condition(JsonObject condition) {

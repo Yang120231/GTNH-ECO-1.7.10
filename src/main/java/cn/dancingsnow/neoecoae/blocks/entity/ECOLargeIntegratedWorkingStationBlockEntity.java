@@ -12,8 +12,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
@@ -327,8 +325,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         saveAdditional(result, cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);
         return result;
     }
-
-    private static final Logger LOGGER = LogManager.getLogger(ECOLargeIntegratedWorkingStationBlockEntity.class);
 
     private static final int MAX_PROCESSING_STEPS = 200;
 
@@ -2086,10 +2082,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
                 + countStackEntries(missingExtras)
                 + (unlockStack == null ? 0L : 1L);
             if (saveStackCount > MAX_SAVE_STACKS) {
-                LOGGER.error(
-                    "Skipping oversized large workstation batch save at {}: {} stack entries",
-                    createdTick,
-                    saveStackCount);
                 tag.putBoolean("pendingStateTooLarge", true);
                 return tag;
             }
@@ -2112,7 +2104,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         @Nullable
         private static PendingBatch load(CompoundTag tag, HolderLookup.Provider registries, long currentTick) {
             if (tag.getBoolean("pendingStateTooLarge")) {
-                LOGGER.error("Discarding a large workstation batch whose persisted state exceeded the save limit");
                 return null;
             }
             long craftCount = tag.getLong("craftCount");

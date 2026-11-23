@@ -218,10 +218,5 @@ public final class CoreItemCatalog {
             NativeContent.items()
                 .keySet()))
             throw new IllegalStateException("Core item catalog differs from native registrations");
-        cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
-            "NEOECOAE_CORE_ITEMS_REGISTERED count={} source={}",
-            expected.size(),
-            DATA.get("source_commit")
-                .getAsString());
     }
 }

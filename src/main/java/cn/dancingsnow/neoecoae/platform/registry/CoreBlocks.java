@@ -12,7 +12,6 @@ import net.minecraft.item.ItemStack;
 
 import com.google.gson.JsonParser;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cpw.mods.fml.common.registry.GameRegistry;
 
 /** Complete source identities, including blocks whose machine behavior is still being ported. */
@@ -64,7 +63,6 @@ public final class CoreBlocks {
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("Cannot read complete source block catalog", failure);
         }
-        NeoECOAE.LOG.info("NEOECOAE_CORE_BLOCKS_REGISTERED total={} pending_behavior={}", BLOCKS.size(), pending);
     }
 
     public static net.minecraft.item.EnumRarity rarity(String id) {

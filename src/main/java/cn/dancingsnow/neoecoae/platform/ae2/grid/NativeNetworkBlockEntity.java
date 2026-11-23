@@ -195,11 +195,8 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
 
     /** AE2's "no owner" player id. */
     public static final int UNOWNED = -1;
-    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
-        .getLogger("neoecoae");
     /** Owner requested before AE2 created the node (placement happens one tick before onReady). */
     private int pendingOwnerId = UNOWNED;
-    private long lastSecurityBreakLog = Long.MIN_VALUE;
 
     /**
      * AE2 player id that owns this node, or {@link #UNOWNED}. AE2's own blocks record it through
@@ -243,22 +240,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
      * next to a secured network. The rejected connection is simply not made, so keeping the block is safe.
      */
     @Override
-    public void securityBreak() {
-        if (worldObj == null) return;
-        long now = worldObj.getTotalWorldTime();
-        if (lastSecurityBreakLog == Long.MIN_VALUE || now - lastSecurityBreakLog >= 200) {
-            lastSecurityBreakLog = now;
-            LOGGER.warn(
-                "AE2 refused a grid connection for {} at {} {} {} (dim {}, owner id {}); the block is kept but stays "
-                    + "disconnected on that side. Check Security Terminal BUILD permission for the owner.",
-                getClass().getSimpleName(),
-                xCoord,
-                yCoord,
-                zCoord,
-                worldObj.provider.dimensionId,
-                getOwnerPlayerId());
-        }
-    }
+    public void securityBreak() {}
 
     private static BlockState mergeFacing(BlockState stored, BlockState metadata) {
         if (stored.hasProperty(BlockStateProperties.HORIZONTAL_FACING)) return stored.setValue(

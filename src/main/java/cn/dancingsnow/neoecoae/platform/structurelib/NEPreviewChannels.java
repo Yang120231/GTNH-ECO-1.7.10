@@ -24,8 +24,6 @@ public final class NEPreviewChannels {
             if (preview.allowsMirror) setMaxTier.invoke(data, 1, Collections.singleton(NEStructureLib.CHANNEL_MIRROR));
             return data;
         } catch (ReflectiveOperationException failure) {
-            org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                .warn("Unable to publish ECO structure preview channels", failure);
             return data;
         }
     }

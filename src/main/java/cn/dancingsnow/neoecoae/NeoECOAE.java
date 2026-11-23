@@ -1,8 +1,5 @@
 package cn.dancingsnow.neoecoae;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import cn.dancingsnow.neoecoae.platform.forge.CommonProxy;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
@@ -21,7 +18,6 @@ import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 public class NeoECOAE {
 
     public static final String MODID = "neoecoae";
-    public static final Logger LOG = LogManager.getLogger(MODID);
 
     @Mod.Instance(MODID)
     public static NeoECOAE instance;

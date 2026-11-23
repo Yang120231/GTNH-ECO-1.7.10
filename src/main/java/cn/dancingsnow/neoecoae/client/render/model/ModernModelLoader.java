@@ -171,7 +171,6 @@ public final class ModernModelLoader {
             JsonElement elementValue = elements.get(i);
             JsonObject elementJson = elementValue.getAsJsonObject();
             if (hasUnsupportedRotation(elementJson)) {
-                NeoECOAE.LOG.warn("Skipping non-zero model element rotation in lightweight renderer");
                 continue;
             }
 

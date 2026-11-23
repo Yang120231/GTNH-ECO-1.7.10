@@ -36,7 +36,6 @@ final class GregTechMachineRecipes {
     static void register() {
         if (registered) throw new IllegalStateException("GT machine recipes installed twice");
         int definitions = 0;
-        int variants = 0;
         for (var entry : SourceRecipes.read(GTRecipeProfile.CATALOG)
             .getAsJsonArray("files")) {
             var file = entry.getAsJsonObject();
@@ -45,7 +44,7 @@ final class GregTechMachineRecipes {
                 .equals("gt_legacy")) continue;
             String id = file.get("id")
                 .getAsString();
-            variants += install(
+            install(
                 id,
                 GTRecipeProfile.normalize(
                     SourceRecipes.read(
@@ -55,14 +54,10 @@ final class GregTechMachineRecipes {
         }
         if (definitions != 19)
             throw new IllegalStateException("Incomplete authorized 1.20.1 GT machine source catalog");
-        variants += registerEnergizedCrystalSeed();
-        variants += registerEnergizedCrystalGrinding();
-        variants += registerSuperconductingCircuitPressing();
+        registerEnergizedCrystalSeed();
+        registerEnergizedCrystalGrinding();
+        registerSuperconductingCircuitPressing();
         registered = true;
-        NeoECOAE.LOG.info(
-            "NEOECOAE_NATIVE_GT_RECIPES_REGISTERED definitions={} variants={} source=024b73da",
-            definitions,
-            variants);
     }
 
     private static int install(String id, JsonObject source) {
