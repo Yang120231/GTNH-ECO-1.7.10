@@ -39,10 +39,12 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
 
 /**
@@ -233,12 +235,23 @@ public final class ECOCraftingStatusTracker {
             if (!next.containsKey(key)) removed.add(key.toTagGeneric(RegistryAccess.EMPTY));
         }
         boolean deliveryBlocked = logic.isFinalOutputDeliveryBlocked();
+        ListTag blockedOutputs = new ListTag();
+        if (deliveryBlocked) {
+            KeyCounter retained = new KeyCounter();
+            logic.collectBlockedFinalOutputs(retained);
+            for (var entry : retained) {
+                blockedOutputs.add(
+                    GenericStack
+                        .writeTag(RegistryAccess.EMPTY, new GenericStack(entry.getKey(), entry.getLongValue())));
+            }
+        }
         boolean patternUnavailable = logic.hasUnavailableProcessingPattern();
         String singleProcessing = logic.getSingleProcessingReason();
         long dispatchCopyLimit = logic.getDispatchCopyLimit();
         if (!reset && entries.isEmpty()
             && removed.isEmpty()
             && deliveryBlocked == tracked.processing.getBoolean("deliveryBlocked")
+            && blockedOutputs.equals(tracked.processing.getList("blockedOutputs", Tag.TAG_COMPOUND))
             && patternUnavailable == tracked.processing.getBoolean("patternUnavailable")
             && singleProcessing.equals(tracked.processing.getString("singleProcessing"))
             && dispatchCopyLimit == tracked.processing.getLong("dispatchCopyLimit")) return;
@@ -246,6 +259,7 @@ public final class ECOCraftingStatusTracker {
         payload.putBoolean("eco", true);
         payload.putInt("cpuSerial", serial);
         payload.putBoolean("deliveryBlocked", deliveryBlocked);
+        if (!blockedOutputs.isEmpty()) payload.put("blockedOutputs", blockedOutputs);
         payload.putBoolean("patternUnavailable", patternUnavailable);
         payload.putString("singleProcessing", singleProcessing);
         payload.putLong("dispatchCopyLimit", dispatchCopyLimit);

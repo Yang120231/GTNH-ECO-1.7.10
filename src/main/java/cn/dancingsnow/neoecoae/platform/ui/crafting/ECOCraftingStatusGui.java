@@ -62,7 +62,10 @@ import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
 import cn.dancingsnow.neoecoae.crafting.display.format.NEByteFormatter;
 import cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
+import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -144,6 +147,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private boolean unsupported;
     private final GuiScrollbar taskScroll = new GuiScrollbar();
     private final Map<IAEStack<?>, CraftingCpuEntry> entries = new LinkedHashMap<>();
+    private Map<IAEStack<?>, Long> blockedOutputs = Collections.emptyMap();
     private List<CraftingCpuEntry> visible = Collections.emptyList();
     /** The layout currently applied; changed only through {@link #setWorldAndResolution}. */
     private boolean ecoLayout;
@@ -480,7 +484,20 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             : searchField.getText()
                 .toLowerCase(Locale.ROOT);
         List<CraftingCpuEntry> result = new ArrayList<>(entries.size());
-        for (CraftingCpuEntry entry : entries.values()) {
+        blockedOutputs.forEach((stack, amount) -> {
+            CraftingCpuEntry entry = entries.get(stack);
+            if (entry == null) entry = new CraftingCpuEntry(stack, amount, 0, 0, ScheduledReason.UNDEFINED);
+            else if (entry.getStoredAmount() < amount) entry = new CraftingCpuEntry(
+                stack,
+                amount,
+                entry.getActiveAmount(),
+                entry.getPendingAmount(),
+                entry.getScheduledReason());
+            if (entry.matchesSearch(query)) result.add(entry);
+        });
+        for (var row : entries.entrySet()) {
+            if (blockedOutputs.containsKey(row.getKey())) continue;
+            CraftingCpuEntry entry = row.getValue();
             if (hideStored && !entry.isVisibleWhenHideStoredEnabled()) continue;
             if (!entry.matchesSearch(query)) continue;
             result.add(entry);
@@ -697,6 +714,22 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         tasksDirty = true;
         boolean current = tag.contains("cpuSerial") && tag.getInt("cpuSerial") == serial;
         finalOutputDeliveryBlocked = current && tag.getBoolean("deliveryBlocked");
+        Map<IAEStack<?>, Long> nextBlockedOutputs = Collections.emptyMap();
+        if (finalOutputDeliveryBlocked) {
+            nextBlockedOutputs = new LinkedHashMap<>();
+            var outputs = tag.getList("blockedOutputs", Tag.TAG_COMPOUND);
+            for (int index = 0; index < outputs.size(); index++) {
+                GenericStack output = GenericStack.readTag(RegistryAccess.EMPTY, outputs.getCompound(index));
+                if (output != null && output.amount() > 0) nextBlockedOutputs.put(
+                    output.what()
+                        .toNative(1),
+                    output.amount());
+            }
+        }
+        if (!blockedOutputs.equals(nextBlockedOutputs)) {
+            blockedOutputs = nextBlockedOutputs;
+            updateScrollBar();
+        }
         patternUnavailable = current && tag.getBoolean("patternUnavailable");
         singleProcessing = current ? tag.getString("singleProcessing") : "";
         dispatchCopyLimit = current && tag.contains("dispatchCopyLimit") ? tag.getLong("dispatchCopyLimit")

@@ -15,6 +15,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
+import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
@@ -26,6 +27,7 @@ final class ECOCraftingOutputDelivery {
 
     private final ECOCraftingCPULogic host;
     private final Object2LongLinkedOpenHashMap<AEKey> pendingFinalOutputs = new Object2LongLinkedOpenHashMap<>();
+    private final KeyCounter blockedFinalOutputs = new KeyCounter();
     private boolean deliveringFinalOutput;
     private boolean receivingExactOutput;
     private @Nullable ExecutingCraftingJob blockedDeliveryJob;
@@ -36,7 +38,7 @@ final class ECOCraftingOutputDelivery {
 
     void clearPendingFinalOutputs() {
         pendingFinalOutputs.clear();
-        blockedDeliveryJob = null;
+        clearBlockedDelivery();
     }
 
     boolean isFinalOutputDeliveryBlocked() {
@@ -49,6 +51,21 @@ final class ECOCraftingOutputDelivery {
                 .hasPendingTasks(current);
     }
 
+    void collectBlockedFinalOutputs(KeyCounter output) {
+        if (!isFinalOutputDeliveryBlocked()) return;
+        var inventory = host.getInventory().list;
+        for (var entry : blockedFinalOutputs) {
+            AEKey key = entry.getKey();
+            long amount = Math.min(entry.getLongValue(), inventory.get(key));
+            if (amount > 0) output.set(key, amount);
+        }
+    }
+
+    private void clearBlockedDelivery() {
+        blockedDeliveryJob = null;
+        blockedFinalOutputs.clear();
+    }
+
     boolean hasPendingFinalOutputs() {
         return !pendingFinalOutputs.isEmpty();
     }
@@ -59,7 +76,7 @@ final class ECOCraftingOutputDelivery {
     }
 
     void deliverStoredFinalOutput() {
-        blockedDeliveryJob = null;
+        clearBlockedDelivery();
         var current = host.getJob();
         if (current == null) {
             return;
@@ -459,7 +476,10 @@ final class ECOCraftingOutputDelivery {
                 inserted = current.link.insert(key, amount, Actionable.MODULATE);
             }
             long accepted = clampRoutedAmount(inserted, amount);
-            if (accepted < amount) blockedDeliveryJob = current;
+            if (accepted < amount) {
+                blockedDeliveryJob = current;
+                blockedFinalOutputs.set(key, amount - accepted);
+            }
             return accepted;
         } catch (RuntimeException failure) {
             return 0L;

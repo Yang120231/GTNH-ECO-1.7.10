@@ -754,6 +754,10 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return outputDelivery.isFinalOutputDeliveryBlocked();
     }
 
+    public void collectBlockedFinalOutputs(KeyCounter output) {
+        outputDelivery.collectBlockedFinalOutputs(output);
+    }
+
     public boolean hasUnavailableProcessingPattern() {
         return job != null && job.hasUnavailableProcessingPattern();
     }
