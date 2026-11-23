@@ -10,9 +10,7 @@ import net.minecraft.tileentity.TileEntity;
 import org.jetbrains.annotations.MustBeInvokedByOverriders;
 import org.jetbrains.annotations.Nullable;
 
-import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineCasingBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
@@ -20,7 +18,6 @@ import cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.IAECluster;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
-import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 
 public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
@@ -119,8 +116,6 @@ public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
             gridInterface.getMainNode()
                 .setIdlePowerUsage(total);
             if (!gridInterface.setDeferredGridNode(true)) return;
-            if (opening && !gridInterface.getCalculator()
-                .restrictsLegacyGridSides()) warnAboutOldWiring(level);
             if (force || opening || dirtyGridFaces) gridInterface.getMainNode()
                 .updateExposedOnSides(gridInterface.getGridConnectableSides(), true);
             dirtyGridFaces = false;
@@ -128,24 +123,6 @@ public abstract class NECluster<T extends NECluster<T>> implements IAECluster {
         } finally {
             MBCalculator.resumeGridRebuilds();
             profiler.endSection();
-        }
-    }
-
-    private void warnAboutOldWiring(ServerWorldView level) {
-        for (TileEntity tile : blockEntities) {
-            if (tile == gridInterface || !(tile instanceof NEBlockEntity<?, ?>member)) continue;
-            for (Direction side : Direction.values()) {
-                var adjacent = member.getBlockPos()
-                    .relative(side);
-                if (!containsPosition(adjacent) && level.getBlockEntity(adjacent) instanceof IGridHost) {
-                    NeoECOAE.LOG.warn(
-                        "Compact ECO host at {} (dim {}): ME device next to non-interface part at {}; move the ME connection to the communication interface",
-                        gridInterface.getBlockPos(),
-                        level.nativeWorld().provider.dimensionId,
-                        member.getBlockPos());
-                    return;
-                }
-            }
         }
     }
 

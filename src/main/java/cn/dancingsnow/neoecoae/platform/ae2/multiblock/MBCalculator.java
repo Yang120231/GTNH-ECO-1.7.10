@@ -23,7 +23,6 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
     private static final Direction[] MIN_SIDES = { Direction.WEST, Direction.DOWN, Direction.NORTH };
     private static final Direction[] MAX_SIDES = { Direction.EAST, Direction.UP, Direction.SOUTH };
     private static final long CHECK_BUDGET_NANOS = 5_000_000L;
-    private static final boolean PROFILE_CHECKS = Boolean.getBoolean("neoecoae.profileMultiblocks");
     protected final T target;
     private final StorageFaults faults = new StorageFaults();
 
@@ -80,13 +79,6 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
                 if (newRequests != null) remaining.putAll(newRequests);
             }
             resumeGridRebuilds();
-            if (PROFILE_CHECKS) cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
-                "ECO structure batch tick={} queued={} checked={} deferred={} total_us={}",
-                level.getGameTime(),
-                queued,
-                checked,
-                remaining.size(),
-                (System.nanoTime() - started) / 1_000);
         }
     }
 
@@ -120,21 +112,12 @@ public abstract class MBCalculator<T extends IAEMultiBlock<C>, C extends IAEClus
         pauseGridRebuilds();
         var profiler = level.getServer()
             .nativeServer().theProfiler;
-        long started = PROFILE_CHECKS ? System.nanoTime() : 0;
         profiler.startSection("ecoStructureCheck");
         try {
             calculate(level, location, remaining);
         } finally {
             profiler.endSection();
             resumeGridRebuilds();
-            if (PROFILE_CHECKS) cn.dancingsnow.neoecoae.NeoECOAE.LOG.info(
-                "ECO structure check tick={} calculator={} pos={}, {}, {} elapsed_us={}",
-                level.getGameTime(),
-                getClass().getSimpleName(),
-                location.getX(),
-                location.getY(),
-                location.getZ(),
-                (System.nanoTime() - started) / 1_000);
         }
     }
 
