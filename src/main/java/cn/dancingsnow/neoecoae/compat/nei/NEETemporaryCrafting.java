@@ -12,6 +12,7 @@ import appeng.api.networking.security.ISecurityGrid;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.container.AEBaseContainer;
 import appeng.container.implementations.ContainerCraftConfirm;
+import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOPlanning;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
@@ -84,7 +85,8 @@ public final class NEETemporaryCrafting {
         var host = NativeECOPlanning.settings(grid, IActionSource.of(container.getActionSource()));
         if (host == null || !host.isFastPlannerEnabled()) return false;
         List<GenericStack> requests = TemporaryCraftingOrder.normalize(ingredients);
-        if (requests.size() < 2 || !NativeECOPlanning.supportsOrder(grid, requests)) return false;
+        if (requests.size() < 2 || !NativeECOPlanning.supportsOrder(grid, requests, ECOPlannerOptions.from(host)))
+            return false;
         IStorageGrid storage = grid.getCache(IStorageGrid.class);
         for (var request : requests) {
             var stack = request.what()

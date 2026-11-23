@@ -1,12 +1,10 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu;
 
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Set;
-import java.util.function.Function;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
@@ -29,22 +27,10 @@ final class NativePlannerRouting {
     private NativePlannerRouting() {}
 
     /** @return the reason AE2's planner is required, or null if the ECO planner models every reachable pattern. */
-    static String nativeOnlyReason(IGrid grid, IAEStack<?> output) {
+    private static String nativeOnlyReason(IGrid grid, IAEStack<?> output, boolean ignorePatternSubstitutions) {
         var cache = grid.getCache(ICraftingGrid.class);
-        if (!(cache instanceof CraftingGridCache)) return null;
-        var catalog = ((CraftingGridCache) cache).getCraftingMultiPatterns();
-        return nativeOnlyReason(catalog::get, output, (CraftingGridCache) cache);
-    }
-
-    /** @param producersOf the native catalog lookup: patterns producing a stack, or null */
-    static String nativeOnlyReason(Function<IAEStack<?>, ? extends Collection<ICraftingPatternDetails>> producersOf,
-        IAEStack<?> output) {
-        return nativeOnlyReason(producersOf, output, null);
-    }
-
-    private static String nativeOnlyReason(
-        Function<IAEStack<?>, ? extends Collection<ICraftingPatternDetails>> producersOf, IAEStack<?> output,
-        CraftingGridCache cache) {
+        if (!(cache instanceof CraftingGridCache craftingCache)) return null;
+        var catalog = craftingCache.getCraftingMultiPatterns();
         Set<AEKey> visitedKeys = new HashSet<>();
         Set<ICraftingPatternDetails> visitedPatterns = Collections.newSetFromMap(new IdentityHashMap<>());
         var queue = new ArrayDeque<IAEStack<?>>();
@@ -53,32 +39,35 @@ final class NativePlannerRouting {
             IAEStack<?> stack = queue.poll();
             AEKey key = AEKey.fromNative(stack);
             if (key == null || !visitedKeys.add(key)) continue;
-            var producers = producersOf.apply(stack);
+            var producers = catalog.get(stack);
             if (producers == null) continue;
             for (var pattern : producers) {
                 if (!visitedPatterns.add(pattern)) continue;
                 if (visitedPatterns.size() > MAX_VISITED_PATTERNS) return null;
-                String reason = unsupported(pattern);
+                String reason = unsupported(pattern, ignorePatternSubstitutions);
                 if (reason != null) return reason;
-                var inputs = NativePatternDetails.expandInputs(pattern, cache, true);
+                var inputs = NativePatternDetails.expandInputs(pattern, craftingCache, true);
                 if (inputs == null) return "invalid tunnel pattern expansion";
-                for (var input : inputs) if (input != null) queue.add(input);
+                boolean dropEmpty = NativePatternDetails.mightHaveEmptyInputs(pattern);
+                for (var input : inputs)
+                    if (input != null && (!dropEmpty || input.getStackSize() > 0)) queue.add(input);
             }
         }
         return null;
     }
 
-    static String unsupported(ICraftingPatternDetails pattern) {
+    private static String unsupported(ICraftingPatternDetails pattern, boolean ignorePatternSubstitutions) {
         if (pattern.isInputOnly()) return "input-only pattern";
         // GTNH substitutes processing inputs with FuzzyMode.IGNORE_ALL; ECO only substitutes crafting recipes.
-        if (!pattern.isCraftable() && pattern.canSubstitute()) return "processing pattern with substitution";
+        if (!ignorePatternSubstitutions && !pattern.isCraftable() && pattern.canSubstitute())
+            return "processing pattern with substitution";
         return null;
     }
 
-    static boolean routeToNative(IGrid grid, IAEStack<?> output) {
+    static boolean routeToNative(IGrid grid, IAEStack<?> output, boolean ignorePatternSubstitutions) {
         String reason;
         try {
-            reason = nativeOnlyReason(grid, output);
+            reason = nativeOnlyReason(grid, output, ignorePatternSubstitutions);
         } catch (RuntimeException failure) {
             return true;
         }
