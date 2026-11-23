@@ -35,8 +35,7 @@ public abstract class PatternTermEncodeMixin implements PatternTermEncoder {
                     if (player.openContainer != container) return;
                     try {
                         ((PatternTermEncoder) container).neoecoae$encode();
-                    } catch (RuntimeException ignored) {
-                    } finally {
+                    } catch (RuntimeException ignored) {} finally {
                         PatternUploadService.afterEncoded(player);
                     }
                 });

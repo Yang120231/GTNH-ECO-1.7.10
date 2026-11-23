@@ -104,7 +104,6 @@ public final class ECOCellMutationBatch implements AutoCloseable {
         try {
             cell.flushBatchedChanges();
             RETRY.remove(cell);
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 }

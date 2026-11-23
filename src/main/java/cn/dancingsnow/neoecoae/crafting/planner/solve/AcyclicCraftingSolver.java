@@ -126,7 +126,8 @@ public final class AcyclicCraftingSolver {
 
     private Outcome solveGoals(CompiledNetwork network, PlannerInventorySnapshot inventory,
         Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Map<AEKey, Integer> initialChoices,
-        Set<IPatternDetails> deferredPatterns, boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
+        Set<IPatternDetails> deferredPatterns, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
         long amount = goals.getOrDefault(network.goal(), PlannerAmount.ZERO)
             .longValueExact();
         ECOPlanTrace trace = new ECOPlanTrace();
@@ -285,8 +286,7 @@ public final class AcyclicCraftingSolver {
      */
     private static SolveState solveStockBackedRoute(CompiledNetwork network, SolveWorkspace workspace,
         Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Set<IPatternDetails> deferredPatterns,
-        boolean ignorePatternSubstitutions, ECOCancellation cancellation)
-        throws InterruptedException {
+        boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
         PlannerCounter stock = new PlannerCounter();
         workspace.inventory()
             .initialize(stock);
@@ -391,7 +391,8 @@ public final class AcyclicCraftingSolver {
 
     private static SolveState expandDemands(CompiledNetwork network, AcyclicRoutePlan route, SolveWorkspace workspace,
         Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Set<IPatternDetails> deferredPatterns,
-        Set<AEKey> stockLeaves, boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
+        Set<AEKey> stockLeaves, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
+        throws InterruptedException {
         AEKey checkpointBefore = workspace.takeCheckpointTarget();
         boolean retryPossible = workspace.checkpointRetryPossible();
         Map<AEKey, CompiledPattern> selected = new LinkedHashMap<>();
@@ -432,8 +433,8 @@ public final class AcyclicCraftingSolver {
                     break;
                 }
             }
-            if (restored) restored = pending
-                .restorePrefix(saved.polled, saved.expanded, saved.selected, selected, cancellation);
+            if (restored)
+                restored = pending.restorePrefix(saved.polled, saved.expanded, saved.selected, selected, cancellation);
             if (!restored) {
                 workspace.checkpoint = null;
                 pending.reset(goals.keySet());

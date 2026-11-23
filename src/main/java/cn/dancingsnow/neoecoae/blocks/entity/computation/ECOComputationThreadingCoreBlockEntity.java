@@ -269,8 +269,7 @@ public class ECOComputationThreadingCoreBlockEntity extends
             if (finalOutput != null) {
                 out.add(finalOutput.what(), buffered);
             }
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 
     private static void addOwnedDrops(KeyCounter owned, List<ItemStack> drops, WorldView level, BlockPos pos) {
@@ -285,8 +284,7 @@ public class ECOComputationThreadingCoreBlockEntity extends
                     amount -= taken;
                     drops.add(itemKey.toStack(taken));
                 }
-            } else {
-            }
+            } else {}
         }
     }
 

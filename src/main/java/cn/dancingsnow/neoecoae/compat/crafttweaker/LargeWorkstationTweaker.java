@@ -33,8 +33,7 @@ public final class LargeWorkstationTweaker {
                 new RecipeAction(
                     "Add large workstation recipe " + recipe.id(),
                     () -> LargeWorkstationRecipes.addScriptRecipe(recipe)));
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) {}
     }
 
     @ZenMethod
@@ -47,8 +46,7 @@ public final class LargeWorkstationTweaker {
                     () -> LargeWorkstationRecipes.removeScriptRecipes(
                         recipe -> recipe.id()
                             .equals(key))));
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) {}
     }
 
     /** Matches item outputs (including script conditions), or fluid outputs passed as liquid ingredients. */

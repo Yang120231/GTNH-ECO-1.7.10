@@ -57,8 +57,7 @@ public final class PatternTransfer {
 
         try {
             from.set(fromSlot, copy(sourceAfter));
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         ItemStack sourceRead = from.get(fromSlot);
         if (PatternStacks.sameStack(sourceRead, sourceBefore)) return rejected(REASON_SOURCE_CHANGED);
         if (!PatternStacks.sameStack(sourceRead, sourceAfter))
@@ -66,8 +65,7 @@ public final class PatternTransfer {
 
         try {
             to.set(toSlot, copy(targetAfter));
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         ItemStack targetRead = to.get(toSlot);
         if (PatternStacks.sameStack(targetRead, targetAfter)) {
             changed(from);
@@ -85,8 +83,7 @@ public final class PatternTransfer {
     private static Result restore(PatternSlotAccess from, int slot, ItemStack before, String reason) {
         try {
             from.set(slot, copy(before));
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         if (PatternStacks.sameStack(from.get(slot), before)) return rejected(reason);
         changed(from);
         return new Result(Status.INDETERMINATE, REASON_INDETERMINATE);
@@ -95,8 +92,7 @@ public final class PatternTransfer {
     private static void changed(PatternSlotAccess access) {
         try {
             access.changed();
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 
     public static Result reject(String reason) {

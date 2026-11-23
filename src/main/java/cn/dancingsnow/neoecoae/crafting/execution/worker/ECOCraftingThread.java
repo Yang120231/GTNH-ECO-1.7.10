@@ -667,8 +667,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     }
 
     private void setProcessingBlockedByCoolant(boolean coolant) {
-        processingBlockReason = coolant
-            ? "gui.neoecoae.large_integrated_working_station.pause.coolant_insufficient"
+        processingBlockReason = coolant ? "gui.neoecoae.large_integrated_working_station.pause.coolant_insufficient"
             : "gui.neoecoae.large_integrated_working_station.pause.power_missing";
     }
 
@@ -1053,8 +1052,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
                         NEFakePlayer.getFakePlayer((WorldServer) worker.getNativeLevel()),
                         craftedOutput,
                         craftingInv));
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 
     private ItemStack firstOutputItem() {

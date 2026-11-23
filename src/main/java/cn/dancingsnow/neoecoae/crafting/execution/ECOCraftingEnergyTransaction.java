@@ -34,8 +34,7 @@ final class ECOCraftingEnergyTransaction {
         if (data.contains("prepaidEnergyCreditExact", cn.dancingsnow.neoecoae.platform.nbt.Tag.TAG_STRING)) {
             try {
                 prepaidEnergyCredit = new BigDecimal(data.getString("prepaidEnergyCreditExact")).max(BigDecimal.ZERO);
-            } catch (NumberFormatException ignored) {
-            }
+            } catch (NumberFormatException ignored) {}
         } else {
             double restored = data.getDouble("prepaidEnergyCredit");
             if (Double.isFinite(restored) && restored > 0) prepaidEnergyCredit = decimal(restored);
@@ -128,8 +127,7 @@ final class ECOCraftingEnergyTransaction {
                 .divide(multiplier, MathContext.DECIMAL128));
         try {
             service.injectPower(offered, Actionable.MODULATE);
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
     }
 
     private void restoreEnergyCredit(BigDecimal amount) {

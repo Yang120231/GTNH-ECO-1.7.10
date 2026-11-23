@@ -210,8 +210,7 @@ public final class ActiveRouteSelector {
      * </p>
      */
 
-    private Analysis analyze(CraftingDependencyGraph active, ECOCancellation cancellation)
-        throws InterruptedException {
+    private Analysis analyze(CraftingDependencyGraph active, ECOCancellation cancellation) throws InterruptedException {
         List<SccComponent> sccs = analyzeSccs(active, cancellation);
         Set<CraftingGraphEdge> dropped = new ObjectOpenHashSet<>();
         for (SccComponent scc : sccs) {
@@ -228,7 +227,8 @@ public final class ActiveRouteSelector {
         return new Analysis(pruned, analyzeSccs(pruned, cancellation), sccs);
     }
 
-    private List<SccComponent> analyzeSccs(CraftingDependencyGraph graph, ECOCancellation cancellation) throws InterruptedException {
+    private List<SccComponent> analyzeSccs(CraftingDependencyGraph graph, ECOCancellation cancellation)
+        throws InterruptedException {
         return tarjan.analyze(graph, cancellation);
     }
 
@@ -456,8 +456,8 @@ public final class ActiveRouteSelector {
         private boolean ordered;
         private boolean requiresCycle;
 
-        RetryCheck(CraftingDependencyGraph universe, Set<IPatternDetails> deferred,
-            ECOCancellation cancellation) throws InterruptedException {
+        RetryCheck(CraftingDependencyGraph universe, Set<IPatternDetails> deferred, ECOCancellation cancellation)
+            throws InterruptedException {
             this.universe = universe;
             this.deferred = deferred;
             componentByKey.defaultReturnValue(-1);
@@ -557,9 +557,7 @@ public final class ActiveRouteSelector {
             for (CraftingGraphEdge edge : edges) {
                 activeNodes.putIfAbsent(
                     edge.producer(),
-                    new CraftingGraphNode(
-                        edge.producer(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+                    new CraftingGraphNode(edge.producer(), cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
                 activeNodes.putIfAbsent(
                     edge.requiredInput(),
                     new CraftingGraphNode(

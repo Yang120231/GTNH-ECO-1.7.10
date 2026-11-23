@@ -52,8 +52,7 @@ public final class Ae2UploadDiscovery {
                 .interfaceTerminal()
                 .getSupportedClasses())
                 for (IGridNode node : grid.getMachines(type)) add(result, seen, domains, node, routes);
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         for (IGridNode node : grid.getNodes()) add(result, seen, domains, node, routes);
         return result;
     }

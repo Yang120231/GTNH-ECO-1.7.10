@@ -166,7 +166,6 @@ public final class ECOCraftingStatusClient {
             var gui = new ECOCraftingStatusGui(container.getPlayerInv(), host);
             event.gui = gui;
             statusContainer = gui.inventorySlots;
-        } catch (RuntimeException | LinkageError ignored) {
-        }
+        } catch (RuntimeException | LinkageError ignored) {}
     }
 }

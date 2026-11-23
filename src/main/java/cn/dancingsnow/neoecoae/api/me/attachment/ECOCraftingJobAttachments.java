@@ -106,8 +106,7 @@ public final class ECOCraftingJobAttachments {
         for (var attachment : new ArrayList<>(bound.values())) {
             try {
                 attachment.clear(result);
-            } catch (RuntimeException | LinkageError ignored) {
-            }
+            } catch (RuntimeException | LinkageError ignored) {}
         }
         reset();
     }
@@ -125,8 +124,7 @@ public final class ECOCraftingJobAttachments {
                     registries);
                 bound.put(entry.getKey(), attachment);
                 unboundData.remove(entry.getKey());
-            } catch (RuntimeException | LinkageError ignored) {
-            }
+            } catch (RuntimeException | LinkageError ignored) {}
         }
     }
 }

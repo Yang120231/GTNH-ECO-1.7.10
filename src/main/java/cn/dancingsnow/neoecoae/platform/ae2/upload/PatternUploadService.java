@@ -509,8 +509,7 @@ public final class PatternUploadService {
                 }
                 try {
                     refreshTooltip(player, (ContainerPatternTerm) player.openContainer);
-                } catch (RuntimeException ignored) {
-                }
+                } catch (RuntimeException ignored) {}
             }
         }
 

@@ -12,7 +12,6 @@ import net.minecraftforge.fluids.FluidStack;
 
 import com.google.gson.JsonObject;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.platform.recipe.GTRecipeProfile;
 import cn.dancingsnow.neoecoae.platform.recipe.SourceFluids;
 import cn.dancingsnow.neoecoae.platform.recipe.SourceIngredient;

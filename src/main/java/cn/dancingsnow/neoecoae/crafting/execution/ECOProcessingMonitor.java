@@ -74,8 +74,7 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 if (output.amount() <= 0) continue;
                 for (Target target : destinations) observe(output.what(), target);
             }
-        } catch (RuntimeException | LinkageError ignored) {
-        }
+        } catch (RuntimeException | LinkageError ignored) {}
     }
 
     /**
@@ -101,8 +100,7 @@ public final class ECOProcessingMonitor implements ECOCraftingJobAttachment {
                 if (key == null) continue;
                 for (Target target : destinations) observe(key, target);
             }
-        } catch (RuntimeException | LinkageError ignored) {
-        }
+        } catch (RuntimeException | LinkageError ignored) {}
     }
 
     private void observeProvider(AEKey output, Target provider) {

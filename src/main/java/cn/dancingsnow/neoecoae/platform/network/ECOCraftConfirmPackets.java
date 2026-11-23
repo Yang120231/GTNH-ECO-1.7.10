@@ -154,8 +154,7 @@ public final class ECOCraftConfirmPackets {
                         if (cpw.mods.fml.common.Loader.isModLoaded("neenergistics"))
                             accepted = cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCrafting
                                 .open(player, message.windowId, message.items, message.autoStart);
-                    } catch (RuntimeException | LinkageError ignored) {
-                    }
+                    } catch (RuntimeException | LinkageError ignored) {}
                     IngredientsReply reply = new IngredientsReply();
                     reply.sequence = message.sequence;
                     reply.accepted = accepted;

@@ -479,8 +479,7 @@ public class ECOCraftingSystemBlockEntity extends NEBlockEntity<NECraftingCluste
             try {
                 // extractAEPower(CONFIG) reports the divided amount; injectPower takes raw grid energy.
                 energyService.injectPower(PowerMultiplier.CONFIG.multiply(charged), Actionable.MODULATE);
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
         }
         return false;
     }

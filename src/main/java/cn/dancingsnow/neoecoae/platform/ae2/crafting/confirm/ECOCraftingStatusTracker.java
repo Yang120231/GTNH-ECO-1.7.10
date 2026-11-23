@@ -89,6 +89,7 @@ public final class ECOCraftingStatusTracker {
         IGrid eligibilityGrid;
         boolean eligible;
         long nextEligibilityTick = Long.MIN_VALUE;
+
         @Nullable
 
         Tracked(ContainerCraftingStatus container) {

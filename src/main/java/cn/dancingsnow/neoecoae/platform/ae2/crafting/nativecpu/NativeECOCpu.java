@@ -134,15 +134,13 @@ public final class NativeECOCpu extends CraftingCPUCluster
                 for (var listener : new java.util.ArrayList<>(craftCompleteListeners)) {
                     try {
                         listener.apply(nativeOutput, output.amount(), elapsed);
-                    } catch (RuntimeException ignored) {
-                    }
+                    } catch (RuntimeException ignored) {}
                 }
             } else if (!success) {
                 for (var listener : new java.util.ArrayList<>(craftCancelListeners)) {
                     try {
                         listener.run();
-                    } catch (RuntimeException ignored) {
-                    }
+                    } catch (RuntimeException ignored) {}
                 }
             }
         } finally {

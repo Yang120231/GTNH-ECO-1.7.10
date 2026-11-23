@@ -52,8 +52,7 @@ public final class ECOCraftingJobAttachmentRegistry {
                     continue;
                 }
                 result.add(attachment);
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
         }
         return result;
     }

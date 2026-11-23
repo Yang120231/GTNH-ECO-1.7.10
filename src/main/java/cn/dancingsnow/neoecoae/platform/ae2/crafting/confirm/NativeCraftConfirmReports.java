@@ -108,8 +108,7 @@ public final class NativeCraftConfirmReports {
                         BigInteger.valueOf(Math.max(0, planned.getCountRequestableCrafts())),
                         BigInteger.valueOf(Math.max(0, available))));
             }
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         return rows;
     }
 

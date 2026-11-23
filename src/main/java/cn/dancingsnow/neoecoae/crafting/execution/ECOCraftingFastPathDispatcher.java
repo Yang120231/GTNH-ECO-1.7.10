@@ -113,8 +113,7 @@ final class ECOCraftingFastPathDispatcher {
      */
     @Nullable
     ECOCraftingDispatchResult tryDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
-        double singlePower, IEnergyGrid energyService,
-        Consumer<ICraftingProvider> recordProviderAttempt) {
+        double singlePower, IEnergyGrid energyService, Consumer<ICraftingProvider> recordProviderAttempt) {
         ECOFastPathFacade.PreparedBatch batch = ECOFastPathFacade.prepare(
             provider,
             request.pattern(),
@@ -148,8 +147,7 @@ final class ECOCraftingFastPathDispatcher {
         } catch (ECOIndeterminateBatchException failure) {
             accounting.failPermanently(request, "INDETERMINATE_FAST_PATH_ACCEPTANCE");
             throw failure;
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         if (!accepted) {
             return null;
         }

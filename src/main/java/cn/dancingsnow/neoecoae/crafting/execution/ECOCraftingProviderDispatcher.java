@@ -76,8 +76,8 @@ final class ECOCraftingProviderDispatcher {
     }
 
     Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, Iterator<ICraftingProvider> providers,
-        ECOCraftingDispatchBudget budget, IEnergyGrid energyService,
-        Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
+        ECOCraftingDispatchBudget budget, IEnergyGrid energyService, Consumer<ICraftingProvider> markProviderAttempt,
+        Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
         long cappedLimit = dispatchLimit();
         var request = originalRequest.allowedCrafts() <= cappedLimit ? originalRequest
             : new ECOCraftingDispatchRequest(
@@ -252,8 +252,7 @@ final class ECOCraftingProviderDispatcher {
     @Nullable
     private Result tryDispatchOrdinaryBatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
         double singlePower, IEnergyGrid energyService, ECOCraftingDispatchBudget budget,
-        Consumer<ICraftingProvider> markProviderAttempt,
-        Runnable markNormalResume) {
+        Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume) {
         var parallelProvider = ECOParallelCraftingProviders.find(provider);
         if (parallelProvider == null) {
             return null;

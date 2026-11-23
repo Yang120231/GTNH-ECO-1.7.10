@@ -386,8 +386,7 @@ public final class ECOInfiniteStorageData extends SavedData {
                 writeFailure = null;
                 try {
                     Files.deleteIfExists(journalPath(target.toAbsolutePath()));
-                } catch (IOException ignored) {
-                }
+                } catch (IOException ignored) {}
             } catch (IOException | RuntimeException e) {
                 writeFailure = e.toString();
             }

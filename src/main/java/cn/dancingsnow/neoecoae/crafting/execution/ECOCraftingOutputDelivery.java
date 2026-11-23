@@ -261,8 +261,7 @@ final class ECOCraftingOutputDelivery {
                     .setEnabled(true);
                 host.exactInventory()
                     .restore(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(key, amount));
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
             if (host.getJob() == current) {
                 current.producedTotals.merge(key, claimed, java.math.BigInteger::add);
                 host.recordCompletedCraftingWork(
@@ -511,8 +510,7 @@ final class ECOCraftingOutputDelivery {
                 if (stack != null && stack.amount() > 0L) {
                     pendingFinalOutputs.mergeLong(stack.what(), stack.amount(), NEMath::saturatingAdd);
                 }
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
         }
     }
 

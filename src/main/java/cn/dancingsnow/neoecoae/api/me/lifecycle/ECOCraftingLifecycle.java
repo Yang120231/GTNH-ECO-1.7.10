@@ -43,8 +43,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onJobStarted(context);
-            } catch (RuntimeException | LinkageError ignored) {
-            }
+            } catch (RuntimeException | LinkageError ignored) {}
         }
     }
 
@@ -53,8 +52,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onPatternDispatched(event);
-            } catch (RuntimeException | LinkageError ignored) {
-            }
+            } catch (RuntimeException | LinkageError ignored) {}
         }
     }
 
@@ -63,8 +61,7 @@ public final class ECOCraftingLifecycle {
         for (var listener : LISTENERS) {
             try {
                 listener.onJobFinished(context, result);
-            } catch (RuntimeException | LinkageError ignored) {
-            }
+            } catch (RuntimeException | LinkageError ignored) {}
         }
     }
 }

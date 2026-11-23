@@ -65,11 +65,7 @@ final class ECOCraftingDispatchAccounting {
         }
         beforeNotifications.run();
         dispatchEvent.accept(
-            new ECOCraftingDispatchEvent(
-                contextFactory.apply(job),
-                request.pattern(),
-                batch.craftCount(),
-                provider));
+            new ECOCraftingDispatchEvent(contextFactory.apply(job), request.pattern(), batch.craftCount(), provider));
 
         batch.outputs()
             .keySet()
@@ -99,8 +95,7 @@ final class ECOCraftingDispatchAccounting {
                 output.what()
                     .getType());
             // GTNH fake crafting awaits none of the final pattern's outputs; every other dispatch still does.
-            if (!virtual)
-                job.waitingFor.insert(output.what(), output.amount(), appeng.api.config.Actionable.MODULATE);
+            if (!virtual) job.waitingFor.insert(output.what(), output.amount(), appeng.api.config.Actionable.MODULATE);
         }
         for (var remainder : result.remainders()) {
             if (virtual) continue;

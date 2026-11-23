@@ -543,7 +543,6 @@ public final class ECOCraftConfirmTracker {
         if (method == null) return;
         try {
             method.invoke(container);
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-        }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {}
     }
 }

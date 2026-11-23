@@ -123,8 +123,7 @@ public final class ProgrammableHatchCrafting {
         if (complete == null) return;
         try {
             complete.invoke(medium);
-        } catch (ReflectiveOperationException ignored) {
-        }
+        } catch (ReflectiveOperationException ignored) {}
     }
 
     public static boolean requiresSingleCopy(TileEntity target, ForgeDirection face) {

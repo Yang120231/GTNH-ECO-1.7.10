@@ -31,8 +31,7 @@ public final class IntegratedWorkstationTweaker {
                 new RecipeAction(
                     "Add integrated workstation recipe " + key,
                     () -> WorkstationRecipes.addScriptRecipe(key, recipe)));
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) {}
     }
 
     @ZenMethod
@@ -43,8 +42,7 @@ public final class IntegratedWorkstationTweaker {
                 new RecipeAction(
                     "Remove integrated workstation recipe " + key,
                     () -> WorkstationRecipes.removeScriptRecipes((recipeId, recipe) -> recipeId.equals(key))));
-        } catch (IllegalArgumentException ignored) {
-        }
+        } catch (IllegalArgumentException ignored) {}
     }
 
     @ZenMethod

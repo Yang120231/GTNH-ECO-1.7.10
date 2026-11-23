@@ -99,12 +99,10 @@ public final class ECOCraftConfirmReports {
         if (result != null) {
             try {
                 snapshot = CraftingGraphSnapshotFactory.create(result);
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
             try {
                 cycles = cycleItems(result, snapshot);
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
             diagnostic = diagnostic(result);
         }
         PlanningStatus status = result == null ? null : result.status();
@@ -191,8 +189,7 @@ public final class ECOCraftConfirmReports {
             try {
                 return CraftingPlanSummary.fromJob(grid, source, plan, crafted)
                     .getEntries();
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
         }
         // Without a live grid, describe the plan itself: used and emitted as stored, missing as missing.
         Map<AEKey, long[]> amounts = new LinkedHashMap<>();
@@ -230,16 +227,14 @@ public final class ECOCraftConfirmReports {
                     .getOutputs()) outputs.add(output.what());
                 for (AEKey output : outputs) rounds.merge(output, times, BigInteger::add);
             }
-        } catch (RuntimeException ignored) {
-        }
+        } catch (RuntimeException ignored) {}
         KeyCounter stock = null;
         if (grid != null) {
             try {
                 stock = grid.getStorageService()
                     .getInventory()
                     .getAvailableStacks();
-            } catch (RuntimeException ignored) {
-            }
+            } catch (RuntimeException ignored) {}
         }
         List<ECOCraftConfirmReport.Row> result = new ArrayList<>(rows.size());
         for (ECOCraftConfirmReport.Row row : rows) {

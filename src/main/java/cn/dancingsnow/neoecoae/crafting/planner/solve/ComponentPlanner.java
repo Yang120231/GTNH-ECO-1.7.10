@@ -116,8 +116,7 @@ public final class ComponentPlanner {
         ECOCancellation cancellation) throws InterruptedException {
         // Route selection and cycle avoidance are structural planning steps, not cycle solving. The toggle only
         // controls what happens after the selected active graph still contains an unavoidable cyclic SCC.
-        ActiveRouteSelector.Selection selection = activeRouteSelector
-            .select(condensation.source(), true, cancellation);
+        ActiveRouteSelector.Selection selection = activeRouteSelector.select(condensation.source(), true, cancellation);
         return selection;
     }
 
@@ -473,9 +472,7 @@ public final class ComponentPlanner {
                             cancellation);
                         cycleStatus = CyclePlanningStatus.of(cycleResult.status());
                         diagnostic = cycleResult.summary();
-                        if (cycleResult.status() == CycleSolveStatus.SUCCESS) {
-                        } else {
-                        }
+                        if (cycleResult.status() == CycleSolveStatus.SUCCESS) {} else {}
                         if (cycleStatus == CyclePlanningStatus.UNREPRESENTABLE) amountUnrepresentable = true;
                         trace.addDiagnostic(new PlannerDiagnostic(diagnosticCode(cycleStatus), diagnostic));
                         if (cycleResult.status() == CycleSolveStatus.INSUFFICIENT_EXTERNAL_INPUT) {
