@@ -36,8 +36,11 @@ public final class NEIBookmarkSupport implements IBookmarkContainerHandler {
     private NEIBookmarkSupport() {}
 
     public static NativeStorageSession session(GuiContainer gui) {
-        if (gui == null || !(gui.inventorySlots instanceof ModularContainer container) || !container.isInitialized())
+        if (gui == null || !(gui.inventorySlots instanceof ModularContainer container)
+            || !container.isInitialized()
+            || container.isClientOnly()) {
             return null;
+        }
         var sync = container.getSyncManager()
             .getMainPSM();
         return sync != null
