@@ -3,7 +3,6 @@ package cn.dancingsnow.neoecoae.multiblock.cluster;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -17,7 +16,6 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.crafting.ICraftingRequester;
 import cn.dancingsnow.neoecoae.api.computation.ECOComputationCells;
 import cn.dancingsnow.neoecoae.api.multiblock.ECOMultiblockParts;
-import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationDriveBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationParallelCoreBlockEntity;
@@ -35,7 +33,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
-import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.registry.CraftingMachines;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTiers;
@@ -72,13 +69,9 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     /** BigInt child plans are segmented by the controller and must not consume the finite CPU byte reservation. */
     private final ReferenceSet<ICraftingPlan> bigOrderPlans = new ReferenceOpenHashSet<>();
     private ECOCraftingCPU fakeCpu;
-    @Nullable
-    private ECOMachineInterfaceBlockEntity<?> communication;
-    private boolean allMembersDeferGridNodes = true;
     private boolean reservationsPending;
     private boolean memberRemovalPending;
     private boolean permanentRemoval;
-    private boolean dirtyGridFaces;
 
     public NEComputationCluster(BlockPos boundMin, BlockPos boundMax) {
         super(boundMin, boundMax);
@@ -159,7 +152,6 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
             try {
                 super.destroy();
             } finally {
-                if (usesCompactGrid()) communication.setDeferredGridNode(false);
                 for (var nativeCpu : nativeCpus.values()) releaseNativeCPU(nativeCpu);
                 nativeCpus.clear();
             }
@@ -270,10 +262,6 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     @Override
     public void addBlockEntity(NEBlockEntity<NEComputationCluster, ?> blockEntity) {
         super.addBlockEntity(blockEntity);
-        allMembersDeferGridNodes &= blockEntity.defersGridNode();
-        if (blockEntity instanceof ECOMachineInterfaceBlockEntity<?>port && port.isComputationInterface()) {
-            communication = port;
-        }
         if (blockEntity instanceof ECOComputationDriveBlockEntity driveBlockEntity) {
             reclassifyDrive(driveBlockEntity);
         }
@@ -289,22 +277,17 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         }
     }
 
-    public boolean usesCompactGrid() {
-        return controller != null && communication != null && allMembersDeferGridNodes;
+    @Override
+    public boolean deferMemberRemoval(NEBlockEntity<?, ?> member) {
+        if (isDestroyed() || !usesCompactGrid() || controller == null || member == controller) return false;
+        memberRemoved(false);
+        return true;
     }
 
-    public Iterator<IGridNode> gridNodes() {
-        IGridNode node = getNode();
-        return node == null ? Collections.emptyIterator()
-            : Collections.singleton(node)
-                .iterator();
-    }
-
-    public void memberChanged(NEBlockEntity<?, ?> member) {
-        if (!isDestroyed() && usesCompactGrid() && member == communication) {
-            dirtyGridFaces = true;
-            NELogicalNetworkManager.requestComputationGridRefresh(this);
-        }
+    @Override
+    public void compactGridStateChanged(boolean gridChanged) {
+        if (gridChanged) notifyGridCpuChange();
+        NELogicalNetworkManager.refreshAfterGridChange(this);
     }
 
     public void memberRemoved(boolean permanent) {
@@ -326,61 +309,14 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
         if (wasWaiting) notifyGridCpuChange();
     }
 
-    public void requestGridPowerUpdate() {
-        if (!isDestroyed() && controller != null) NELogicalNetworkManager.requestComputationGridRefresh(this);
-    }
-
-    private WorldView getWorld() {
-        return controller == null ? null : controller.getLevel();
-    }
-
-    public void refreshGrid(boolean force) {
-        if (isDestroyed() || !usesCompactGrid() || !(getWorld() instanceof ServerWorldView level)) return;
-        var profiler = level.getServer()
-            .nativeServer().theProfiler;
-        profiler.startSection("ecoComputationTopology");
-        MBCalculator.pauseGridRebuilds();
-        try {
-            boolean refreshFaces = force || dirtyGridFaces;
-            dirtyGridFaces = false;
-            updateGridPower();
-            if (communication.setDeferredGridNode(true)) communication.getMainNode()
-                .updateExposedOnSides(communication.getGridConnectableSides(), refreshFaces);
-        } finally {
-            MBCalculator.resumeGridRebuilds();
-            profiler.endSection();
-        }
-    }
-
-    private void updateGridPower() {
-        double total = 0;
-        for (TileEntity tile : blockEntities) {
-            if (tile instanceof NEBlockEntity<?, ?>member) total += member.appliedIdlePower()
-                .orElse(0);
-        }
-        communication.getMainNode()
-            .setIdlePowerUsage(total);
-    }
-
-    public void refreshGridChanges() {
-        if (isDestroyed() || !usesCompactGrid()) return;
-        if (dirtyGridFaces) refreshGrid(false);
-        else updateGridPower();
-    }
-
     public boolean reconcileMembers(List<NEBlockEntity<NEComputationCluster, ?>> members, BlockPos min, BlockPos max) {
         if (!usesCompactGrid() || controller == null || !members.contains(controller)) return false;
-        ECOMachineInterfaceBlockEntity<?> nextPort = null;
         for (var member : members) {
-            if (!member.defersGridNode() || member.getCluster() != null && member.getCluster() != this) return false;
-            if (member instanceof ECOMachineInterfaceBlockEntity<?>port && port.isComputationInterface())
-                nextPort = port;
+            if (member.getCluster() != null && member.getCluster() != this) return false;
         }
+        var nextPort = findGridInterface(members);
         if (nextPort == null) return false;
-        if (nextPort != communication) {
-            communication.setDeferredGridNode(false);
-            communication = nextPort;
-        }
+        replaceGridInterface(nextPort);
         Set<TileEntity> next = Collections.newSetFromMap(new IdentityHashMap<>());
         next.addAll(members);
         Set<TileEntity> previous = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -553,7 +489,7 @@ public class NEComputationCluster extends NECluster<NEComputationCluster>
     }
 
     public @Nullable IGridNode getNode() {
-        var nodeOwner = usesCompactGrid() ? communication : controller;
+        var nodeOwner = usesCompactGrid() ? getGridInterface() : controller;
         return nodeOwner == null ? null : nodeOwner.getGridNode();
     }
 

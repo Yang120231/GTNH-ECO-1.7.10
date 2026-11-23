@@ -320,10 +320,10 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
             return;
         }
         try (var ignored = cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.coalesce()) {
-            for (ECODriveBlockEntity drive : cluster.getDrives()) {
-                IStorageProvider.requestUpdate(drive.getMainNode());
+            if (!cluster.usesCompactGrid()) for (ECODriveBlockEntity drive : cluster.getDrives()) {
+                IStorageProvider.requestUpdate(drive.getNetworkNode());
             }
-            IStorageProvider.requestUpdate(getMainNode());
+            IStorageProvider.requestUpdate(getNetworkNode());
         }
     }
 

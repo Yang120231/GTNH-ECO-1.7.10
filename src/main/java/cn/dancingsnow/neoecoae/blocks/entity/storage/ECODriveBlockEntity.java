@@ -188,6 +188,11 @@ public class ECODriveBlockEntity extends
             return;
         }
         updateCellState();
+        refreshDrivePower();
+        IStorageProvider.requestUpdate(getNetworkNode());
+    }
+
+    private void refreshDrivePower() {
         double power = 256;
         if ((Object) cluster instanceof NEStorageCluster storageCluster && storageCluster.getController() != null) {
             StorageTierDescriptor mainTier = storageCluster.getController()
@@ -198,7 +203,6 @@ public class ECODriveBlockEntity extends
             }
         }
         applyIdlePower(ECOPowerRole.STORAGE_DRIVE, 256, power - 256);
-        IStorageProvider.requestUpdate(getMainNode());
     }
 
     @Override
@@ -333,11 +337,19 @@ public class ECODriveBlockEntity extends
         refreshOnline();
     }
 
-    private void refreshOnline() {
+    public void refreshOnline() {
         boolean wasOnline = online;
-        online = getMainNode().isOnline();
-        setChanged();
+        online = getNetworkNode().isOnline();
         if (wasOnline != online) markLedStateChanged();
+    }
+
+    @Override
+    public void updateCluster(@Nullable NEStorageCluster nextCluster) {
+        super.updateCluster(nextCluster);
+        if (isServerStopping()) return;
+        refreshDrivePower();
+        refreshOnline();
+        if (nextCluster == null && mounted) updateMountState(false);
     }
 
     @Override
@@ -394,7 +406,7 @@ public class ECODriveBlockEntity extends
         updateCellState();
         setChanged();
         markForUpdate();
-        IStorageProvider.requestUpdate(getMainNode());
+        IStorageProvider.requestUpdate(getNetworkNode());
         var controller = getStorageController();
         if (controller != null) controller.invalidateInfiniteMembers();
     }

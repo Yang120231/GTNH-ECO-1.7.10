@@ -10,7 +10,6 @@ import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
 import cn.dancingsnow.neoecoae.impl.storage.ECOCellMutationBatch;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageDomains;
-import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
@@ -43,8 +42,9 @@ public final class StorageLifecycle {
 
     private static void refreshAcrossChunk(ServerWorldView level, TileEntity tile, Direction side) {
         BlockPos adjacent = new BlockPos(tile.xCoord, tile.yCoord, tile.zCoord).relative(side);
-        if (level.getBlockEntity(adjacent) instanceof NEBlockEntity<?, ?>member && member.defersGridNode()
-            && member.getCluster() instanceof NEComputationCluster computation) computation.memberChanged(member);
+        if (level.getBlockEntity(adjacent) instanceof NEBlockEntity<?, ?>member && member.getCluster() != null)
+            member.getCluster()
+                .memberChanged(member);
     }
 
     @SubscribeEvent

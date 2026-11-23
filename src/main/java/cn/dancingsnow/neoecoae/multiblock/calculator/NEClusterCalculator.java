@@ -46,9 +46,45 @@ public abstract class NEClusterCalculator<C extends NECluster<C>> extends MBCalc
             return;
         }
         members.forEach(c::addBlockEntity);
+        c.configureCompactGrid();
         members.forEach(member -> member.updateCluster(c));
         c.updateFormed(true);
+        c.refreshGrid(true);
         this.onClusterAttached(c);
+    }
+
+    public boolean usesCompactGrid() {
+        return false;
+    }
+
+    public boolean usesLegacyChecks() {
+        return true;
+    }
+
+    public boolean restrictsLegacyGridSides() {
+        return false;
+    }
+
+    @Override
+    protected boolean deferNeighborChecks() {
+        return !usesLegacyChecks();
+    }
+
+    @Override
+    protected boolean sameMembers(ServerWorldView level, C cluster) {
+        if (usesLegacyChecks()) return true;
+        var members = cluster.getBlockEntities();
+        while (members.hasNext()) {
+            TileEntity member = members.next();
+            if (level.getBlockEntity(new BlockPos(member.xCoord, member.yCoord, member.zCoord)) != member) return false;
+        }
+        return true;
+    }
+
+    protected final NEClusterCalculator<C> controllerCalculator(ServerWorldView level, BlockPos min, BlockPos max,
+        Class<? extends NEBlockEntity<C, ?>> type) {
+        return findCandidateController(level, min, max, type).map(NEBlockEntity::getCalculator)
+            .orElse(this);
     }
 
     @SuppressWarnings("unchecked")
@@ -65,6 +101,12 @@ public abstract class NEClusterCalculator<C extends NECluster<C>> extends MBCalc
     }
 
     protected void onClusterAttached(C cluster) {}
+
+    @Override
+    protected void updateExistingCluster(C cluster, boolean claimedOwner) {
+        super.updateExistingCluster(cluster, claimedOwner);
+        cluster.refreshGrid(claimedOwner);
+    }
 
     @Override
     public boolean checkMultiblockScale(BlockPos min, BlockPos max) {

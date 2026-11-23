@@ -52,7 +52,10 @@ public class ECOEnergyCellBlockEntity extends
         if (isServerStopping()) {
             return;
         }
-        getMainNode().ifPresent(grid -> grid.postEvent(new MENetworkPowerStorage(this, type)));
+        IAEPowerStorage storage = cluster != null && cluster.usesCompactGrid()
+            ? (IAEPowerStorage) cluster.getGridInterface()
+            : this;
+        getNetworkNode().ifPresent(grid -> grid.postEvent(new MENetworkPowerStorage(storage, type)));
     }
 
     @Override
@@ -115,7 +118,7 @@ public class ECOEnergyCellBlockEntity extends
 
         if (!neighborChangePending) {
             neighborChangePending = true;
-            getMainNode().ifPresent(
+            getNetworkNode().ifPresent(
                 (grid, node) -> grid.getTickManager()
                     .alertDevice(node));
         }

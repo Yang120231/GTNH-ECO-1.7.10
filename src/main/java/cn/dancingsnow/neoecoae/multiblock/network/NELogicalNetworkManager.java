@@ -103,17 +103,8 @@ public final class NELogicalNetworkManager {
         }
     }
 
-    public static void requestComputationGridRefresh(NEComputationCluster cluster) {
-        if (getLevel(cluster) instanceof ServerWorldView level) {
-            requestComputationGridRefresh(cluster, level.getGameTime());
-        }
-    }
-
-    public static void requestComputationGridRefresh(NEComputationCluster cluster, long tick) {
-        if (getLevel(cluster) instanceof ServerWorldView level) {
-            LEVELS.computeIfAbsent(level, ignored -> new LevelState()).pendingGridTopology
-                .merge(cluster, tick, Math::min);
-        }
+    public static void requestCompactGridRefresh(ServerWorldView level, NECluster<?> cluster) {
+        LEVELS.computeIfAbsent(level, ignored -> new LevelState()).pendingGridTopology.add(cluster);
     }
 
     public static void requestComputationCapacityRefresh(NEComputationCluster cluster) {
@@ -134,24 +125,15 @@ public final class NELogicalNetworkManager {
         if (state == null || level.getServer()
             .isStopped()) return;
         if (!state.pendingGridTopology.isEmpty()) {
-            List<NEComputationCluster> pending = new ArrayList<>();
-            long now = level.getGameTime();
-            state.pendingGridTopology.entrySet()
-                .removeIf(entry -> {
-                    if (entry.getValue() > now) return false;
-                    pending.add(entry.getKey());
-                    return true;
-                });
-            if (!pending.isEmpty()) {
-                MBCalculator.pauseGridRebuilds();
-                try {
-                    for (NEComputationCluster cluster : pending)
-                        if (!cluster.isDestroyed() && getLevel(cluster) == level) {
-                            cluster.refreshGridChanges();
-                        }
-                } finally {
-                    MBCalculator.resumeGridRebuilds();
+            List<NECluster<?>> pending = new ArrayList<>(state.pendingGridTopology);
+            state.pendingGridTopology.clear();
+            MBCalculator.pauseGridRebuilds();
+            try {
+                for (NECluster<?> cluster : pending) if (getLevel(cluster) == level) {
+                    cluster.refreshGrid(false);
                 }
+            } finally {
+                MBCalculator.resumeGridRebuilds();
             }
         }
         Set<NECluster<?>> pending = new ReferenceOpenHashSet<>(state.pendingGridRefresh);
@@ -297,7 +279,6 @@ public final class NELogicalNetworkManager {
             }
             state.computationKeys.remove(computationCluster);
             state.pendingGridRefresh.remove(computationCluster);
-            state.pendingGridTopology.remove(computationCluster);
             state.pendingCapacity.remove(computationCluster);
             state.awaitingCapacity.remove(computationCluster);
             computationCluster.setNetworkCluster(null);
@@ -512,6 +493,8 @@ public final class NELogicalNetworkManager {
     }
 
     private static @Nullable WorldView getLevel(NECluster<?> cluster) {
+        if (cluster.getGridInterface() != null) return cluster.getGridInterface()
+            .getLevel();
         if (cluster instanceof NECraftingCluster craftingCluster && craftingCluster.getController() != null) {
             return craftingCluster.getController()
                 .getLevel();
@@ -572,7 +555,7 @@ public final class NELogicalNetworkManager {
         private final Map<NetworkPartitionKey, NECraftingNetworkCluster> craftingNetworks = new HashMap<>();
         private final Map<NetworkPartitionKey, NEComputationNetworkCluster> computationNetworks = new HashMap<>();
         private final ReferenceSet<NECluster<?>> pendingGridRefresh = new ReferenceOpenHashSet<>();
-        private final Map<NEComputationCluster, Long> pendingGridTopology = new IdentityHashMap<>();
+        private final ReferenceSet<NECluster<?>> pendingGridTopology = new ReferenceOpenHashSet<>();
         private final ReferenceSet<NEComputationCluster> pendingCapacity = new ReferenceOpenHashSet<>();
         private final ReferenceSet<NEComputationCluster> awaitingCapacity = new ReferenceOpenHashSet<>();
         private final Map<NEComputationCluster, NetworkGroupKey> computationKeys = new IdentityHashMap<>();

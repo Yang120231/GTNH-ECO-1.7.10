@@ -6,6 +6,15 @@ import java.util.Map;
 import net.minecraft.block.Block;
 import net.minecraft.tileentity.TileEntity;
 
+import appeng.api.config.AccessRestriction;
+import appeng.api.config.Actionable;
+import appeng.api.config.PowerMultiplier;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.energy.IAEPowerStorage;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.storage.ICellContainer;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineCasingBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.storage.ECODriveBlockEntity;
@@ -14,6 +23,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity
 import cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageVentBlockEntity;
 import cn.dancingsnow.neoecoae.multiblock.calculator.NEStorageClusterCalculator;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster;
+import cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.Holder;
@@ -111,7 +121,8 @@ public final class StorageMachines {
     }
 
     public static final class Interface extends ECOMachineInterfaceBlockEntity<NEStorageCluster>
-        implements com.cleanroommc.modularui.api.IGuiHolder<com.cleanroommc.modularui.factory.PosGuiData> {
+        implements com.cleanroommc.modularui.api.IGuiHolder<com.cleanroommc.modularui.factory.PosGuiData>,
+        ICellContainer, IAEPowerStorage, IGridTickable {
 
         public Interface() {
             super(
@@ -119,6 +130,70 @@ public final class StorageMachines {
                 BlockPos.ZERO,
                 ((NativeMachineBlock) STORAGE_INTERFACE.value()).defaultBlockState(),
                 NEStorageClusterCalculator::new);
+            if (defersGridNode()) getMainNode().addService(IStorageProvider.class, mounts -> {
+                if (cluster == null || !cluster.usesCompactGrid() || cluster.isDestroyed()) return;
+                cluster.getController()
+                    .mountInventories(mounts);
+                for (var drive : cluster.getDrives()) drive.mountInventories(mounts);
+            });
+        }
+
+        @Override
+        public boolean isAEPublicPowerStorage() {
+            return cluster != null && cluster.usesCompactGrid()
+                && !cluster.getEnergyCells()
+                    .isEmpty();
+        }
+
+        @Override
+        public AccessRestriction getPowerFlow() {
+            return isAEPublicPowerStorage() ? AccessRestriction.READ_WRITE : AccessRestriction.NO_ACCESS;
+        }
+
+        @Override
+        public double getAEMaxPower() {
+            double total = 0;
+            if (isAEPublicPowerStorage()) for (var cell : cluster.getEnergyCells()) total += cell.getAEMaxPower();
+            return total;
+        }
+
+        @Override
+        public double getAECurrentPower() {
+            double total = 0;
+            if (isAEPublicPowerStorage()) for (var cell : cluster.getEnergyCells()) total += cell.getAECurrentPower();
+            return total;
+        }
+
+        @Override
+        public double injectAEPower(double amount, Actionable mode) {
+            if (isAEPublicPowerStorage()) for (var cell : cluster.getEnergyCells()) {
+                if (amount <= 0) break;
+                amount = cell.injectAEPower(amount, mode);
+            }
+            return amount;
+        }
+
+        @Override
+        public double extractAEPower(double amount, Actionable mode, PowerMultiplier multiplier) {
+            double requested = multiplier.multiply(amount);
+            double extracted = 0;
+            if (isAEPublicPowerStorage()) for (var cell : cluster.getEnergyCells()) {
+                if (extracted >= requested) break;
+                extracted += cell.extractAEPower(requested - extracted, mode, PowerMultiplier.ONE);
+            }
+            return multiplier.divide(extracted);
+        }
+
+        @Override
+        public TickingRequest getTickingRequest(IGridNode node) {
+            return isAEPublicPowerStorage() ? new TickingRequest(1, 20, false, true) : null;
+        }
+
+        @Override
+        public TickRateModulation tickingRequest(IGridNode node, int ticksSinceLastCall) {
+            if (isAEPublicPowerStorage() && !cluster.isDestroyed())
+                for (var cell : cluster.getEnergyCells()) cell.tickingRequest(node, ticksSinceLastCall);
+            return TickRateModulation.SLEEP;
         }
 
         @Override

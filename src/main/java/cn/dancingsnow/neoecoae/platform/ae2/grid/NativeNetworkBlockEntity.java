@@ -179,6 +179,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
         } else if (getProxy().isReady()) {
             pendingOwnerId = getOwnerPlayerId();
             getProxy().invalidate();
+            storageMounts.clear();
         }
         return getProxy().isReady();
     }

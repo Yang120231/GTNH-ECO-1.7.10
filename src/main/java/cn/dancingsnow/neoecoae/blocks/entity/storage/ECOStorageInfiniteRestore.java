@@ -300,7 +300,7 @@ final class ECOStorageInfiniteRestore {
             for (var entry : pending) restoreQueue.addLast(entry.getKey());
             activeRestorePlan = plan;
             host.refreshInfiniteStorageAccess();
-            IStorageProvider.requestUpdate(host.getMainNode());
+            IStorageProvider.requestUpdate(host.getNetworkNode());
         }
         if (!engine.isCheckpointSaved(planGeneration)) return;
         if (host.getLevel()

@@ -192,9 +192,9 @@ public final class NativeStorageSession extends NativeActionSyncHandler {
     }
 
     private appeng.api.networking.IGrid bookmarkGrid() {
-        if (!host.isFormed() || !host.getMainNode()
+        if (!host.isFormed() || !host.getNetworkNode()
             .isOnline()) return null;
-        var view = host.getMainNode()
+        var view = host.getNetworkNode()
             .getGrid();
         if (view == null) return null;
         var grid = view.nativeGrid();

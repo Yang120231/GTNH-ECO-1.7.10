@@ -402,7 +402,7 @@ final class ECOInfiniteStorageModeController {
         preparedSourceSeals.remove(migration);
         host.infiniteMigrationSourceIds()
             .remove(migration);
-        IStorageProvider.requestUpdate(drive.getMainNode());
+        IStorageProvider.requestUpdate(drive.getNetworkNode());
         host.invalidateStorageStatistics();
         drive.setChanged();
         host.setChanged();
@@ -462,7 +462,7 @@ final class ECOInfiniteStorageModeController {
                 ECOInfiniteStorageMember.identity(stack);
                 ((IECOStorageMigrationCell) cell).persistMigrationContents(serverLevel.nativeWorld());
                 drive.setChanged();
-                IStorageProvider.requestUpdate(drive.getMainNode());
+                IStorageProvider.requestUpdate(drive.getNetworkNode());
                 prepared.add(migration);
                 fields.put(drive, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf("neoecoae_fields"));
             } catch (RuntimeException exception) {
@@ -566,7 +566,7 @@ final class ECOInfiniteStorageModeController {
                 for (ECODriveBlockEntity drive : drives) {
                     if (ECOInfiniteStorageMember.isMemberOf(drive.getCellStack(), domainId)) {
                         drive.convertInfiniteMemberToNormalStorage(domainId);
-                        IStorageProvider.requestUpdate(drive.getMainNode());
+                        IStorageProvider.requestUpdate(drive.getNetworkNode());
                         confirmed = false;
                     }
                     if (ECOInfiniteStorageMember.releasedIdentity(drive.getCellStack(), domainId)

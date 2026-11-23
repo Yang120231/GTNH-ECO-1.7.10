@@ -90,6 +90,15 @@ public final class GridView {
             Object host = node.getMachine();
             if (type.isInstance(host)) result.add(type.cast(host));
         }
+        if (type == cn.dancingsnow.neoecoae.blocks.entity.storage.ECODriveBlockEntity.class) {
+            for (var node : grid
+                .getMachines(cn.dancingsnow.neoecoae.platform.registry.StorageMachines.Interface.class)) {
+                var port = (cn.dancingsnow.neoecoae.platform.registry.StorageMachines.Interface) node.getMachine();
+                var cluster = port.getCluster();
+                if (cluster != null && !cluster.isDestroyed() && cluster.usesCompactGrid())
+                    for (var drive : cluster.getDrives()) result.add(type.cast(drive));
+            }
+        }
         return result;
     }
 

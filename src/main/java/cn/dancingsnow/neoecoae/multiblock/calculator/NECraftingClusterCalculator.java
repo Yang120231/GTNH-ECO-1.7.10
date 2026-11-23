@@ -26,6 +26,16 @@ import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 
 public class NECraftingClusterCalculator extends NEClusterCalculator<NECraftingCluster> {
 
+    @Override
+    public boolean usesLegacyChecks() {
+        return false;
+    }
+
+    @Override
+    protected NEClusterCalculator<NECraftingCluster> discoveryOwner(ServerWorldView level, BlockPos min, BlockPos max) {
+        return controllerCalculator(level, min, max, ECOCraftingSystemBlockEntity.class);
+    }
+
     public NECraftingClusterCalculator(NEBlockEntity<NECraftingCluster, ?> t) {
         super(t);
     }

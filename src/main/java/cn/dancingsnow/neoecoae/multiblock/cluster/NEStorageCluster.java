@@ -12,6 +12,7 @@ import cn.dancingsnow.neoecoae.blocks.entity.storage.ECOStorageSystemBlockEntity
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
 import cn.dancingsnow.neoecoae.platform.registry.NativeStorageHostBlock;
+import cn.dancingsnow.neoecoae.platform.registry.StorageMachines;
 
 public class NEStorageCluster extends NECluster<NEStorageCluster> {
 
@@ -30,6 +31,16 @@ public class NEStorageCluster extends NECluster<NEStorageCluster> {
 
     public NEStorageCluster(BlockPos boundMin, BlockPos boundMax) {
         super(boundMin, boundMax);
+    }
+
+    @Override
+    protected boolean supportsCompactInterface(ECOMachineInterfaceBlockEntity<?> port) {
+        return port instanceof StorageMachines.Interface;
+    }
+
+    @Override
+    public void compactGridStateChanged(boolean gridChanged) {
+        for (var drive : drives) drive.refreshOnline();
     }
 
     @Override

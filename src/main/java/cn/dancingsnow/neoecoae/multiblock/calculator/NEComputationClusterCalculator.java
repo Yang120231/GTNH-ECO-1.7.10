@@ -52,12 +52,19 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
                 || topologyMode == ComputationTopologyMode.OPTIMIZED);
     }
 
+    @Override
     public final boolean usesCompactGrid() {
         return usesStructureLib() && topologyMode == ComputationTopologyMode.OPTIMIZED;
     }
 
+    @Override
     public final boolean usesLegacyChecks() {
         return topologyMode == ComputationTopologyMode.LEGACY;
+    }
+
+    @Override
+    public final boolean restrictsLegacyGridSides() {
+        return true;
     }
 
     @Override
@@ -72,7 +79,6 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
 
     @Override
     protected void onClusterAttached(NEComputationCluster cluster) {
-        if (cluster.usesCompactGrid()) cluster.refreshGrid(true);
         NELogicalNetworkManager.attach(cluster);
         // The AE2 crafting service may have already rebuilt its CPU list before the
         // multiblock calculator finished attaching all members. Publish the custom
@@ -87,7 +93,7 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
 
     @Override
     protected void updateExistingCluster(NEComputationCluster cluster, boolean claimedOwner) {
-        super.updateExistingCluster(cluster, claimedOwner);
+        cluster.updateStatus(claimedOwner);
         if (cluster.usesCompactGrid()) cluster.refreshValidatedGrid(claimedOwner);
     }
 
@@ -199,11 +205,6 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
     }
 
     @Override
-    protected boolean deferNeighborChecks() {
-        return !usesLegacyChecks();
-    }
-
-    @Override
     protected void invalidateStructure() {
         var cluster = owner.getCluster();
         if (cluster != null && cluster.hasPermanentRemoval()) cluster.breakCluster();
@@ -223,12 +224,7 @@ public class NEComputationClusterCalculator extends NEClusterCalculator<NEComput
     @Override
     protected boolean sameMembers(ServerWorldView level, NEComputationCluster cluster) {
         if (!usesStructureLib()) return true;
-        var members = cluster.getBlockEntities();
-        while (members.hasNext()) {
-            TileEntity member = members.next();
-            if (level.getBlockEntity(new BlockPos(member.xCoord, member.yCoord, member.zCoord)) != member) return false;
-        }
-        return true;
+        return super.sameMembers(level, cluster);
     }
 
     private static void setCoolingControllersMirrored(ServerWorldView level, BlockPos min, BlockPos max,

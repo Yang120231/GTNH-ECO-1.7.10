@@ -51,6 +51,12 @@ public final class PlanningSettings {
         @Config.RequiresWorldRestart
         public static ComputationTopologyMode computationTopologyMode = ComputationTopologyMode.OPTIMIZED;
 
+        @Config.Comment("Experimental single-node storage hosts. Move existing ME cables to the communication interface before enabling.")
+        @Config.DefaultBoolean(false)
+        @Config.RequiresWorldRestart
+        @Config.LangKey("neoecoae.configuration.compactStorageGrid")
+        public static boolean compactStorageGrid = false;
+
         @Config.Comment("Maximum storage-system length")
         @Config.DefaultInt(15)
         @Config.RangeInt(min = 4, max = Integer.MAX_VALUE)

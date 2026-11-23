@@ -24,6 +24,25 @@ import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 @SuppressWarnings("BooleanMethodIsAlwaysInverted")
 public class NEStorageClusterCalculator extends NEClusterCalculator<NEStorageCluster> {
 
+    private final boolean compactGrid = PlanningSettings.Multiblock.compactStorageGrid;
+
+    @Override
+    public boolean usesCompactGrid() {
+        return compactGrid && getClass() == NEStorageClusterCalculator.class
+            && owner.getClass()
+                .getEnclosingClass() == StorageMachines.class;
+    }
+
+    @Override
+    public boolean usesLegacyChecks() {
+        return false;
+    }
+
+    @Override
+    protected NEClusterCalculator<NEStorageCluster> discoveryOwner(ServerWorldView level, BlockPos min, BlockPos max) {
+        return controllerCalculator(level, min, max, ECOStorageSystemBlockEntity.class);
+    }
+
     public NEStorageClusterCalculator(NEBlockEntity<NEStorageCluster, ?> t) {
         super(t);
     }
