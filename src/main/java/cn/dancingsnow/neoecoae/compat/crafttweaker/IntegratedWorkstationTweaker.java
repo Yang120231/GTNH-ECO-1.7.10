@@ -31,8 +31,7 @@ public final class IntegratedWorkstationTweaker {
                 new RecipeAction(
                     "Add integrated workstation recipe " + key,
                     () -> WorkstationRecipes.addScriptRecipe(key, recipe)));
-        } catch (IllegalArgumentException invalid) {
-            MineTweakerAPI.logError("Integrated workstation: " + invalid.getMessage());
+        } catch (IllegalArgumentException ignored) {
         }
     }
 
@@ -44,17 +43,13 @@ public final class IntegratedWorkstationTweaker {
                 new RecipeAction(
                     "Remove integrated workstation recipe " + key,
                     () -> WorkstationRecipes.removeScriptRecipes((recipeId, recipe) -> recipeId.equals(key))));
-        } catch (IllegalArgumentException invalid) {
-            MineTweakerAPI.logError("Integrated workstation: " + invalid.getMessage());
+        } catch (IllegalArgumentException ignored) {
         }
     }
 
     @ZenMethod
     public static void remove(IIngredient output) {
-        if (output == null) {
-            MineTweakerAPI.logError("Integrated workstation: removal output must not be null");
-            return;
-        }
+        if (output == null) return;
         MineTweakerAPI.apply(
             new RecipeAction(
                 "Remove integrated workstation recipes for " + output,

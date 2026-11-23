@@ -33,8 +33,7 @@ public final class LargeWorkstationTweaker {
                 new RecipeAction(
                     "Add large workstation recipe " + recipe.id(),
                     () -> LargeWorkstationRecipes.addScriptRecipe(recipe)));
-        } catch (IllegalArgumentException invalid) {
-            MineTweakerAPI.logError("Large workstation: " + invalid.getMessage());
+        } catch (IllegalArgumentException ignored) {
         }
     }
 
@@ -48,18 +47,14 @@ public final class LargeWorkstationTweaker {
                     () -> LargeWorkstationRecipes.removeScriptRecipes(
                         recipe -> recipe.id()
                             .equals(key))));
-        } catch (IllegalArgumentException invalid) {
-            MineTweakerAPI.logError("Large workstation: " + invalid.getMessage());
+        } catch (IllegalArgumentException ignored) {
         }
     }
 
     /** Matches item outputs (including script conditions), or fluid outputs passed as liquid ingredients. */
     @ZenMethod
     public static void remove(IIngredient output) {
-        if (output == null) {
-            MineTweakerAPI.logError("Large workstation: removal output must not be null");
-            return;
-        }
+        if (output == null) return;
         MineTweakerAPI.apply(
             new RecipeAction(
                 "Remove large workstation recipes for " + output,
