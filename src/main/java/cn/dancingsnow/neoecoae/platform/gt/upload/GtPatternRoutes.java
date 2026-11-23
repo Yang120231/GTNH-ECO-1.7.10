@@ -258,8 +258,10 @@ public final class GtPatternRoutes implements PatternRouteProbe {
                 != MapSupport.UNAVAILABLE) return new Decision(Level.UNVERIFIED, "gtnr_missing_map", selected);
             return match;
         }
-        return request.hasRecipeMap || request.source != null ? checkCircuit(route, request, selected, canProgram)
-            : inferSelection(route, request, canProgram, verdicts.infer(route.map(), request.context));
+        var inference = verdicts.infer(route.map(), request.context);
+        if (inference.hasRecipes() || !inference.complete || !request.hasRecipeMap && request.source == null)
+            return inferSelection(route, request, canProgram, inference);
+        return checkCircuit(route, request, selected, canProgram);
     }
 
     private static Route routeWithMap(Route route, RecipeMap<?> map) {
@@ -273,6 +275,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             route.icon(),
             name,
             route.receiver(),
+            route.input(),
             route.programmingCover(),
             route.programmable());
     }
@@ -310,6 +313,7 @@ public final class GtPatternRoutes implements PatternRouteProbe {
     private static Decision inferSelection(Route route, Request request, boolean canProgram,
         GtRecipeVerifier.Inference inferred) {
         if (!inferred.complete) return new Decision(Level.UNVERIFIED, "search_incomplete", request.selectedCircuit);
+        if (inferred.needsTools()) inferred = inferred.withTools(GtRouteDiscovery.localInputs(route.input()));
         if (!inferred.found()) return new Decision(Level.WRONG_RECIPE, "recipe", request.selectedCircuit);
         if (!inferred.unique()) {
             ItemStack installed = route.circuit();
@@ -323,6 +327,8 @@ public final class GtPatternRoutes implements PatternRouteProbe {
             return new Decision(Level.UNVERIFIED, "circuit_unknown", installed);
         }
         ItemStack selected = request.patternCircuit != null ? request.patternCircuit : inferred.circuit();
+        if (selected == null && !canProgram && route.circuit() != null)
+            return new Decision(Level.CIRCUIT_CONFLICT, "machine_circuit", null);
         return checkCircuit(route, request, selected, canProgram);
     }
 

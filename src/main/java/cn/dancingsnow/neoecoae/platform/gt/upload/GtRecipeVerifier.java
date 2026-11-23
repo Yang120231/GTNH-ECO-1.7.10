@@ -27,7 +27,7 @@ import gregtech.api.util.GTRecipeConstants;
 import gregtech.api.util.GTUtility;
 import tectech.recipe.TecTechRecipeMaps;
 
-/** Infers a source-free pattern's route, not its execution quantities or the machine's current inventory. */
+/** Infers recipe selectors and required tools from the pattern's input and output types. */
 final class GtRecipeVerifier {
 
     private static final int MAX_RECIPES = 100_000;
@@ -39,10 +39,32 @@ final class GtRecipeVerifier {
     static final class Inference {
 
         final Map<String, ItemStack> selections = new LinkedHashMap<>();
+        private final List<ToolMatch> toolMatches = new ArrayList<>();
         boolean complete = true;
 
         boolean found() {
             return !selections.isEmpty();
+        }
+
+        boolean hasRecipes() {
+            return found() || !toolMatches.isEmpty();
+        }
+
+        Inference withTools(List<ItemStack> installed) {
+            Inference result = new Inference();
+            result.complete = complete;
+            result.selections.putAll(selections);
+            for (ToolMatch match : toolMatches) {
+                if (match.tools.stream()
+                    .allMatch(tool -> containsTool(installed, tool))) {
+                    result.selections.put(GtCircuits.number(match.circuit), match.circuit);
+                }
+            }
+            return result;
+        }
+
+        boolean needsTools() {
+            return !toolMatches.isEmpty();
         }
 
         boolean unique() {
@@ -80,7 +102,9 @@ final class GtRecipeVerifier {
                 if (pattern.circuit != null && circuit != null && !GtCircuits.same(pattern.circuit, circuit)) continue;
                 if (!inputKindsPresent(map, recipe, pattern)) continue;
                 ItemStack selected = pattern.circuit != null ? pattern.circuit : circuit;
-                result.selections.put(GtCircuits.number(selected), selected);
+                List<GTRecipe.RecipeItemInput> tools = missingTools(recipe, pattern);
+                if (tools.isEmpty()) result.selections.put(GtCircuits.number(selected), selected);
+                else result.toolMatches.add(new ToolMatch(selected, tools));
             }
         } catch (RuntimeException | LinkageError unavailable) {
             // Skipping an unreadable candidate could conceal another route. Never turn a partial search into proof.
@@ -88,6 +112,26 @@ final class GtRecipeVerifier {
         }
         return result;
     }
+
+    private static List<GTRecipe.RecipeItemInput> missingTools(GTRecipe recipe, Pattern pattern) {
+        List<GTRecipe.RecipeItemInput> tools = new ArrayList<>();
+        for (GTRecipe.RecipeItemInput input : recipe.getCachedCombinedItemInputs()) {
+            if (input.inputAmount == 0 && !GtCircuits.isCircuit(input.unifiedStack)
+                && !containsTool(pattern.items, input)) tools.add(input);
+        }
+        return tools;
+    }
+
+    private static boolean containsTool(List<ItemStack> items, GTRecipe.RecipeItemInput tool) {
+        for (ItemStack item : items) {
+            if (item != null && item.stackSize > 0 && tool.matchesRecipe(GTOreDictUnificator.getItemData(item), item))
+                return true;
+        }
+        return false;
+    }
+
+    @com.github.bsideup.jabel.Desugar
+    private record ToolMatch(ItemStack circuit, List<GTRecipe.RecipeItemInput> tools) {}
 
     private static ItemStack recipeCircuit(GTRecipe recipe) {
         ItemStack selected = null;
@@ -284,7 +328,7 @@ final class GtRecipeVerifier {
             if (virtualCircuit != null) {
                 if (pattern.circuit == null) pattern.items.add(virtualCircuit.copy());
                 pattern.circuit = virtualCircuit;
-            }
+            } else if (pattern.circuit == null) pattern.circuit = GtPatternRoutes.selectedCircuit(context);
             for (IAEStack<?> input : inputs) {
                 if (input instanceof IAEItemStack) {
                     ItemStack stack = GtCircuits.normalizeForRecipe(((IAEItemStack) input).getItemStack());

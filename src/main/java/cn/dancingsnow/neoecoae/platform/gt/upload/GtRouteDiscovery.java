@@ -1,6 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.gt.upload;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
@@ -22,10 +23,12 @@ import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.interfaces.tileentity.RecipeMapWorkable;
 import gregtech.api.metatileentity.MetaTileEntity;
+import gregtech.api.metatileentity.implementations.MTEBasicMachine;
 import gregtech.api.metatileentity.implementations.MTEHatchInput;
 import gregtech.api.metatileentity.implementations.MTEHatchInputBus;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
+import gregtech.common.tileentities.machines.IDualInputHatch;
 
 /** Reads GT destinations behind pattern hatches and ME interfaces, sharing the controller index across hosts. */
 final class GtRouteDiscovery {
@@ -88,7 +91,15 @@ final class GtRouteDiscovery {
         IMetaTileEntity receiver, boolean cover, boolean programmable) {
         IMetaTileEntity display = receiver == null ? input : receiver;
         ItemStack icon = machineIcon(display);
-        Route candidate = new Route(map, circuit, icon, routeName(icon, display, map), receiver, cover, programmable);
+        Route candidate = new Route(
+            map,
+            circuit,
+            icon,
+            routeName(icon, display, map),
+            receiver,
+            input,
+            cover,
+            programmable);
         for (Route route : routes) if (route.sameDestination(candidate)) return;
         routes.add(candidate);
     }
@@ -107,6 +118,25 @@ final class GtRouteDiscovery {
         var inventory = meta.getInventoryHandler();
         if (slot < 0 || inventory == null || slot >= inventory.getSlots()) return null;
         return GtCircuits.unwrap(inventory.getStackInSlot(slot));
+    }
+
+    static List<ItemStack> localInputs(IMetaTileEntity input) {
+        if (input instanceof IDualInputHatch hatch) return Arrays.asList(hatch.getSharedItems());
+        if (input instanceof MTEHatchInputBus bus) {
+            List<ItemStack> items = new ArrayList<>();
+            for (int slot = 0; slot < bus.getSizeInventory(); slot++) {
+                if (slot != bus.getCircuitSlot()) items.add(bus.getStackInSlot(slot));
+            }
+            return items;
+        }
+        if (input instanceof MTEBasicMachine machine) {
+            List<ItemStack> items = new ArrayList<>();
+            int start = machine.getInputSlot();
+            for (int slot = start; slot < start + machine.mInputSlotCount; slot++)
+                items.add(machine.getStackInSlot(slot));
+            return items;
+        }
+        return Collections.emptyList();
     }
 
     private static boolean hasProgrammingCover(IGregTechTileEntity tile) {
@@ -183,12 +213,13 @@ final class GtRouteDiscovery {
 
     @com.github.bsideup.jabel.Desugar
     record Route(RecipeMap<?> map, ItemStack circuit, ItemStack icon, String name, IMetaTileEntity receiver,
-        boolean programmingCover, boolean programmable) {
+        IMetaTileEntity input, boolean programmingCover, boolean programmable) {
 
         // The same map and circuit can be reached through different input parts. Keep programming capability:
         // an earlier unprogrammed bus (or fluid hatch) must not hide a later bus carrying a programming cover.
         boolean sameDestination(Route other) {
             return map == other.map && receiver == other.receiver
+                && input == other.input
                 && programmingCover == other.programmingCover
                 && programmable == other.programmable
                 && (circuit == null ? other.circuit == null : GtCircuits.same(circuit, other.circuit));
