@@ -8,9 +8,6 @@ import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.function.Function;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
@@ -18,7 +15,6 @@ import appeng.api.storage.data.IAEStack;
 import appeng.me.cache.CraftingGridCache;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 
 /**
  * Decides whether a request must be planned by AE2's own planner because a reachable pattern uses semantics the ECO
@@ -27,7 +23,6 @@ import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
  */
 final class NativePlannerRouting {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae.planning");
     /** Walk bound; an unusually large reachable graph keeps the ECO planner rather than stall the server thread. */
     private static final int MAX_VISITED_PATTERNS = 200_000;
 
@@ -85,11 +80,7 @@ final class NativePlannerRouting {
         try {
             reason = nativeOnlyReason(grid, output);
         } catch (RuntimeException failure) {
-            LOGGER.warn("ECO planner routing check failed; using AE2's planner", failure);
             return true;
-        }
-        if (reason != null && PlanningSettings.Crafting.ecoPlanningStageDebug) {
-            LOGGER.info("[ECO-PLANNING] planner=AE2 reason=\"{}\" goal={}", reason, output);
         }
         return reason != null;
     }

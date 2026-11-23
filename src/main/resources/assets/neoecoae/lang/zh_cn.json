@@ -503,8 +503,6 @@
   "neoecoae.configuration.ecoDispatchWatchdogDebug.tooltip": "记录 ECO 发配候选原因及发配前后的任务记账状态。\n连续 200 tick 没有实际进展时记录汇总诊断，之后每 1200 tick 再次记录。\n此选项只收集诊断信息，不会修改合成状态。",
   "neoecoae.configuration.ecoFastPathCacheSize": "快速路径缓存大小",
   "neoecoae.configuration.ecoFastPathCacheSize.tooltip": "每个 ECO 快速路径缓存最多保留的配方条目数量。",
-  "neoecoae.configuration.ecoPlanningStageDebug": "开启ECO快速规划阶段日志",
-  "neoecoae.configuration.ecoPlanningStageDebug.tooltip": "记录 ECO 快速规划的每个计算阶段，包括非循环规划与循环规划。\n同时记录每次规划请求实际选择 ECO 快速规划还是 AE2 原版规划及原因。\n日志包含阶段耗时、成功状态、失败原因、目标物品和请求数量。",
   "neoecoae.configuration.fastPath": "快速路径",
   "neoecoae.configuration.fastPath.tooltip": "ECO AE2 快速路径缓存与批量合成限制。\n快速路径默认启用；启用原版合成事件时会回退到逐次合成，以保留事件语义。",
   "neoecoae.configuration.postCraftingEvent": "触发合成事件",

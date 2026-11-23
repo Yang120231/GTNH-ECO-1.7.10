@@ -7,9 +7,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import cn.dancingsnow.neoecoae.crafting.planner.cycle.PatternRun;
 import cn.dancingsnow.neoecoae.crafting.planner.cycle.RepeatLayout;
 import cn.dancingsnow.neoecoae.crafting.planner.identity.PlanIdentity;
@@ -18,8 +15,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 
 /** The only boundary that interprets planner components as an executable contract. */
 public final class ECOExecutionPlanBuilder {
-
-    private static final Logger LOGGER = LogManager.getLogger(ECOExecutionPlanBuilder.class);
 
     private ECOExecutionPlanBuilder() {}
 

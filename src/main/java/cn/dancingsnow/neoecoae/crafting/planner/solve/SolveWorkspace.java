@@ -110,23 +110,17 @@ public final class SolveWorkspace {
     }
 
     /** Only pure recipe arithmetic is retained; inventory, credit and provenance are never cached. */
-    Expansion cachedExpansion(CompiledPattern pattern, PlannerAmount times, AcyclicSolveMetrics metrics) {
+    Expansion cachedExpansion(CompiledPattern pattern, PlannerAmount times) {
         if (expansions == null) return null;
         Expansion previous = expansions.get(pattern);
         if (previous != null && previous.times.equals(times)) {
-            if (metrics != null) metrics.expansionCacheHits++;
             return previous;
-        }
-        if (metrics != null) {
-            metrics.expansionCacheMisses++;
-            if (previous != null) metrics.expansionInvalidations++;
         }
         long size = 1L + pattern.inputs()
             .size()
             + pattern.outputs()
                 .size();
         if (previous == null && size > MAX_CACHED_AMOUNTS - cachedAmounts) {
-            if (metrics != null) metrics.expansionCacheBypasses++;
             return null;
         }
         PlannerAmount[] inputs = new PlannerAmount[pattern.inputs()

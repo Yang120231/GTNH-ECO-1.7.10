@@ -138,11 +138,6 @@ public final class PlanningSettings {
         @Config.LangKey("neoecoae.configuration.ecoPlanningMaxMemoryMiB")
         public static int ecoPlanningMaxMemoryMiB = 64;
 
-        @Config.Comment("Log planning stages")
-        @Config.DefaultBoolean(false)
-        @Config.LangKey("neoecoae.configuration.ecoPlanningStageDebug")
-        public static boolean ecoPlanningStageDebug;
-
         @Config.Comment("Log source dispatch runtime diagnostics")
         @Config.DefaultBoolean(false)
         @Config.LangKey("neoecoae.configuration.ecoDispatchWatchdogDebug")

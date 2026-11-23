@@ -179,33 +179,21 @@ public final class ActiveRouteSelector {
 
     public Selection selectWithChoices(CraftingDependencyGraph universe, Map<AEKey, Integer> choices,
         ECOCancellation cancellation) throws InterruptedException {
-        return selectWithChoices(universe, choices, cancellation, null);
-    }
-
-    Selection selectWithChoices(CraftingDependencyGraph universe, Map<AEKey, Integer> choices,
-        ECOCancellation cancellation, AcyclicSolveMetrics metrics) throws InterruptedException {
-        long started = metrics == null ? 0L : System.nanoTime();
         CraftingDependencyGraph active;
-        try {
-            if (metrics != null) metrics.activeGraphBuilds++;
-            Map<AEKey, List<CompiledPattern>> candidates = new Object2ObjectLinkedOpenHashMap<>(
-                universe.nodes()
-                    .size());
-            for (AEKey key : universe.nodes()
-                .keySet()) candidates.put(key, fastCandidates(universe, key));
-            active = activeGraph(universe, choices, candidates, cancellation);
-        } finally {
-            if (metrics != null) metrics.activeGraphNanos += System.nanoTime() - started;
-        }
-        Analysis analysis = analyze(active, cancellation, metrics);
+        Map<AEKey, List<CompiledPattern>> candidates = new Object2ObjectLinkedOpenHashMap<>(
+            universe.nodes()
+                .size());
+        for (AEKey key : universe.nodes()
+            .keySet()) candidates.put(key, fastCandidates(universe, key));
+        active = activeGraph(universe, choices, candidates, cancellation);
+        Analysis analysis = analyze(active, cancellation);
         return finish(
             choices,
             analysis.sccs(),
             analysis.graph(),
             cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
             false,
-            cancellation,
-            metrics);
+            cancellation);
     }
 
     /**
@@ -221,13 +209,10 @@ public final class ActiveRouteSelector {
      * its own pattern's input, seeds, catalysts, returned containers) still forms its cycle component.
      * </p>
      */
-    private Analysis analyze(CraftingDependencyGraph active, ECOCancellation cancellation) throws InterruptedException {
-        return analyze(active, cancellation, null);
-    }
 
-    private Analysis analyze(CraftingDependencyGraph active, ECOCancellation cancellation, AcyclicSolveMetrics metrics)
+    private Analysis analyze(CraftingDependencyGraph active, ECOCancellation cancellation)
         throws InterruptedException {
-        List<SccComponent> sccs = analyzeSccs(active, cancellation, metrics);
+        List<SccComponent> sccs = analyzeSccs(active, cancellation);
         Set<CraftingGraphEdge> dropped = new ObjectOpenHashSet<>();
         for (SccComponent scc : sccs) {
             cancellation.checkpoint();
@@ -238,45 +223,20 @@ public final class ActiveRouteSelector {
             active.edges()
                 .size() - dropped.size());
         for (CraftingGraphEdge edge : active.edges()) if (!dropped.contains(edge)) kept.add(edge);
-        long started = metrics == null ? 0L : System.nanoTime();
         CraftingDependencyGraph pruned;
-        try {
-            if (metrics != null) metrics.prunedGraphBuilds++;
-            pruned = new CraftingDependencyGraph(active.goal(), active.nodes(), kept);
-        } finally {
-            if (metrics != null) metrics.prunedGraphNanos += System.nanoTime() - started;
-        }
-        return new Analysis(pruned, analyzeSccs(pruned, cancellation, metrics), sccs);
+        pruned = new CraftingDependencyGraph(active.goal(), active.nodes(), kept);
+        return new Analysis(pruned, analyzeSccs(pruned, cancellation), sccs);
     }
 
-    private List<SccComponent> analyzeSccs(CraftingDependencyGraph graph, ECOCancellation cancellation,
-        AcyclicSolveMetrics metrics) throws InterruptedException {
-        long started = metrics == null ? 0L : System.nanoTime();
-        try {
-            if (metrics != null) metrics.sccPasses++;
-            return tarjan.analyze(graph, cancellation);
-        } finally {
-            if (metrics != null) metrics.sccNanos += System.nanoTime() - started;
-        }
+    private List<SccComponent> analyzeSccs(CraftingDependencyGraph graph, ECOCancellation cancellation) throws InterruptedException {
+        return tarjan.analyze(graph, cancellation);
     }
 
     private static Selection finish(Map<AEKey, Integer> choices, List<SccComponent> sccs,
         CraftingDependencyGraph active, List<CompiledPattern> deferred, boolean budgetExhausted,
         ECOCancellation cancellation) throws InterruptedException {
-        return finish(choices, sccs, active, deferred, budgetExhausted, cancellation, null);
-    }
-
-    private static Selection finish(Map<AEKey, Integer> choices, List<SccComponent> sccs,
-        CraftingDependencyGraph active, List<CompiledPattern> deferred, boolean budgetExhausted,
-        ECOCancellation cancellation, AcyclicSolveMetrics metrics) throws InterruptedException {
-        long started = metrics == null ? 0L : System.nanoTime();
         CondensationGraph condensation;
-        try {
-            if (metrics != null) metrics.condensationBuilds++;
-            condensation = CondensationGraph.build(active, sccs, cancellation);
-        } finally {
-            if (metrics != null) metrics.condensationNanos += System.nanoTime() - started;
-        }
+        condensation = CondensationGraph.build(active, sccs, cancellation);
         List<CycleComponent> cycles = condensation.cycles();
         return new Selection(
             cycles.isEmpty() && !budgetExhausted,
@@ -485,7 +445,6 @@ public final class ActiveRouteSelector {
 
         private final CraftingDependencyGraph universe;
         private final Set<IPatternDetails> deferred;
-        private final AcyclicSolveMetrics metrics;
         private final ActiveRouteSelector selector = new ActiveRouteSelector();
         private final Map<AEKey, List<CompiledPattern>> candidates = new Object2ObjectLinkedOpenHashMap<>();
         private final Map<AEKey, CraftingGraphNode> nodes = new Object2ObjectLinkedOpenHashMap<>();
@@ -497,11 +456,10 @@ public final class ActiveRouteSelector {
         private boolean ordered;
         private boolean requiresCycle;
 
-        RetryCheck(CraftingDependencyGraph universe, Set<IPatternDetails> deferred, AcyclicSolveMetrics metrics,
+        RetryCheck(CraftingDependencyGraph universe, Set<IPatternDetails> deferred,
             ECOCancellation cancellation) throws InterruptedException {
             this.universe = universe;
             this.deferred = deferred;
-            this.metrics = metrics;
             componentByKey.defaultReturnValue(-1);
             for (AEKey key : universe.nodes()
                 .keySet()) {
@@ -528,110 +486,95 @@ public final class ActiveRouteSelector {
         }
 
         private boolean check(Map<AEKey, Integer> choices, ECOCancellation cancellation) throws InterruptedException {
-            long started = metrics == null ? 0L : System.nanoTime();
             CraftingDependencyGraph active;
-            try {
-                Set<AEKey> affected = new ObjectOpenHashSet<>();
-                for (var entry : candidates.entrySet()) {
-                    cancellation.checkpoint();
-                    AEKey key = entry.getKey();
-                    List<CompiledPattern> available = entry.getValue();
-                    int choice = choices.getOrDefault(key, 0);
-                    if (choice >= available.size()) choice = available.size() - 1;
-                    CompiledPattern selected = choice < 0 ? null : available.get(choice);
-                    CraftingGraphNode oldNode = nodes.get(key);
-                    CompiledPattern previous = oldNode == null || oldNode.candidatePatterns()
-                        .isEmpty() ? null
-                            : oldNode.candidatePatterns()
-                                .get(0);
-                    if (oldNode == null || previous != selected) {
-                        nodes.put(
+            Set<AEKey> affected = new ObjectOpenHashSet<>();
+            for (var entry : candidates.entrySet()) {
+                cancellation.checkpoint();
+                AEKey key = entry.getKey();
+                List<CompiledPattern> available = entry.getValue();
+                int choice = choices.getOrDefault(key, 0);
+                if (choice >= available.size()) choice = available.size() - 1;
+                CompiledPattern selected = choice < 0 ? null : available.get(choice);
+                CraftingGraphNode oldNode = nodes.get(key);
+                CompiledPattern previous = oldNode == null || oldNode.candidatePatterns()
+                    .isEmpty() ? null
+                        : oldNode.candidatePatterns()
+                            .get(0);
+                if (oldNode == null || previous != selected) {
+                    nodes.put(
+                        key,
+                        new CraftingGraphNode(
                             key,
-                            new CraftingGraphNode(
-                                key,
-                                selected == null ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()
-                                    : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(selected)));
-                        affected.add(key);
-                        // Changing a physical pattern's offered primary view changes its siblings' anchors too.
-                        if (previous != null) affected.addAll(views.get(previous.details()));
-                        if (selected != null) affected.addAll(views.get(selected.details()));
-                    }
+                            selected == null ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()
+                                : cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(selected)));
+                    affected.add(key);
+                    // Changing a physical pattern's offered primary view changes its siblings' anchors too.
+                    if (previous != null) affected.addAll(views.get(previous.details()));
+                    if (selected != null) affected.addAll(views.get(selected.details()));
                 }
-                boolean reusable = analyzed && ordered;
-                for (AEKey key : affected) {
-                    cancellation.checkpoint();
-                    if (cyclicKeys.contains(key)) reusable = false;
-                    List<CraftingGraphEdge> previous = rows
-                        .getOrDefault(key, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
-                    // Preserve every internal edge of the RAW SCCs, including ordering edges later pruned.
-                    // Pruned SCCs alone cannot certify that an old ordering ring stays non-material.
-                    if (reusable) for (CraftingGraphEdge edge : previous) {
-                        if (componentByKey.getInt(edge.producer()) == componentByKey.getInt(edge.requiredInput())) {
-                            reusable = false;
-                            break;
-                        }
-                    }
-                    CraftingGraphNode node = nodes.get(key);
-                    List<CraftingGraphEdge> next = node.candidatePatterns()
-                        .isEmpty()
-                            ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()
-                            : patternEdges(
-                                key,
-                                node.candidatePatterns()
-                                    .get(0),
-                                nodes);
-                    if (reusable) for (CraftingGraphEdge edge : next) {
-                        if (!followsOrder(edge)) {
-                            reusable = false;
-                            break;
-                        }
-                    }
-                    rows.put(key, next);
-                }
-                if (metrics != null) {
-                    metrics.edgeRowsReused += candidates.size() - affected.size();
-                    metrics.edgeRowsRebuilt += affected.size();
-                }
-                if (analyzed && (affected.isEmpty() || reusable)) {
-                    if (metrics != null) metrics.graphCacheHits++;
-                    return requiresCycle;
-                }
-                if (metrics != null) {
-                    if (analyzed) metrics.graphInvalidations++;
-                    metrics.activeGraphBuilds++;
-                }
-                Map<AEKey, CraftingGraphNode> activeNodes = new Object2ObjectLinkedOpenHashMap<>(nodes);
-                List<CraftingGraphEdge> edges = new ArrayList<>();
-                // Match activeGraph's original node/edge order even when rows were updated out of order.
-                for (AEKey key : candidates.keySet()) {
-                    cancellation.checkpoint();
-                    edges.addAll(rows.get(key));
-                }
-                for (CraftingGraphEdge edge : edges) {
-                    activeNodes.putIfAbsent(
-                        edge.producer(),
-                        new CraftingGraphNode(
-                            edge.producer(),
-                            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
-                    activeNodes.putIfAbsent(
-                        edge.requiredInput(),
-                        new CraftingGraphNode(
-                            edge.requiredInput(),
-                            cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
-                }
-                active = new CraftingDependencyGraph(universe.goal(), activeNodes, edges);
-            } finally {
-                if (metrics != null) metrics.activeGraphNanos += System.nanoTime() - started;
             }
-            Analysis analysis = selector.analyze(active, cancellation, metrics);
+            boolean reusable = analyzed && ordered;
+            for (AEKey key : affected) {
+                cancellation.checkpoint();
+                if (cyclicKeys.contains(key)) reusable = false;
+                List<CraftingGraphEdge> previous = rows
+                    .getOrDefault(key, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
+                // Preserve every internal edge of the RAW SCCs, including ordering edges later pruned.
+                // Pruned SCCs alone cannot certify that an old ordering ring stays non-material.
+                if (reusable) for (CraftingGraphEdge edge : previous) {
+                    if (componentByKey.getInt(edge.producer()) == componentByKey.getInt(edge.requiredInput())) {
+                        reusable = false;
+                        break;
+                    }
+                }
+                CraftingGraphNode node = nodes.get(key);
+                List<CraftingGraphEdge> next = node.candidatePatterns()
+                    .isEmpty()
+                        ? cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()
+                        : patternEdges(
+                            key,
+                            node.candidatePatterns()
+                                .get(0),
+                            nodes);
+                if (reusable) for (CraftingGraphEdge edge : next) {
+                    if (!followsOrder(edge)) {
+                        reusable = false;
+                        break;
+                    }
+                }
+                rows.put(key, next);
+            }
+            if (analyzed && (affected.isEmpty() || reusable)) {
+                return requiresCycle;
+            }
+            Map<AEKey, CraftingGraphNode> activeNodes = new Object2ObjectLinkedOpenHashMap<>(nodes);
+            List<CraftingGraphEdge> edges = new ArrayList<>();
+            // Match activeGraph's original node/edge order even when rows were updated out of order.
+            for (AEKey key : candidates.keySet()) {
+                cancellation.checkpoint();
+                edges.addAll(rows.get(key));
+            }
+            for (CraftingGraphEdge edge : edges) {
+                activeNodes.putIfAbsent(
+                    edge.producer(),
+                    new CraftingGraphNode(
+                        edge.producer(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+                activeNodes.putIfAbsent(
+                    edge.requiredInput(),
+                    new CraftingGraphNode(
+                        edge.requiredInput(),
+                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf()));
+            }
+            active = new CraftingDependencyGraph(universe.goal(), activeNodes, edges);
+            Analysis analysis = selector.analyze(active, cancellation);
             Selection selection = finish(
                 choices,
                 analysis.sccs(),
                 analysis.graph(),
                 cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
                 false,
-                cancellation,
-                metrics);
+                cancellation);
             requiresCycle = selection.cyclicComponents()
                 .stream()
                 .filter(

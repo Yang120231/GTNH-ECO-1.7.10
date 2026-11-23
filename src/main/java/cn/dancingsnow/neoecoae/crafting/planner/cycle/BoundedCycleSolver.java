@@ -9,8 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount;
@@ -55,7 +53,6 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
  */
 public final class BoundedCycleSolver implements CycleSolver {
 
-    private static final Logger LOGGER = LogManager.getLogger(BoundedCycleSolver.class);
     /** Keep the legacy per-firing witness only while it remains cheap to materialize. */
     private static final long MAX_EXPANDED_WITNESS = 100_000L;
     private static final long GROWTH_PROBE_WORK = 100_000L;
@@ -176,16 +173,6 @@ public final class BoundedCycleSolver implements CycleSolver {
         } catch (cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudget.Exhausted exhausted) {
             throw exhausted;
         } catch (RuntimeException failure) {
-            LOGGER.error(
-                "BoundedCycleSolver failed for componentId={} memberKeys={} patternCount={}",
-                request.component()
-                    .componentId(),
-                request.component()
-                    .members(),
-                request.component()
-                    .patterns()
-                    .size(),
-                failure);
             throw failure;
         }
     }

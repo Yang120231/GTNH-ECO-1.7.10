@@ -11,7 +11,6 @@ import java.util.Set;
 
 import cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOCancellation;
-import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningStageLogger;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledInput;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledNetwork;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledPattern;
@@ -127,32 +126,7 @@ public final class AcyclicCraftingSolver {
 
     private Outcome solveGoals(CompiledNetwork network, PlannerInventorySnapshot inventory,
         Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Map<AEKey, Integer> initialChoices,
-        Set<IPatternDetails> deferredPatterns, boolean ignorePatternSubstitutions, ECOCancellation cancellation)
-        throws InterruptedException {
-        AcyclicSolveMetrics metrics = ECOPlanningStageLogger.isEnabled() ? new AcyclicSolveMetrics() : null;
-        try {
-            Outcome outcome = solveGoals(
-                network,
-                inventory,
-                goals,
-                additionalGoal,
-                initialChoices,
-                deferredPatterns,
-                ignorePatternSubstitutions,
-                cancellation,
-                metrics);
-            if (metrics != null) metrics.status = outcome.status()
-                .name();
-            return outcome;
-        } finally {
-            if (metrics != null) metrics.finish();
-        }
-    }
-
-    private Outcome solveGoals(CompiledNetwork network, PlannerInventorySnapshot inventory,
-        Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Map<AEKey, Integer> initialChoices,
-        Set<IPatternDetails> deferredPatterns, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
-        AcyclicSolveMetrics metrics) throws InterruptedException {
+        Set<IPatternDetails> deferredPatterns, boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
         long amount = goals.getOrDefault(network.goal(), PlannerAmount.ZERO)
             .longValueExact();
         ECOPlanTrace trace = new ECOPlanTrace();
@@ -172,22 +146,15 @@ public final class AcyclicCraftingSolver {
         ActiveRouteSelector.RetryCheck retryCheck = null;
         for (int attempt = 0; attempt < retryBudget; attempt++) {
             cancellation.checkpoint();
-            if (metrics != null) metrics.attempts++;
             if (attempt > 0) {
                 // The caller classified the initial route. A numeric retry can add feedback through
                 // secondary outputs even when its ordinary input edges still look like a DAG.
                 if (universe == null) {
-                    long started = metrics == null ? 0L : System.nanoTime();
-                    try {
-                        if (metrics != null) metrics.universeBuilds++;
-                        universe = new cn.dancingsnow.neoecoae.crafting.planner.graph.CraftingGraphBuilder()
-                            .build(network, cancellation);
-                    } finally {
-                        if (metrics != null) metrics.universeNanos += System.nanoTime() - started;
-                    }
+                    universe = new cn.dancingsnow.neoecoae.crafting.planner.graph.CraftingGraphBuilder()
+                        .build(network, cancellation);
                 }
                 if (retryCheck == null) {
-                    retryCheck = new ActiveRouteSelector.RetryCheck(universe, deferredPatterns, metrics, cancellation);
+                    retryCheck = new ActiveRouteSelector.RetryCheck(universe, deferredPatterns, cancellation);
                 }
                 if (retryCheck.requiresCycle(choices, cancellation)) {
                     return cyclicRouteOutcome(network, inventory, choices, trace);
@@ -208,9 +175,8 @@ public final class AcyclicCraftingSolver {
                     additionalGoal,
                     deferredPatterns,
                     ignorePatternSubstitutions,
-                    cancellation,
-                    metrics)
-                : runOnce(
+                    cancellation)
+                : expandDemands(
                     network,
                     new AcyclicRoutePlan(currentRoute),
                     workspace,
@@ -219,8 +185,7 @@ public final class AcyclicCraftingSolver {
                     deferredPatterns,
                     cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.setOf(),
                     ignorePatternSubstitutions,
-                    cancellation,
-                    metrics);
+                    cancellation);
             if (state == null) {
                 return cyclicRouteOutcome(network, inventory, choices, trace);
             }
@@ -258,7 +223,6 @@ public final class AcyclicCraftingSolver {
             }
             if (state.unsupported.isEmpty()) missingRoute = state;
             workspace.enableExpansionCache();
-            if (metrics != null) metrics.candidateSwitches++;
             boolean findCheckpoint = workspace.needsCheckpointTarget();
             AEKey checkpointTarget = null;
             boolean checkpointRetryPossible = false;
@@ -321,7 +285,7 @@ public final class AcyclicCraftingSolver {
      */
     private static SolveState solveStockBackedRoute(CompiledNetwork network, SolveWorkspace workspace,
         Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Set<IPatternDetails> deferredPatterns,
-        boolean ignorePatternSubstitutions, ECOCancellation cancellation, AcyclicSolveMetrics metrics)
+        boolean ignorePatternSubstitutions, ECOCancellation cancellation)
         throws InterruptedException {
         PlannerCounter stock = new PlannerCounter();
         workspace.inventory()
@@ -340,7 +304,7 @@ public final class AcyclicCraftingSolver {
                 goals.keySet(),
                 cancellation);
             if (route == null) return null;
-            SolveState state = runOnce(
+            SolveState state = expandDemands(
                 network,
                 new AcyclicRoutePlan(route),
                 workspace,
@@ -349,8 +313,7 @@ public final class AcyclicCraftingSolver {
                 deferredPatterns,
                 stockLeaves,
                 ignorePatternSubstitutions,
-                cancellation,
-                metrics);
+                cancellation);
             if (!stockLeaves.removeAll(state.unsupported)) return state;
             workspace.enableExpansionCache();
         }
@@ -426,33 +389,9 @@ public final class AcyclicCraftingSolver {
         return candidates.get(choice);
     }
 
-    private static SolveState runOnce(CompiledNetwork network, AcyclicRoutePlan route, SolveWorkspace workspace,
-        Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Set<IPatternDetails> deferredPatterns,
-        Set<AEKey> stockLeaves, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
-        AcyclicSolveMetrics metrics) throws InterruptedException {
-        long started = metrics == null ? 0L : System.nanoTime();
-        try {
-
-            return expandDemands(
-                network,
-                route,
-                workspace,
-                goals,
-                additionalGoal,
-                deferredPatterns,
-                stockLeaves,
-                ignorePatternSubstitutions,
-                cancellation,
-                metrics);
-        } finally {
-            if (metrics != null) metrics.runOnceNanos += System.nanoTime() - started;
-        }
-    }
-
     private static SolveState expandDemands(CompiledNetwork network, AcyclicRoutePlan route, SolveWorkspace workspace,
         Map<AEKey, PlannerAmount> goals, boolean additionalGoal, Set<IPatternDetails> deferredPatterns,
-        Set<AEKey> stockLeaves, boolean ignorePatternSubstitutions, ECOCancellation cancellation,
-        AcyclicSolveMetrics metrics) throws InterruptedException {
+        Set<AEKey> stockLeaves, boolean ignorePatternSubstitutions, ECOCancellation cancellation) throws InterruptedException {
         AEKey checkpointBefore = workspace.takeCheckpointTarget();
         boolean retryPossible = workspace.checkpointRetryPossible();
         Map<AEKey, CompiledPattern> selected = new LinkedHashMap<>();
@@ -480,36 +419,29 @@ public final class AcyclicCraftingSolver {
         SolveWorkspace.RetryCheckpoint saved = workspace.checkpoint;
         boolean restored = false;
         if (saved != null) {
-            long started = metrics == null ? 0L : System.nanoTime();
-            try {
-                // This is an induction over the actual processing order, not a comparison of merged amounts.
-                // Identical completed steps see identical stock, credits, pending UUIDs and supplier order.
-                // The new queue also checks potential byproducts, including sources unused by the old plan.
-                // Special inputs can resolve producers outside the ordinary demand queue. Reuse the existing
-                // selected ledger to check those decisions as well as the queue's order and joint-output proof.
-                restored = stockLeaves.isEmpty();
-                if (restored) for (var entry : saved.state.selected.entrySet()) {
-                    cancellation.checkpoint();
-                    if (selectedPattern(network, entry.getKey(), workspace.candidateChoice()) != entry.getValue()) {
-                        restored = false;
-                        break;
-                    }
+            // This is an induction over the actual processing order, not a comparison of merged amounts.
+            // Identical completed steps see identical stock, credits, pending UUIDs and supplier order.
+            // The new queue also checks potential byproducts, including sources unused by the old plan.
+            // Special inputs can resolve producers outside the ordinary demand queue. Reuse the existing
+            // selected ledger to check those decisions as well as the queue's order and joint-output proof.
+            restored = stockLeaves.isEmpty();
+            if (restored) for (var entry : saved.state.selected.entrySet()) {
+                cancellation.checkpoint();
+                if (selectedPattern(network, entry.getKey(), workspace.candidateChoice()) != entry.getValue()) {
+                    restored = false;
+                    break;
                 }
-                if (restored) restored = pending
-                    .restorePrefix(saved.polled, saved.expanded, saved.selected, selected, cancellation);
-            } finally {
-                if (metrics != null) metrics.prefixCheckNanos += System.nanoTime() - started;
             }
+            if (restored) restored = pending
+                .restorePrefix(saved.polled, saved.expanded, saved.selected, selected, cancellation);
             if (!restored) {
                 workspace.checkpoint = null;
                 pending.reset(goals.keySet());
-                if (metrics != null) metrics.incrementalFallbacks++;
             }
         }
         SolveState state;
         Set<AEKey> unsettled;
         if (restored) {
-            long started = metrics == null ? 0L : System.nanoTime();
             state = saved.state.copy();
             state.bytes = state.bytes.add(
                 PlannerAmount.of(
@@ -517,15 +449,7 @@ public final class AcyclicCraftingSolver {
                         .size() - saved.routeSize)
                     .multiply(8L));
             unsettled = new LinkedHashSet<>(saved.unsettled);
-            if (metrics != null) {
-                metrics.incrementalRestores++;
-                metrics.restoreNanos += System.nanoTime() - started;
-                metrics.retainedMaterialVisits += saved.materialVisits;
-                metrics.retainedPatternExpansions += saved.expanded.cardinality();
-                metrics.retainedInputExpansions += saved.inputExpansions;
-            }
         } else {
-            if (metrics != null) metrics.runOnceCalls++;
             state = new SolveState(workspace.inventory());
             if (additionalGoal) state.stored.set(network.goal(), PlannerAmount.ZERO);
             for (var goal : goals.entrySet()) {
@@ -549,10 +473,6 @@ public final class AcyclicCraftingSolver {
             && retryPossible
             && route.keys()
                 .size() > SolveWorkspace.MIN_CHECKPOINT_EXPANSIONS ? new ArrayList<>() : null;
-        if (metrics != null && checkpointBefore != null) {
-            metrics.checkpointDecision = !stockLeaves.isEmpty() ? "STOCK_LEAVES"
-                : !retryPossible ? "NO_RETRY" : prefix == null ? "SHORT_ROUTE" : "NO_BOUNDARY";
-        }
         java.util.BitSet expanded = prefix == null ? null : new java.util.BitSet();
         long prefixVisits = 0;
         long prefixInputs = 0;
@@ -582,88 +502,8 @@ public final class AcyclicCraftingSolver {
                             .unboundedKeys()
                             .size();
                     int expansions = expanded.cardinality();
-                    if (metrics != null) {
-                        if (boundary && next != null) {
-                            StringBuilder details = new StringBuilder("key=").append(key)
-                                .append(" pattern=")
-                                .append(next.id())
-                                .append(" patternClass=")
-                                .append(
-                                    next.details()
-                                        .getClass()
-                                        .getName())
-                                .append(" deferred=")
-                                .append(deferred)
-                                .append(" resumable=")
-                                .append(resumable)
-                                .append(" prefixExpansions=")
-                                .append(expansions)
-                                .append(" prefixInputs=")
-                                .append(prefixInputs)
-                                .append(" stockKeys=")
-                                .append(stockKeys)
-                                .append(" complete=")
-                                .append(
-                                    next.semantics()
-                                        .completeForStaticPlanning())
-                                .append(" matching=")
-                                .append(
-                                    next.semantics()
-                                        .matchingMode())
-                                .append(" restriction=")
-                                .append(
-                                    next.semantics()
-                                        .executionRestriction())
-                                .append(" reason=")
-                                .append(
-                                    next.semantics()
-                                        .unsupportedReason())
-                                .append(" returned=")
-                                .append(
-                                    next.semantics()
-                                        .returnedOutputs())
-                                .append(" feedback=")
-                                .append(
-                                    next.semantics()
-                                        .feedbackEdges());
-                            for (int slot = 0; slot < next.inputs()
-                                .size(); slot++) {
-                                CompiledInput input = next.inputs()
-                                    .get(slot);
-                                if (input.ignoresComponents()) details.append(" componentInput[")
-                                    .append(slot)
-                                    .append("]=")
-                                    .append(input.key());
-                                if (input.remainderKey() != null) details.append(" remainderInput[")
-                                    .append(slot)
-                                    .append("]=")
-                                    .append(input.key())
-                                    .append("->")
-                                    .append(input.remainderKey());
-                            }
-                            for (var requirement : next.specialAnalysis()
-                                .requirements()) {
-                                details.append(" specialInput=")
-                                    .append(requirement.type())
-                                    .append(':')
-                                    .append(
-                                        requirement.input()
-                                            .key());
-                            }
-                            ECOPlanningStageLogger
-                                .statistics("checkpoint_boundary", System.nanoTime(), details.toString());
-                        }
-                        metrics.checkpointBoundary = deferred ? "DEFERRED"
-                            : !resumable ? "SPECIAL" : boundary ? "CANDIDATE" : "STEP_LIMIT";
-                        metrics.checkpointPrefixSteps = prefix.size();
-                        metrics.checkpointPrefixExpansions = expansions;
-                        metrics.checkpointPrefixInputs = prefixInputs;
-                        metrics.checkpointDecision = !boundary ? "STEP_LIMIT"
-                            : expansions < SolveWorkspace.MIN_CHECKPOINT_EXPANSIONS ? "SHORT_PREFIX" : "STOCK_COST";
-                    }
                     if (boundary && expansions >= SolveWorkspace.MIN_CHECKPOINT_EXPANSIONS
                         && stockKeys <= prefixInputs * 16L) {
-                        long started = metrics == null ? 0L : System.nanoTime();
                         workspace.checkpoint = new SolveWorkspace.RetryCheckpoint(
                             state,
                             prefix,
@@ -675,11 +515,6 @@ public final class AcyclicCraftingSolver {
                             prefixVisits,
                             prefixInputs,
                             specialResolver);
-                        if (metrics != null) {
-                            metrics.checkpointDecision = "COPIED";
-                            metrics.checkpointCopies++;
-                            metrics.checkpointNanos += System.nanoTime() - started;
-                        }
                     }
                     prefix = null;
                 }
@@ -687,7 +522,6 @@ public final class AcyclicCraftingSolver {
             if (prefix != null) prefix.add(key);
             PlannerAmount requested = state.provenance.pendingAmount(key);
             if (requested.signum() <= 0) continue;
-            if (metrics != null) metrics.materialVisits++;
             if (prefix != null) prefixVisits++;
             state.bytes = state.bytes.add(PlannerAmount.stackBytes(requested, key.getAmountPerByte()));
             boolean ignoreComponents = false;
@@ -759,14 +593,13 @@ public final class AcyclicCraftingSolver {
             state.provenance
                 .allocatePending(key, key, new MaterialSource.PatternOutput(pattern.details(), true), requested);
             PlannerAmount times = requested.ceilDiv(pattern.outputPerPattern());
-            if (metrics != null) metrics.patternExpansions++;
             if (prefix != null) {
                 expanded.set(prefix.size() - 1);
             }
             PlannerAmount oldTimes = state.patternTimes.getOrDefault(pattern.details(), PlannerAmount.ZERO);
             state.patternTimes.put(pattern.details(), oldTimes.add(times));
             state.bytes = state.bytes.add(times);
-            SolveWorkspace.Expansion expansion = workspace.cachedExpansion(pattern, times, metrics);
+            SolveWorkspace.Expansion expansion = workspace.cachedExpansion(pattern, times);
             Map<AEKey, PlannerAmount> produced = expansion == null ? SolveWorkspace.outputAmounts(pattern, times)
                 : expansion.outputs();
 
@@ -783,7 +616,6 @@ public final class AcyclicCraftingSolver {
                     .get(slot);
                 if (pattern.specialAnalysis()
                     .excludesFromCycleGraph(input)) continue;
-                if (metrics != null) metrics.inputExpansions++;
                 if (prefix != null) prefixInputs++;
                 // Legacy semantic adapters may still express reusable stock without the special analyzer.
                 PlannerAmount required = expansion == null ? SolveWorkspace.inputAmount(input, times)
@@ -809,13 +641,6 @@ public final class AcyclicCraftingSolver {
                 pending.add(input.key());
             }
             if (prefix != null && prefixInputs > SolveWorkspace.MAX_CHECKPOINT_INPUTS) {
-                if (metrics != null) {
-                    metrics.checkpointBoundary = "INPUT_LIMIT";
-                    metrics.checkpointDecision = "INPUT_LIMIT";
-                    metrics.checkpointPrefixSteps = prefix.size();
-                    metrics.checkpointPrefixExpansions = expanded.cardinality();
-                    metrics.checkpointPrefixInputs = prefixInputs;
-                }
                 prefix = null;
             }
         }

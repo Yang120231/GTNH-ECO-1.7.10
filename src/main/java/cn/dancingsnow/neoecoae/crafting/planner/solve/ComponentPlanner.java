@@ -7,14 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.amount.PlannerAmount;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOCancellation;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningBudget;
-import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningStageLogger;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledInput;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledNetwork;
 import cn.dancingsnow.neoecoae.crafting.planner.compile.CompiledPattern;
@@ -48,8 +45,6 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
  * Numeric planner whose only traversal input is the SCC condensation DAG.
  */
 public final class ComponentPlanner {
-
-    private static final Logger LOGGER = LogManager.getLogger(ComponentPlanner.class);
 
     @com.github.bsideup.jabel.Desugar
     public record Outcome(PlanningStatus status, SolveState state, ECOPlanTrace trace, List<CycleDiagnostic> cycles,
@@ -121,23 +116,9 @@ public final class ComponentPlanner {
         ECOCancellation cancellation) throws InterruptedException {
         // Route selection and cycle avoidance are structural planning steps, not cycle solving. The toggle only
         // controls what happens after the selected active graph still contains an unavoidable cyclic SCC.
-        long startedNanos = ECOPlanningStageLogger.start();
-        try {
-            ActiveRouteSelector.Selection selection = activeRouteSelector
-                .select(condensation.source(), true, cancellation);
-            ECOPlanningStageLogger.finish(
-                "route_selection",
-                startedNanos,
-                true,
-                selection.acyclic() ? "ACYCLIC_ROUTE"
-                    : "CYCLIC_COMPONENTS=" + selection.cyclicComponents()
-                        .size());
-            return selection;
-        } catch (InterruptedException | RuntimeException e) {
-            ECOPlanningStageLogger
-                .finish("route_selection", startedNanos, false, ECOPlanningStageLogger.exceptionReason(e));
-            throw e;
-        }
+        ActiveRouteSelector.Selection selection = activeRouteSelector
+            .select(condensation.source(), true, cancellation);
+        return selection;
     }
 
     public Outcome plan(CompiledNetwork network, ActiveRouteSelector.Selection activeSelection, KeyCounter inventory,
@@ -250,30 +231,15 @@ public final class ComponentPlanner {
                         .stream())
                 .map(CompiledPattern::details)
                 .collect(java.util.stream.Collectors.toSet());
-            long acyclicStartedNanos = ECOPlanningStageLogger.start();
-            try {
-                attempt = acyclicSolver.solve(
-                    network,
-                    new AcyclicRoutePlan(dagOrder),
-                    snapshot,
-                    amount,
-                    activeSelection.choices(),
-                    cycleOwnedPatterns,
-                    ignorePatternSubstitutions,
-                    cancellation);
-                ECOPlanningStageLogger.finish(
-                    "non_cycle_calculation",
-                    acyclicStartedNanos,
-                    attempt.status() == PlanningStatus.SUCCESS,
-                    ECOPlanningStageLogger.resultReason(attempt.status(), attempt.trace()));
-            } catch (InterruptedException | RuntimeException e) {
-                ECOPlanningStageLogger.finish(
-                    "non_cycle_calculation",
-                    acyclicStartedNanos,
-                    false,
-                    ECOPlanningStageLogger.exceptionReason(e));
-                throw e;
-            }
+            attempt = acyclicSolver.solve(
+                network,
+                new AcyclicRoutePlan(dagOrder),
+                snapshot,
+                amount,
+                activeSelection.choices(),
+                cycleOwnedPatterns,
+                ignorePatternSubstitutions,
+                cancellation);
             if (attempt.cyclicRouteChoices()
                 .isEmpty() || !classifiedRoutes.add(attempt.cyclicRouteChoices())) break;
             // Numeric fallback may introduce a multi-recipe SCC. Reclassify the exact attempted route
@@ -399,8 +365,7 @@ public final class ComponentPlanner {
             }
 
             CycleComponent cycle = (CycleComponent) component;
-            long cycleStartedNanos = ECOPlanningStageLogger.start();
-            try {
+            {
                 Map<AEKey, PlannerAmount> exactRequiredOutputs = new LinkedHashMap<>();
                 Map<AEKey, Long> requiredOutputs = new LinkedHashMap<>();
                 for (AEKey member : cycle.members()) {
@@ -472,17 +437,6 @@ public final class ComponentPlanner {
                     exactRequiredOutputs,
                     acyclic.state(),
                     attributedCycleReservations);
-                LOGGER.debug(
-                    "[ECO-CYCLE] begin component={} members={} patterns={} requiredOutputs={} "
-                        + "cyclePlanningEnabled={} stockReservations={}",
-                    cycle.componentId(),
-                    cycle.members()
-                        .size(),
-                    cycle.patterns()
-                        .size(),
-                    exactRequiredOutputs,
-                    cyclePlanningEnabled,
-                    stockReservations);
                 if (exactRequiredOutputs.isEmpty()) {
                     cycleStatus = CyclePlanningStatus.NOT_REQUIRED;
                 } else if (!cyclePlanningEnabled) {
@@ -520,28 +474,7 @@ public final class ComponentPlanner {
                         cycleStatus = CyclePlanningStatus.of(cycleResult.status());
                         diagnostic = cycleResult.summary();
                         if (cycleResult.status() == CycleSolveStatus.SUCCESS) {
-                            LOGGER.debug(
-                                "[ECO-CYCLE] solve component={} status={} firings={} seed={} "
-                                    + "externalDemand={} shortfall={} metrics={}",
-                                cycle.componentId(),
-                                cycleResult.status(),
-                                cycleResult.plannerTotalFirings(),
-                                cycleResult.requiredSeed(),
-                                cycleResult.externalDemand(),
-                                cycleResult.seedShortfall(),
-                                cycleResult.metrics());
                         } else {
-                            LOGGER.warn(
-                                "[ECO-CYCLE] solve component={} status={} targets={} stock={} "
-                                    + "seed={} externalDemand={} shortfall={} diagnostics={}",
-                                cycle.componentId(),
-                                cycleResult.status(),
-                                solveTargets,
-                                stock,
-                                cycleResult.requiredSeed(),
-                                cycleResult.externalDemand(),
-                                cycleResult.seedShortfall(),
-                                cycleResult.diagnostics());
                         }
                         if (cycleStatus == CyclePlanningStatus.UNREPRESENTABLE) amountUnrepresentable = true;
                         trace.addDiagnostic(new PlannerDiagnostic(diagnosticCode(cycleStatus), diagnostic));
@@ -787,23 +720,6 @@ public final class ComponentPlanner {
                                                 + "verifier); missing items refer to the first firing vector and "
                                                 + "are not a proof"));
                         }
-                        if (!external.solved()) {
-                            LOGGER.warn(
-                                "[ECO-CYCLE] external demand failed component={} status={} "
-                                    + "missingLeaves={} diagnostic={}",
-                                cycle.componentId(),
-                                external.status(),
-                                externalMissingItems,
-                                external.diagnostic());
-                        } else {
-                            LOGGER.debug(
-                                "[ECO-CYCLE] external demand solved component={} status={} "
-                                    + "delegated={} directReservations={}",
-                                cycle.componentId(),
-                                external.status(),
-                                external.delegatedCycleDemands(),
-                                external.directReservations());
-                        }
                         trace.addDiagnostic(
                             new PlannerDiagnostic(externalDiagnosticCode(external.status()), external.diagnostic()));
                         if (!external.solved()) {
@@ -1005,40 +921,7 @@ public final class ComponentPlanner {
                     stockReservations.forEach(
                         (key, reserved) -> attributedCycleReservations.merge(key, reserved, PlannerAmount::add));
                 }
-                if (cycleStatus != CyclePlanningStatus.SOLVED && cycleStatus != CyclePlanningStatus.NOT_REQUIRED) {
-                    LOGGER.warn(
-                        "[ECO-CYCLE] final component={} status={} disposition={} requiredOutputs={} "
-                            + "externalStatus={} missingLeaves={} diagnostic={}",
-                        cycle.componentId(),
-                        cycleStatus,
-                        disposition,
-                        requiredOutputs,
-                        externalDemandStatus,
-                        externalMissingItems,
-                        diagnostic);
-                } else {
-                    LOGGER.debug(
-                        "[ECO-CYCLE] final component={} status={} disposition={} requiredOutputs={} "
-                            + "reservations={}",
-                        cycle.componentId(),
-                        cycleStatus,
-                        disposition,
-                        requiredOutputs,
-                        stockReservations);
-                }
                 cycleDiagnostics.add(diagnostic(cycle, cycleInventory, cycleResult, trace));
-                ECOPlanningStageLogger.finish(
-                    "cycle_calculation[" + cycle.componentId() + "]",
-                    cycleStartedNanos,
-                    cycleStatus == CyclePlanningStatus.SOLVED || cycleStatus == CyclePlanningStatus.NOT_REQUIRED,
-                    diagnostic == null ? cycleStatus.name() : cycleStatus + ":" + diagnostic);
-            } catch (InterruptedException | RuntimeException e) {
-                ECOPlanningStageLogger.finish(
-                    "cycle_calculation[" + cycle.componentId() + "]",
-                    cycleStartedNanos,
-                    false,
-                    ECOPlanningStageLogger.exceptionReason(e));
-                throw e;
             }
             // An unresolved cycle always ends in a non-SUCCESS status; later components cannot change that.
             if (stopAtFirstFailure && unresolvedCycle) break;
@@ -1313,7 +1196,6 @@ public final class ComponentPlanner {
             int selected = numericChoice >= 0 ? numericChoice : routeChoice;
             baseline.put(key, selected);
         }
-        long startedNanos = ECOPlanningStageLogger.start();
         var routes = new RouteSearch(
             network,
             baseline,
@@ -1374,21 +1256,6 @@ public final class ComponentPlanner {
                     PlannerDiagnostic.Code.ROUTE_BRANCH_PRUNED,
                     "Optimistic quantity proofs excluded " + routes.prunedBranches()
                         + " infeasible producer prefixes before full route planning"));
-            ECOPlanningStageLogger.finish(
-                "alternative_routes",
-                startedNanos,
-                success,
-                "attempts=" + attempts
-                    + " pass="
-                    + routes.pass()
-                    + " expansions="
-                    + routes.expansions()
-                    + " pruned="
-                    + routes.prunedBranches()
-                    + " cycleSolves="
-                    + failures.solverCalls()
-                    + " cycleReuses="
-                    + failures.reusedFailures());
         }
     }
 

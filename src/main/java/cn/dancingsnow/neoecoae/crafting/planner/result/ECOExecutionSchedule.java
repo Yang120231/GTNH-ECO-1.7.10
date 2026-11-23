@@ -11,9 +11,6 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import cn.dancingsnow.neoecoae.crafting.planner.identity.PlanIdentity;
 import cn.dancingsnow.neoecoae.crafting.planner.provenance.ExecutionProvenance;
 import cn.dancingsnow.neoecoae.crafting.planner.provenance.MaterialSource;
@@ -25,8 +22,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 /** Runtime component phases. The list is explicitly execution (supplier-to-consumer) order. */
 @com.github.bsideup.jabel.Desugar
 public record ECOExecutionSchedule(List<ComponentExecutionPhase> phases, List<PhaseDependency> dependencies) {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     public ECOExecutionSchedule {
 

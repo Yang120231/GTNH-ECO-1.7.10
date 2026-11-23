@@ -11,8 +11,6 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Supplier;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.planner.identity.PlanIdentity;
@@ -37,7 +35,6 @@ import it.unimi.dsi.fastutil.objects.ReferenceSet;
  */
 public final class ECOPlanningResultRegistry {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     private static final int MAX_ENTRIES = 4096;
     private static final long MAX_AGE_NANOS = Duration.ofMinutes(10)
         .toNanos();

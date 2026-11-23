@@ -3,16 +3,11 @@ package cn.dancingsnow.neoecoae.crafting.planner.result;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 
 /** Runtime-only ownership ledger for one cycle component. */
 public final class CycleResourceLedger {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
-    private static final boolean TRACE_EVENTS = false;
     private final int componentId;
     private final Map<AEKey, Long> bootstrapReserve = new LinkedHashMap<>();
     private final Map<AEKey, Long> bootstrapRequirement = new LinkedHashMap<>();
@@ -68,7 +63,6 @@ public final class CycleResourceLedger {
         long consumed = Math.min(before, amount);
         if (consumed > 0) bootstrapReserve.put(key, before - consumed);
         internalConsumed.merge(key, amount, CycleResourceLedger::saturatedAdd);
-        log(key, before, reserve(key), 0, 0, "internal_consumed");
     }
 
     /** Records cycle output and replenishes reserve before exposing any surplus. */
@@ -79,7 +73,6 @@ public final class CycleResourceLedger {
         long replenish = Math.min(amount, Math.max(0L, requiredReserve(key) - before));
         if (replenish > 0) bootstrapReserve.put(key, before + replenish);
         long surplus = amount - replenish;
-        log(key, before, reserve(key), amount, surplus, "kept_cycle_reserve");
         return surplus;
     }
 
@@ -111,17 +104,4 @@ public final class CycleResourceLedger {
         }
     }
 
-    private void log(AEKey key, long before, long after, long produced, long released, String reason) {
-        if (TRACE_EVENTS) {
-            LOGGER.trace(
-                "[ECO-CYCLE-RESOURCE] cycle={} item={} bootstrapReserve={} reserveAfter={} produced={} released={} reason={}",
-                componentId,
-                key,
-                before,
-                after,
-                produced,
-                released,
-                reason);
-        }
-    }
 }

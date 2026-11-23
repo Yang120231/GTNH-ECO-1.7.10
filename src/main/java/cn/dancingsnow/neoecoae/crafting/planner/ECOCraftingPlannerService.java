@@ -2,9 +2,6 @@ package cn.dancingsnow.neoecoae.crafting.planner;
 
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOCraftingPlanDiagnostics;
 import cn.dancingsnow.neoecoae.api.me.planning.ECOPlanningResultRegistry;
 import cn.dancingsnow.neoecoae.crafting.planner.bridge.AE2CraftingPlanBridge;
@@ -28,12 +25,9 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
-import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.ResourceLocation;
 
 public final class ECOCraftingPlannerService {
-
-    private static final Logger LOGGER = LogManager.getLogger(ECOCraftingPlannerService.class);
 
     private final CraftingNetworkCompiler compiler = new CraftingNetworkCompiler();
     private final CraftingGraphBuilder graphBuilder = new CraftingGraphBuilder();
@@ -55,7 +49,6 @@ public final class ECOCraftingPlannerService {
         private final boolean cyclePlanningEnabled;
         private final boolean ignorePatternSubstitutions;
         private final Set<ResourceLocation> fuzzyPlanningItemIds;
-        private final long planningRequestId = ECOPlanningStageLogger.nextRequestId();
         private ECOPlanningBudget planningBudget;
         private volatile CompiledNetwork compiled;
         private volatile CondensationGraph condensation;
@@ -114,162 +107,129 @@ public final class ECOCraftingPlannerService {
             long startedNanos = System.nanoTime();
             ECOPlanningResult[] accepted = { null };
             String budgetStage = "structural_initialization";
-            try (var ignored = ECOPlanningStageLogger
-                .open(PlanningSettings.Crafting.ecoPlanningStageDebug, planningRequestId, goal, amount, simulation)) {
-                try {
-                    ensureCompiled(cancellation);
-                    ComponentPlanner.Outcome solved;
-                    long componentStarted = ECOPlanningStageLogger.start();
-                    try {
-                        if (activeSelection == null) synchronized (initializationLock) {
-                            if (activeSelection == null) {
-                                budgetStage = "route_selection";
-                                activeSelection = componentPlanner
-                                    .selectRoutes(condensation, cyclePlanningEnabled, cancellation);
-                            }
-                        }
-                        budgetStage = "component_planning";
-                        solved = componentPlanner.planWithRouteFallback(
-                            compiled,
-                            condensation,
-                            activeSelection,
-                            inventory,
-                            inventorySnapshot,
-                            amount,
-                            cyclePlanningEnabled,
-                            ignorePatternSubstitutions,
-                            cancellation,
-                            candidate -> {
-                                ECOPlanningResult ready = buildResult(
-                                    candidate,
-                                    amount,
-                                    simulation,
-                                    startedNanos,
-                                    accepted[0] == null ? callerCancellation : searchCancellation);
-                                if (!ECOPlanningImprovements.executable(ready)) return false;
-                                if (accepted[0] == null || ECOPlanningImprovements.better(ready, accepted[0]))
-                                    accepted[0] = ready;
-                                if (callerCancellation.improveCompletedPlans()) sharedBudget.beginOptimization();
-                                return true;
-                            });
-                    } catch (InterruptedException | RuntimeException e) {
-                        ECOPlanningStageLogger.finish(
-                            "component_planning",
-                            componentStarted,
-                            false,
-                            ECOPlanningStageLogger.exceptionReason(e));
-                        throw e;
+            try {
+                ensureCompiled(cancellation);
+                ComponentPlanner.Outcome solved;
+                if (activeSelection == null) synchronized (initializationLock) {
+                    if (activeSelection == null) {
+                        budgetStage = "route_selection";
+                        activeSelection = componentPlanner
+                            .selectRoutes(condensation, cyclePlanningEnabled, cancellation);
                     }
-                    ECOPlanningStageLogger.finish(
-                        "component_planning",
-                        componentStarted,
-                        solved.status() == PlanningStatus.SUCCESS,
-                        ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
-                    callerCancellation.checkpoint();
-                    ECOPlanningResult result = accepted[0] != null ? accepted[0]
-                        : buildResult(solved, amount, simulation, startedNanos, callerCancellation);
-                    if (accepted[0] != null) {
-                        java.util.Set<PlannerDiagnostic> seen = new java.util.HashSet<>(
-                            result.trace()
-                                .diagnostics());
-                        for (var diagnostic : solved.trace()
-                            .diagnostics())
-                            if (seen.add(diagnostic)) result.trace()
-                                .addDiagnostic(diagnostic);
-                    }
-                    result.finishCalculation(elapsedSince(startedNanos));
-                    callerCancellation.checkpoint();
-                    attach(result);
-                    logTotal(startedNanos, result);
-                    return result;
-                } catch (InterruptedException e) {
-                    ECOPlanTrace trace = new ECOPlanTrace();
-                    trace.addDiagnostic(
-                        new PlannerDiagnostic(
-                            PlannerDiagnostic.Code.CANCELLED,
-                            "Crafting candidate calculation was cancelled"));
-                    var result = new ECOPlanningResult(
-                        PlanningStatus.CANCELLED,
-                        bridge.unsupported(goal, amount),
-                        trace,
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        elapsedSince(startedNanos));
-                    attach(result);
-                    logTotal(startedNanos, result);
-                    return result;
-                } catch (ECOPlanningBudget.Exhausted exhausted) {
-                    callerCancellation.checkpoint();
-                    if (accepted[0] != null) {
-                        accepted[0].finishCalculation(elapsedSince(startedNanos));
-                        attach(accepted[0]);
-                        return accepted[0];
-                    }
-                    ECOPlanTrace trace = new ECOPlanTrace();
-                    trace.addDiagnostic(
-                        new PlannerDiagnostic(
-                            PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED,
-                            "stage=" + budgetStage + " " + exhausted.getMessage()));
-                    var result = new ECOPlanningResult(
-                        PlanningStatus.CYCLE_UNRESOLVED,
-                        bridge.unsupported(goal, amount),
-                        trace,
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        elapsedSince(startedNanos));
-                    attach(result);
-                    logTotal(startedNanos, result);
-                    return result;
-                } catch (RuntimeException e) {
-                    callerCancellation.checkpoint();
-                    if (accepted[0] != null) {
-                        accepted[0].trace()
-                            .addDiagnostic(
-                                new PlannerDiagnostic(
-                                    PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED,
-                                    "Optional optimization failed: " + e.getClass()
-                                        .getSimpleName() + "; retaining the validated plan"));
-                        accepted[0].finishCalculation(elapsedSince(startedNanos));
-                        attach(accepted[0]);
-                        return accepted[0];
-                    }
-                    LOGGER.error(
-                        "[ECO-PLANNER] calculation failed goal={} amount={} simulation={} "
-                            + "cyclePlanningEnabled={} ignorePatternSubstitutions={} fuzzyItems={}",
-                        goal,
-                        amount,
-                        simulation,
-                        cyclePlanningEnabled,
-                        ignorePatternSubstitutions,
-                        fuzzyPlanningItemIds,
-                        e);
-                    ECOPlanTrace trace = new ECOPlanTrace();
-                    trace.addDiagnostic(
-                        new PlannerDiagnostic(
-                            PlannerDiagnostic.Code.INTERNAL_ERROR,
-                            e.getClass()
-                                .getSimpleName() + ": "
-                                + e.getMessage()));
-                    var result = new ECOPlanningResult(
-                        PlanningStatus.INTERNAL_ERROR,
-                        bridge.unsupported(goal, amount),
-                        trace,
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
-                        elapsedSince(startedNanos));
-                    attach(result);
-                    logTotal(startedNanos, result);
-                    return result;
                 }
+                budgetStage = "component_planning";
+                solved = componentPlanner.planWithRouteFallback(
+                    compiled,
+                    condensation,
+                    activeSelection,
+                    inventory,
+                    inventorySnapshot,
+                    amount,
+                    cyclePlanningEnabled,
+                    ignorePatternSubstitutions,
+                    cancellation,
+                    candidate -> {
+                        ECOPlanningResult ready = buildResult(
+                            candidate,
+                            amount,
+                            simulation,
+                            startedNanos,
+                            accepted[0] == null ? callerCancellation : searchCancellation);
+                        if (!ECOPlanningImprovements.executable(ready)) return false;
+                        if (accepted[0] == null || ECOPlanningImprovements.better(ready, accepted[0]))
+                            accepted[0] = ready;
+                        if (callerCancellation.improveCompletedPlans()) sharedBudget.beginOptimization();
+                        return true;
+                    });
+                callerCancellation.checkpoint();
+                ECOPlanningResult result = accepted[0] != null ? accepted[0]
+                    : buildResult(solved, amount, simulation, startedNanos, callerCancellation);
+                if (accepted[0] != null) {
+                    java.util.Set<PlannerDiagnostic> seen = new java.util.HashSet<>(
+                        result.trace()
+                            .diagnostics());
+                    for (var diagnostic : solved.trace()
+                        .diagnostics())
+                        if (seen.add(diagnostic)) result.trace()
+                            .addDiagnostic(diagnostic);
+                }
+                result.finishCalculation(elapsedSince(startedNanos));
+                callerCancellation.checkpoint();
+                attach(result);
+                return result;
+            } catch (InterruptedException e) {
+                ECOPlanTrace trace = new ECOPlanTrace();
+                trace.addDiagnostic(
+                    new PlannerDiagnostic(
+                        PlannerDiagnostic.Code.CANCELLED,
+                        "Crafting candidate calculation was cancelled"));
+                var result = new ECOPlanningResult(
+                    PlanningStatus.CANCELLED,
+                    bridge.unsupported(goal, amount),
+                    trace,
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    elapsedSince(startedNanos));
+                attach(result);
+                return result;
+            } catch (ECOPlanningBudget.Exhausted exhausted) {
+                callerCancellation.checkpoint();
+                if (accepted[0] != null) {
+                    accepted[0].finishCalculation(elapsedSince(startedNanos));
+                    attach(accepted[0]);
+                    return accepted[0];
+                }
+                ECOPlanTrace trace = new ECOPlanTrace();
+                trace.addDiagnostic(
+                    new PlannerDiagnostic(
+                        PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED,
+                        "stage=" + budgetStage + " " + exhausted.getMessage()));
+                var result = new ECOPlanningResult(
+                    PlanningStatus.CYCLE_UNRESOLVED,
+                    bridge.unsupported(goal, amount),
+                    trace,
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    elapsedSince(startedNanos));
+                attach(result);
+                return result;
+            } catch (RuntimeException e) {
+                callerCancellation.checkpoint();
+                if (accepted[0] != null) {
+                    accepted[0].trace()
+                        .addDiagnostic(
+                            new PlannerDiagnostic(
+                                PlannerDiagnostic.Code.ROUTE_SEARCH_BUDGET_EXHAUSTED,
+                                "Optional optimization failed: " + e.getClass()
+                                    .getSimpleName() + "; retaining the validated plan"));
+                    accepted[0].finishCalculation(elapsedSince(startedNanos));
+                    attach(accepted[0]);
+                    return accepted[0];
+                }
+                ECOPlanTrace trace = new ECOPlanTrace();
+                trace.addDiagnostic(
+                    new PlannerDiagnostic(
+                        PlannerDiagnostic.Code.INTERNAL_ERROR,
+                        e.getClass()
+                            .getSimpleName() + ": "
+                            + e.getMessage()));
+                var result = new ECOPlanningResult(
+                    PlanningStatus.INTERNAL_ERROR,
+                    bridge.unsupported(goal, amount),
+                    trace,
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf(),
+                    elapsedSince(startedNanos));
+                attach(result);
+                return result;
             }
         }
 
         private ECOPlanningResult buildResult(ComponentPlanner.Outcome solved, long amount, boolean simulation,
             long startedNanos, ECOCancellation validationCancellation) throws InterruptedException {
-            long validationStarted = ECOPlanningStageLogger.start();
             // Search may have exhausted its allowance while retaining a completed route.
             // Publishing that report must still honor cancellation, but must not spend search budget.
             validationCancellation.checkpoint();
@@ -277,13 +237,7 @@ public final class ECOCraftingPlannerService {
                 throw new IllegalStateException("PATTERN_CONTRACT_CHANGED_DURING_PLANNING");
             }
             solved = rejectUnclosedSuccess(solved, amount);
-            ECOPlanningStageLogger.finish(
-                "material_closure_validation",
-                validationStarted,
-                solved.status() == PlanningStatus.SUCCESS,
-                ECOPlanningStageLogger.resultReason(solved.status(), solved.trace()));
             boolean multiplePaths = compiled.multiplePaths();
-            long bridgeStarted = ECOPlanningStageLogger.start();
             var plan = switch (solved.status()) {
                 case SUCCESS, MISSING_ITEMS -> bridge.success(
                     goal,
@@ -298,13 +252,6 @@ public final class ECOCraftingPlannerService {
                 case PLANNED_BUT_AMOUNT_UNREPRESENTABLE -> bridge.unsupported(goal, amount);
                 default -> bridge.unsupported(goal, amount);
             };
-            ECOPlanningStageLogger.finish(
-                "ae2_plan_bridge",
-                bridgeStarted,
-                plan != null,
-                plan == null ? "Bridge returned no plan"
-                    : solved.status()
-                        .name());
             var result = new ECOPlanningResult(
                 solved.status(),
                 plan,
@@ -330,14 +277,8 @@ public final class ECOCraftingPlannerService {
                 solved.state()
                     .missingAmounts());
             result.setFuzzyPlanningItemIds(fuzzyPlanningItemIds);
-            long executionPlanStarted = ECOPlanningStageLogger.start();
             String executionPlanError = result.status() == PlanningStatus.SUCCESS
                 && ECOPlanningResultRegistry.cycleExpected(result) ? result.executionPlanError() : null;
-            ECOPlanningStageLogger.finish(
-                "execution_plan_validation",
-                executionPlanStarted,
-                executionPlanError == null,
-                executionPlanError);
             if (result.status() == PlanningStatus.SUCCESS && ECOPlanningResultRegistry.cycleExpected(result)
                 && executionPlanError != null) {
                 // Phase generation failed or produced an empty schedule while the plan is cycle-expected.
@@ -352,8 +293,6 @@ public final class ECOCraftingPlannerService {
         private void ensureCompiled(ECOCancellation cancellation) throws InterruptedException {
             if (compiled != null && condensation != null
                 && compiledContractGeneration == PatternRuntime.reloadGeneration()) {
-                long reused = ECOPlanningStageLogger.start();
-                ECOPlanningStageLogger.finish("structural_initialization", reused, true, "REUSED");
                 return;
             }
             synchronized (initializationLock) {
@@ -376,35 +315,16 @@ public final class ECOCraftingPlannerService {
                     condensation = cached.condensation();
                     compiledContractGeneration = contractGeneration;
                     compiledProviderRevision = providerRevision;
-                    ECOPlanningStageLogger.finish(
-                        "structural_initialization",
-                        ECOPlanningStageLogger.start(),
-                        true,
-                        "CACHED_PROVIDER_REVISION=" + providerRevision);
                     return;
                 }
                 if (compiled == null) {
-                    long stageStarted = ECOPlanningStageLogger.start();
-                    try {
-                        compiled = compiler
-                            .compile(craftingService, goal, cyclePlanningEnabled, fuzzyPlanningItemIds, cancellation);
-                        ECOPlanningStageLogger.finish("network_compile", stageStarted, true, null);
-                    } catch (InterruptedException | RuntimeException e) {
-                        ECOPlanningStageLogger
-                            .finish("network_compile", stageStarted, false, ECOPlanningStageLogger.exceptionReason(e));
-                        throw e;
-                    }
+                    compiled = compiler
+                        .compile(craftingService, goal, cyclePlanningEnabled, fuzzyPlanningItemIds, cancellation);
                 }
                 if (condensation == null) {
-                    long graphStarted = ECOPlanningStageLogger.start();
                     var graph = graphBuilder.build(compiled, cancellation);
-                    ECOPlanningStageLogger.finish("graph_build", graphStarted, true, null);
-                    long sccStarted = ECOPlanningStageLogger.start();
                     var sccs = sccAnalyzer.analyze(graph, cancellation);
-                    ECOPlanningStageLogger.finish("scc_analysis", sccStarted, true, null);
-                    long condensationStarted = ECOPlanningStageLogger.start();
                     condensation = CondensationGraph.build(graph, sccs, cancellation);
-                    ECOPlanningStageLogger.finish("condensation_graph", condensationStarted, true, null);
                 }
                 if (contractGeneration != PatternRuntime.reloadGeneration()) {
                     compiled = null;
@@ -467,29 +387,6 @@ public final class ECOCraftingPlannerService {
                 && compiledProviderRevision >= 0
                 && compiledProviderRevision == CompiledStructureCache.revision(craftingService)
                 && compiledContractGeneration == PatternRuntime.reloadGeneration();
-        }
-
-        private void logTotal(long startedNanos, ECOPlanningResult result) {
-            result.trace()
-                .diagnostics()
-                .stream()
-                .filter(d -> d.code() == PlannerDiagnostic.Code.CYCLE_BUDGET_EXHAUSTED)
-                .findFirst()
-                .ifPresent(
-                    d -> LOGGER.warn(
-                        "[ECO-PLANNER] CYCLE_BUDGET_EXHAUSTED request={} goal={} amount={} elapsedMs={} detail={}",
-                        planningRequestId,
-                        goal,
-                        result.plan()
-                            .finalOutput()
-                            .amount(),
-                        elapsedSince(startedNanos) / 1_000_000.0D,
-                        d.message()));
-            ECOPlanningStageLogger.finish(
-                "total",
-                startedNanos,
-                result.status() == PlanningStatus.SUCCESS,
-                ECOPlanningStageLogger.resultReason(result.status(), result.trace()));
         }
 
         /**
