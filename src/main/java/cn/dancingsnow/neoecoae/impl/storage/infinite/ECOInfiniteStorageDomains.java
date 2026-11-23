@@ -8,9 +8,6 @@ import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.WorldServer;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 /**
@@ -21,7 +18,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
  */
 public final class ECOInfiniteStorageDomains {
 
-    private static final Logger LOGGER = LogManager.getLogger(ECOInfiniteStorageDomains.class);
     private static final String DATA_NAME_PREFIX = "neoecoae_infinite_";
 
     private static final Map<MinecraftServer, Map<UUID, DomainEntry>> ENGINES = new IdentityHashMap<>();
@@ -114,9 +110,6 @@ public final class ECOInfiniteStorageDomains {
             overworld,
             ECOInfiniteStorageData.factory(dataFile, () -> importLegacy(overworld, domainId, legacyFile)),
             dataName);
-        if (data.status() != ECOInfiniteStorageData.DomainStatus.HEALTHY) {
-            LOGGER.warn("ECO domain {} opened with status {}: {}", domainId, data.status(), data.failures());
-        }
         return new SavedDataInfiniteStorageEngine(data);
     }
 
@@ -145,7 +138,6 @@ public final class ECOInfiniteStorageDomains {
         } catch (java.io.IOException | RuntimeException e) {
             data = ECOInfiniteStorageData.createNew();
             data.markUnreadable("Cannot import legacy domain snapshot; original files retained: " + e);
-            LOGGER.error("Cannot import ECO domain {}; original files retained", domainId, e);
         }
         return data;
     }

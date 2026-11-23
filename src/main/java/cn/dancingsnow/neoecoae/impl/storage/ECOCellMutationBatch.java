@@ -3,8 +3,6 @@ package cn.dancingsnow.neoecoae.impl.storage;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-
 /** Coalesces component serialization inside one controller tick; live amounts remain authoritative. */
 public final class ECOCellMutationBatch implements AutoCloseable {
 
@@ -80,10 +78,6 @@ public final class ECOCellMutationBatch implements AutoCloseable {
 
     public static void drainRetries() {
         for (ECOStorageCell cell : new java.util.ArrayList<>(RETRY)) flush(cell);
-        if (!RETRY.isEmpty()) {
-            LogManager.getLogger(ECOCellMutationBatch.class)
-                .error("{} ECO cell persistence operation(s) still failed during server shutdown", RETRY.size());
-        }
     }
 
     /** Drops an accidentally unclosed server-thread scope at the server lifecycle boundary. */
@@ -110,9 +104,7 @@ public final class ECOCellMutationBatch implements AutoCloseable {
         try {
             cell.flushBatchedChanges();
             RETRY.remove(cell);
-        } catch (RuntimeException e) {
-            if (RETRY.add(cell)) LogManager.getLogger(ECOCellMutationBatch.class)
-                .error("ECO cell component save failed; in-memory contents retained for retry", e);
+        } catch (RuntimeException ignored) {
         }
     }
 }

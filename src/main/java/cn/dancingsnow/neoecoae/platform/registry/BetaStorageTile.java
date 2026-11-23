@@ -5,7 +5,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.NativeNetworkBlockEntity;
 import cn.dancingsnow.neoecoae.platform.minecraft.Direction;
@@ -19,7 +18,6 @@ public final class BetaStorageTile extends TileEntity {
 
     private NBTTagCompound original = new NBTTagCompound();
     private boolean failed;
-    private boolean reportedUnsupported;
 
     /**
      * Only storage snapshots wait here for a conversion retry. Other beta subsystems are never converted,
@@ -69,16 +67,6 @@ public final class BetaStorageTile extends TileEntity {
                 migrate(block, null);
                 return;
             }
-            if (!reportedUnsupported) {
-                reportedUnsupported = true;
-                NeoECOAE.LOG.warn(
-                    "Beta {} tile at {},{},{} still holds in-flight crafting work and stays inactive with its "
-                        + "original NBT; break and replace the block to reset it",
-                    original.getString("Subsystem"),
-                    xCoord,
-                    yCoord,
-                    zCoord);
-            }
             return;
         }
         NBTTagCompound input = (NBTTagCompound) original.copy();
@@ -86,7 +74,7 @@ public final class BetaStorageTile extends TileEntity {
             resumeControllerRestore(input);
             recoverCompletedRestore(input);
         } catch (java.io.IOException | RuntimeException failure) {
-            fail(failure);
+            failed = true;
             return;
         }
         migrate(block, input);
@@ -127,14 +115,8 @@ public final class BetaStorageTile extends TileEntity {
             replacement.markDirty();
             worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
         } catch (RuntimeException failure) {
-            fail(failure);
+            failed = true;
         }
-    }
-
-    private void fail(Exception failure) {
-        failed = true;
-        NeoECOAE.LOG
-            .error("Cannot migrate beta tile at {},{},{}; original NBT retained", xCoord, yCoord, zCoord, failure);
     }
 
     private void resumeControllerRestore(NBTTagCompound input) throws java.io.IOException {

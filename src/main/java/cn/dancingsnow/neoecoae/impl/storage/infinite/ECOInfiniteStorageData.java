@@ -16,8 +16,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import org.apache.logging.log4j.LogManager;
-
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.SavedData;
@@ -368,62 +366,29 @@ public final class ECOInfiniteStorageData extends SavedData {
     public void save(File file, HolderLookup.Provider registries) {
         if (unreadable || incompleteLegacy) return;
         if (!isDirty() && writeFailure == null) return;
-        long captureStarted = System.nanoTime();
         Snapshot snapshot;
         try {
             snapshot = capture(registries);
         } catch (RuntimeException e) {
-            LogManager.getLogger(ECOInfiniteStorageData.class)
-                .error("Cannot serialize infinite domain {}", file, e);
             writeFailure = e.toString();
             return;
-        }
-        long capturedAt = System.nanoTime();
-        long captureNanos = capturedAt - captureStarted;
-        int entryCount = snapshot.keys().length + snapshot.raw()
-            .size();
-        if (captureNanos >= 50_000_000L) {
-            LogManager.getLogger(ECOInfiniteStorageData.class)
-                .warn(
-                    "Slow ECO domain capture: file={}, entries={}, capture={} ms",
-                    file,
-                    entryCount,
-                    captureNanos / 1_000_000L);
         }
         Path target = file.toPath();
         long generation = ++queuedGeneration;
         IOUtilities.withIOWorker(target, () -> {
-            long encodeStarted = System.nanoTime();
             try {
                 CompoundTag root = new CompoundTag();
                 root.put("data", snapshot.write(new CompoundTag(), registries));
                 NbtUtils.addCurrentDataVersion(root);
-                long writeStarted = System.nanoTime();
                 IOUtilities.writeNbtCompressed(root, target, SNAPSHOT_NBT_LIMIT);
                 if (publishIndex != null) publishIndex.run();
                 savedGeneration = generation;
                 writeFailure = null;
                 try {
                     Files.deleteIfExists(journalPath(target.toAbsolutePath()));
-                } catch (IOException e) {
-                    LogManager.getLogger(ECOInfiniteStorageData.class)
-                        .warn("Cannot clean up legacy journal {}", file, e);
-                }
-                long finishedAt = System.nanoTime();
-                if (finishedAt - encodeStarted >= 1_000_000_000L) {
-                    LogManager.getLogger(ECOInfiniteStorageData.class)
-                        .warn(
-                            "Slow ECO domain save: file={}, entries={}, capture={} ms, queue={} ms, encode={} ms, write={} ms",
-                            file,
-                            entryCount,
-                            captureNanos / 1_000_000L,
-                            (encodeStarted - capturedAt) / 1_000_000L,
-                            (writeStarted - encodeStarted) / 1_000_000L,
-                            (finishedAt - writeStarted) / 1_000_000L);
+                } catch (IOException ignored) {
                 }
             } catch (IOException | RuntimeException e) {
-                if (writeFailure == null) LogManager.getLogger(ECOInfiniteStorageData.class)
-                    .error("Cannot save infinite domain {}", file, e);
                 writeFailure = e.toString();
             }
         });

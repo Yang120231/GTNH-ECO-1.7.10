@@ -5,13 +5,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-/** Bounded diagnostics; repeated failures retain their identity and do not flood the server log. */
+/** Bounded fault records; repeated failures retain their identity. */
 public final class StorageFaults {
-
-    private static final Logger LOGGER = LogManager.getLogger(StorageFaults.class);
 
     @com.github.bsideup.jabel.Desugar
     public record Fault(UUID id, String component, String reason, long firstTick, long lastTick, long occurrences,
@@ -46,10 +41,6 @@ public final class StorageFaults {
             previous == null ? 1L : previous.occurrences() + 1L,
             stackTrace);
         faults.put(component, next);
-        if (previous == null || !previous.reason()
-            .equals(reason) || tick - previous.lastTick() >= 200L) {
-            LOGGER.error("ECO storage fault {} [{}]: {}", next.id(), component, reason, cause);
-        }
     }
 
     public void recovered(String component) {

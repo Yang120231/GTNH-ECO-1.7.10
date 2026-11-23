@@ -8,8 +8,6 @@ import java.util.UUID;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.all.NEMultiBlocks;
@@ -57,8 +55,6 @@ import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 
 public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster, ECOStorageSystemBlockEntity> implements
     ManagedHolder, InternalInventoryHost, IStorageProvider, IECOStoragePriorityHost, appeng.api.storage.ICellContainer {
-
-    private static final Logger LOGGER = LogManager.getLogger(ECOStorageSystemBlockEntity.class);
 
     private static final int INFINITE_COMPONENT_REQUIRED = 64;
 

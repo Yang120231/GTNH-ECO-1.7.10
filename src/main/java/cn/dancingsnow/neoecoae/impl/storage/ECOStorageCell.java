@@ -5,13 +5,10 @@ import java.util.List;
 
 import net.minecraft.item.ItemStack;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.IncludeExclude;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.api.storage.ECOCellType;
 import cn.dancingsnow.neoecoae.api.storage.IBasicECOCellItem;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageMigrationCell;
@@ -45,8 +42,6 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
         return cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack) ? -1L
             : contentRevision;
     }
-
-    private static final Logger LOGGER = LogManager.getLogger(NeoECOAE.MODID);
 
     @Nullable
     private final ISaveProvider container;
@@ -276,13 +271,6 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
         }
 
         int actualTypes = this.storedAmounts.size();
-        if (actualTypes > this.maxItemTypes) {
-            LOGGER.warn(
-                "ECO storage cell contains more types than allowed: actual={} max={} stack={}",
-                actualTypes,
-                this.maxItemTypes,
-                cellStack);
-        }
         this.storedItems = actualTypes;
 
         this.storedItemCount = itemCount;

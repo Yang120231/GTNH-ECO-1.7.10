@@ -20,8 +20,6 @@ import cn.dancingsnow.neoecoae.platform.sync.Persisted;
 public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationCluster, ECOComputationDriveBlockEntity>
     implements ManagedHolder, InternalInventoryHost {
 
-    private static final org.apache.logging.log4j.Logger LOGGER = org.apache.logging.log4j.LogManager
-        .getLogger(cn.dancingsnow.neoecoae.NeoECOAE.MODID);
     private static final String BETA_CELL = "Cell";
     private static final String UNRESOLVED_BETA_CELL = "neoecoae_beta_cell";
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
@@ -128,11 +126,6 @@ public class ECOComputationDriveBlockEntity extends NEBlockEntity<NEComputationC
             if (stack != null) inventory.loadStack(0, stack);
             else {
                 unresolvedBetaCell = raw;
-                LOGGER.warn(
-                    "Beta computation drive at {},{},{} kept a cell whose item no longer resolves",
-                    xCoord,
-                    yCoord,
-                    zCoord);
             }
         }
     }

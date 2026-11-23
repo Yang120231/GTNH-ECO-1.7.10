@@ -13,8 +13,6 @@ import java.util.Map;
 import net.minecraft.world.storage.IThreadedFileIO;
 import net.minecraft.world.storage.ThreadedFileIOBase;
 
-import org.apache.logging.log4j.LogManager;
-
 /** Native background I/O participates in world/backup flushes; domain files still use atomic replacement. */
 public final class IOUtilities {
 
@@ -73,8 +71,6 @@ public final class IOUtilities {
         } catch (Throwable failure) {
             // Like ExecutorService.submit, a failed callback must not kill the shared I/O thread. Domain saves
             // handle their own encode/write failures and retain the owning data for a later retry.
-            LogManager.getLogger(IOUtilities.class)
-                .error("Unexpected ECO background I/O failure", failure);
         }
     }
 

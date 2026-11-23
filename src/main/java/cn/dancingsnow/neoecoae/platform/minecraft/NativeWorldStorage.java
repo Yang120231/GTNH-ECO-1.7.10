@@ -23,7 +23,6 @@ import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.storage.AnvilChunkLoader;
 import net.minecraft.world.chunk.storage.RegionFileCache;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageData;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.IOUtilities;
@@ -90,7 +89,6 @@ public final class NativeWorldStorage {
                 data = factory.constructor()
                     .get();
                 data.markUnreadable("Cannot read authoritative domain snapshot; original retained: " + e);
-                NeoECOAE.LOG.error("Cannot load ECO domain {}", name, e);
             }
         } else {
             data = factory.constructor()
@@ -124,10 +122,6 @@ public final class NativeWorldStorage {
                 .forEach(ECOInfiniteStorageData::saveSnapshot);
             IOUtilities.waitUntilIOWorkerComplete();
         }
-        if (loaded != null) loaded.forEach((name, data) -> {
-            String failure = data.pendingSnapshotFailure();
-            if (failure != null) NeoECOAE.LOG.error("ECO domain {} did not finish saving on stop: {}", name, failure);
-        });
         OPEN.remove(server);
     }
 
@@ -176,7 +170,6 @@ public final class NativeWorldStorage {
                 }
                 result.complete(true);
             } catch (IOException | RuntimeException e) {
-                NeoECOAE.LOG.warn("Cannot verify ECO transfer chunk checkpoint", e);
                 result.complete(false);
             }
         });
