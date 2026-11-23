@@ -7,9 +7,6 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.networking.crafting.ICraftingJob;
@@ -29,8 +26,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
  * share of the stock at planning time.
  */
 public final class NativeCraftConfirmReports {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     private NativeCraftConfirmReports() {}
 
@@ -75,7 +70,6 @@ public final class NativeCraftConfirmReports {
         try {
             return NativePlanExport.nativeTasks(job, (pattern, times) -> patterns.add(pattern)) ? patterns.size() : -1;
         } catch (RuntimeException | LinkageError failure) {
-            LOGGER.warn("[craft-confirm] Native plan pattern statistics unavailable", failure);
             return -1;
         }
     }
@@ -114,8 +108,7 @@ public final class NativeCraftConfirmReports {
                         BigInteger.valueOf(Math.max(0, planned.getCountRequestableCrafts())),
                         BigInteger.valueOf(Math.max(0, available))));
             }
-        } catch (RuntimeException failure) {
-            LOGGER.warn("[craft-confirm] Native plan report failed", failure);
+        } catch (RuntimeException ignored) {
         }
         return rows;
     }

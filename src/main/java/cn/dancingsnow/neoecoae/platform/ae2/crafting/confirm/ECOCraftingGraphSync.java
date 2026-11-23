@@ -7,9 +7,6 @@ import java.util.WeakHashMap;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.container.implementations.ContainerCraftConfirm;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
@@ -28,7 +25,6 @@ import cn.dancingsnow.neoecoae.platform.network.ECOCraftingGraphStream;
  */
 public final class ECOCraftingGraphSync {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     /** Graph bytes sent to one player per server tick. */
     static final int TICK_BYTES = 4 * ECOCraftingGraphStream.CHUNK_BYTES;
     private static final Map<EntityPlayerMP, Encoded> ENCODED = new WeakHashMap<>();
@@ -113,19 +109,10 @@ public final class ECOCraftingGraphSync {
                 return new Encoded(container, result, ECOCraftingGraphStream.Status.EMPTY, new byte[0]);
             byte[] bytes = ECOCraftingGraphStream.encode(snapshot);
             if (bytes == null) {
-                LOGGER.info(
-                    "[craft-graph] Crafting graph exceeds the transfer limit: {} materials, {} patterns, {} edges",
-                    snapshot.nodes()
-                        .size(),
-                    snapshot.patterns()
-                        .size(),
-                    snapshot.edges()
-                        .size());
                 return new Encoded(container, result, ECOCraftingGraphStream.Status.TOO_LARGE, new byte[0]);
             }
             return new Encoded(container, result, ECOCraftingGraphStream.Status.READY, bytes);
         } catch (RuntimeException | StackOverflowError failure) {
-            LOGGER.warn("[craft-graph] Building the crafting graph failed", failure);
             return new Encoded(container, result, ECOCraftingGraphStream.Status.FAILED, new byte[0]);
         }
     }
@@ -169,7 +156,6 @@ public final class ECOCraftingGraphSync {
             try {
                 send(player, transfer, TICK_BYTES);
             } catch (RuntimeException failure) {
-                LOGGER.warn("[craft-graph] Sending the crafting graph failed", failure);
                 it.remove();
                 continue;
             }

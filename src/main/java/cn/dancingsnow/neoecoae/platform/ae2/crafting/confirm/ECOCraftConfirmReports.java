@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOCraftingPlanDiagnostics;
@@ -37,8 +35,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
  * from the planning result: status, timing, theoretical bytes, diagnostics, cycle members and the material table.
  */
 public final class ECOCraftConfirmReports {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     private ECOCraftConfirmReports() {}
 
@@ -103,22 +99,13 @@ public final class ECOCraftConfirmReports {
         if (result != null) {
             try {
                 snapshot = CraftingGraphSnapshotFactory.create(result);
-            } catch (RuntimeException failure) {
-                LOGGER.warn("[craft-confirm] ECO report snapshot failed for {}", plan.finalOutput(), failure);
+            } catch (RuntimeException ignored) {
             }
             try {
                 cycles = cycleItems(result, snapshot);
-            } catch (RuntimeException failure) {
-                LOGGER.warn("[craft-confirm] ECO cycle list failed for {}", plan.finalOutput(), failure);
+            } catch (RuntimeException ignored) {
             }
             diagnostic = diagnostic(result);
-            if (!diagnostic.isEmpty())
-                // Keep the complete failure evidence in the server log; only the UI payload is bounded.
-                LOGGER.warn(
-                    "[craft-confirm] ECO diagnostic: status={}, output={}, diagnostics={}",
-                    result.status(),
-                    plan.finalOutput(),
-                    diagnostic);
         }
         PlanningStatus status = result == null ? null : result.status();
         Map<AEKey, BigInteger> crafted = CraftingPlanSummary.craftedAmounts(plan);
@@ -204,8 +191,7 @@ public final class ECOCraftConfirmReports {
             try {
                 return CraftingPlanSummary.fromJob(grid, source, plan, crafted)
                     .getEntries();
-            } catch (RuntimeException failure) {
-                LOGGER.warn("[craft-confirm] ECO summary failed for {}", plan.finalOutput(), failure);
+            } catch (RuntimeException ignored) {
             }
         }
         // Without a live grid, describe the plan itself: used and emitted as stored, missing as missing.
@@ -244,8 +230,7 @@ public final class ECOCraftConfirmReports {
                     .getOutputs()) outputs.add(output.what());
                 for (AEKey output : outputs) rounds.merge(output, times, BigInteger::add);
             }
-        } catch (RuntimeException failure) {
-            LOGGER.warn("[craft-confirm] ECO round counts failed for {}", plan.finalOutput(), failure);
+        } catch (RuntimeException ignored) {
         }
         KeyCounter stock = null;
         if (grid != null) {
@@ -253,8 +238,7 @@ public final class ECOCraftConfirmReports {
                 stock = grid.getStorageService()
                     .getInventory()
                     .getAvailableStacks();
-            } catch (RuntimeException failure) {
-                LOGGER.warn("[craft-confirm] ECO stock lookup failed for {}", plan.finalOutput(), failure);
+            } catch (RuntimeException ignored) {
             }
         }
         List<ECOCraftConfirmReport.Row> result = new ArrayList<>(rows.size());

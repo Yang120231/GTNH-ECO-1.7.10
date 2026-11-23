@@ -154,11 +154,7 @@ public final class ECOCraftConfirmPackets {
                         if (cpw.mods.fml.common.Loader.isModLoaded("neenergistics"))
                             accepted = cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCrafting
                                 .open(player, message.windowId, message.items, message.autoStart);
-                    } catch (RuntimeException | LinkageError failure) {
-                        org.apache.logging.log4j.LogManager.getLogger("neoecoae")
-                            .warn(
-                                "Temporary ingredient order could not be opened; retaining NEE's native route",
-                                failure);
+                    } catch (RuntimeException | LinkageError ignored) {
                     }
                     IngredientsReply reply = new IngredientsReply();
                     reply.sequence = message.sequence;

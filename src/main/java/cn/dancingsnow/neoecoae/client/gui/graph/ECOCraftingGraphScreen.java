@@ -15,8 +15,6 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Container;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
@@ -49,7 +47,6 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class ECOCraftingGraphScreen extends GuiScreen {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     private static final int TOOLBAR_HEIGHT = GraphViewTransform.TOOLBAR_HEIGHT;
     /** Larger snapshots are refused before layout rather than stalling the client thread. */
     static final int CLIENT_NODE_LIMIT = 250_000;
@@ -230,7 +227,6 @@ public final class ECOCraftingGraphScreen extends GuiScreen {
             selectedId = baseGraph.focusedMaterialId() != null ? baseGraph.focusedMaterialId() : baseGraph.rootId();
             rebuildGraph(true);
         } catch (RuntimeException | StackOverflowError failure) {
-            LOGGER.warn("[craft-graph] Laying out the crafting graph failed", failure);
             resetGraph();
             status = ECOCraftingGraphStream.Status.FAILED;
         }

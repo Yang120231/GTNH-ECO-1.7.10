@@ -12,8 +12,6 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.parts.IPartHost;
@@ -42,7 +40,6 @@ import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
  */
 public final class ECOCraftingStatusItemActions {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     static final int MAX_PLACES = 64;
 
     public static final String INSPECT = "inspect", OPEN_PROVIDER = "open_provider", OPEN_MACHINE = "open_machine";
@@ -107,7 +104,6 @@ public final class ECOCraftingStatusItemActions {
                 else response.putBoolean("close", true);
             }
         } catch (RuntimeException | LinkageError failure) {
-            LOGGER.warn("[craft-status] Item action {} failed for {}", action, player.getCommandSenderName(), failure);
             response.putString("error", "gui.neoecoae.processing.open_unavailable");
         }
         // A successful open replaced the status container; its window no longer receives this answer.

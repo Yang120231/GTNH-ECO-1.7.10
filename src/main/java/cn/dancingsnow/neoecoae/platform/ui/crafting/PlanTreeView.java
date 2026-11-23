@@ -49,7 +49,6 @@ import org.lwjgl.opengl.GL30;
 
 import appeng.api.storage.data.IAEStack;
 import appeng.client.gui.AEBaseGui;
-import appeng.core.AELog;
 import appeng.core.localization.ColorUtils;
 import appeng.core.localization.GuiText;
 import appeng.util.ReadableNumberConverter;
@@ -781,7 +780,6 @@ final class PlanTreeView {
             for (int i = 1; file.exists() && i < 99; i++) file = new File(directory, date + "-ae2-" + i + ".png");
             if (file.exists()) throw new FileAlreadyExistsException(file.getName());
             ImageIO.write(output, "png", file);
-            AELog.info("Saved crafting tree screenshot to %s", file.getName());
             ChatComponentText link = new ChatComponentText(file.getName());
             link.getChatStyle()
                 .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, file.getAbsolutePath()));
@@ -790,7 +788,6 @@ final class PlanTreeView {
             mc.ingameGUI.getChatGUI()
                 .printChatMessage(new ChatComponentTranslation("screenshot.success", link));
         } catch (Exception e) {
-            AELog.warn(e, "Could not save crafting tree screenshot");
             mc.ingameGUI.getChatGUI()
                 .printChatMessage(new ChatComponentTranslation("screenshot.failure", e.getMessage()));
         }

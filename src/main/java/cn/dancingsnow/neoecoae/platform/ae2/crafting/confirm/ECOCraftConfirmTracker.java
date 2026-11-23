@@ -11,8 +11,6 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
 import net.minecraft.server.MinecraftServer;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.IGrid;
@@ -50,7 +48,6 @@ import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
  */
 public final class ECOCraftConfirmTracker {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     private static final Map<EntityPlayerMP, Tracked> TRACKED = new WeakHashMap<>();
     /** rv3-beta-1080 pins the crafted item after a start; the pinned 990 jar has no such step. */
     private static volatile Method pushToPins;
@@ -103,7 +100,6 @@ public final class ECOCraftConfirmTracker {
                 update(player, tracked);
             } catch (RuntimeException | LinkageError failure) {
                 // The report is presentation only; never let it break the confirmation container.
-                LOGGER.warn("[craft-confirm] ECO report update failed for {}", player.getCommandSenderName(), failure);
             }
         }
     }
@@ -224,7 +220,6 @@ public final class ECOCraftConfirmTracker {
             exported = NativePlanExport
                 .of(result, actionSource(container), view.getCraftingService(), container.getWorld());
         } catch (RuntimeException | LinkageError failure) {
-            LOGGER.warn("[craft-confirm] Reading AE2's plan for the plan export failed", failure);
             CraftingPlanExport.onPlanUnreadable(player, failure);
             return;
         }
@@ -282,7 +277,6 @@ public final class ECOCraftConfirmTracker {
             return;
         }
         if (job != null && !job.belongsToGrid(grid)) {
-            LOGGER.info("[craft-confirm] ECO start rejected: plan was built for another grid, container={}", windowId);
             reject(player, tracked, ECOCraftConfirmError.PLAN_STALE, "");
             return;
         }
@@ -311,30 +305,18 @@ public final class ECOCraftConfirmTracker {
             ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
             ICraftingCPU target = selectedCpu(container);
             if (nativeIncompatible(target, submitted)) {
-                LOGGER.info(
-                    "[craft-confirm] Selected CPU {} cannot take the ECO plan; using automatic selection: container={}",
-                    target.getName(),
-                    windowId);
                 target = null;
             }
             link = crafting.submitJob(submitted, null, target, true, actionSource(container), follow);
         } catch (RuntimeException | LinkageError failure) {
             container.setAutoStart(false);
             container.setAutoStartAndFollow(false);
-            LOGGER.warn("[craft-confirm] ECO start failed: container={}, forced={}", windowId, forced, failure);
             reject(player, tracked, ECOCraftConfirmError.SUBMIT_FAILED, String.valueOf(failure));
             return;
         }
         container.setAutoStart(false);
         container.setAutoStartAndFollow(false);
         if (link == null) {
-            LOGGER.info(
-                "[craft-confirm] ECO start rejected by every CPU: container={}, forced={}, output={}",
-                windowId,
-                forced,
-                job == null ? result.getOutput()
-                    : job.sourcePlan()
-                        .finalOutput());
             // AE2's submitJob only returns null; an ECO CPU that passed every admission check and then failed its
             // initial extraction reports MISSING_INGREDIENT below it. Name every input the network lacks now.
             KeyCounter shortfall = submitted instanceof NativeECOCraftingJob eco && eco.sourcePlan() != null
@@ -342,11 +324,6 @@ public final class ECOCraftConfirmTracker {
                     .initialShortfall(eco.sourcePlan(), GridView.of(grid), IActionSource.of(actionSource(container)))
                 : new KeyCounter();
             if (!shortfall.isEmpty()) {
-                LOGGER.info(
-                    "[craft-confirm] ECO start failed on changed storage: container={}, forced={}, shortages={}",
-                    windowId,
-                    forced,
-                    shortfall.size());
                 reject(player, tracked, ECOCraftConfirmError.MISSING_INGREDIENT, "", shortages(shortfall));
                 return;
             }
@@ -364,10 +341,6 @@ public final class ECOCraftConfirmTracker {
     public static void startBigOrder(EntityPlayerMP player, int windowId, boolean forced, long reportVersion) {
         Tracked tracked = lookup(player, windowId);
         if (tracked == null) {
-            LOGGER.warn(
-                "[big-order-submit] Rejected packet: reason=MENU_MISMATCH, player={}, container={}",
-                player.getCommandSenderName(),
-                windowId);
             return;
         }
         ContainerCraftConfirm container = tracked.container;
@@ -407,7 +380,6 @@ public final class ECOCraftConfirmTracker {
                 selectedCpu(container),
                 actionSource(container));
         } catch (RuntimeException | LinkageError failure) {
-            LOGGER.warn("[big-order-submit] Submission failed: container={}, forced={}", windowId, forced, failure);
             rejection = new ECOBigOrderSubmission.Rejection(
                 ECOCraftConfirmError.SUBMIT_FAILED,
                 "EXCEPTION",
@@ -419,24 +391,11 @@ public final class ECOCraftConfirmTracker {
             rejectBigOrder(player, tracked, rejection.error, rejection.reason, rejection.detail);
             return;
         }
-        LOGGER.info(
-            "[big-order-submit] Accepted: container={}, output={}, forced={}",
-            windowId,
-            job.sourcePlan()
-                .finalOutput(),
-            forced);
         container.switchToOriginalGUI();
     }
 
     private static void rejectBigOrder(EntityPlayerMP player, Tracked tracked, ECOCraftConfirmError error,
         String reason, String detail) {
-        LOGGER.warn(
-            "[big-order-submit] Rejected: reason={}, container={}, status={}, error={}, detail={}",
-            reason,
-            tracked.container.windowId,
-            tracked.session.state().status,
-            error,
-            detail);
         reject(player, tracked, error, detail);
     }
 
@@ -447,7 +406,6 @@ public final class ECOCraftConfirmTracker {
     public static void autoStartFailed(ContainerCraftConfirm container, Throwable failure) {
         container.setAutoStart(false);
         container.setAutoStartAndFollow(false);
-        LOGGER.warn("[craft-confirm] AE2 auto-start failed: container={}", container.windowId, failure);
         if (!(container.getPlayerInv().player instanceof EntityPlayerMP player)) return;
         Tracked tracked = TRACKED.get(player);
         if (tracked == null || tracked.container != container) return;
@@ -497,7 +455,6 @@ public final class ECOCraftConfirmTracker {
             push(player, container, tracked.session);
         } catch (RuntimeException failure) {
             if (pending != null) pending.cancel(true);
-            LOGGER.warn("[craft-confirm] Replanning failed: container={}", windowId, failure);
             reject(player, tracked, ECOCraftConfirmError.REPLAN_FAILED, String.valueOf(failure));
         }
     }
@@ -586,8 +543,7 @@ public final class ECOCraftConfirmTracker {
         if (method == null) return;
         try {
             method.invoke(container);
-        } catch (ReflectiveOperationException | RuntimeException failure) {
-            LOGGER.debug("[craft-confirm] Could not pin the crafted item", failure);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
         }
     }
 }

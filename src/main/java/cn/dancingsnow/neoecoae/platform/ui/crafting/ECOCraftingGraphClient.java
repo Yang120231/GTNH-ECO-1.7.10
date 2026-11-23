@@ -4,8 +4,6 @@ import java.lang.ref.WeakReference;
 
 import net.minecraft.inventory.Container;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.crafting.planner.snapshot.CraftingGraphSnapshot;
@@ -21,7 +19,6 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public final class ECOCraftingGraphClient {
 
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
     private static final ECOCraftingGraphStream.Assembler ASSEMBLER = new ECOCraftingGraphStream.Assembler();
     private static WeakReference<Container> requestedContainer = new WeakReference<>(null);
     private static int requestedWindow = Integer.MIN_VALUE;
@@ -89,7 +86,6 @@ public final class ECOCraftingGraphClient {
                     ECOCraftingGraphStream.Status.READY,
                     snapshot);
             } catch (RuntimeException failure) {
-                LOGGER.warn("[craft-graph] Received an unreadable crafting graph", failure);
                 ASSEMBLER.reset();
                 latest = new Result(
                     container,

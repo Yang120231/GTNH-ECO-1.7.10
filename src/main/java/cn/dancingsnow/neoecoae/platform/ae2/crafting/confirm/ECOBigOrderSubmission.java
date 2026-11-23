@@ -4,8 +4,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
@@ -34,8 +32,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
  * that plans executable segments once the materials arrive. AE2's long-only submission is never involved.
  */
 final class ECOBigOrderSubmission {
-
-    private static final Logger LOGGER = LogManager.getLogger("neoecoae");
 
     private ECOBigOrderSubmission() {}
 
@@ -87,11 +83,6 @@ final class ECOBigOrderSubmission {
         if (options == null) return new Rejection(ECOCraftConfirmError.INCOMPLETE_PLAN, "NO_PLANNER_OPTIONS", "");
         boolean waitingForMaterials = ECOBigOrderAdmission.waitsForMaterials(exact, forced);
         if (!waitingForMaterials && !ECOBigOrderAdmission.allows(exact, forced)) {
-            LOGGER.warn(
-                "[big-order-submit] Admission denied: status={}, forced={}, hasPlan={}",
-                exact.status(),
-                forced,
-                exact.plan() != null);
             return new Rejection(ECOCraftConfirmError.INCOMPLETE_PLAN, "ADMISSION_DENIED", "");
         }
         if (grid == null) return new Rejection(ECOCraftConfirmError.CPU_OFFLINE, "NO_GRID", "");
@@ -113,7 +104,6 @@ final class ECOBigOrderSubmission {
                     required,
                     inventory.isUnbounded(node.key()),
                     amount -> storage.extract(node.key(), amount, Actionable.SIMULATE, action))) {
-                    LOGGER.warn("[big-order-submit] Inventory check failed: key={}, required={}", node.key(), required);
                     return new Rejection(
                         ECOCraftConfirmError.MISSING_INGREDIENT,
                         "MISSING_INGREDIENT",
@@ -126,14 +116,6 @@ final class ECOBigOrderSubmission {
         ECOCraftingCPU target = ((ECOCraftingNativeRuntime) cpu.runtime()).cpu();
         final ICraftingSubmitResult submitted;
         try {
-            LOGGER.info(
-                "[big-order-submit] Submitting to CPU: output={}, forced={}, waitingForMaterials={}, cpu={}",
-                exact.plan() == null ? null
-                    : exact.plan()
-                        .finalOutput(),
-                forced,
-                waitingForMaterials,
-                cpu.getName());
             if (waitingForMaterials) {
                 // A missing cycle has no executable schedule. Publish a persistent parent and let its planner
                 // create complete children after stock (including startup seeds) arrives.
@@ -146,7 +128,6 @@ final class ECOBigOrderSubmission {
                     .submitJob(view, new ECOExactCraftingPlan(exact, forced), action, null);
             }
         } catch (RuntimeException invalid) {
-            LOGGER.warn("[big-order-submit] Exact order rejected", invalid);
             return new Rejection(ECOCraftConfirmError.INCOMPLETE_PLAN, "EXACT_ORDER_INVALID", String.valueOf(invalid));
         }
         if (submitted.successful()) return null;
