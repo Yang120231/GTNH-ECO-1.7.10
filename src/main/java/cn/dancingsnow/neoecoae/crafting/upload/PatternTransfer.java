@@ -2,8 +2,6 @@ package cn.dancingsnow.neoecoae.crafting.upload;
 
 import net.minecraft.item.ItemStack;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
-
 /**
  * Moves exactly one encoded pattern between two physical slots.
  *
@@ -59,8 +57,7 @@ public final class PatternTransfer {
 
         try {
             from.set(fromSlot, copy(sourceAfter));
-        } catch (RuntimeException failure) {
-            NeoECOAE.LOG.warn("Pattern upload source write failed", failure);
+        } catch (RuntimeException ignored) {
         }
         ItemStack sourceRead = from.get(fromSlot);
         if (PatternStacks.sameStack(sourceRead, sourceBefore)) return rejected(REASON_SOURCE_CHANGED);
@@ -69,8 +66,7 @@ public final class PatternTransfer {
 
         try {
             to.set(toSlot, copy(targetAfter));
-        } catch (RuntimeException failure) {
-            NeoECOAE.LOG.warn("Pattern upload target write failed", failure);
+        } catch (RuntimeException ignored) {
         }
         ItemStack targetRead = to.get(toSlot);
         if (PatternStacks.sameStack(targetRead, targetAfter)) {
@@ -81,11 +77,6 @@ public final class PatternTransfer {
         if (PatternStacks.sameStack(targetRead, targetBefore))
             return restore(from, fromSlot, sourceBefore, REASON_TARGET_REJECTED);
         // The target holds something else than either known state; ownership of the pattern is unknown.
-        NeoECOAE.LOG.error(
-            "Pattern upload left an unexpected target state; source={} target={} expected={}",
-            sourceRead,
-            targetRead,
-            targetAfter);
         changed(from);
         changed(to);
         return new Result(Status.INDETERMINATE, REASON_INDETERMINATE);
@@ -94,11 +85,9 @@ public final class PatternTransfer {
     private static Result restore(PatternSlotAccess from, int slot, ItemStack before, String reason) {
         try {
             from.set(slot, copy(before));
-        } catch (RuntimeException failure) {
-            NeoECOAE.LOG.warn("Pattern upload source restore failed", failure);
+        } catch (RuntimeException ignored) {
         }
         if (PatternStacks.sameStack(from.get(slot), before)) return rejected(reason);
-        NeoECOAE.LOG.error("Pattern upload could not restore its source slot; expected={}", before);
         changed(from);
         return new Result(Status.INDETERMINATE, REASON_INDETERMINATE);
     }
@@ -106,8 +95,7 @@ public final class PatternTransfer {
     private static void changed(PatternSlotAccess access) {
         try {
             access.changed();
-        } catch (RuntimeException failure) {
-            NeoECOAE.LOG.warn("Pattern upload change callback failed", failure);
+        } catch (RuntimeException ignored) {
         }
     }
 

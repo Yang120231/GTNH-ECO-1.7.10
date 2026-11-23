@@ -10,7 +10,6 @@ import java.util.Set;
 import net.minecraft.item.ItemStack;
 
 import appeng.api.networking.IGrid;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 
 /** Evaluates targets once and derives list order and the auto-upload choice from the same results. */
 public final class PatternTargetSelector {
@@ -138,7 +137,6 @@ public final class PatternTargetSelector {
             return new Evaluation(target, match, state, empty, slots.size(), duplicate ? -1 : free);
         } catch (RuntimeException failure) {
             // A host can be rebuilt while it is inspected; it is shown offline and never written.
-            NeoECOAE.LOG.debug("Pattern upload target inspection failed", failure);
             return new Evaluation(target, MatchResult.of(MatchResult.Level.UNVERIFIED), SlotState.OFFLINE, 0, 0, -1);
         }
     }

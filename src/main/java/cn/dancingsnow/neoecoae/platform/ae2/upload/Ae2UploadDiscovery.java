@@ -12,7 +12,6 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
 import appeng.api.util.IInterfaceViewable;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternRouteProbe;
@@ -53,8 +52,7 @@ public final class Ae2UploadDiscovery {
                 .interfaceTerminal()
                 .getSupportedClasses())
                 for (IGridNode node : grid.getMachines(type)) add(result, seen, domains, node, routes);
-        } catch (RuntimeException registry) {
-            NeoECOAE.LOG.debug("Interface terminal registry scan failed", registry);
+        } catch (RuntimeException ignored) {
         }
         for (IGridNode node : grid.getNodes()) add(result, seen, domains, node, routes);
         return result;

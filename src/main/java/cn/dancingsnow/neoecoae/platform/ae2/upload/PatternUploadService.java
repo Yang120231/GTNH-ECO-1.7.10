@@ -18,7 +18,6 @@ import net.minecraft.util.StatCollector;
 
 import appeng.api.networking.IGrid;
 import appeng.container.implementations.ContainerPatternTerm;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.crafting.upload.MatchResult;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternContext;
 import cn.dancingsnow.neoecoae.crafting.upload.PatternStacks;
@@ -89,7 +88,6 @@ public final class PatternUploadService {
             try {
                 ((PatternTermEncoder) container).neoecoae$encode();
             } catch (RuntimeException failure) {
-                NeoECOAE.LOG.warn("Pattern terminal encode failed", failure);
                 return;
             } finally {
                 afterEncoded(player);
@@ -511,8 +509,7 @@ public final class PatternUploadService {
                 }
                 try {
                     refreshTooltip(player, (ContainerPatternTerm) player.openContainer);
-                } catch (RuntimeException failure) {
-                    NeoECOAE.LOG.debug("Pattern upload hint refresh failed", failure);
+                } catch (RuntimeException ignored) {
                 }
             }
         }

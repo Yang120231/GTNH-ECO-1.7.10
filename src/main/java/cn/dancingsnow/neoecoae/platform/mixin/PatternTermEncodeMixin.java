@@ -8,7 +8,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.implementations.ContainerPatternTerm;
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import cn.dancingsnow.neoecoae.platform.ae2.upload.PatternTermEncoder;
 import cn.dancingsnow.neoecoae.platform.ae2.upload.PatternUploadService;
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
@@ -36,8 +35,7 @@ public abstract class PatternTermEncodeMixin implements PatternTermEncoder {
                     if (player.openContainer != container) return;
                     try {
                         ((PatternTermEncoder) container).neoecoae$encode();
-                    } catch (RuntimeException failure) {
-                        NeoECOAE.LOG.warn("Pattern terminal encode failed", failure);
+                    } catch (RuntimeException ignored) {
                     } finally {
                         PatternUploadService.afterEncoded(player);
                     }

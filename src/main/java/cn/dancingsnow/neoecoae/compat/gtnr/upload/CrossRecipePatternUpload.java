@@ -2,17 +2,10 @@ package cn.dancingsnow.neoecoae.compat.gtnr.upload;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.Constants;
 
-import cn.dancingsnow.neoecoae.NeoECOAE;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
 
@@ -35,7 +28,6 @@ public final class CrossRecipePatternUpload {
             return terminalAccessor(type);
         }
     };
-    private static final Set<Class<?>> REPORTED = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public enum MapSupport {
         UNAVAILABLE,
@@ -84,15 +76,11 @@ public final class CrossRecipePatternUpload {
         if (host == null) return null;
         Class<?> type = host.getClass();
         Accessor accessor = TERMINAL_MAP.get(type);
-        if (accessor == Accessor.NONE) {
-            reportUnreadable(type, "no accessor");
-            return null;
-        }
+        if (accessor == Accessor.NONE) return null;
         Object value;
         try {
             value = accessor.read(host);
         } catch (ReflectiveOperationException | RuntimeException | LinkageError failed) {
-            reportUnreadable(type, failed.toString());
             return null;
         }
         if (value == null) return "";
@@ -102,10 +90,6 @@ public final class CrossRecipePatternUpload {
             RecipeMap<?> map = resolveMap(id);
             return map == null || map.unlocalizedName == null ? id : map.unlocalizedName;
         }
-        reportUnreadable(
-            type,
-            "unsupported value type " + value.getClass()
-                .getName());
         return null;
     }
 
@@ -192,42 +176,6 @@ public final class CrossRecipePatternUpload {
             }
         }
         return null;
-    }
-
-    /** Logs once per buffer class, listing members that look like the pool so the accessor names can be fixed. */
-    private static void reportUnreadable(Class<?> type, String detail) {
-        if (!REPORTED.add(type)) return;
-        List<String> candidates = new ArrayList<>();
-        for (Class<?> declaring = type; declaring != null
-            && declaring != Object.class; declaring = declaring.getSuperclass()) {
-            try {
-                for (Method method : declaring.getDeclaredMethods())
-                    if (method.getParameterTypes().length == 0 && looksLikePool(method.getName())) candidates.add(
-                        declaring.getSimpleName() + "#"
-                            + method.getName()
-                            + "():"
-                            + method.getReturnType()
-                                .getSimpleName());
-                for (Field field : declaring.getDeclaredFields()) if (looksLikePool(field.getName())) candidates.add(
-                    declaring.getSimpleName() + "."
-                        + field.getName()
-                        + ":"
-                        + field.getType()
-                            .getSimpleName());
-            } catch (RuntimeException | LinkageError unavailable) {
-                // Diagnostics only.
-            }
-        }
-        NeoECOAE.LOG.warn(
-            "GTNR cross-recipe buffer {} terminal recipe map is unreadable ({}); candidates: {}",
-            type.getName(),
-            detail,
-            candidates);
-    }
-
-    private static boolean looksLikePool(String name) {
-        String lower = name.toLowerCase(Locale.ROOT);
-        return lower.contains("recipemap") || lower.contains("terminal") || lower.contains("pool");
     }
 
     private static final class Accessor {
