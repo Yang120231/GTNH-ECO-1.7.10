@@ -14,6 +14,7 @@ import java.util.concurrent.TimeoutException;
 import net.minecraft.world.World;
 
 import appeng.api.config.Actionable;
+import appeng.api.config.CraftingMode;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
@@ -22,6 +23,8 @@ import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.data.IAEStack;
 import appeng.crafting.MECraftingInventory;
+import appeng.crafting.v2.CraftingJobV2;
+import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.computation.ECOComputationSystemBlockEntity;
 import cn.dancingsnow.neoecoae.crafting.planner.ECOPlanningService;
@@ -32,6 +35,7 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 
 /** Native terminal entry and callback lifecycle for the real source planning service. */
@@ -100,13 +104,12 @@ public final class NativeECOPlanning {
     }
 
     /** Every ingredient keeps the same native-semantics routing check as an individual request. */
-    public static boolean supportsOrder(IGrid grid,
-        List<cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack> ingredients) {
-        for (var ingredient : ingredients) if (NativePlannerRouting.routeToNative(
-            grid,
-            ingredient.what()
-                .toNative(ingredient.amount())))
-            return false;
+    public static boolean supportsOrder(IGrid grid, List<GenericStack> ingredients, ECOPlannerOptions options) {
+        for (var ingredient : ingredients) {
+            var output = ingredient.what()
+                .toNative(ingredient.amount());
+            if (NativePlannerRouting.routeToNative(grid, output, options.ignorePatternSubstitutions())) return false;
+        }
         return true;
     }
 
@@ -123,8 +126,9 @@ public final class NativeECOPlanning {
         var host = settings(grid, action);
         if (host == null || !host.isFastPlannerEnabled()) return null;
         ServerTasks.assertServerThread();
-        // Patterns whose GTNH semantics the ECO planner does not model are planned (and then executed) natively.
-        if (NativePlannerRouting.routeToNative(grid, output)) return null;
+        var options = ECOPlannerOptions.from(host);
+        if (NativePlannerRouting.routeToNative(grid, output, options.ignorePatternSubstitutions()))
+            return new CraftingJobV2(world, grid, source, output, CraftingMode.STANDARD, callback).schedule();
         var view = GridView.of(grid);
         MECraftingInventory snapshot = new MECraftingInventory();
         for (var entry : view.getStorageService()
@@ -135,13 +139,8 @@ public final class NativeECOPlanning {
                     .toNative(entry.getLongValue()),
                 Actionable.MODULATE);
         var catalog = view.captureCraftingService(world);
-        var future = ECOPlanningService.begin(
-            view,
-            catalog,
-            key,
-            output.getStackSize(),
-            CalculationStrategy.REPORT_MISSING_ITEMS,
-            cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions.from(host));
+        var future = ECOPlanningService
+            .begin(view, catalog, key, output.getStackSize(), CalculationStrategy.REPORT_MISSING_ITEMS, options);
         Pending pending = new Pending(
             world,
             grid,
