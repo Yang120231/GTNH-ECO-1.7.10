@@ -42,13 +42,24 @@ public final class ECOCreativeExtractionFilter {
         State state = ACTIVE.get();
         if (state == null || mode != Actionable.MODULATE) return extraction.getAsLong();
         long checkedBefore = state.checkedSources;
-        ExactAmount before = storedAmount(storage, key);
+        ExactAmount before;
+        try {
+            before = storedAmount(storage, key);
+        } catch (RuntimeException failedProbe) {
+            return 0L;
+        }
         long extracted = extraction.getAsLong();
         // Nested networks already filtered their physical sources. Never reclassify their aggregate.
         if (state.checkedSources != checkedBefore) return extracted;
         state.checkedSources++;
         if (extracted > 0 && (before.infinite() || before.value()
-            .signum() > 0) && before.equals(storedAmount(storage, key))) return 0L;
+            .signum() > 0)) {
+            try {
+                if (before.equals(storedAmount(storage, key))) return 0L;
+            } catch (RuntimeException failedProbe) {
+                return extracted;
+            }
+        }
         return extracted;
     }
 

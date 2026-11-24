@@ -371,7 +371,7 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
     }
 
     public boolean hasTransferRemainder() {
-        return interfaceTransfer.hasRemainder();
+        return interfaceTransfer.hasTransferState();
     }
 
     public void saveTransferRemainderToItem(ItemStack stack) {
@@ -387,7 +387,7 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
             CellComponents.readCustomData(stack)
                 .copyTag(),
             cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess.EMPTY);
-        if (interfaceTransfer.hasRemainder()) setChanged();
+        if (interfaceTransfer.hasTransferState()) setChanged();
     }
 
     public void restoreInfiniteDomainFromItem(ItemStack stack) {

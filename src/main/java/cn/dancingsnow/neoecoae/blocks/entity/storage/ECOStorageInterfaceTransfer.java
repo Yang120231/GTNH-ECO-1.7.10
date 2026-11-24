@@ -22,6 +22,7 @@ import cn.dancingsnow.neoecoae.impl.storage.SaturatingStackAccumulator;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorage;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageEngine;
 import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOIOPortTransfer;
+import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey;
@@ -64,13 +65,20 @@ final class ECOStorageInterfaceTransfer {
         return ioPortTransfer.remainder() != null || unresolvedRemainder != null;
     }
 
+    boolean hasTransferState() {
+        return hasRemainder() || ioPortTransfer.hasUncertainTransfers();
+    }
+
     void saveRemainder(CompoundTag tag, HolderLookup.Provider registries) {
+        ioPortTransfer.saveReceipts(tag, registries);
         if (unresolvedRemainder != null) tag.put(REMAINDER_TAG, unresolvedRemainder.copy());
         else if (ioPortTransfer.remainder() != null)
             tag.put(REMAINDER_TAG, GenericStack.writeTag(registries, ioPortTransfer.remainder()));
+        else tag.remove(REMAINDER_TAG);
     }
 
     void readRemainder(CompoundTag tag, HolderLookup.Provider registries) {
+        ioPortTransfer.loadReceipts(tag, registries);
         CompoundTag saved = tag.getCompound(REMAINDER_TAG);
         GenericStack stack = GenericStack.readTag(registries, saved);
         ioPortTransfer.restoreRemainder(stack);
@@ -82,12 +90,8 @@ final class ECOStorageInterfaceTransfer {
         if (remainder == null || !host.isFormed()) return;
         CombinedStorage storage = getStorageInterfaceHostStorage();
         if (storage == null) return;
-        long inserted = storage.recover(remainder, IActionSource.ofMachine(host));
-        if (inserted > 0L) {
-            long left = remainder.amount() - inserted;
-            ioPortTransfer.restoreRemainder(left == 0L ? null : new GenericStack(remainder.what(), left));
-            host.setChanged();
-        }
+        var source = IActionSource.ofMachine(host);
+        ioPortTransfer.settleRemainder(stack -> storage.recover(stack, source), host::setChanged);
     }
 
     long transferStorageInterfaceContents(ECOMachineInterfaceBlockEntity<NEStorageCluster> storageInterface) {
@@ -117,7 +121,8 @@ final class ECOStorageInterfaceTransfer {
                     : host.getLevel()
                         .getGameTime(),
                 PlanningSettings.Storage.storageOutputTransferIntervalTicks,
-                PlanningSettings.Storage.storageOutputFlushThreshold);
+                PlanningSettings.Storage.storageOutputFlushThreshold,
+                host::setChanged);
         } finally {
             if (hasRemainder()) host.setChanged();
         }
@@ -230,7 +235,14 @@ final class ECOStorageInterfaceTransfer {
                 : key instanceof AEFluidKey ? fluidInserts : inventories;
             for (MEStorage inventory : candidates) {
                 if (inserted >= amount) break;
-                inserted += inventory.insert(key, amount - inserted, mode, source);
+                long offered = amount - inserted;
+                try {
+                    inserted += ECOTransferQuarantine.check(inventory.insert(key, offered, mode, source), offered);
+                } catch (RuntimeException failure) {
+                    if (mode == Actionable.MODULATE && inserted > 0L)
+                        throw new ECOTransferQuarantine.ConfirmedPrefix(inserted, failure);
+                    throw failure;
+                }
             }
             return inserted;
         }
@@ -241,7 +253,14 @@ final class ECOStorageInterfaceTransfer {
             long extracted = 0L;
             for (MEStorage inventory : inventories) {
                 if (extracted >= amount) break;
-                extracted += inventory.extract(key, amount - extracted, mode, source);
+                long offered = amount - extracted;
+                try {
+                    extracted += ECOTransferQuarantine.check(inventory.extract(key, offered, mode, source), offered);
+                } catch (RuntimeException failure) {
+                    if (mode == Actionable.MODULATE && extracted > 0L)
+                        throw new ECOTransferQuarantine.ConfirmedPrefix(extracted, failure);
+                    throw failure;
+                }
             }
             return extracted;
         }
@@ -254,6 +273,7 @@ final class ECOStorageInterfaceTransfer {
                     : inventory instanceof ECOInfiniteStorage
                         ? inventory.insert(stack.what(), stack.amount(), Actionable.MODULATE, source)
                         : 0L;
+                ECOTransferQuarantine.check(accepted, stack.amount());
                 if (accepted > 0L) return accepted;
             }
             return 0L;

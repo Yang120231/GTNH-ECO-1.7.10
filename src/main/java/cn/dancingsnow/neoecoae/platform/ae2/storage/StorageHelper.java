@@ -27,11 +27,15 @@ public final class StorageHelper {
         long inserted = destination.insert(key, allowed, appeng.api.config.Actionable.MODULATE, source);
         if (inserted < 0 || inserted > allowed)
             throw new IllegalStateException("Invalid powered insertion result: " + inserted);
-        if (inserted > 0) energy.extractAEPower(
-            1 + (inserted - 1) / key.getAmountPerUnit(),
+        if (inserted > 0) chargeTransfer(energy, key, inserted);
+        return inserted;
+    }
+
+    public static void chargeTransfer(IEnergySource energy, AEKey key, long amount) {
+        energy.extractAEPower(
+            1 + (amount - 1) / key.getAmountPerUnit(),
             appeng.api.config.Actionable.MODULATE,
             appeng.api.config.PowerMultiplier.CONFIG);
-        return inserted;
     }
 
     public static long poweredExtraction(IEnergySource energy, MEStorage inventory, AEKey key, long amount,

@@ -15,6 +15,8 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.StorageHelper;
+import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
@@ -38,6 +40,46 @@ public final class ECOIOPortTransfer {
     private NetworkInventoryCache mountListing;
     private final Object2LongOpenHashMap<AEKey> listedAmounts = new Object2LongOpenHashMap<>();
     private GenericStack remainder;
+    private final ECOTransferQuarantine uncertainExtractions = new ECOTransferQuarantine();
+    private final ECOTransferQuarantine uncertainInsertions = new ECOTransferQuarantine();
+
+    public boolean hasUncertainTransfers() {
+        return !uncertainExtractions.isEmpty() || !uncertainInsertions.isEmpty();
+    }
+
+    public void saveReceipts(CompoundTag tag, HolderLookup.Provider registries) {
+        uncertainExtractions.save(tag, "uncertainInterfaceExtractions", registries);
+        uncertainInsertions.save(tag, "uncertainInterfaceInsertions", registries);
+    }
+
+    public void loadReceipts(CompoundTag tag, HolderLookup.Provider registries) {
+        uncertainExtractions.load(tag, "uncertainInterfaceExtractions", registries);
+        uncertainInsertions.load(tag, "uncertainInterfaceInsertions", registries);
+    }
+
+    public void settleRemainder(java.util.function.ToLongFunction<GenericStack> insert, Runnable changed) {
+        if (remainder == null || transferring) return;
+        transferring = true;
+        try {
+            GenericStack offered = remainder;
+            long accepted = uncertainInsertions
+                .attempt(offered.what(), offered.amount(), () -> insert.applyAsLong(offered));
+            settleInsertion(
+                offered.what(),
+                offered.amount(),
+                ECOTransferQuarantine.unavailable(accepted, offered.amount()),
+                changed);
+        } finally {
+            transferring = false;
+        }
+    }
+
+    private void settleInsertion(AEKey key, long extracted, long unavailable, Runnable changed) {
+        if (unavailable == 0L) return;
+        long left = extracted - unavailable;
+        remainder = left == 0L ? null : new GenericStack(key, left);
+        changed.run();
+    }
 
     public GenericStack remainder() {
         return remainder;
@@ -87,13 +129,14 @@ public final class ECOIOPortTransfer {
             filter,
             Long.MIN_VALUE,
             1,
-            Long.MAX_VALUE);
+            Long.MAX_VALUE,
+            () -> {});
     }
 
     /** Output batching retains all resources in the host's existing authoritative storage. */
     public long transfer(GridView grid, MEStorage hostStorage, boolean fillHost, boolean ignoreCreativeInput,
         boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter, long tick, int outputIntervalTicks,
-        long outputFlushThreshold) {
+        long outputFlushThreshold, Runnable changed) {
         if (transferring || remainder != null) return 0;
         transferring = true;
         try {
@@ -109,7 +152,8 @@ public final class ECOIOPortTransfer {
                     filter,
                     tick,
                     Math.max(1, Math.min(20, outputIntervalTicks)),
-                    Math.max(1, outputFlushThreshold)));
+                    Math.max(1, outputFlushThreshold),
+                    changed));
         } finally {
             transferring = false;
         }
@@ -117,7 +161,7 @@ public final class ECOIOPortTransfer {
 
     private long transferContents(GridView grid, MEStorage hostStorage, boolean fillHost, boolean ignoreCreativeInput,
         boolean excludeStorageBuses, IActionSource source, Predicate<AEKey> filter, long tick, int outputIntervalTicks,
-        long outputFlushThreshold) {
+        long outputFlushThreshold, Runnable changed) {
         MEStorage networkStorage = grid.getStorageService()
             .getInventory();
         MEStorage from;
@@ -180,7 +224,7 @@ public final class ECOIOPortTransfer {
         while (keysRemaining-- > 0 && !queue.isEmpty()) {
             var key = queue.first();
             // Also recheck pending keys after a filter or interface change.
-            if (!filter.test(key)) {
+            if (!filter.test(key) || uncertainExtractions.contains(key)) {
                 queue.removeFirst();
                 continue;
             }
@@ -194,38 +238,61 @@ public final class ECOIOPortTransfer {
             queue.removeFirst();
             attempted = true;
 
-            long possible = destination.insert(key, amount, Actionable.SIMULATE, source);
-            if (possible <= 0L) {
+            appeng.api.networking.energy.IEnergySource energy;
+            long possible;
+            try {
+                long simulated = ECOTransferQuarantine
+                    .check(destination.insert(key, amount, Actionable.SIMULATE, source), amount);
+                energy = grid.getEnergyService();
+                possible = StorageHelper.poweredAmount(energy, key, simulated);
+            } catch (RuntimeException failure) {
+                enqueue(key);
+                continue;
+            }
+            if (possible <= 0) {
                 enqueue(key);
                 continue;
             }
 
-            // Do not remove stock from a possibly extract-only source just to discover there is no power.
-            // poweredInsert still rechecks power and acceptance after extraction, as required by AE2.
-            possible = StorageHelper.poweredAmount(grid.getEnergyService(), key, possible);
-            if (possible <= 0) {
-                enqueue(key);
+            var extraction = uncertainExtractions.attemptWithPrefix(
+                key,
+                possible,
+                () -> fillHost && ignoreCreativeInput ? ECOCreativeExtractionFilter.extract(from, key, possible, source)
+                    : from.extract(key, possible, Actionable.MODULATE, source));
+            long extracted = extraction.confirmed();
+            if (extraction.uncertain() > 0L && extracted == 0L) {
+                changed.run();
                 break;
             }
-
-            long extracted = fillHost && ignoreCreativeInput
-                ? ECOCreativeExtractionFilter.extract(from, key, possible, source)
-                : from.extract(key, possible, Actionable.MODULATE, source);
-            if (extracted <= 0L) {
+            if (extracted == 0L) {
                 // Listing versions describe quantities, not whether an extraction is temporarily permitted.
                 enqueue(key);
                 continue;
             }
 
-            long inserted = StorageHelper.poweredInsert(grid.getEnergyService(), destination, key, extracted, source);
-            if (inserted < extracted) remainder = new GenericStack(key, extracted - inserted);
+            remainder = new GenericStack(key, extracted);
+            changed.run();
+            enqueue(key);
+            long offered;
+            try {
+                offered = StorageHelper.poweredAmount(energy, key, extracted);
+            } catch (RuntimeException failure) {
+                break;
+            }
+            if (offered == 0L) break;
+            var insertion = uncertainInsertions
+                .attemptWithPrefix(key, offered, () -> destination.insert(key, offered, Actionable.MODULATE, source));
+            long inserted = insertion.confirmed();
+            settleInsertion(key, extracted, inserted + insertion.uncertain(), changed);
             if (inserted > 0L) {
                 moved = inserted > Long.MAX_VALUE - moved ? Long.MAX_VALUE : moved + inserted;
+                try {
+                    StorageHelper.chargeTransfer(energy, key, inserted);
+                } catch (RuntimeException failure) {
+                    break;
+                }
             }
-            // Keep a candidate until the next refreshed listing says it is empty. Consumption and
-            // replenishment can restore the same total before then, producing no aggregate delta.
-            enqueue(key);
-            if (remainder != null) break;
+            if (extraction.uncertain() > 0L || insertion.uncertain() > 0L || remainder != null) break;
         }
         if (scheduled && attempted)
             nextOutputTick = tick > Long.MAX_VALUE - outputIntervalTicks ? Long.MAX_VALUE : tick + outputIntervalTicks;
