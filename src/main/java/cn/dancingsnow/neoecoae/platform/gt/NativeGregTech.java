@@ -65,6 +65,10 @@ public final class NativeGregTech {
         return isAvailable() ? GregTechMachineAccess.metaTile(tile) : null;
     }
 
+    public static boolean isActiveMachine(Object machine) {
+        return isAvailable() && GregTechMachineAccess.isActiveMachine(machine);
+    }
+
     /** Input parts and proxy masters of a formed controller, shared by route and machine-status discovery. */
     public static java.util.List<TileEntity> inputTiles(Object machine) {
         return isAvailable() ? GregTechMachineAccess.inputs(machine) : java.util.Collections.emptyList();

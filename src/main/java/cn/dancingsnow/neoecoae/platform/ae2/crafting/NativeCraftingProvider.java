@@ -267,6 +267,11 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             nativePattern.supportsPushInputsToExternalInventory());
     }
 
+    public boolean canDeliverCircuitInstantly(IPatternDetails pattern) {
+        return pattern instanceof NativePatternDetails
+            && ProgrammableHatchCrafting.canDeliverCircuitInstantly(medium, nativePatternFor(pattern).nativeDetails());
+    }
+
     public int pushCountedBatch(IPatternDetails pattern, KeyCounter[] inputs, int offered) {
         var nativePattern = nativePatternFor(pattern);
         var table = processingTable(nativePattern, inputs);

@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
+import appeng.api.config.Actionable;
 import appeng.api.networking.energy.IEnergyGrid;
 import cn.dancingsnow.neoecoae.api.me.pattern.ECOPatternWrappers;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
@@ -82,8 +83,9 @@ final class ECOProcessingPatternDispatcher {
 
     /** Whether a scaled provider may still receive a submission for this pattern this tick. */
     boolean mayAttemptScaled(ICraftingProvider provider, IPatternDetails pattern) {
-        return !isScaledAttemptBudgetExhausted(pattern) && provider instanceof NativeCraftingProvider nativeProvider
-            && (nativeProvider.supportsCountedBatch(pattern) || nativeProvider.supportsScaledProcessing());
+        return provider instanceof NativeCraftingProvider nativeProvider && (!isScaledAttemptBudgetExhausted(pattern)
+            && (nativeProvider.supportsCountedBatch(pattern) || nativeProvider.supportsScaledProcessing())
+            || nativeProvider.canDeliverCircuitInstantly(pattern));
     }
 
     boolean claimFallbackAttempt(IPatternDetails pattern) {
@@ -119,6 +121,52 @@ final class ECOProcessingPatternDispatcher {
         boolean supported = supportsScaledDispatch(request, provider);
         byPattern.put(request.pattern(), new Eligibility(tick, supported));
         return supported;
+    }
+
+    boolean isInstantCircuitRequest(ECOCraftingDispatchRequest request) {
+        return request.inputs().length == 0 && request.outputs()
+            .size() == 1
+            && request.remainders()
+                .isEmpty()
+            && request.pattern() instanceof NativePatternDetails nativePattern
+            && ProgrammableHatchCrafting.isCircuitPattern(nativePattern.nativeDetails())
+            && request.job().finalOutput != null
+            && !request.outputs()
+                .iterator()
+                .next()
+                .getKey()
+                .matches(request.job().finalOutput);
+    }
+
+    long tryInstantCircuitDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider, IEnergyGrid service,
+        Consumer<ICraftingProvider> mark) {
+        if (!(provider instanceof NativeCraftingProvider nativeProvider)
+            || !nativeProvider.canDeliverCircuitInstantly(request.pattern())) return 0;
+        var output = request.outputs()
+            .iterator()
+            .next();
+        var key = output.getKey();
+        long perCraft = output.getLongValue();
+        if (perCraft <= 0) return 0;
+        long capacity = request.job().exactOrder ? Long.MAX_VALUE
+            : (Long.MAX_VALUE - request.inventory().list.get(key)) / perCraft;
+        var batch = ECOBatchDispatchPlanning
+            .plan(request, provider, capacity, Long.MAX_VALUE, 0, service, ECOBatchMode.LINEAR);
+        if (batch == null) return 0;
+        long count = batch.craftCount();
+        long amount = Math.multiplyExact(perCraft, count);
+        mark.accept(provider);
+        try {
+            accounting.apply(request, scaledResult(request, count), () -> {
+                if (owner.insertForJob(request.job().link.getCraftingID(), key, amount, Actionable.MODULATE) != amount)
+                    throw new IllegalStateException("Instant circuit did not reach its CPU");
+            }, provider);
+        } catch (RuntimeException failure) {
+            accounting.failPermanently(request, "INSTANT_CIRCUIT_SETTLEMENT_FAILURE");
+            throw failure;
+        }
+        request.job().singleProcessingReason = "";
+        return count;
     }
 
     long tryCountedDispatch(ECOCraftingDispatchRequest request, ICraftingProvider provider, double onePower,

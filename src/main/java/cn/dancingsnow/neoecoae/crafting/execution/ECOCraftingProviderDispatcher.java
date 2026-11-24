@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
@@ -78,6 +79,18 @@ final class ECOCraftingProviderDispatcher {
     Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, Iterator<ICraftingProvider> providers,
         ECOCraftingDispatchBudget budget, IEnergyGrid energyService, Consumer<ICraftingProvider> markProviderAttempt,
         Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
+        if (processing.isInstantCircuitRequest(originalRequest)) {
+            var fallback = new ArrayList<ICraftingProvider>();
+            while (providers.hasNext()) {
+                var provider = providers.next();
+                long accepted = processing
+                    .tryInstantCircuitDispatch(originalRequest, provider, energyService, markProviderAttempt);
+                if (accepted > 0) return Result.accepted(accepted, true);
+                if (originalRequest.job().suspended) return Result.none();
+                fallback.add(provider);
+            }
+            providers = fallback.iterator();
+        }
         long cappedLimit = dispatchLimit();
         var request = originalRequest.allowedCrafts() <= cappedLimit ? originalRequest
             : new ECOCraftingDispatchRequest(

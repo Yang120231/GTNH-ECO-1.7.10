@@ -275,6 +275,11 @@ final class GregTechMachineAccess {
         return base instanceof TileEntity ? (TileEntity) base : null;
     }
 
+    static boolean isActiveMachine(Object machine) {
+        return hostTile(machine) instanceof IGregTechTileEntity host && host.getMetaTileEntity() == machine
+            && host.isActive();
+    }
+
     private static final Field HATCH_WATCHERS = hatchWatchers();
 
     private static Field hatchWatchers() {

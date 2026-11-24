@@ -53,7 +53,8 @@ public final class ProgrammableHatchCrafting {
                 master,
                 circuit,
                 smallCircuit,
-                hasInterface(type, INSTANT) ? method(type, "complete", void.class) : null);
+                hasInterface(type, INSTANT) ? method(type, "complete", void.class) : null,
+                isType(type, LARGE_CIRCUIT) ? method(type, "instant", boolean.class) : null);
         }
     };
     private static final ClassValue<MultiplierFields> MULTIPLIERS = new ClassValue<>() {
@@ -75,12 +76,29 @@ public final class ProgrammableHatchCrafting {
 
     private ProgrammableHatchCrafting() {}
 
+    public static boolean isCircuitPattern(ICraftingPatternDetails pattern) {
+        return isType(pattern.getClass(), CIRCUIT_PATTERN);
+    }
+
+    public static boolean canDeliverCircuitInstantly(ICraftingMedium medium, ICraftingPatternDetails pattern) {
+        if (!isCircuitPattern(pattern)) return false;
+        Method instant = DISPATCH.get(medium.getClass())
+            .instant();
+        if (instant == null) return false;
+        try {
+            if (!Boolean.TRUE.equals(instant.invoke(medium))) return false;
+        } catch (ReflectiveOperationException unavailable) {
+            return false;
+        }
+        return NativeGregTech.isActiveMachine(medium);
+    }
+
     public static boolean supportsCountedBatch(ICraftingMedium medium, ICraftingPatternDetails pattern,
         boolean linearProcessing) {
         DispatchAccess access = DISPATCH.get(medium.getClass());
         if (access.batch() == null) return false;
         if (access.circuit()) {
-            return isType(pattern.getClass(), CIRCUIT_PATTERN)
+            return isCircuitPattern(pattern)
                 && (!access.smallCircuit() || pattern.getCondensedAEOutputs()[0].getStackSize() == 1);
         }
         if (!linearProcessing) return false;
@@ -186,6 +204,6 @@ public final class ProgrammableHatchCrafting {
     private record MultiplierFields(Field pattern, Field multiplier) {}
 
     @com.github.bsideup.jabel.Desugar
-    private record DispatchAccess(Method batch, Method master, boolean circuit, boolean smallCircuit,
-        Method complete) {}
+    private record DispatchAccess(Method batch, Method master, boolean circuit, boolean smallCircuit, Method complete,
+        Method instant) {}
 }
