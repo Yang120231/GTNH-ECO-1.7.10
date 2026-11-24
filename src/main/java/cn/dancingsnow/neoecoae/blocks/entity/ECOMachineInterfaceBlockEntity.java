@@ -190,8 +190,22 @@ public class ECOMachineInterfaceBlockEntity<C extends NECluster<C>>
     @Override
     public void loadTag(CompoundTag tag, cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
         super.loadTag(tag, registries);
+        patternRefunds.load(tag, "uncertainPatternRefunds", registries);
         if (!tag.contains("neoecoae_fields") && tag.contains("StorageInterfaceMode"))
             storageInterfaceMode = ECOStorageInterfaceMode.valueOf(tag.getString("StorageInterfaceMode"));
+    }
+
+    private final cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine patternRefunds = new cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine();
+
+    public cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine patternRefunds() {
+        return patternRefunds;
+    }
+
+    @Override
+    public void saveAdditional(CompoundTag tag,
+        cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        patternRefunds.save(tag, "uncertainPatternRefunds", registries);
     }
 
     public void recordStorageInterfaceTransfer(long amount) {

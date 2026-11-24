@@ -13,6 +13,7 @@ import net.minecraft.item.ItemStack;
 
 import cn.dancingsnow.neoecoae.blocks.entity.ECOMachineInterfaceBlockEntity;
 import cn.dancingsnow.neoecoae.blocks.entity.crafting.ECOCraftingPatternBusBlockEntity;
+import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NECraftingCluster;
 import cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks;
 import cn.dancingsnow.neoecoae.platform.minecraft.RegistryAccess;
@@ -390,13 +391,10 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
                 }
                 var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(stack);
                 if (present.contains(key)) {
-                    if (!refundBlank(grid, stack.stackSize)) {
-                        noSpace++;
-                        continue;
-                    }
-                    source.setInventorySlotContents(slot, null);
-                    alreadyPresent++;
-                    changed = true;
+                    long refunded = refundBlank(grid, source, slot, stack);
+                    if (refunded == stack.stackSize) alreadyPresent++;
+                    else if (refunded >= 0L) noSpace++;
+                    changed |= refunded != 0L;
                     continue;
                 }
                 var target = free.poll();
@@ -407,10 +405,13 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
                 target.bus.getInternalInventory()
                     .setStackInSlot(target.slot, ItemStacks.copyWithCount(stack, 1));
                 present.add(key);
-                // Bus slots hold one pattern; extra copies are duplicates and are refunded as blanks when possible.
-                if (stack.stackSize > 1 && !refundBlank(grid, stack.stackSize - 1))
-                    source.setInventorySlotContents(slot, ItemStacks.copyWithCount(stack, stack.stackSize - 1));
-                else source.setInventorySlotContents(slot, null);
+                ItemStack duplicates = stack.stackSize > 1 ? ItemStacks.copyWithCount(stack, stack.stackSize - 1)
+                    : null;
+                source.setInventorySlotContents(slot, duplicates);
+                if (duplicates != null) {
+                    long refunded = refundBlank(grid, source, slot, duplicates);
+                    if (refunded >= 0L && refunded < duplicates.stackSize) noSpace++;
+                }
                 transferred++;
                 changed = true;
             }
@@ -428,25 +429,46 @@ public final class NativePatternInterfaceSession extends NativeSnapshotSession {
         }
     }
 
-    /** All-or-nothing: the source may only be cleared once the whole refund landed in network storage. */
-    private boolean refundBlank(cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid, int count) {
+    private long refundBlank(cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid, IInventory origin, int slot,
+        ItemStack pattern) {
+        int count = pattern.stackSize;
         var blank = appeng.api.AEApi.instance()
             .definitions()
             .materials()
             .blankPattern()
             .maybeStack(count)
             .orNull();
-        if (blank == null) return false;
+        if (blank == null) return 0L;
+        var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(blank);
+        cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage inventory;
+        var source = cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource.ofMachine(host);
+        long offered;
         try {
-            var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(blank);
-            var inventory = grid.getStorageService()
+            inventory = grid.getStorageService()
                 .getInventory();
-            var source = cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource.ofMachine(host);
-            return inventory.insert(key, count, appeng.api.config.Actionable.SIMULATE, source) == count
-                && inventory.insert(key, count, appeng.api.config.Actionable.MODULATE, source) == count;
-        } catch (RuntimeException rejected) {
-            return false;
+            offered = ECOTransferQuarantine
+                .check(inventory.insert(key, count, appeng.api.config.Actionable.SIMULATE, source), count);
+        } catch (RuntimeException failedProbe) {
+            return 0L;
         }
+        if (offered == 0L) return 0L;
+        int notOffered = count - (int) offered;
+        ItemStack residual = ItemStacks.copyWithCount(pattern, notOffered);
+        ItemStack original = pattern.copy();
+        try {
+            origin.setInventorySlotContents(slot, residual);
+        } catch (RuntimeException failure) {
+            if (ItemStack.areItemStacksEqual(origin.getStackInSlot(slot), residual))
+                origin.setInventorySlotContents(slot, original);
+            throw failure;
+        }
+        if (!ItemStack.areItemStacksEqual(origin.getStackInSlot(slot), residual)) return 0L;
+        long refunded = host.patternRefunds()
+            .attempt(key, offered, () -> inventory.insert(key, offered, appeng.api.config.Actionable.MODULATE, source));
+        if (refunded < 0L) host.setChanged();
+        else if (refunded < offered)
+            origin.setInventorySlotContents(slot, ItemStacks.copyWithCount(original, count - (int) refunded));
+        return refunded;
     }
 
     public CompoundTag entry(int index) {
