@@ -35,7 +35,7 @@ import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
  */
 final class ECOInfiniteStorageModeController {
 
-    private static final int MINIMUM_MIGRATION_SOURCES = 12;
+    static final int MINIMUM_MIGRATION_SOURCES = 12;
     private static final String MIGRATION_DOMAIN_STAGE = "migration domain";
 
     private final ECOStorageSystemBlockEntity host;
@@ -81,8 +81,9 @@ final class ECOInfiniteStorageModeController {
             .getGameTime();
         updating = true;
         ECOStorageHostMode previous = host.storageHostMode();
+        boolean componentsChanged = host.consumeInfiniteComponentsDirty();
         try {
-            if (host.consumeInfiniteComponentsDirty()) {
+            if (componentsChanged) {
                 targetInfiniteMode = host.hasRequiredInfiniteComponents();
                 // Keep a completed exit latched until the components have actually been removed.
                 if (!targetInfiniteMode && !host.storageHostMode()
@@ -94,6 +95,7 @@ final class ECOInfiniteStorageModeController {
         } finally {
             updating = false;
             syncModeChanges(previous);
+            if (componentsChanged && previous == host.storageHostMode()) membersChanged();
             if (mountedEngine != null) mountedEngine.flushRequestedCheckpoint();
         }
     }
@@ -110,17 +112,6 @@ final class ECOInfiniteStorageModeController {
         if (host.storageHostMode() == ECOStorageHostMode.UNFORMED) {
             host.setStorageHostMode(ECOStorageHostMode.FORMED_NORMAL);
         }
-        if (host.storageHostMode() == ECOStorageHostMode.FORMED_INFINITE && host.infiniteDomainId() != null
-            && host.getMissingInfiniteMembers() > 0
-            && host.getCluster()
-                .getDrives()
-                .stream()
-                .anyMatch(
-                    drive -> ECOInfiniteStorageMember.getMigrationDomainId(drive.getCellStack())
-                        .filter(host.infiniteDomainId()::equals)
-                        .isPresent())) {
-            host.setStorageHostMode(ECOStorageHostMode.MIGRATING_TO_INFINITE);
-        }
         if (host.storageHostMode() == ECOStorageHostMode.MIGRATING_TO_INFINITE) {
             // Finish the sealed migration before considering an exit, including after reload.
             runMigrationStep();
@@ -128,18 +119,19 @@ final class ECOInfiniteStorageModeController {
         }
         ECOInfiniteStorageEngine restoringEngine = getEngine();
         if (host.storageHostMode() == ECOStorageHostMode.RESTORING_TO_NORMAL || host.infiniteRestore()
-            .isRestoring()
-            || restoringEngine != null && restoringEngine.hasPendingRestore()
-            || host.isInfiniteExitRequested() && host.storageHostMode()
-                .isInfiniteState()) {
+            .isRestoring() || restoringEngine != null && restoringEngine.hasPendingRestore()) {
             host.setStorageHostMode(ECOStorageHostMode.RESTORING_TO_NORMAL);
             host.infiniteRestore()
                 .restoreInfiniteDomainToNormalStorageIfPossible();
             return;
         }
-        if (host.storageHostMode()
-            .isInfiniteState() && !targetInfiniteMode) {
-            host.setStorageHostMode(ECOStorageHostMode.RESTORING_TO_NORMAL);
+        if (host.isFormedInfiniteMode() && hasUnfinishedMigration()) {
+            host.setStorageHostMode(ECOStorageHostMode.MIGRATING_TO_INFINITE);
+            runMigrationStep();
+            return;
+        }
+        if (host.isFormedInfiniteMode() && host.isInfiniteExitRequested()) {
+            host.requestInfiniteExit();
             host.infiniteRestore()
                 .restoreInfiniteDomainToNormalStorageIfPossible();
             return;
@@ -156,6 +148,26 @@ final class ECOInfiniteStorageModeController {
         if (host.storageHostMode() == ECOStorageHostMode.MIGRATING_TO_INFINITE) {
             runMigrationStep();
         }
+    }
+
+    private boolean hasUnfinishedMigration() {
+        UUID domain = host.infiniteDomainId();
+        return domain != null && (!host.infiniteMigrationSourceIds()
+            .isEmpty() || host.getCluster() != null
+                && host.getCluster()
+                    .getDrives()
+                    .stream()
+                    .anyMatch(
+                        drive -> ECOInfiniteStorageMember.getMigrationDomainId(drive.getCellStack())
+                            .filter(domain::equals)
+                            .isPresent()));
+    }
+
+    boolean canReplaceMembers() {
+        if (host.isInfiniteExitRequested() || host.infiniteRestore()
+            .isRestoring() || host.isStorageServerStopping() || hasUnfinishedMigration()) return false;
+        ECOInfiniteStorageEngine engine = getEngine();
+        return engine != null && engine.canExitOrRestore() && !engine.hasPendingRestore();
     }
 
     private void syncModeChanges(ECOStorageHostMode previous) {
@@ -661,6 +673,7 @@ final class ECOInfiniteStorageModeController {
                     .getLocalizedName()),
             () -> generation == backendGeneration && engine == mountedEngine
                 && hostAccess
+                && host.hasRequiredInfiniteComponents()
                 && !host.isStorageServerStopping()
                 && engine.canUseMountedStorage());
     }
@@ -684,17 +697,17 @@ final class ECOInfiniteStorageModeController {
 
     /** Called synchronously by host transitions; domain health and restore locks are engine-owned. */
     void refreshHostAccess() {
-        hostAccess = host.isFormed() && !host.isRemoved()
-            && host.storageHostMode() == ECOStorageHostMode.FORMED_INFINITE
-            && host.infiniteDomainId() != null
+        hostAccess = !host.isRemoved() && mountedEngine != null
+            && host.canUseHostDomainStorage()
             && !host.isInfiniteExitRequested()
             && !host.infiniteRestore()
                 .isRestoring()
-            && mountedEngine != null
-            && host.getMissingInfiniteMembers() == 0;
+            && !hasUnfinishedMigration();
     }
 
     boolean canInsertIntoDomain() {
-        return hostAccess && !host.isStorageServerStopping() && mountedEngine.canUseMountedStorage();
+        return hostAccess && host.hasRequiredInfiniteComponents()
+            && !host.isStorageServerStopping()
+            && mountedEngine.canUseMountedStorage();
     }
 }

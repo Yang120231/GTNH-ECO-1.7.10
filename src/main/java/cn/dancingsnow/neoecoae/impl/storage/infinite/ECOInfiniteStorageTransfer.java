@@ -162,6 +162,11 @@ public final class ECOInfiniteStorageTransfer {
                 .supportsFeature(ECOFeature.INFINITE_STORAGE_CELL);
     }
 
+    public static boolean isEmptyCandidate(IECOStorageCell cell) {
+        return isEligible(cell) && !((IECOStorageMigrationCell) cell).migrationEntries()
+            .hasNext();
+    }
+
     /** Called only after the containing chunk has saved the sealed source. */
     public Result step(ItemStack source, IECOStorageMigrationCell cell, UUID domain, ECOInfiniteStorageEngine engine,
         HolderLookup.Provider registries, long packedPos, Runnable complete, Budget budget) {

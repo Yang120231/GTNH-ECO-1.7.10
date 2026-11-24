@@ -147,4 +147,6 @@ The communication IO port defaults to Storage mode, exposing local matrices to t
 
 Ignore Creative Storage Input defaults to on and affects Input only. Exclude Storage Bus Containers defaults to on and affects both directions. Check these switches, filters and destination capacity if nothing moves. Capacity utilization and resource distribution describe space usage and inventory composition separately; hover for exact amounts.
 
-An L9 host can migrate from Storage mode with at least 12 eligible L9 matrices in that host and 64 Infinite Storage Components in its component slot. Missing original members pause domain access. Component removal requires restoring all stock to compatible normal matrices with enough capacity and type slots. Bigger AE2 Digital Singularity cells do not participate in finite-cell migration.
+An L9 host can migrate from Storage mode with at least 12 eligible L9 matrices in that host and 64 Infinite Storage Components in its component slot. After migration, the host domain owns the stock. Extracted members become ordinary empty matrices and can be replaced with any eligible empty L9 matrix. Access pauses below 12 members or 64 components and resumes once both requirements are met.
+
+Removing components first restores all stock to matrices with compatible resource types and enough capacity. Once restoration starts, the original restore targets must remain installed or be returned before it can resume. Bigger AE2 Digital Singularity cells do not participate in finite-cell migration.

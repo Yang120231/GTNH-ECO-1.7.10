@@ -44,6 +44,7 @@ final class ECOStorageInfiniteRestore {
     private long planGeneration;
     private long retryPreflightTick = Long.MIN_VALUE;
     private long retryTargetTick = Long.MIN_VALUE;
+    private CompletableFuture<Boolean> restoreSealCheckpoint;
     private CompletableFuture<Boolean> targetCheckpoint;
     private final Map<AEKey, UUID> checkpointTransactions = new HashMap<>();
     private final java.util.Set<ECODriveBlockEntity> checkpointTargets = new java.util.HashSet<>();
@@ -94,6 +95,9 @@ final class ECOStorageInfiniteRestore {
         if (!engine.canExitOrRestore()) {
             return RestorePlan
                 .blocked("infinite storage domain is " + engine.status() + " and cannot be restored to normal storage");
+        }
+        if (host.isFormedInfiniteMode() && !host.canReplaceInfiniteMembers()) {
+            return RestorePlan.blocked("waiting for the previous infinite storage transfer to resume");
         }
         if (engine.isEmpty()) {
             return RestorePlan.allowed(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf());
@@ -241,6 +245,7 @@ final class ECOStorageInfiniteRestore {
                 || !target.identity.equals(ECOInfiniteStorageMember.identity(drive.getCellStack()))
                 || !targetIds.add(target.identity)) {
                 activeRestorePlan = null;
+                restoreSealCheckpoint = null;
                 targetCheckpoint = null;
                 checkpointTransactions.clear();
                 checkpointTargets.clear();
@@ -256,6 +261,40 @@ final class ECOStorageInfiniteRestore {
             }
         }
         if (activeRestorePlan == null) {
+            if (host.getLevel()
+                .getGameTime() < retryTargetTick) return;
+            var fields = new HashMap<TileEntity, List<String>>();
+            for (RestoreTarget target : plan.targets()) {
+                var drive = target.drive();
+                ((IECOStorageMigrationCell) drive.getCellInventory())
+                    .persistMigrationContents(serverLevel.nativeWorld());
+                drive.setChanged();
+                fields.put(drive, cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.listOf("neoecoae_fields"));
+            }
+            host.setChanged();
+            fields.put(
+                host,
+                cn.dancingsnow.neoecoae.platform.jdk.JdkCompat
+                    .listOf("infiniteDomainId", "infiniteHostMode", "infiniteMemberIds"));
+            restoreSealCheckpoint = NativeWorldStorage.checkpointTiles(serverLevel.nativeWorld(), fields);
+            activeRestorePlan = plan;
+            host.refreshInfiniteStorageAccess();
+        }
+        if (restoreSealCheckpoint != null) {
+            if (!restoreSealCheckpoint.isDone()) return;
+            if (!restoreSealCheckpoint.getNow(false)) {
+                restoreSealCheckpoint = null;
+                activeRestorePlan = null;
+                retryTargetTick = host.getLevel()
+                    .getGameTime() + 20;
+                host.storageFaults()
+                    .report(
+                        "restore",
+                        "Restore target seals not saved",
+                        host.getLevel()
+                            .getGameTime());
+                return;
+            }
             KeyCounter pending = new KeyCounter();
             engine.getRestoreStacks(pending);
             Map<AEKey, UUID> transactions = new HashMap<>();
@@ -295,11 +334,10 @@ final class ECOStorageInfiniteRestore {
             // Freeze all source keys before any target changes. The durable target quantities also make a crash
             // between an external cell's SavedData write and its chunk receipt recoverable without reinsertion.
             if (!engine.reserveRestores(transactions, targetIds, goals)) return;
+            restoreSealCheckpoint = null;
             planGeneration = engine.requestCheckpoint();
             restoreQueue.clear();
             for (var entry : pending) restoreQueue.addLast(entry.getKey());
-            activeRestorePlan = plan;
-            host.refreshInfiniteStorageAccess();
             IStorageProvider.requestUpdate(host.getNetworkNode());
         }
         if (!engine.isCheckpointSaved(planGeneration)) return;
