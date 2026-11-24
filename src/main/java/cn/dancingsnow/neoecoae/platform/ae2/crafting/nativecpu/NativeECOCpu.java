@@ -1,5 +1,6 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu;
 
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -28,7 +29,10 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
-/** AE2 CPU identity: only the imported ECO runtime owns execution and inventory. */
+/**
+ * AE2 CPU identity: only the imported ECO runtime owns execution and inventory.
+ * The big storage getters override Apeiron's injected accessors when present, without a hard dependency.
+ */
 public final class NativeECOCpu extends CraftingCPUCluster
     implements cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter {
 
@@ -257,6 +261,14 @@ public final class NativeECOCpu extends CraftingCPUCluster
     @Override
     public long getUsedStorage() {
         return runtime.usedStorage();
+    }
+
+    public BigInteger getAvailableStorageBig() {
+        return BigInteger.valueOf(getAvailableStorage());
+    }
+
+    public BigInteger getUsedStorageBig() {
+        return BigInteger.valueOf(getUsedStorage());
     }
 
     @Override
