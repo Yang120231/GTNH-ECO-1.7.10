@@ -73,6 +73,8 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     protected final AppEngInternalInventory inputInv = new AppEngInternalInventory(this, MAX_INPUT_SLOTS, 64);
     @Persisted
     protected final AppEngInternalInventory outputInv = new AppEngInternalInventory(this, 1, 64);
+    protected final cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine outputTransfers = new cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine();
+    private boolean exportingResult;
     @Persisted
     @DescSynced
     private final StoredEnergyAmount energyStored = new StoredEnergyAmount(0, MAX_POWER_STORAGE, type -> {});
@@ -402,7 +404,16 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     }
 
     protected boolean pushOutResult() {
-        if (!hasAutoExportWork() || worldObj == null) return false;
+        if (exportingResult || !hasAutoExportWork() || worldObj == null) return false;
+        exportingResult = true;
+        try {
+            return exportResult();
+        } finally {
+            exportingResult = false;
+        }
+    }
+
+    private boolean exportResult() {
         for (RelativeSide side : allowOutputs) {
             ForgeDirection direction = getOutputDirection(side).nativeSide();
             int x = xCoord + direction.offsetX, y = yCoord + direction.offsetY, z = zCoord + direction.offsetZ;
@@ -413,19 +424,35 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
             ItemStack output = outputInv.getStackInSlot(0);
             InventoryAdaptor items = InventoryAdaptor.getAdaptor(target, direction.getOpposite());
             if (items != null && !ItemStacks.isEmpty(output)) {
-                ItemStack remainder = items.addItems(output.copy());
-                int inserted = output.stackSize - ItemStacks.count(remainder);
-                if (inserted > 0) {
-                    outputInv.extractItem(0, inserted, false);
+                var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(output);
+                int offered = output.stackSize;
+                long inserted = outputTransfers.attempt(key, offered, () -> {
+                    ItemStack remainder = items.addItems(output.copy());
+                    if (remainder != null && (remainder.stackSize < 0 || remainder.stackSize > 0
+                        && !key.equals(cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey.of(remainder))))
+                        throw new IllegalStateException("Invalid workstation item remainder");
+                    return offered - (long) ItemStacks.count(remainder);
+                });
+                if (inserted != 0) {
+                    outputInv.extractItem(0, (int) (inserted < 0 ? offered : inserted), false);
+                    markDirty();
+                    if (inserted < 0) return false;
                     moved = true;
                 }
             }
             FluidStack fluid = getOutputTank().getFluid();
             if (target instanceof IFluidHandler && fluid != null && fluid.amount > 0) {
-                int inserted = ((IFluidHandler) target).fill(direction.getOpposite(), fluid.copy(), true);
-                if (inserted > 0) {
-                    getOutputTank().drain(inserted, true);
+                FluidTank tank = getOutputTank();
+                var key = cn.dancingsnow.neoecoae.platform.ae2.key.AEFluidKey.of(fluid);
+                int offered = fluid.amount;
+                long inserted = outputTransfers.attempt(
+                    key,
+                    offered,
+                    () -> ((IFluidHandler) target).fill(direction.getOpposite(), fluid.copy(), true));
+                if (inserted != 0) {
+                    tank.drain((int) (inserted < 0 ? offered : inserted), true);
                     onChangeTank();
+                    if (inserted < 0) return moved;
                     moved = true;
                 }
             }
@@ -463,6 +490,7 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     public void loadTag(CompoundTag data, HolderLookup.Provider registries) {
         paidStepRemainder = 0.0D;
         super.loadTag(data, registries);
+        outputTransfers.load(data, "uncertainOutputTransfers", registries);
         inputTank.readFromNBT(
             data.getCompound("inputTank")
                 .nativeTag());
@@ -486,6 +514,7 @@ public class ECOIntegratedWorkingStationBlockEntity extends NativeNetworkBlockEn
     @Override
     public void saveAdditional(CompoundTag data, HolderLookup.Provider registries) {
         super.saveAdditional(data, registries);
+        outputTransfers.save(data, "uncertainOutputTransfers", registries);
         data.put("inputTank", new CompoundTag(inputTank.writeToNBT(new net.minecraft.nbt.NBTTagCompound())));
         data.put("outputTank", new CompoundTag(outputTank.writeToNBT(new net.minecraft.nbt.NBTTagCompound())));
         upgrades.writeToNBT(data.nativeTag(), "upgrades");

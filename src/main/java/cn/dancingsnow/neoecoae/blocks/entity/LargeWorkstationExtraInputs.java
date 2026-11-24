@@ -2,6 +2,7 @@ package cn.dancingsnow.neoecoae.blocks.entity;
 
 import appeng.api.config.Actionable;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOFastPathStacks;
+import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.MEStorage;
@@ -27,17 +28,18 @@ final class LargeWorkstationExtraInputs {
         return true;
     }
 
-    static boolean returnOwned(KeyCounter owned, MEStorage storage, IActionSource source, Runnable changed) {
+    static boolean returnOwned(KeyCounter owned, MEStorage storage, IActionSource source,
+        ECOTransferQuarantine quarantine, Runnable changed) {
         for (var stack : ECOFastPathStacks.copyCounter(owned)) {
-            long inserted = storage.insert(stack.what(), stack.amount(), Actionable.MODULATE, source);
-            if (inserted < 0L || inserted > stack.amount()) {
-                throw new IllegalStateException("Invalid owned input recovery insertion amount");
-            }
-            if (inserted > 0L) {
-                owned.remove(stack.what(), inserted);
+            long inserted = quarantine.attempt(
+                stack.what(),
+                stack.amount(),
+                () -> storage.insert(stack.what(), stack.amount(), Actionable.MODULATE, source));
+            if (inserted != 0L) {
+                owned.remove(stack.what(), ECOTransferQuarantine.unavailable(inserted, stack.amount()));
                 changed.run();
             }
-            if (inserted < stack.amount()) return false;
+            if (inserted >= 0L && inserted < stack.amount()) return false;
         }
         return true;
     }

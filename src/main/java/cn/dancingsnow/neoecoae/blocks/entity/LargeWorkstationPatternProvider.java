@@ -275,7 +275,15 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     public boolean eco$pushPatternBatch(IPatternDetails pattern, KeyCounter[] inputs, long count, UUID job) {
         if (!canDispatch(pattern)) return false;
         boolean accepted = controller().acceptPatternBatch(pattern, inputs, count, job);
-        if (accepted) onPatternAccepted(pattern);
+        if (accepted) {
+            try {
+                onPatternAccepted(pattern);
+            } catch (RuntimeException failure) {
+                throw new cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException(
+                    "Workstation batch was accepted before its provider callback failed",
+                    failure);
+            }
+        }
         return accepted;
     }
 
