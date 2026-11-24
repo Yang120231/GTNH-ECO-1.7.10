@@ -71,6 +71,8 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     private final ECOCraftingWorkerRuntimeHost worker;
     private final IActionSource actionSource;
+    private final cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine transfers = new cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine();
+    private boolean transferring;
 
     private boolean isBusy = false;
 
@@ -616,21 +618,28 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
                 : cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copy(craftingEventOutput))
             : null;
         if (exactVirtual != null) {
-            boolean finished = exactVirtual.drainExact(true, (key, amount) -> {
-                if (!completedJobOutputsReleased && craftingJobId != null) {
-                    if (!(craftingService instanceof ECOCraftingOutputRouter router)) return java.math.BigInteger.ZERO;
-                    var inserted = router
-                        .neoecoae$insertExactIntoCpuForJob(craftingJobId, key, amount, Actionable.MODULATE);
-                    if (inserted.signum() == 0 && !completedJobOutputsReleased)
-                        recoveryState = RecoveryState.WAITING_FOR_OWNER;
-                    if (inserted.signum() > 0) {
-                        recoveryState = RecoveryState.ACTIVE;
-                        owningCpuMissingSinceGameTime = Long.MIN_VALUE;
+            boolean finished = exactVirtual.drainExact(
+                true,
+                amount -> !completedJobOutputsReleased && craftingJobId != null ? amount
+                    : ECOBigIntegerStorage.insertionWindow(storage, amount),
+                (key, amount) -> {
+                    if (!completedJobOutputsReleased && craftingJobId != null) {
+                        if (!(craftingService instanceof ECOCraftingOutputRouter router))
+                            return java.math.BigInteger.ZERO;
+                        var inserted = router
+                            .neoecoae$insertExactIntoCpuForJob(craftingJobId, key, amount, Actionable.MODULATE);
+                        if (inserted.signum() == 0 && !completedJobOutputsReleased)
+                            recoveryState = RecoveryState.WAITING_FOR_OWNER;
+                        if (inserted.signum() > 0) {
+                            recoveryState = RecoveryState.ACTIVE;
+                            owningCpuMissingSinceGameTime = Long.MIN_VALUE;
+                        }
+                        return inserted;
                     }
-                    return inserted;
-                }
-                return ECOBigIntegerStorage.insert(storage, key, amount, Actionable.MODULATE, actionSource);
-            }, this::setChanged);
+                    return ECOBigIntegerStorage.insert(storage, key, amount, Actionable.MODULATE, actionSource);
+                },
+                transfers,
+                this::setChanged);
             if (!finished) return false;
             worker.onBatchStopped();
             clearWork();
@@ -656,6 +665,8 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     }
 
     private TickRateModulation ejectOutputsSafely() {
+        if (transferring) return TickRateModulation.SLOWER;
+        transferring = true;
         try {
             if (ejectOutputs()) {
                 setChanged();
@@ -663,6 +674,8 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             return TickRateModulation.URGENT;
         } catch (RuntimeException e) {
             return TickRateModulation.SLOWER;
+        } finally {
+            transferring = false;
         }
     }
 
@@ -713,16 +726,20 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             if (completedJobOutputsReleased) {
                 insertedIntoCpus = 0L;
             } else if (routedToOwningJob) {
-                insertedIntoCpus = validateInsertionAmount(
-                    ((ECOCraftingOutputRouter) craftingService)
-                        .neoecoae$insertIntoCpuForJob(craftingJobId, key, remaining, Actionable.MODULATE),
-                    remaining,
-                    "owning crafting CPU");
+                insertedIntoCpus = transfers.attempt(
+                    key,
+                    entry.amount(),
+                    () -> ((ECOCraftingOutputRouter) craftingService)
+                        .neoecoae$insertIntoCpuForJob(craftingJobId, key, entry.amount(), Actionable.MODULATE));
             } else {
-                insertedIntoCpus = validateInsertionAmount(
-                    craftingService.insertIntoCpus(key, remaining, Actionable.MODULATE),
-                    remaining,
-                    "crafting CPUs");
+                insertedIntoCpus = transfers.attempt(
+                    key,
+                    entry.amount(),
+                    () -> craftingService.insertIntoCpus(key, entry.amount(), Actionable.MODULATE));
+            }
+            if (insertedIntoCpus < 0L) {
+                removePendingOutput(stacks, key, remaining);
+                break;
             }
             if (insertedIntoCpus > 0L) {
                 remaining -= insertedIntoCpus;
@@ -739,13 +756,13 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
             }
 
             if (remaining > 0L) {
-                long insertedIntoStorage = validateInsertionAmount(
-                    storage.insert(key, remaining, Actionable.MODULATE, actionSource),
-                    remaining,
-                    "network storage");
-                if (insertedIntoStorage > 0L) {
-                    removePendingOutput(stacks, key, insertedIntoStorage);
+                long offered = remaining;
+                long insertedIntoStorage = transfers
+                    .attempt(key, offered, () -> storage.insert(key, offered, Actionable.MODULATE, actionSource));
+                if (insertedIntoStorage != 0L) {
+                    removePendingOutput(stacks, key, insertedIntoStorage < 0L ? offered : insertedIntoStorage);
                 }
+                if (insertedIntoStorage < 0L) break;
             }
         }
         return stacks;
@@ -757,14 +774,6 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         retainRemainderForRetry(pending, RecoveryState.ACTIVE);
     }
 
-    private static long validateInsertionAmount(long inserted, long requested, String target) {
-        if (inserted < 0L || inserted > requested) {
-            throw new IllegalStateException(
-                "Invalid insertion result from " + target + ": " + inserted + " for " + requested);
-        }
-        return inserted;
-    }
-
     private KeyCounter insertAllAndCollectRemainder(MEStorage storage, KeyCounter stacks, boolean recoverOutputs) {
         List<GenericStack> pendingEntries = ECOCraftingStackCodec.toGenericStacks(stacks, !recoverOutputs);
         if (pendingEntries.isEmpty() && !ECOCraftingStackCodec.isEmpty(stacks)) {
@@ -773,15 +782,16 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
         stacks.removeZeros();
         retainRecoveryRemainder(stacks, recoverOutputs);
         for (GenericStack entry : pendingEntries) {
-            long inserted = validateInsertionAmount(
-                storage.insert(entry.what(), entry.amount(), Actionable.MODULATE, actionSource),
+            long inserted = transfers.attempt(
+                entry.what(),
                 entry.amount(),
-                "network recovery storage");
-            if (inserted > 0L) {
-                stacks.remove(entry.what(), inserted);
+                () -> storage.insert(entry.what(), entry.amount(), Actionable.MODULATE, actionSource));
+            if (inserted != 0L) {
+                stacks.remove(entry.what(), inserted < 0L ? entry.amount() : inserted);
                 stacks.removeZeros();
                 retainRecoveryRemainder(stacks, recoverOutputs);
             }
+            if (inserted < 0L) break;
         }
         return stacks;
     }
@@ -833,12 +843,24 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     }
 
     private boolean recoverItemsToNetwork(MEStorage storage, boolean recoverOutputs) {
+        if (transferring) return false;
+        transferring = true;
+        try {
+            return drainRecovery(storage, recoverOutputs);
+        } finally {
+            transferring = false;
+        }
+    }
+
+    private boolean drainRecovery(MEStorage storage, boolean recoverOutputs) {
         if (exactVirtual != null) {
             try {
                 if (!exactVirtual.drainExact(
                     recoverOutputs,
+                    amount -> ECOBigIntegerStorage.insertionWindow(storage, amount),
                     (key, amount) -> ECOBigIntegerStorage
                         .insert(storage, key, amount, Actionable.MODULATE, actionSource),
+                    transfers,
                     this::setChanged)) return false;
                 worker.onBatchStopped();
                 clearWork();
@@ -890,7 +912,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
      */
     public boolean preparePortableRecovery() {
         if (!isRecoverableState()) {
-            return false;
+            return !transfers.isEmpty();
         }
         ECOCraftingJobLifecycle.finish(worker.getNativeLevel(), craftingJobId, false);
         reboot = true;
@@ -1110,6 +1132,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
     @Override
     public @UnknownNullability CompoundTag serializeNBT(HolderLookup.Provider provider) {
         CompoundTag tag = new CompoundTag();
+        transfers.save(tag, "uncertainTransfers", provider);
         boolean batchGenericWork = !batchOutputItems.isEmpty() || !batchInputItems.isEmpty()
             || !batchRemainingItems.isEmpty();
         tag.putBoolean("isBusy", isBusy);
@@ -1199,6 +1222,7 @@ public class ECOCraftingThread implements INBTSerializable<CompoundTag> {
 
     @Override
     public void deserializeNBT(HolderLookup.Provider provider, CompoundTag nbt) {
+        transfers.load(nbt, "uncertainTransfers", provider);
         clearVirtualCraftingDiagnostic();
         worker.markDisplayDirty();
         exactVirtual = nbt.contains("exactVirtual", Tag.TAG_COMPOUND)

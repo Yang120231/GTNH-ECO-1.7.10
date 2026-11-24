@@ -4,9 +4,10 @@ import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
-import java.util.function.ToLongBiFunction;
+import java.util.function.Function;
 
 import cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory;
+import cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
@@ -47,39 +48,21 @@ public final class ECOExactVirtualLedger {
         return (output ? outputs : inputs).snapshot();
     }
 
-    /** Update each accepted key before the next external call; partial failure cannot replay a transfer. */
-    public boolean drain(boolean output, ToLongBiFunction<AEKey, Long> insert, Runnable changed) {
-        var inventory = output ? outputs : inputs;
-        for (var entry : inventory.snapshot()
-            .entrySet()) {
-            long offered = entry.getValue()
-                .min(BigInteger.valueOf(Long.MAX_VALUE))
-                .longValueExact();
-            long accepted = insert.applyAsLong(entry.getKey(), offered);
-            if (accepted < 0 || accepted > offered) throw new IllegalStateException("Invalid exact delivery");
-            if (accepted > 0) {
-                inventory.debit(
-                    cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(entry.getKey(), BigInteger.valueOf(accepted)));
-                changed.run();
-            }
-        }
-        return inventory.snapshot()
-            .isEmpty();
-    }
-
     /** Exact delivery path used when the destination can accept more than AE2's long-sized windows. */
-    public boolean drainExact(boolean output, BiFunction<AEKey, BigInteger, BigInteger> insert, Runnable changed) {
+    public boolean drainExact(boolean output, Function<BigInteger, BigInteger> window,
+        BiFunction<AEKey, BigInteger, BigInteger> insert, ECOTransferQuarantine quarantine, Runnable changed) {
         var inventory = output ? outputs : inputs;
         for (var entry : inventory.snapshot()
             .entrySet()) {
-            BigInteger accepted = insert.apply(entry.getKey(), entry.getValue());
-            if (accepted == null || accepted.signum() < 0 || accepted.compareTo(entry.getValue()) > 0) {
-                throw new IllegalStateException("Invalid exact delivery amount");
-            }
-            if (accepted.signum() > 0) {
-                inventory.debit(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(entry.getKey(), accepted));
+            AEKey key = entry.getKey();
+            BigInteger offered = window.apply(entry.getValue());
+            BigInteger accepted = quarantine.attemptExact(key, offered, () -> insert.apply(key, offered));
+            BigInteger unavailable = accepted == null ? offered : accepted;
+            if (unavailable.signum() > 0) {
+                inventory.debit(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(key, unavailable));
                 changed.run();
             }
+            if (accepted == null) return false;
         }
         return inventory.snapshot()
             .isEmpty();
