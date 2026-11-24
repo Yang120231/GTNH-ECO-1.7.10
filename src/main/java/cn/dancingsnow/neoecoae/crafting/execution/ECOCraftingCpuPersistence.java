@@ -4,6 +4,8 @@ import appeng.api.config.Actionable;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
+import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 
 /** Owns CPU NBT orchestration while preserving the established save keys and migration paths. */
 final class ECOCraftingCpuPersistence {
@@ -18,6 +20,16 @@ final class ECOCraftingCpuPersistence {
         if (ECOCraftingJobLifecycle.isPersistedJobTerminated(host.cpu.getLevel(), data)) {
             throw new IllegalStateException("Persisted ECO crafting CPU belongs to a terminal job");
         }
+
+        Tag savedInventory = data.get("inventory");
+        if (savedInventory != null && (!(savedInventory instanceof ListTag list)
+            || !list.isEmpty() && list.getElementType() != Tag.TAG_COMPOUND)) {
+            throw new IllegalArgumentException("Invalid saved crafting inventory list");
+        }
+        host.exactInventory()
+            .setEnabled(data.getBoolean("ecoExactInventory"));
+        host.getInventory()
+            .readFromNBT(savedInventory == null ? new ListTag() : (ListTag) savedInventory, registries);
 
         if (host.nativeCPU() instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpu bridge)
             bridge.readTracking(
@@ -34,10 +46,7 @@ final class ECOCraftingCpuPersistence {
             .clearPendingFinalOutputs();
         host.energyTransactionForPersistence()
             .readFromNBT(data);
-        host.exactInventory()
-            .setEnabled(data.getBoolean("ecoExactInventory"));
-        host.getInventory()
-            .readFromNBT(data.getList("inventory", 10), registries);
+        host.transfers.load(data, "uncertainTransfers", registries);
 
         if (!data.contains("job")) {
             host.setJobFromPersistence(null);
@@ -82,6 +91,7 @@ final class ECOCraftingCpuPersistence {
                 .writeToNBT(registries));
         host.energyTransactionForPersistence()
             .writeToNBT(data);
+        host.transfers.save(data, "uncertainTransfers", registries);
         var job = host.getJob();
         if (job == null) {
             data.remove("job");

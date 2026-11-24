@@ -11,10 +11,8 @@ import cn.dancingsnow.neoecoae.crafting.execution.ECOCraftingCPU;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEComputationCluster;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.inventory.ListCraftingInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
@@ -22,7 +20,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
-import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
@@ -47,7 +44,7 @@ public class ECOComputationThreadingCoreBlockEntity extends
     @Nullable
     public ECOCraftingCPU spawn(ICraftingPlan plan) {
         for (int i = 0; i < cpus.length; i++) {
-            if (cpus[i] == null) {
+            if (cpus[i] == null && deferredInit[i] == null) {
                 ECOCraftingCPU cpu = new ECOCraftingCPU(cluster, plan, this);
                 cpus[i] = cpu;
                 markForUpdate();
@@ -114,7 +111,7 @@ public class ECOComputationThreadingCoreBlockEntity extends
                     ECOCraftingCPU cpu = new ECOCraftingCPU(cluster, null, this);
                     try {
                         cpu.nativeCPU();
-                        cpu.readFromNBT(tag, registries);
+                        cpu.readFromNBT(tag.copy(), registries);
                         if (cpu.getPlan() != null) {
                             cpus[i] = cpu;
                             deferredInit[i] = null;
@@ -175,7 +172,6 @@ public class ECOComputationThreadingCoreBlockEntity extends
     public void addAdditionalDrops(WorldView level, BlockPos pos, List<ItemStack> drops) {
         prepareForPermanentRemoval();
         super.addAdditionalDrops(level, pos, drops);
-        HolderLookup.Provider registries = level.registryAccess();
         for (int i = 0; i < cpus.length; i++) {
             if (packedExactInventories.get(i)) continue;
             KeyCounter owned = new KeyCounter();
@@ -183,8 +179,6 @@ public class ECOComputationThreadingCoreBlockEntity extends
             if (cpu != null) {
                 cpu.getLogic()
                     .getOwnedItems(owned);
-            } else if (deferredInit[i] != null) {
-                collectDeferredOwnedItems(deferredInit[i], registries, owned);
             }
             addOwnedDrops(owned, drops, level, pos);
         }
@@ -205,18 +199,12 @@ public class ECOComputationThreadingCoreBlockEntity extends
         super.clearContent();
     }
 
-    /** Preserve exact-order leftovers as one portable inventory snapshot on the existing core drop. */
+    /** Carry live leftovers and unmodified deferred CPU snapshots on the existing core drop. */
     public void packExactInventories(ItemStack drop) {
         if (level == null || level.isClientSide()) return;
         var recovery = new CompoundTag();
         for (int i = 0; i < cpus.length; i++) {
             var cpu = cpus[i];
-            boolean exact = cpu != null ? cpu.getLogic()
-                .exactInventory()
-                .isEnabled()
-                : deferredInit[i] != null
-                    && (deferredInit[i].getBoolean("ecoExactInventory") || deferredInit[i].getCompound("job")
-                        .getBoolean("exactOrder"));
             if (cpu == null && deferredInit[i] == null) continue;
             CompoundTag saved;
             if (cpu != null) {
@@ -224,11 +212,10 @@ public class ECOComputationThreadingCoreBlockEntity extends
                     .cancel();
                 saved = new CompoundTag();
                 cpu.writeToNBT(saved, level.registryAccess());
+                saved.remove("job");
             } else {
                 saved = deferredInit[i].copy();
-                ECOCraftingJobLifecycle.cancelPersistedJob(level.nativeWorld(), saved);
             }
-            saved.remove("job");
             recovery.put("CPU" + i, saved);
             packedExactInventories.set(i);
         }
@@ -251,25 +238,6 @@ public class ECOComputationThreadingCoreBlockEntity extends
         }
         setChanged();
         if (cluster != null) updateCluster(cluster);
-    }
-
-    private static void collectDeferredOwnedItems(CompoundTag cpuTag, HolderLookup.Provider registries,
-        KeyCounter out) {
-        ListCraftingInventory inventory = new ListCraftingInventory(ignored -> {});
-        inventory.readFromNBT(cpuTag.getList("inventory", Tag.TAG_COMPOUND), registries);
-        out.addAll(inventory.list);
-
-        CompoundTag jobTag = cpuTag.getCompound("job");
-        long buffered = Math.max(0L, jobTag.getLong("bufferedFinalOutput"));
-        if (buffered <= 0L) {
-            return;
-        }
-        try {
-            GenericStack finalOutput = GenericStack.readTag(registries, jobTag.getCompound("finalOutput"));
-            if (finalOutput != null) {
-                out.add(finalOutput.what(), buffered);
-            }
-        } catch (RuntimeException ignored) {}
     }
 
     private static void addOwnedDrops(KeyCounter owned, List<ItemStack> drops, WorldView level, BlockPos pos) {

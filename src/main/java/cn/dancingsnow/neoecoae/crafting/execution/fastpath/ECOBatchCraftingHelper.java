@@ -323,30 +323,50 @@ public final class ECOBatchCraftingHelper {
      */
     public static boolean extractExact(ListCraftingInventory inventory, List<GenericStack> stacks) {
         List<GenericStack> extractedStacks = new ArrayList<>(stacks.size());
+        boolean complete = true;
         try {
             for (GenericStack stack : stacks) {
-                long extracted = inventory.extract(stack.what(), stack.amount(), Actionable.MODULATE);
-                if (extracted > 0L) {
-                    extractedStacks.add(new GenericStack(stack.what(), extracted));
+                var before = cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory.amount(inventory, stack.what());
+                long debited;
+                try {
+                    inventory.extract(stack.what(), stack.amount(), Actionable.MODULATE);
+                } finally {
+                    debited = before
+                        .subtract(
+                            cn.dancingsnow.neoecoae.api.me.bigorder.ECOExactInventory.amount(inventory, stack.what()))
+                        .longValueExact();
+                    if (debited > 0L) extractedStacks.add(new GenericStack(stack.what(), debited));
                 }
-                if (extracted != stack.amount()) {
-                    insertAll(inventory, extractedStacks);
-                    return false;
+                if (debited != stack.amount()) {
+                    complete = false;
+                    break;
                 }
             }
-            return true;
         } catch (RuntimeException e) {
-            insertAll(inventory, extractedStacks);
+            try {
+                insertAll(inventory, extractedStacks);
+            } catch (RuntimeException rollbackFailure) {
+                if (rollbackFailure != e) e.addSuppressed(rollbackFailure);
+            }
             throw e;
         }
+        if (!complete) insertAll(inventory, extractedStacks);
+        return complete;
     }
 
     public static void insertAll(ListCraftingInventory inventory, List<GenericStack> stacks) {
+        RuntimeException notificationFailure = null;
         // ListCraftingInventory 是 CPU 的本地记账库存；向其插入是内存级别的回滚操作，
         // 预期不会像网络存储那样拒绝物品。
         for (GenericStack stack : stacks) {
-            inventory.insert(stack.what(), stack.amount(), Actionable.MODULATE);
+            try {
+                inventory.insert(stack.what(), stack.amount(), Actionable.MODULATE);
+            } catch (RuntimeException failure) {
+                if (notificationFailure == null) notificationFailure = failure;
+                else if (notificationFailure != failure) notificationFailure.addSuppressed(failure);
+            }
         }
+        if (notificationFailure != null) throw notificationFailure;
     }
 
     private static long multiplyExact(long amount, long multiplier) {

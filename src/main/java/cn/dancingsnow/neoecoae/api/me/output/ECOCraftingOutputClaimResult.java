@@ -26,7 +26,7 @@ public record ECOCraftingOutputClaimResult(Status status, long requestedAmount, 
         } catch (ArithmeticException overflow) {
             throw new IllegalArgumentException("Claim destinations overflow", overflow);
         }
-        if (destinations != claimedAmount) {
+        if (status == Status.INDETERMINATE ? destinations != 0L : destinations != claimedAmount) {
             throw new IllegalArgumentException("Claim destinations do not add up to the claimed amount");
         }
         if (jobFinished && status != Status.ACCEPTED) {
@@ -38,8 +38,9 @@ public record ECOCraftingOutputClaimResult(Status status, long requestedAmount, 
         return claimedAmount > 0L;
     }
 
+    /** Whether the CPU took custody. An indeterminate outbound receipt must not trigger a resend. */
     public boolean accepted() {
-        return status == Status.ACCEPTED;
+        return status == Status.ACCEPTED || status == Status.INDETERMINATE;
     }
 
     public enum Status {
@@ -47,6 +48,8 @@ public record ECOCraftingOutputClaimResult(Status status, long requestedAmount, 
         NO_JOB,
         NO_MATCH,
         INVALID_REQUEST,
-        TERMINAL
+        TERMINAL,
+        /** The claimed amount must not be resent or refunded; its destination receipt is unknown. */
+        INDETERMINATE
     }
 }

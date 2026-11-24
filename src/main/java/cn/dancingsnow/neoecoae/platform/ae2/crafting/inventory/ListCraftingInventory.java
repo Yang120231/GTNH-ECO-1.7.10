@@ -24,7 +24,9 @@ import appeng.api.config.FuzzyMode;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.nbt.ListTag;
+import cn.dancingsnow.neoecoae.platform.nbt.Tag;
 
 public class ListCraftingInventory implements ICraftingInventory {
 
@@ -81,18 +83,31 @@ public class ListCraftingInventory implements ICraftingInventory {
     }
 
     public void readFromNBT(ListTag data, HolderLookup.Provider registries) {
-        list.clear();
-
+        KeyCounter restored = new KeyCounter();
         if (data != null) {
             for (int i = 0; i < data.size(); ++i) {
                 var compound = data.getCompound(i);
-                var key = AEKey.fromTagGeneric(registries, compound);
-                if (key != null) {
-                    var amount = compound.getLong("#");
-                    insert(key, amount, Actionable.MODULATE);
-                }
+                var key = readSavedKey(registries, compound);
+                long amount = readSavedAmount(compound);
+                restored.set(key, Math.addExact(restored.get(key), amount));
             }
         }
+        list.clear();
+        list.addAll(restored);
+        for (var entry : restored) listener.onChange(entry.getKey());
+    }
+
+    protected static AEKey readSavedKey(HolderLookup.Provider registries, CompoundTag tag) {
+        var key = AEKey.fromTagGeneric(registries, tag);
+        if (key == null) throw new IllegalArgumentException("Unknown key in saved crafting inventory");
+        return key;
+    }
+
+    protected static long readSavedAmount(CompoundTag tag) {
+        long amount = tag.getLong("#");
+        if (!tag.contains("#", Tag.TAG_LONG) || amount < 0)
+            throw new IllegalArgumentException("Invalid saved crafting inventory amount");
+        return amount;
     }
 
     public ListTag writeToNBT(HolderLookup.Provider registries) {

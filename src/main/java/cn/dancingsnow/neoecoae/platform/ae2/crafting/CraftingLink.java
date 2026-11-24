@@ -76,7 +76,11 @@ public final class CraftingLink implements ICraftingLink {
         if (key == null || amount <= 0) return 0;
         var offered = key.toNative(amount);
         var remainder = link.injectItems(offered, mode);
-        return remainder == null ? amount : Math.max(0, Math.min(amount, amount - remainder.getStackSize()));
+        if (remainder == null) return amount;
+        long left = remainder.getStackSize();
+        if (left < 0 || left > amount || left > 0 && !key.equals(AEKey.fromNative(remainder)))
+            throw new IllegalStateException("Invalid crafting requester remainder");
+        return amount - left;
     }
 
     @Override

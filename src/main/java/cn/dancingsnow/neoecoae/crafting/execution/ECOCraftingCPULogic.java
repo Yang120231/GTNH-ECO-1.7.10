@@ -74,6 +74,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
      */
 
     private boolean cantStoreItems = false;
+    final cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine transfers = new cn.dancingsnow.neoecoae.impl.storage.transfer.ECOTransferQuarantine();
     private boolean returningItemsToNetwork;
 
     private long lastModifiedOnTick = TickClock.currentTick();
@@ -232,7 +233,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             if (!this.inventory.list.isEmpty()) {
                 cantStoreItems = true;
             } else {
-                if (markedForDeletion) {
+                if (markedForDeletion && transfers.isEmpty()) {
                     cpu.deactivate();
                 }
             }
@@ -247,7 +248,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         if (!job.suspended) refillExactMaterials(currentTick);
 
         deliverStoredFinalOutput();
-        if (job == null || job.suspended) {
+        if (job == null || job.suspended || outputDelivery.hasUncertainFinalDelivery()) {
             return;
         }
         if (job.vanillaExecution) {
@@ -418,8 +419,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     /**
      * Claims an output when the machine's actual key is not necessarily the key reserved by the plan.
-     * The waiting ledger is consumed only after the request has been validated; all un-delivered output is retained
-     * in this CPU so a requester that accepts only part of the result cannot lose the remainder.
+     * Confirmed remainders stay in inventory. An offer without a receipt is not part of the refundable balance.
      */
     @Override
     public ECOCraftingOutputClaimResult claimCraftingOutput(ECOCraftingOutputClaimRequest request) {
@@ -433,6 +433,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     public boolean tryCompleteVirtualCrafting(IPatternDetails pattern, long completedCrafts) {
         var current = job;
         if (current == null || pattern == null
+            || outputDelivery.hasUncertainFinalDelivery()
+            || outputDelivery.isDeliveringFinalOutput()
             || completedCrafts <= 0L
             || ECOCraftingJobLifecycle.isTerminated(cpu.getLevel(), current.link.getCraftingID())) {
             return false;
@@ -513,7 +515,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
      */
     public void storeItems() {
         Preconditions.checkState(job == null, "CPU should not have a job to prevent re-insertion when dumping items");
-        if (returningItemsToNetwork) return;
+        if (returningItemsToNetwork || outputDelivery.isDeliveringFinalOutput()) return;
         returningItemsToNetwork = true;
         try {
             returnItemsToNetwork();
@@ -531,31 +533,29 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         var storage = g.getStorageService()
             .getInventory();
 
-        if (exactInventory().isEnabled()) {
-            for (var entry : exactInventory().snapshot()
-                .entrySet()) {
-                this.postChange(entry.getKey());
-                var inserted = cn.dancingsnow.neoecoae.api.storage.ECOBigIntegerStorage
-                    .insert(storage, entry.getKey(), entry.getValue(), Actionable.MODULATE, cpu.getActionSource());
-                if (inserted.signum() > 0) {
-                    if (!exactInventory()
-                        .debit(cn.dancingsnow.neoecoae.platform.jdk.JdkCompat.mapOf(entry.getKey(), inserted)))
-                        throw new IllegalStateException("CPU exact return exceeded retained inventory");
-                    markCpuDirty();
-                }
-            }
-            return;
+        var source = cpu.getActionSource();
+        for (var entry : exactInventory().snapshot()
+            .entrySet()) {
+            var key = entry.getKey();
+            var offered = cn.dancingsnow.neoecoae.api.storage.ECOBigIntegerStorage
+                .insertionWindow(storage, entry.getValue());
+            var accepted = transfers.attemptExact(
+                key,
+                offered,
+                () -> cn.dancingsnow.neoecoae.api.storage.ECOBigIntegerStorage
+                    .insert(storage, key, offered, Actionable.MODULATE, source));
+            settleTransferredInventory(key, accepted == null ? offered : accepted);
+            if (accepted == null) break;
         }
-        for (var entry : this.inventory.list) {
-            this.postChange(entry.getKey());
-            var inserted = storage
-                .insert(entry.getKey(), entry.getLongValue(), Actionable.MODULATE, cpu.getActionSource());
+    }
 
-            entry.setValue(entry.getLongValue() - inserted);
+    void settleTransferredInventory(AEKey key, java.math.BigInteger unavailable) {
+        if (unavailable.signum() <= 0) return;
+        try {
+            exactInventory().settleTransfer(key, unavailable);
+        } finally {
+            markCpuDirty();
         }
-        this.inventory.list.removeZeros();
-
-        markCpuDirty();
     }
 
     void postChange(@Nullable AEKey what) {

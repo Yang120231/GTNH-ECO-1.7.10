@@ -13,6 +13,10 @@ public interface ECOBigIntegerStorage {
 
     BigInteger insertBigInteger(AEKey what, BigInteger amount, Actionable mode, IActionSource source);
 
+    static BigInteger insertionWindow(MEStorage storage, BigInteger amount) {
+        return storage instanceof ECOBigIntegerStorage ? amount : amount.min(BigInteger.valueOf(Long.MAX_VALUE));
+    }
+
     /** Inserts through the regular long API unless this is a request the long API cannot represent. */
     static BigInteger insert(MEStorage storage, AEKey what, BigInteger amount, Actionable mode, IActionSource source) {
         Objects.requireNonNull(storage, "storage");
@@ -33,7 +37,7 @@ public interface ECOBigIntegerStorage {
         }
 
         long inserted = storage.insert(what, Long.MAX_VALUE, mode, source);
-        return Result.checkedResult(amount, BigInteger.valueOf(inserted));
+        return Result.checkedResult(max, BigInteger.valueOf(inserted));
     }
 
     final class Result {

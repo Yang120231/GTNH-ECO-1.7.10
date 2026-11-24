@@ -114,6 +114,15 @@ public final class ECOExactInventory extends ListCraftingInventory {
             .forEach(listener::onChange);
     }
 
+    /** A destination call has already taken place, so notification cannot undo the local debit. */
+    public void settleTransfer(AEKey key, BigInteger unavailable) {
+        BigInteger remaining = amount(key).subtract(unavailable);
+        if (unavailable.signum() <= 0 || remaining.signum() < 0)
+            throw new IllegalStateException("Transfer exceeded retained inventory");
+        set(key, remaining);
+        listener.onChange(key);
+    }
+
     public static Map<AEKey, BigInteger> totals(List<GenericStack> stacks, long copies) {
         return totals(stacks, BigInteger.valueOf(copies));
     }
@@ -158,10 +167,10 @@ public final class ECOExactInventory extends ListCraftingInventory {
         if (!enabled) {
             boolean exactData = false;
             for (int i = 0; i < data.size(); i++) exactData |= data.getCompound(i)
-                .contains("ecoExactAmount", Tag.TAG_STRING);
+                .contains("ecoExactAmount");
             if (!exactData) {
-                excess.clear();
                 super.readFromNBT(data, registries);
+                excess.clear();
                 return;
             }
         }
@@ -170,13 +179,12 @@ public final class ECOExactInventory extends ListCraftingInventory {
         boolean hasExact = false;
         for (int i = 0; i < data.size(); i++) {
             var tag = data.getCompound(i);
-            var key = AEKey.fromTagGeneric(registries, tag);
-            boolean exact = tag.contains("ecoExactAmount", Tag.TAG_STRING);
-            if (key == null) {
-                if (exact) throw new IllegalArgumentException("Unknown key in exact inventory");
-                continue;
-            }
-            var count = exact ? new BigInteger(tag.getString("ecoExactAmount")) : BigInteger.valueOf(tag.getLong("#"));
+            var key = readSavedKey(registries, tag);
+            boolean exact = tag.contains("ecoExactAmount");
+            if (exact && !tag.contains("ecoExactAmount", Tag.TAG_STRING))
+                throw new IllegalArgumentException("Invalid exact crafting inventory amount");
+            long window = readSavedAmount(tag);
+            var count = exact ? new BigInteger(tag.getString("ecoExactAmount")) : BigInteger.valueOf(window);
             if (count.signum() < 0) throw new IllegalArgumentException("Negative saved inventory");
             restored.merge(key, count, BigInteger::add);
             hasExact |= exact;

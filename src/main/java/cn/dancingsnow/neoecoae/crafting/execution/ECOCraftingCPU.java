@@ -253,7 +253,7 @@ public class ECOCraftingCPU implements ICraftingCPU {
      *         before its thread can be released.
      */
     public boolean hasRemainingItems() {
-        return logic.hasOwnedItems();
+        return logic.hasOwnedItems() || !logic.transfers.isEmpty();
     }
 
     public ECOCraftingCPUHost getCluster() {
