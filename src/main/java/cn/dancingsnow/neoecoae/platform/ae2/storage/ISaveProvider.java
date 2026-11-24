@@ -10,8 +10,8 @@ public interface ISaveProvider {
     }
 
     /**
-     * True only for hosts that call {@code ECOCellMutationBatch.flushDeferred} before their cell stack is read,
-     * replaced, dropped, unloaded or saved; such hosts receive at most one cell write per server tick.
+     * True only for hosts that require a successful {@code ECOCellMutationBatch.flushDeferred} before transferring
+     * or saving their cell; such hosts can coalesce writes until the end of the server tick.
      */
     default boolean defersCellPersistence() {
         return false;

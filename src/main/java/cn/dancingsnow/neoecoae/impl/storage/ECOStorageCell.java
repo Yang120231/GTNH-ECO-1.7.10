@@ -290,7 +290,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
         // transient inventory instance back into the cell stack for us.
         this.persist();
         if (this.container != null) {
-            this.container.saveChanges();
+            this.container.notifyPersistence();
         }
     }
 

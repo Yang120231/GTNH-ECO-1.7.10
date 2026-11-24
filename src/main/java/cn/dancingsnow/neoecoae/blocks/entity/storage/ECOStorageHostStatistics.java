@@ -233,7 +233,7 @@ final class ECOStorageHostStatistics {
                 .orElse(-1);
             if (appliedDrivePower >= 0) energyConsumePerTick = NEMath
                 .saturatingAdd(energyConsumePerTick, Math.max(0L, Math.round(appliedDrivePower)));
-            var stack = drive.getCellStack();
+            var stack = drive.getStackInSlot(0);
             if (view == null) {
                 cellEntries.add(
                     StorageHostUI.CellEntry.EMPTY.atDrive(

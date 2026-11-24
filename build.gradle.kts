@@ -70,7 +70,7 @@ dependencies {
     compileOnly(gtnhDevJar("GTNHLib", gtnhLibVersion)) { isTransitive = false }
     // The WAILA provider is reached only through WAILA's own IMC callback.
     compileOnly(gtnhDevJar("waila", "1.19.34")) { isTransitive = false }
-    // Target only native mod classes at the late-loading stage; no Minecraft refmap is needed.
+    // Mixins with explicit MCP/SRG names do not need a refmap.
     compileOnly(project.extra["mixinProviderSpec"] as String)
 
     runtimeOnlyNonPublishable(gtnhDevJar("Applied-Energistics-2-Unofficial", ae2Version)) {

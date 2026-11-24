@@ -57,14 +57,14 @@ public class CellHostItemHandler implements IItemHandler {
         if (!host.canExtractCell()) {
             return null;
         }
-        ItemStack copy = cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copyWithCount(host.getCellStack(), 1);
+        ItemStack installed = host.getCellStack();
         if (!simulate) {
             host.setCellStack(null);
             if (host.getCellStack() != null) {
                 return null;
             }
         }
-        return copy;
+        return cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.copyWithCount(installed, 1);
     }
 
     @Override

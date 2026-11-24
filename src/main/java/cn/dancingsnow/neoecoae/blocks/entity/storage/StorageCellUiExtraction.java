@@ -31,7 +31,6 @@ public final class StorageCellUiExtraction {
             player.addChatMessage(reason.nativeText());
             return false;
         }
-        if (!drive.canExtractCell()) return false;
 
         var inventory = player.inventory;
         var menu = player.openContainer;
@@ -50,10 +49,8 @@ public final class StorageCellUiExtraction {
                 return false;
         }
 
-        // Retain the actual stack: unmounting may persist its latest cell components in place.
-        ItemStack cell = drive.getCellStack();
-        drive.setCellStack(null);
-        if (drive.getCellStack() != null) return false;
+        ItemStack cell = drive.takeCell();
+        if (cell == null) return false;
         if (toInventory) {
             inventory.setInventorySlotContents(destination, cell);
             inventory.markDirty();

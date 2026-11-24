@@ -3,9 +3,13 @@ package cn.dancingsnow.neoecoae.impl.storage;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /** Coalesces component serialization inside one controller tick; live amounts remain authoritative. */
 public final class ECOCellMutationBatch implements AutoCloseable {
 
+    private static final Logger LOGGER = LogManager.getLogger(ECOCellMutationBatch.class);
     private static final ThreadLocal<ECOCellMutationBatch> ACTIVE = new ThreadLocal<>();
     // Persistence obligations must retain their owner until they succeed or the server-stop drain reports failure.
     private static final Set<ECOStorageCell> RETRY = new LinkedHashSet<>();
@@ -40,15 +44,23 @@ public final class ECOCellMutationBatch implements AutoCloseable {
     }
 
     /** Writes one host's pending cell before its stack leaves the host or is serialized. */
-    public static void flushDeferred(Object cell) {
-        if (cell instanceof ECOStorageCell && TICK_DEFERRED.remove(cell)) flush((ECOStorageCell) cell);
+    public static boolean flushDeferred(Object inventory) {
+        if (!(inventory instanceof ECOStorageCell cell)) return true;
+        if (TICK_DEFERRED.contains(cell) || RETRY.contains(cell)) return flush(cell);
+        for (var batch = ACTIVE.get(); batch != null; batch = batch.parent) {
+            if (batch.changed.contains(cell)) return flush(cell);
+        }
+        return true;
+    }
+
+    public static boolean hasPendingWrites() {
+        return !TICK_DEFERRED.isEmpty() || !RETRY.isEmpty() || ACTIVE.get() != null;
     }
 
     /** Server tick end, world save and shutdown. */
     public static void flushTickDeferred() {
         if (TICK_DEFERRED.isEmpty()) return;
         ECOStorageCell[] pending = TICK_DEFERRED.toArray(new ECOStorageCell[0]);
-        TICK_DEFERRED.clear();
         for (ECOStorageCell cell : pending) flush(cell);
     }
 
@@ -69,15 +81,13 @@ public final class ECOCellMutationBatch implements AutoCloseable {
         int remaining = 16;
         for (ECOStorageCell cell : new java.util.ArrayList<>(RETRY)) {
             if (remaining-- <= 0) break;
-            // Failed entries are re-added at the tail by flush(), so one permanently failing
-            // cell cannot starve every persistence obligation queued behind it.
-            RETRY.remove(cell);
             flush(cell);
         }
     }
 
     public static void drainRetries() {
         for (ECOStorageCell cell : new java.util.ArrayList<>(RETRY)) flush(cell);
+        if (!RETRY.isEmpty()) LOGGER.error("{} ECO cell writes remain pending at server shutdown", RETRY.size());
     }
 
     /** Drops an accidentally unclosed server-thread scope at the server lifecycle boundary. */
@@ -100,10 +110,19 @@ public final class ECOCellMutationBatch implements AutoCloseable {
         }
     }
 
-    private static void flush(ECOStorageCell cell) {
+    private static boolean flush(ECOStorageCell cell) {
+        boolean written = false;
         try {
             cell.flushBatchedChanges();
-            RETRY.remove(cell);
-        } catch (RuntimeException ignored) {}
+            written = true;
+        } catch (RuntimeException failure) {
+            if (!RETRY.contains(cell))
+                LOGGER.error("ECO cell persistence failed; retaining the pending write", failure);
+        }
+        TICK_DEFERRED.remove(cell);
+        for (var batch = ACTIVE.get(); batch != null; batch = batch.parent) batch.changed.remove(cell);
+        RETRY.remove(cell);
+        if (!written) RETRY.add(cell);
+        return written;
     }
 }
