@@ -1,7 +1,6 @@
 package cn.dancingsnow.neoecoae.platform.ui;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
 
 import com.cleanroommc.modularui.drawable.GuiDraw;
@@ -56,9 +55,16 @@ public final class NativeUiDraw {
 
     public static void item(ItemStack stack, int x, int y, float z) {
         if (ItemStacks.isEmpty(stack)) return;
-        GuiDraw.drawItem(stack, x, y, 16, 16, Math.round(z));
-        RenderHelper.disableStandardItemLighting();
-        org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
-        org.lwjgl.opengl.GL11.glColor4f(1, 1, 1, 1);
+        // Keep the lighting/depth/colour state the host renderer gave us; MUI2 pages must not leak it.
+        org.lwjgl.opengl.GL11.glPushAttrib(
+            org.lwjgl.opengl.GL11.GL_ENABLE_BIT | org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT
+                | org.lwjgl.opengl.GL11.GL_LIGHTING_BIT
+                | org.lwjgl.opengl.GL11.GL_CURRENT_BIT
+                | org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT);
+        try {
+            GuiDraw.drawItem(stack, x, y, 16, 16, Math.round(z));
+        } finally {
+            org.lwjgl.opengl.GL11.glPopAttrib();
+        }
     }
 }

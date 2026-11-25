@@ -885,7 +885,7 @@ public final class NativeListCard extends RichTooltip {
         if (x + scaledWidth + 4 > context.getScreenArea().width)
             x = Math.max(4, context.getAbsMouseX() - 16 - scaledWidth);
         y = Math.max(4, Math.min(y, context.getScreenArea().height - scaledHeight - 6));
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_LIGHTING_BIT | GL11.GL_CURRENT_BIT);
         GL11.glPushMatrix();
         try {
             GL11.glTranslatef(0, 0, 400);
