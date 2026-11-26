@@ -48,6 +48,7 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.registerMessage(IngredientsHandler.class, Ingredients.class, 9, Side.SERVER);
         CHANNEL.registerMessage(IngredientsReplyHandler.class, IngredientsReply.class, 10, Side.CLIENT);
         CHANNEL.registerMessage(ReplanHandler.class, Replan.class, 11, Side.SERVER);
+        CHANNEL.registerMessage(CancelHandler.class, Cancel.class, 12, Side.SERVER);
     }
 
     public static void sync(EntityPlayerMP player, int windowId, ECOCraftConfirmState state,
@@ -196,14 +197,13 @@ public final class ECOCraftConfirmPackets {
         CHANNEL.sendToServer(new Replan(windowId));
     }
 
-    /** Carries intent only: output, amount and grid always come from the server's open confirmation. */
-    public static final class Replan implements IMessage {
+    private abstract static class WindowRequest implements IMessage {
 
         int windowId;
 
-        public Replan() {}
+        WindowRequest() {}
 
-        Replan(int windowId) {
+        WindowRequest(int windowId) {
             this.windowId = windowId;
         }
 
@@ -218,6 +218,16 @@ public final class ECOCraftConfirmPackets {
         }
     }
 
+    /** Carries intent only: output, amount and grid always come from the server's open confirmation. */
+    public static final class Replan extends WindowRequest {
+
+        public Replan() {}
+
+        Replan(int windowId) {
+            super(windowId);
+        }
+    }
+
     public static final class ReplanHandler implements IMessageHandler<Replan, IMessage> {
 
         @Override
@@ -225,6 +235,30 @@ public final class ECOCraftConfirmPackets {
             EntityPlayerMP player = context.getServerHandler().playerEntity;
             ServerTasks.captureSession()
                 .execute(() -> ECOCraftConfirmTracker.replan(player, message.windowId));
+            return null;
+        }
+    }
+
+    public static void cancel(int windowId) {
+        CHANNEL.sendToServer(new Cancel(windowId));
+    }
+
+    public static final class Cancel extends WindowRequest {
+
+        public Cancel() {}
+
+        Cancel(int windowId) {
+            super(windowId);
+        }
+    }
+
+    public static final class CancelHandler implements IMessageHandler<Cancel, IMessage> {
+
+        @Override
+        public IMessage onMessage(Cancel message, MessageContext context) {
+            EntityPlayerMP player = context.getServerHandler().playerEntity;
+            ServerTasks.captureSession()
+                .execute(() -> ECOCraftConfirmTracker.cancel(player, message.windowId));
             return null;
         }
     }
@@ -327,24 +361,12 @@ public final class ECOCraftConfirmPackets {
     }
 
     /** Client to server: the player dismissed the error page. */
-    public static final class ClearError implements IMessage {
-
-        int windowId;
+    public static final class ClearError extends WindowRequest {
 
         public ClearError() {}
 
         ClearError(int windowId) {
-            this.windowId = windowId;
-        }
-
-        @Override
-        public void fromBytes(ByteBuf buf) {
-            windowId = buf.readInt();
-        }
-
-        @Override
-        public void toBytes(ByteBuf buf) {
-            buf.writeInt(windowId);
+            super(windowId);
         }
     }
 

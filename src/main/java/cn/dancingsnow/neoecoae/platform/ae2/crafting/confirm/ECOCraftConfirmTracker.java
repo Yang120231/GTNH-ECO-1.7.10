@@ -11,6 +11,8 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
 import net.minecraft.server.MinecraftServer;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.networking.IGrid;
@@ -48,6 +50,7 @@ import cn.dancingsnow.neoecoae.platform.network.ECOCraftConfirmPackets;
  */
 public final class ECOCraftConfirmTracker {
 
+    private static final Logger LOG = LogManager.getLogger(ECOCraftConfirmTracker.class);
     private static final Map<EntityPlayerMP, Tracked> TRACKED = new WeakHashMap<>();
     /** rv3-beta-1080 pins the crafted item after a start; the pinned 990 jar has no such step. */
     private static volatile Method pushToPins;
@@ -417,6 +420,25 @@ public final class ECOCraftConfirmTracker {
         if (tracked == null) return;
         tracked.session.clearError();
         push(player, tracked.container, tracked.session);
+    }
+
+    /** Return to the terminal if it is still accessible. A late cancel must not touch a replacement window. */
+    public static void cancel(EntityPlayerMP player, int windowId) {
+        if (!(player.openContainer instanceof ContainerCraftConfirm confirm) || confirm.windowId != windowId) return;
+        try {
+            if (confirm.getOpenContext() != null && confirm.getPrimaryGui() != null && confirm.canInteractWith(player))
+                confirm.switchToOriginalGUI();
+        } catch (RuntimeException failure) {
+            LOG.warn("Could not reopen the terminal for crafting confirmation " + windowId, failure);
+        }
+        if (player.openContainer == confirm) {
+            // No open packet was sent. The client dismisses this screen locally; a vanilla close ignores window IDs.
+            player.closeContainer();
+        } else if (player.openContainer instanceof ContainerCraftConfirm next && next.serializedItemToCraft.isEmpty()) {
+            // A nested request can reopen a blank confirmation as its own parent. Leave real replacement jobs alone.
+            var access = (ContainerCraftConfirmAccessor) next;
+            if (access.neoecoae$getJob() == null && access.neoecoae$getResult() == null) player.closeScreen();
+        }
     }
 
     /** Re-read the grid and stock through the normal planner routing, retaining the requested output and CPU choice. */

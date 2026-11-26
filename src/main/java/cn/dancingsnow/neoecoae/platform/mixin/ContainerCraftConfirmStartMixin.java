@@ -13,6 +13,7 @@ import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.security.BaseActionSource;
+import appeng.api.storage.data.IAEStack;
 import appeng.container.implementations.ContainerCraftConfirm;
 import appeng.container.implementations.CraftingCPUStatus;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker;
@@ -23,6 +24,12 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTrac
  */
 @Mixin(value = ContainerCraftConfirm.class, remap = false)
 public abstract class ContainerCraftConfirmStartMixin {
+
+    /** Before the output sync, CPU matching and Shift+Cancel both need an absent stack, not an empty packet. */
+    @Inject(method = "getItemToCraft", at = @At("HEAD"), cancellable = true, require = 1)
+    private void neoecoae$unsyncedOutput(CallbackInfoReturnable<IAEStack<?>> cir) {
+        if (((ContainerCraftConfirm) (Object) this).serializedItemToCraft.isEmpty()) cir.setReturnValue(null);
+    }
 
     @Inject(method = "pushCraftedItemToPins", at = @At("HEAD"), cancellable = true, require = 0)
     private void neoecoae$omitTemporaryOrderPin(CallbackInfo ci) {

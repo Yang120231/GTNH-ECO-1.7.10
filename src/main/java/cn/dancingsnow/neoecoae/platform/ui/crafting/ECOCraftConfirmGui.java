@@ -46,13 +46,12 @@ import appeng.container.implementations.CraftingCPUStatus;
 import appeng.core.AEConfig;
 import appeng.core.localization.ButtonToolTips;
 import appeng.core.localization.GuiText;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketSwitchGuis;
 import appeng.util.ColorPickHelper;
 import appeng.util.Platform;
 import appeng.util.RoundHelper;
 import appeng.util.item.IAEStackList;
 import cn.dancingsnow.neoecoae.api.me.menu.ECOCycleItemList;
+import cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCraftingClient;
 import cn.dancingsnow.neoecoae.crafting.display.format.BigNumberFormatter;
 import cn.dancingsnow.neoecoae.crafting.display.format.DisplayNumbers;
 import cn.dancingsnow.neoecoae.crafting.display.format.NEByteFormatter;
@@ -140,6 +139,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     /** AE2's CPU table lays its cards from y=19; the ECO column starts them level with the report table. */
     private static final int CPU_LIST_SHIFT = TABLE_Y - 19;
     private static final long LARGE_CYCLE_INDICATOR_DELAY_NANOS = 500_000_000L;
+    private static final int RETURN_GRACE_TICKS = 20;
 
     private final ContainerCraftConfirm container;
     private final GuiCraftingCPUTable cpuTable;
@@ -173,6 +173,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     private GuiButton treeMissingButton;
     private boolean lastSubmissionForced;
     private boolean lastSubmissionFollow;
+    private int returnWaitTicks = -1;
     /** Page height: 0 short, 1 medium, 2 tall, 3 full screen. */
     private int style;
     private int rows = BASE_ROWS;
@@ -1195,6 +1196,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
 
     @Override
     protected void actionPerformed(GuiButton button) {
+        if (returnWaitTicks >= 0 && button != cancel) return;
         super.actionPerformed(button);
         boolean backwards = Mouse.isButtonDown(1);
         if (cpuTable.actionPerformed(button, backwards)) return;
@@ -1224,10 +1226,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             ECOCraftConfirmPackets.replan(container.windowId);
         } else if (button == startWithFollow) submit(force, true);
         else if (button == selectCpu) cpuTable.cycleCPU(backwards);
-        else if (button == cancel) {
-            addMissingToBookmarks();
-            goBack();
-        } else if (button == retry) {
+        else if (button == cancel) goBack(true);
+        else if (button == retry) {
             if (state.error == ECOCraftConfirmError.PLAN_STALE) {
                 // The network or recipes changed since planning: plan again instead of resubmitting the old plan.
                 if (replan.enabled) {
@@ -1277,9 +1277,10 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             ItemStack display = stack == null ? null : stack.getItemStackForNEI();
             if (display != null) missing.add(display);
         }
+        if (missing.isEmpty()) return;
+        // NEI accepts a plain group when the confirmation has not received its requested output yet.
         IAEStack<?> output = container.getItemToCraft();
-        if (output == null || missing.isEmpty()) return;
-        NeiBookmarks.add(output.getItemStackForNEI(), missing);
+        NeiBookmarks.add(output == null ? null : output.getItemStackForNEI(), missing);
     }
 
     /** Like GTNH, export the active view: the tree or the material list. */
@@ -1323,34 +1324,47 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         return value.bitLength() < 63 ? value.longValue() : Long.MAX_VALUE;
     }
 
-    private void goBack() {
-        cn.dancingsnow.neoecoae.compat.nei.NEETemporaryCraftingClient.cancelPreview();
-        try {
-            NetworkHandler.instance.sendToServer(new PacketSwitchGuis());
-        } catch (Exception failure) {
-            mc.thePlayer.closeScreen();
+    private void goBack(boolean bookmarkMissing) {
+        if (returnWaitTicks >= 0) {
+            dismissPendingReturn();
+            return;
         }
+        if (bookmarkMissing) addMissingToBookmarks();
+        NEETemporaryCraftingClient.cancelPreview();
+        returnWaitTicks = 0;
+        AEBaseGui.setSwitchingGuis(true);
+        try {
+            ECOCraftConfirmPackets.cancel(container.windowId);
+        } catch (RuntimeException failure) {
+            closeGui();
+        }
+    }
+
+    private void dismissPendingReturn() {
+        if (mc.currentScreen != this || mc.thePlayer == null) return;
+        // The scoped request disposes of the server container. A second vanilla close could close the new terminal.
+        if (mc.thePlayer.openContainer == container) mc.thePlayer.closeScreenNoPacket();
+        else mc.displayGuiScreen(null);
+    }
+
+    @Override
+    public void onGuiClosed() {
+        // A successfully opened AE2 GUI consumes this flag in its constructor; a failed return must not leak it.
+        if (returnWaitTicks >= 0) AEBaseGui.setSwitchingGuis(false);
+        super.onGuiClosed();
     }
 
     @Override
     public void updateScreen() {
         super.updateScreen();
         search.updateCursorCounter();
+        if (returnWaitTicks >= 0 && ++returnWaitTicks >= RETURN_GRACE_TICKS) dismissPendingReturn();
     }
 
     @Override
     protected void keyTyped(char character, int key) {
-        if (key == Keyboard.KEY_ESCAPE) {
-            goBack();
-            return;
-        }
-        // The inventory key closes through goBack() too, so an NEE preview is cancelled rather than continued.
-        if (!search.isFocused() && key == mc.gameSettings.keyBindInventory.getKeyCode()) {
-            goBack();
-            return;
-        }
         boolean enter = key == Keyboard.KEY_RETURN || key == Keyboard.KEY_NUMPADENTER;
-        if (search.isFocused() && key != Keyboard.KEY_ESCAPE) {
+        if (returnWaitTicks < 0 && key != Keyboard.KEY_ESCAPE && search.isFocused()) {
             // Enter in the tree view jumps to the next match, as in GTNH's tree search.
             if (enter && treeMode) {
                 planTree.findNext();
@@ -1358,7 +1372,12 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
             }
             if (!enter && search.textboxKeyTyped(character, key)) return;
         }
-        if (key == Keyboard.KEY_RETURN || key == Keyboard.KEY_NUMPADENTER) {
+        if (isCloseKey(key)) {
+            goBack(false);
+            return;
+        }
+        if (returnWaitTicks >= 0) return;
+        if (enter) {
             if (state.error == null && start.enabled)
                 submit(ECOCraftConfirmRules.isForceStart(state, isShiftKeyDown()), false);
             return;
@@ -1510,7 +1529,7 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
     /** NEI is optional at link time; its classes are touched only when a bookmark is actually made. */
     private static final class NeiBookmarks {
 
-        static void add(ItemStack output, List<ItemStack> missing) {
+        static void add(@Nullable ItemStack output, List<ItemStack> missing) {
             try {
                 appeng.integration.modules.NEI nei = appeng.integration.modules.NEI.instance;
                 if (nei != null) nei.addToBookmark(output, missing);
