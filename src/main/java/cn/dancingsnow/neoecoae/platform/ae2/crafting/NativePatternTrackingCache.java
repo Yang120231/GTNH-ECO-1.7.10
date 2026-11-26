@@ -31,6 +31,29 @@ public final class NativePatternTrackingCache implements IGridCache {
     private long recipeGeneration = PatternRuntime.reloadGeneration();
     private Set<AEKey> candidates = java.util.Collections.emptySet();
     private final Map<World, CraftingServiceView> views = new IdentityHashMap<>();
+    private final Map<World, NativeLiveCraftingService> liveServices = new IdentityHashMap<>();
+    private NativePatternPublication.Owner publication;
+
+    public NativeLiveCraftingService live(World world) {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        if (world == null) throw new IllegalStateException("No world for native execution service");
+        return liveServices.computeIfAbsent(
+            world,
+            w -> new NativeLiveCraftingService(w, (CraftingGridCache) grid.getCache(ICraftingGrid.class), this));
+    }
+
+    boolean owns(World world, NativePatternDetails details) {
+        var view = views.get(world);
+        return view != null && view.owns(details) && view.isCatalogCurrent();
+    }
+
+    long liveRevision() {
+        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
+        if (publication != null) publication.neoecoae$flushPatterns();
+        checkRecipeGeneration();
+        return catalogRevision;
+    }
+
     /** Survives view invalidation: substitute acceptance depends only on the pattern, the key and the world. */
     private final Map<World, NativeSubstitutionIndex> substitutes = new java.util.WeakHashMap<>();
     private final NativeCraftingNetworkSettings settings;
@@ -67,6 +90,8 @@ public final class NativePatternTrackingCache implements IGridCache {
     }
 
     long catalogRevision() {
+        if (publication != null && cn.dancingsnow.neoecoae.platform.network.ServerTasks.isServerThread())
+            publication.neoecoae$flushPatterns();
         return catalogRevision;
     }
 
@@ -79,17 +104,23 @@ public final class NativePatternTrackingCache implements IGridCache {
     @MENetworkEventSubscribe
     public void afterCacheConstruction(MENetworkPostCacheConstruction event) {
         ICraftingGrid crafting = grid.getCache(ICraftingGrid.class);
+        if (crafting instanceof NativePatternPublication.Owner owner) publication = owner;
         ((CraftingGridCache) crafting).addPostPatternChangeListeners(patternsPublished);
     }
 
     @Override
     public void addNode(IGridNode node, IGridHost machine) {
-        invalidate();
+        if (affectsCraftingCatalog(machine)) invalidate();
     }
 
     @Override
     public void removeNode(IGridNode node, IGridHost machine) {
-        invalidate();
+        if (affectsCraftingCatalog(machine)) invalidate();
+    }
+
+    private static boolean affectsCraftingCatalog(IGridHost machine) {
+        return machine instanceof appeng.api.networking.crafting.ICraftingProvider
+            || machine instanceof appeng.api.networking.crafting.ICraftingWatcherHost;
     }
 
     @Override
@@ -108,17 +139,12 @@ public final class NativePatternTrackingCache implements IGridCache {
     @Override
     public void onUpdateTick() {}
 
-    public synchronized CraftingServiceView view(World world, boolean captureInventory) {
+    public synchronized CraftingServiceView capture(World world) {
         cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
         if (world == null) throw new IllegalStateException("Cannot capture a recipe view without its world");
-        long generation = PatternRuntime.reloadGeneration();
-        if (recipeGeneration != generation) {
-            recipeGeneration = generation;
-            substitutes.clear();
-            invalidate();
-        }
+        liveRevision();
+        long generation = recipeGeneration;
         var current = views.get(world);
-        if (!captureInventory && current != null) return current;
         Set<AEKey> fresh = new HashSet<>(
             GridView.of(grid)
                 .getStorageService()
@@ -136,27 +162,28 @@ public final class NativePatternTrackingCache implements IGridCache {
         if (current == null) {
             NativeSubstitutionIndex index = substitutes.computeIfAbsent(world, NativeSubstitutionIndex::new);
             index.begin(fresh);
-            current = new CraftingServiceView(grid, world, fresh, this, index, generation);
+            current = new CraftingServiceView(grid, world, this, index, generation);
             index.retain(current.nativePatterns());
             views.put(world, current);
         }
         return current;
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static Set<AEKey> catalogKeys(ICraftingGrid crafting) {
-        if (!(crafting instanceof CraftingGridCache))
-            throw new IllegalStateException("Unmapped native crafting catalog");
-        Set<AEKey> keys = new HashSet<>();
-        // The public native listing includes emitters that have no stored stock and no crafting pattern.
-        for (var type : appeng.api.storage.data.AEStackTypeRegistry.getAllTypes()) {
-            appeng.api.storage.data.IItemList list = type.createList();
-            ((CraftingGridCache) crafting).getAvailableItems(list, 0, java.util.Optional.empty());
-            for (Object entry : list) {
-                AEKey key = AEKey.fromNative((appeng.api.storage.data.IAEStack<?>) entry);
-                if (key != null) keys.add(key);
-            }
+    private void checkRecipeGeneration() {
+        long generation = PatternRuntime.reloadGeneration();
+        if (recipeGeneration != generation) {
+            recipeGeneration = generation;
+            substitutes.clear();
+            invalidate();
         }
+    }
+
+    private static Set<AEKey> catalogKeys(ICraftingGrid crafting) {
+        Set<AEKey> keys = new HashSet<>();
+        for (var stack : crafting.getCraftingMultiPatterns()
+            .keySet()) keys.add(AEKey.fromNative(stack));
+        for (var stack : crafting.getEmitableItems()) keys.add(AEKey.fromNative(stack));
+        keys.remove(null);
         return keys;
     }
 }

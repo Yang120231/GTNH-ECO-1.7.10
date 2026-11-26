@@ -197,7 +197,7 @@ public final class CraftingPlanExport {
         }
 
         private void collectPatterns() {
-            ICraftingService service = grid.getCraftingService();
+            ICraftingService service = grid.captureCraftingService();
             var all = new ArrayList<IPatternDetails>();
             var seen = new HashSet<IPatternDetails>();
             for (AEKey key : service.getCraftables(k -> true)) {
@@ -595,7 +595,7 @@ public final class CraftingPlanExport {
             CondensationGraph condensation;
             String source;
             try {
-                ICraftingService service = grid.getCraftingService();
+                ICraftingService service = grid.captureCraftingService();
                 boolean cycles = options == null || options.cyclePlanningEnabled();
                 Set<ResourceLocation> fuzzy = options == null ? JdkCompat.setOf() : options.fuzzyPlanningItemIds();
                 var cached = CompiledStructureCache.get(

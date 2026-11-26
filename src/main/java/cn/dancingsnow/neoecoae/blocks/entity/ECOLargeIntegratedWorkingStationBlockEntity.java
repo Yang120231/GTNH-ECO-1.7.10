@@ -1628,7 +1628,8 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         MEStorage storage = grid.getStorageService()
             .getInventory();
         var source = IActionSource.ofMachine(this);
-        Object craftingService = grid.getCraftingService();
+        Object craftingService = grid.nativeGrid()
+            .getCache(appeng.api.networking.crafting.ICraftingGrid.class);
         for (GenericStack stack : counterEntries(batch.pendingOutput)) {
             long requested = stack.amount();
             if (batch.craftingJobId != null

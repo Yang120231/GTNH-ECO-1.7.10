@@ -31,11 +31,11 @@ final class ECOProviderCursor {
         long currentRevision = currentService instanceof ECOCraftingProviderRevision source
             ? source.neoecoae$getProviderRevision()
             : 0;
-        if (service != currentService || revision != currentRevision) {
+        if (service != currentService) {
             cursors.clear();
             service = currentService;
-            revision = currentRevision;
         }
+        revision = currentRevision;
     }
 
     /**
@@ -52,20 +52,32 @@ final class ECOProviderCursor {
         BiPredicate<ICraftingProvider, Boolean> availability) {
         Cursor previous = cursors.get(pattern);
         Cursor cursor = previous;
-        if (cursor == null || (!(service instanceof ECOCraftingProviderRevision) && cursor.tick != tick)) {
+        if (cursor == null || cursor.revision != revision
+            || (!(service instanceof ECOCraftingProviderRevision) && cursor.tick != tick)) {
             var snapshot = new ArrayList<ICraftingProvider>();
             providers.get()
                 .forEach(snapshot::add);
-            cursor = new Cursor(snapshot, tick, previous);
-            // Refresh fallback snapshots each tick while preserving the next live provider by identity.
-            if (previous != null && !previous.providers.isEmpty()) {
-                var nextProvider = previous.providers.get(previous.next);
-                int nextIndex = cursor.indices.getInt(nextProvider);
-                if (nextIndex >= 0) cursor.next = nextIndex;
+            if (previous != null && sameBindings(previous.providers, snapshot)) {
+                previous.revision = revision;
+                previous.tick = tick;
+            } else {
+                cursor = new Cursor(snapshot, tick, revision, previous);
+                cursors.put(pattern, cursor);
             }
-            cursors.put(pattern, cursor);
         }
         return new Traversal(cursor, budget, eligible, availability);
+    }
+
+    private static boolean sameBindings(List<ICraftingProvider> a, List<ICraftingProvider> b) {
+        if (a.size() != b.size()) return false;
+        for (int i = 0; i < a.size(); i++) if (a.get(i) != b.get(i)) return false;
+        return true;
+    }
+
+    private static Object identity(ICraftingProvider provider) {
+        return provider instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider n
+            ? n.nativeMedium()
+            : provider;
     }
 
     static final class Traversal implements Iterator<ICraftingProvider> {
@@ -175,21 +187,27 @@ final class ECOProviderCursor {
         final List<ICraftingProvider> providers;
         final Reference2IntOpenHashMap<ICraftingProvider> indices;
         final ProbeState[] feedback;
-        final long tick;
+        long tick, revision;
         int next;
 
-        Cursor(List<ICraftingProvider> providers, long tick, Cursor previous) {
+        Cursor(List<ICraftingProvider> providers, long tick, long revision, Cursor previous) {
             this.providers = providers;
             this.indices = new Reference2IntOpenHashMap<>(providers.size());
             this.indices.defaultReturnValue(-1);
             this.feedback = new ProbeState[providers.size()];
+            var oldIndices = new Reference2IntOpenHashMap<Object>();
+            oldIndices.defaultReturnValue(-1);
+            if (previous != null) for (int i = 0; i < previous.providers.size(); i++)
+                oldIndices.put(identity(previous.providers.get(i)), i);
             for (int index = 0; index < providers.size(); index++) {
                 var provider = providers.get(index);
                 this.indices.put(provider, index);
-                int old = previous == null ? -1 : previous.indices.getInt(provider);
+                int old = oldIndices.getInt(identity(provider));
+                if (old >= 0 && old == previous.next) next = index;
                 if (old >= 0) feedback[index] = previous.feedback[old];
             }
             this.tick = tick;
+            this.revision = revision;
         }
     }
 }

@@ -233,6 +233,16 @@ final class ECOBigOrderController {
         cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult result) {
         if (result.status() != cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus.SUCCESS
             || result.plan() == null) return false;
+        if (service instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeLiveCraftingService live) {
+            for (var pattern : result.plan()
+                .patternTimes()
+                .keySet())
+                if (!(pattern instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.TemporaryCraftingOrder.Pattern)
+                    && live.getProviders(pattern)
+                        .isEmpty())
+                    return false;
+            return true;
+        }
         for (var pattern : result.plan()
             .patternTimes()
             .keySet()) {

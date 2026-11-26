@@ -1,83 +1,70 @@
 package cn.dancingsnow.neoecoae.platform.ae2.crafting;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.world.World;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.crafting.ICraftingGrid;
-import appeng.api.networking.crafting.ICraftingMedium;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.me.cache.CraftingGridCache;
+import cn.dancingsnow.neoecoae.api.me.diagnostics.ECOCraftingPlanDiagnostics;
 import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputRouter;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
-import cn.dancingsnow.neoecoae.platform.ae2.key.AEItemKey;
+import cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOForcedCraftingPlan;
+import cn.dancingsnow.neoecoae.crafting.planner.result.PlanningStatus;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
 
 /** Frozen pattern contracts captured on the owning server thread; revision reads stay lock-free for the planner. */
 public final class CraftingServiceView
     implements ICraftingService, ECOCraftingProviderRevision, ECOCraftingOutputRouter {
 
-    private static final Set<String> REJECTED_TYPES = ConcurrentHashMap.newKeySet();
-
     private final ICraftingGrid crafting;
+    private final World world;
     private final NativePatternTrackingCache tracking;
     private final long revision;
     private final long catalogRevision;
     private final long recipeGeneration;
     private final Map<ICraftingPatternDetails, NativePatternDetails> patterns = new IdentityHashMap<>();
     private final Map<AEKey, List<IPatternDetails>> byOutput;
-    private final Map<AEItemKey, List<NativePatternDetails>> processingByDefinition = new java.util.HashMap<>();
     private final Set<AEKey> craftables;
     private final Set<AEKey> emitters;
-    private final Map<appeng.api.networking.crafting.ICraftingMedium, Map<IPatternDetails, ICraftingProvider>> providers = new IdentityHashMap<>();
 
-    CraftingServiceView(IGrid grid, World world, Collection<AEKey> candidates, NativePatternTrackingCache tracking,
+    CraftingServiceView(IGrid grid, World world, NativePatternTrackingCache tracking,
         NativeSubstitutionIndex substitutes, long recipeGeneration) {
         crafting = grid.getCache(ICraftingGrid.class);
         this.tracking = tracking;
+        this.world = world;
         this.revision = tracking.revision();
         this.catalogRevision = tracking.catalogRevision();
         this.recipeGeneration = recipeGeneration;
         // The source compiler runs off-thread. Resolve every native pattern/recipe query here on the server thread.
-        Set<AEKey> keys = new LinkedHashSet<>(candidates);
-        Set<AEKey> outputs = new LinkedHashSet<>();
-        // Match GTNH CraftingContext#getPrecisePatternsFor: native getCraftingFor(IAEStack) only answers item stacks,
-        // so fluid (and other generic) producers must be read from the multi-type catalog directly.
-        var catalog = crafting.getCraftingMultiPatterns();
-        for (var entry : catalog.entrySet()) {
-            AEKey key = AEKey.fromNative(entry.getKey());
-            if (key == null) continue;
-            outputs.add(key);
-            keys.add(key);
-            for (var pattern : entry.getValue()) {
-                for (var input : pattern.getAEInputs()) if (input != null) keys.add(AEKey.fromNative(input));
-                for (var output : pattern.getAEOutputs()) if (output != null) keys.add(AEKey.fromNative(output));
-            }
-        }
-        keys.remove(null);
         Map<AEKey, List<IPatternDetails>> index = new java.util.LinkedHashMap<>();
-        Set<AEKey> emitted = new LinkedHashSet<>();
-        for (var key : keys) {
+        for (var entry : crafting.getCraftingMultiPatterns()
+            .entrySet()) {
+            var key = AEKey.fromNative(entry.getKey());
+            if (key == null) continue;
             var captured = new ArrayList<IPatternDetails>();
-            var producers = catalog.get(key.toNative(1));
-            if (producers != null) for (var pattern : producers) {
-                var details = capture(pattern, substitutes, world);
+            for (var nativePattern : entry.getValue()) {
+                var details = capture(nativePattern, substitutes, world);
                 if (details != null) captured.add(details);
             }
             index.put(key, Collections.unmodifiableList(captured));
-            if (crafting.canEmitFor(key.toNative(1))) emitted.add(key);
         }
         byOutput = Collections.unmodifiableMap(index);
-        craftables = Collections.unmodifiableSet(outputs);
+        craftables = byOutput.keySet();
+        Set<AEKey> emitted = new LinkedHashSet<>();
+        for (var stack : crafting.getEmitableItems()) {
+            var key = AEKey.fromNative(stack);
+            if (key != null) emitted.add(key);
+        }
         emitters = Collections.unmodifiableSet(emitted);
     }
 
@@ -91,15 +78,9 @@ public final class CraftingServiceView
                 ? NativePatternDetails.capture(pattern, world, substitutes, (CraftingGridCache) crafting)
                 : substitutes.details(pattern);
         } catch (IllegalArgumentException rejected) {
-            if (REJECTED_TYPES.add(
-                pattern.getClass()
-                    .getName()))
-                return null;
+            return null;
         }
         patterns.put(pattern, details);
-        if (!pattern.isCraftable() && details.getDefinition() != null)
-            processingByDefinition.computeIfAbsent(details.getDefinition(), ignored -> new ArrayList<>())
-                .add(details);
         return details;
     }
 
@@ -126,79 +107,44 @@ public final class CraftingServiceView
         return emitters.contains(key);
     }
 
-    public List<ICraftingProvider> getProviders(IPatternDetails pattern) {
-        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        if (!(pattern instanceof NativePatternDetails requested) || !(crafting instanceof CraftingGridCache cache))
-            throw new IllegalArgumentException("Unmapped source/native pattern provider identity");
-        if (!isCatalogCurrent()) return Collections.emptyList();
-        var direct = cache.getMediums(requested.nativeDetails());
-        if (requested.nativeDetails()
-            .isCraftable() || patterns.get(requested.nativeDetails()) == requested) {
-            var result = new ArrayList<ICraftingProvider>();
-            for (var medium : direct) result.add(provider(medium, requested, requested));
-            return result;
-        }
-
-        var bindings = new IdentityHashMap<ICraftingMedium, NativePatternDetails>();
-        var rebound = new ArrayList<ICraftingProvider>();
-        for (var published : processingByDefinition.getOrDefault(requested.getDefinition(), Collections.emptyList())) {
-            if (requested != published && !requested.matchesProcessingContract(published)) continue;
-            for (var medium : cache.getMediums(published.nativeDetails())) {
-                if (medium instanceof NativeSourceCraftingMedium && !direct.contains(medium)) continue;
-                if (bindings.putIfAbsent(medium, published) == null)
-                    rebound.add(provider(medium, requested, published));
-            }
-        }
-        var result = new ArrayList<ICraftingProvider>();
-        for (var medium : direct) {
-            var published = bindings.get(medium);
-            if (published != null) result.add(provider(medium, requested, published));
-        }
-        return result.isEmpty() ? rebound : result;
+    boolean owns(NativePatternDetails details) {
+        return patterns.get(details.nativeDetails()) == details;
     }
 
-    private ICraftingProvider provider(ICraftingMedium medium, NativePatternDetails requested,
-        NativePatternDetails published) {
-        return providers.computeIfAbsent(medium, ignored -> new IdentityHashMap<>())
-            .computeIfAbsent(requested, ignored -> NativeCraftingProvider.wrap(medium, requested, published));
+    public boolean belongsTo(ICraftingService service) {
+        return tracking.live(world) == service && neoecoae$isProviderSnapshotStable();
+    }
+
+    @Override
+    public List<ICraftingProvider> getProviders(IPatternDetails pattern) {
+        return isCatalogCurrent() ? tracking.live(world)
+            .getProviders(pattern) : Collections.emptyList();
     }
 
     @Override
     public void addLink(CraftingLink link) {
-        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        if (!(crafting instanceof CraftingGridCache))
-            throw new IllegalStateException("Pinned native crafting cache missing");
-        ((CraftingGridCache) crafting).addLink(link.nativeLink());
+        tracking.live(world)
+            .addLink(link);
     }
 
     @Override
     public long insertIntoCpus(AEKey key, long amount, appeng.api.config.Actionable mode) {
-        cn.dancingsnow.neoecoae.platform.network.ServerTasks.assertServerThread();
-        if (amount <= 0) return 0;
-        if (!(crafting instanceof CraftingGridCache))
-            throw new IllegalStateException("Pinned native crafting cache missing");
-        var remainder = ((CraftingGridCache) crafting)
-            .injectItems(key.toNative(amount), mode, new appeng.api.networking.security.BaseActionSource());
-        long left = remainder == null ? 0 : remainder.getStackSize();
-        if (left < 0 || left > amount) throw new IllegalStateException("Invalid native crafting output remainder");
-        return amount - left;
+        return tracking.live(world)
+            .insertIntoCpus(key, amount, mode);
     }
 
-    /** The native cache owns the job index independently of this replaceable pattern snapshot. */
     @Override
-    public long neoecoae$insertIntoCpuForJob(java.util.UUID jobId, AEKey key, long amount,
+    public long neoecoae$insertIntoCpuForJob(java.util.UUID job, AEKey key, long amount,
         appeng.api.config.Actionable mode) {
-        return crafting instanceof ECOCraftingOutputRouter router
-            ? router.neoecoae$insertIntoCpuForJob(jobId, key, amount, mode)
-            : 0L;
+        return tracking.live(world)
+            .neoecoae$insertIntoCpuForJob(job, key, amount, mode);
     }
 
     @Override
-    public java.math.BigInteger neoecoae$insertExactIntoCpuForJob(java.util.UUID jobId, AEKey key,
+    public java.math.BigInteger neoecoae$insertExactIntoCpuForJob(java.util.UUID job, AEKey key,
         java.math.BigInteger amount, appeng.api.config.Actionable mode) {
-        return crafting instanceof ECOCraftingOutputRouter router
-            ? router.neoecoae$insertExactIntoCpuForJob(jobId, key, amount, mode)
-            : java.math.BigInteger.ZERO;
+        return tracking.live(world)
+            .neoecoae$insertExactIntoCpuForJob(job, key, amount, mode);
     }
 
     @Override
@@ -213,5 +159,72 @@ public final class CraftingServiceView
 
     public boolean isCatalogCurrent() {
         return catalogRevision == tracking.catalogRevision() && recipeGeneration == PatternRuntime.reloadGeneration();
+    }
+
+    /** Recheck the frozen task vector against the live publication, not the original planning snapshot. */
+    private boolean supportsPlan(ICraftingPlan plan, boolean directOnly, NativeLiveCraftingService live) {
+        ICraftingPlan base = plan instanceof ECOForcedCraftingPlan forced ? forced.delegate() : plan;
+        Set<IPatternDetails> tasks;
+        if (base.simulation()) {
+            // Missing/partial reports depend on absent producers. Only an exact, complete big order can reuse
+            // its simulation shell: AE2's long projection contains none of its actual tasks or emissions.
+            var exact = base instanceof ECOCraftingPlanDiagnostics diagnostics
+                ? diagnostics.neoecoae$getPlanningResult()
+                : null;
+            if (directOnly || exact == null
+                || exact.plan() != base
+                || exact.status() != PlanningStatus.PLANNED_BUT_AMOUNT_UNREPRESENTABLE
+                || !exact.exactMissingItems()
+                    .isEmpty())
+                return false;
+            // This view is the original planning snapshot; validate emissions against the live publication.
+            for (var entry : exact.exactEmittedItems()
+                .entrySet())
+                if (entry.getValue()
+                    .signum() > 0 && !live.canEmitFor(entry.getKey())) return false;
+            tasks = exact.exactPatternTimes()
+                .keySet();
+            if (tasks.isEmpty() && exact.exactEmittedItems()
+                .isEmpty()) return false;
+        } else {
+            // A force-start stock shortfall is awaited, not a requirement for a physical emitter.
+            for (var entry : base.emittedItems())
+                if (entry.getLongValue() > 0 && !live.canEmitFor(entry.getKey())) return false;
+            tasks = base.patternTimes()
+                .keySet();
+        }
+        for (var pattern : tasks) {
+            if (!directOnly && pattern instanceof TemporaryCraftingOrder.Pattern) continue;
+            if (!(pattern instanceof NativePatternDetails) || live.getProviders(pattern, directOnly)
+                .isEmpty()) return false;
+        }
+        return true;
+    }
+
+    public long publication() {
+        return catalogRevision;
+    }
+
+    public boolean isPublicationCurrent(long stamp) {
+        return stamp >= 0 && stamp == tracking.catalogRevision()
+            && recipeGeneration == PatternRuntime.reloadGeneration();
+    }
+
+    /** Return a validation stamp, never build a new planning snapshot just to check an old job. */
+    public long validatePlan(World world, ICraftingPlan plan, boolean directOnly) {
+        return validatePlan(world, plan, directOnly, catalogRevision);
+    }
+
+    public long validatePlan(World world, ICraftingPlan plan, boolean directOnly, long lastValidated) {
+        if (plan == null || world == null) return -1;
+        try {
+            // Reading the current stamp may itself flush pending native provider callbacks.
+            if (isPublicationCurrent(lastValidated)) return lastValidated;
+            if (!ServerTasks.isServerThread() || recipeGeneration != PatternRuntime.reloadGeneration()) return -1;
+            long before = tracking.liveRevision();
+            return supportsPlan(plan, directOnly, tracking.live(world)) && isPublicationCurrent(before) ? before : -1;
+        } catch (RuntimeException | LinkageError unavailable) {
+            return -1;
+        }
     }
 }

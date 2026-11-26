@@ -31,6 +31,8 @@ public final class NativeECOCraftingJob implements ICraftingJob {
     private final cn.dancingsnow.neoecoae.platform.network.ServerTasks.Session session;
     private final CraftingServiceView catalog;
     private volatile Boolean nativeCpuSupport;
+    /** A successful ECO rebind is not proof that a native CPU can use its original task keys. */
+    private volatile long nativePublication, ecoPublication;
 
     NativeECOCraftingJob(ICraftingPlan plan, IAEStack<?> output, MECraftingInventory snapshot, String error,
         net.minecraft.world.World world, appeng.api.networking.IGrid grid,
@@ -39,6 +41,7 @@ public final class NativeECOCraftingJob implements ICraftingJob {
         this.grid = grid;
         this.session = session;
         this.catalog = catalog;
+        this.nativePublication = this.ecoPublication = catalog.publication();
         this.plan = plan;
         this.output = output.copy();
         this.snapshot = snapshot;
@@ -47,7 +50,8 @@ public final class NativeECOCraftingJob implements ICraftingJob {
 
     /** Planned against this grid in the running server session, including CPUs in other loaded dimensions. */
     public boolean belongsToGrid(appeng.api.networking.IGrid grid) {
-        return this.grid == grid && session.isRunning() && catalog.isCatalogCurrent();
+        if (this.grid != grid || !session.isRunning()) return false;
+        return (ecoPublication = catalog.validatePlan(world, plan, false, ecoPublication)) >= 0;
     }
 
     public ICraftingPlan sourcePlan() {
@@ -127,7 +131,8 @@ public final class NativeECOCraftingJob implements ICraftingJob {
                 && cn.dancingsnow.neoecoae.crafting.execution.ECOExternalCpuSupport.supportsPlan(plan);
             nativeCpuSupport = supported;
         }
-        return supported;
+        if (!supported || !session.isRunning()) return false;
+        return (nativePublication = catalog.validatePlan(world, plan, true, nativePublication)) >= 0;
     }
 
     @Override

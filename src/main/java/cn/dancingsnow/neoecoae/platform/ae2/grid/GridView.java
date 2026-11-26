@@ -30,7 +30,7 @@ public final class GridView {
     }
 
     public cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService getCraftingService() {
-        return craftingService(defaultWorld(), false);
+        return tracking().live(defaultWorld());
     }
 
     /** Planner switches only; never builds the recipe view. */
@@ -40,16 +40,11 @@ public final class GridView {
 
     public cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView captureCraftingService(
         net.minecraft.world.World world) {
-        return craftingService(world, true);
+        return tracking().capture(world);
     }
 
     public cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView captureCraftingService() {
-        return craftingService(defaultWorld(), true);
-    }
-
-    private cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView craftingService(
-        net.minecraft.world.World world, boolean capture) {
-        return tracking().view(world, capture);
+        return captureCraftingService(defaultWorld());
     }
 
     private cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternTrackingCache tracking() {

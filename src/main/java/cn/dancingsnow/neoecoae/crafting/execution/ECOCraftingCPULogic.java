@@ -216,7 +216,16 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return current.link;
     }
 
+    void tickFromGrid(cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid) {
+        tickCraftingLogic(grid.getEnergyService(), null, grid);
+    }
+
     public void tickCraftingLogic(IEnergyGrid eg, ICraftingService cc) {
+        tickCraftingLogic(eg, cc, null);
+    }
+
+    private void tickCraftingLogic(IEnergyGrid eg, ICraftingService cc,
+        cn.dancingsnow.neoecoae.platform.ae2.grid.GridView grid) {
         if (job != null && ECOCraftingJobLifecycle.isTerminated(cpu.getLevel(), job.link.getCraftingID())) {
             cancel();
             return;
@@ -253,7 +262,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         if (job.vanillaExecution) {
             // AE2-planned job: behave exactly like a native CPU with this host's co-processors. ECO dispatch
             // policies, plan improvements and the ECO scheduler never see it.
-            tickVanillaCrafting(eg, cc);
+            tickVanillaCrafting(eg, grid == null ? cc : grid.getCraftingService());
             return;
         }
         planUpdater.tick(currentTick);
@@ -264,6 +273,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
         if (!ECOCraftingDispatchPolicyRegistry.mayTick(createCpuContext(currentTick))) return;
 
+        if (grid != null) cc = grid.getCraftingService();
         var budget = taskScheduler.budgetForTick(currentTick);
         var current = job;
         // Keep the actual executeCrafting call for Thunderbolt. A spent single-copy allowance does not stop batches.

@@ -36,7 +36,6 @@ import appeng.util.item.AEItemStack;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOIndeterminateBatchException;
 import cn.dancingsnow.neoecoae.compat.proghatches.ProgrammableHatchCrafting;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingCpuHelper;
-import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeCraftingProvider;
@@ -142,19 +141,12 @@ final class ECOVanillaCraftingExecutor {
     /** {@code CraftingCPUCluster#updateCraftingLogic} after the native completion/cancel preamble. */
     void tick(ExecutingCraftingJob job, IEnergyGrid eg, CraftingGridCache cc, World world, int accelerator,
         ICraftingService service) {
-        tick(
-            job,
-            eg,
-            cc::getMediums,
-            cc,
-            world,
-            accelerator,
-            service instanceof CraftingServiceView view ? view : null);
+        tick(job, eg, cc::getMediums, cc, world, accelerator, service);
     }
 
     /** @param tunnels the cache resolving tunnel patterns; null expands nothing, as natively without a cache */
     void tick(ExecutingCraftingJob job, IEnergyGrid eg, Mediums mediums, CraftingGridCache tunnels, World world,
-        int accelerator, CraftingServiceView service) {
+        int accelerator, ICraftingService service) {
         if (job.tasks.isEmpty()) return;
 
         long operations = (long) Math.max(0, accelerator) + 1L - ((long) usedOps[0] + usedOps[1] + usedOps[2]);
@@ -186,7 +178,7 @@ final class ECOVanillaCraftingExecutor {
     }
 
     private void executeCrafting(ExecutingCraftingJob job, IEnergyGrid eg, Mediums mediums, CraftingGridCache cc,
-        World world, CraftingServiceView service) {
+        World world, ICraftingService service) {
         if (job.suspended) return;
         fuzzyView = null;
 

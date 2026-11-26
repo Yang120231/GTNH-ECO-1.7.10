@@ -179,7 +179,7 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         lastWorld = world;
         lastTick = tick;
         cpu.getLogic()
-            .tickCraftingLogic(grid.getEnergyService(), grid.getCraftingService());
+            .tickFromGrid(grid);
     }
 
     @Override

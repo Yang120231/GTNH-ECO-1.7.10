@@ -379,7 +379,9 @@ public final class ECOCraftingPlannerService {
         }
 
         boolean belongsTo(ICraftingService service) {
-            return craftingService == service;
+            return craftingService == service
+                || craftingService instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView frozen
+                    && frozen.belongsTo(service);
         }
 
         boolean isStructureCurrent() {

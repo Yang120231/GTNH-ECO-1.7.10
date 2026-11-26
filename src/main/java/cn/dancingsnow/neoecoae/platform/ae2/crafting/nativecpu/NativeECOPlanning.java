@@ -6,6 +6,8 @@ import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -169,7 +171,7 @@ public final class NativeECOPlanning {
                 PENDING.remove(pending);
                 continue;
             }
-            if (!pending.isDone()) continue;
+            if (!pending.publishIfReady()) continue;
             PENDING.remove(pending);
             if (pending.isCancelled() || pending.callback == null) continue;
             try {
@@ -178,16 +180,7 @@ public final class NativeECOPlanning {
                 Thread.currentThread()
                     .interrupt();
             } catch (ExecutionException failed) {
-                pending.callback.calculationComplete(
-                    new NativeECOCraftingJob(
-                        null,
-                        pending.output,
-                        pending.snapshot(),
-                        String.valueOf(failed.getCause()),
-                        pending.world,
-                        pending.grid,
-                        pending.session,
-                        pending.catalog()));
+                pending.callback.calculationComplete(pending.failedJob(String.valueOf(failed.getCause())));
             }
         }
     }
@@ -225,12 +218,9 @@ public final class NativeECOPlanning {
             return nativeFallback != null ? nativeFallback.isDone() : ecoFuture.isDone();
         }
 
-        boolean cancel(boolean interrupt) {
-            return nativeFallback != null ? nativeFallback.cancel(interrupt) : ecoFuture.cancel(interrupt);
-        }
-
-        boolean isCancelled() {
-            return nativeFallback != null ? nativeFallback.isCancelled() : ecoFuture.isCancelled();
+        void cancel(boolean interrupt) {
+            if (nativeFallback != null) nativeFallback.cancel(interrupt);
+            else ecoFuture.cancel(interrupt);
         }
     }
 
@@ -246,8 +236,8 @@ public final class NativeECOPlanning {
         final ServerTasks.Session session;
         private Attempt attempt;
         private int retries;
-        private boolean cancelled;
-        private ICraftingJob job;
+        /** Completing a worker attempt is not completing the job: only the server can validate and publish it. */
+        private final CompletableFuture<ICraftingJob> result = new CompletableFuture<>();
 
         Pending(World world, IGrid grid, BaseActionSource actionSource, IActionSource action, IAEStack<?> output,
             AEKey key, Attempt attempt, ICraftingCallback callback, ServerTasks.Session session) {
@@ -262,12 +252,16 @@ public final class NativeECOPlanning {
             this.session = session;
         }
 
-        synchronized MECraftingInventory snapshot() {
-            return attempt.snapshot;
-        }
-
-        synchronized CraftingServiceView catalog() {
-            return attempt.catalog;
+        private NativeECOCraftingJob failedJob(String message) {
+            return new NativeECOCraftingJob(
+                null,
+                output,
+                attempt.snapshot,
+                message,
+                world,
+                grid,
+                session,
+                attempt.catalog);
         }
 
         boolean isWorldLoaded() {
@@ -276,46 +270,22 @@ public final class NativeECOPlanning {
 
         private void retryOnServerThread() {
             retries++;
-            try {
-                var host = settings(grid, action);
-                if (host == null) {
-                    if (retries >= MAX_CATALOG_RETRIES) {
-                        scheduleNativeFallback();
-                    } else {
-                        // The computation cluster may be reforming for a tick; wait before falling back to native.
-                        attempt = new Attempt(
-                            attempt.ecoFuture,
-                            attempt.snapshot,
-                            attempt.catalog,
-                            null,
-                            ServerThread.tick());
-                    }
-                    PENDING.add(this);
-                    return;
-                }
-                if (!host.isFastPlannerEnabled()) {
-                    scheduleNativeFallback();
-                } else {
-                    var options = ECOPlannerOptions.from(host);
-                    if (NativePlannerRouting.routeToNative(grid, output, options.ignorePatternSubstitutions())) {
-                        scheduleNativeFallback();
-                    } else {
-                        attempt.cancel(true);
-                        attempt = startEcoAttempt(world, grid, key, output.getStackSize(), options);
-                    }
-                }
-                PENDING.add(this);
-            } catch (RuntimeException failure) {
+            var host = settings(grid, action);
+            if (host == null && retries < MAX_CATALOG_RETRIES) {
+                // The computation cluster may be reforming; revisit this completed attempt on a later tick.
+                attempt = new Attempt(attempt.ecoFuture, attempt.snapshot, attempt.catalog, null, ServerThread.tick());
+                return;
+            }
+            if (host == null || !host.isFastPlannerEnabled()) {
+                scheduleNativeFallback();
+                return;
+            }
+            var options = ECOPlannerOptions.from(host);
+            if (NativePlannerRouting.routeToNative(grid, output, options.ignorePatternSubstitutions())) {
+                scheduleNativeFallback();
+            } else {
                 attempt.cancel(true);
-                job = new NativeECOCraftingJob(
-                    null,
-                    output,
-                    attempt.snapshot,
-                    String.valueOf(failure),
-                    world,
-                    grid,
-                    session,
-                    attempt.catalog);
+                attempt = startEcoAttempt(world, grid, key, output.getStackSize(), options);
             }
         }
 
@@ -331,116 +301,106 @@ public final class NativeECOPlanning {
             attempt = new Attempt(null, attempt.snapshot, attempt.catalog, fallback, ServerThread.tick());
         }
 
-        private synchronized ICraftingJob wrap(Attempt expected, ICraftingPlan plan) {
-            if (job != null) return job;
-            if (!session.isRunning() || !expected.catalog.isCatalogCurrent()) {
-                job = new NativeECOCraftingJob(
-                    null,
-                    output,
-                    expected.snapshot,
-                    "Crafting network or recipes changed during planning; retry the request",
-                    world,
-                    grid,
-                    session,
-                    expected.catalog);
-            } else if (plan == null) {
-                job = new NativeECOCraftingJob(
-                    null,
-                    output,
-                    expected.snapshot,
-                    "ECO planning ended without a plan",
-                    world,
-                    grid,
-                    session,
-                    expected.catalog);
-            } else {
-                job = new NativeECOCraftingJob(
-                    plan,
-                    plan.finalOutput()
-                        .what()
-                        .toNative(
-                            plan.finalOutput()
-                                .amount()),
-                    expected.snapshot,
-                    "",
-                    world,
-                    grid,
-                    session,
-                    expected.catalog);
-            }
-            return job;
-        }
-
-        @Override
-        public synchronized boolean cancel(boolean interrupt) {
-            if (cancelled || job != null) return false;
-            boolean logicalDone = attempt.isDone() && (attempt.nativeFallback != null || !isWorldLoaded()
-                || !session.isRunning()
-                || attempt.catalog.isCatalogCurrent()
-                || retries >= MAX_CATALOG_RETRIES);
-            boolean attemptCancelled = attempt.cancel(interrupt);
-            if (attemptCancelled || !logicalDone) {
-                cancelled = true;
-                return true;
-            }
-            return false;
-        }
-
-        @Override
-        public synchronized boolean isCancelled() {
-            return cancelled || attempt.isCancelled();
-        }
-
-        @Override
-        public synchronized boolean isDone() {
-            if (job != null || cancelled) return true;
-            if (attempt.nativeFallback != null) return attempt.nativeFallback.isDone();
-            if (isWorldLoaded() && session.isRunning()
-                && !attempt.catalog.isCatalogCurrent()
-                && retries < MAX_CATALOG_RETRIES) {
-                if (ServerTasks.isServerThread() && ServerThread.tick() != attempt.startedTick) {
-                    retryOnServerThread();
-                    if (job != null) return true;
-                    if (attempt.nativeFallback != null) return attempt.nativeFallback.isDone();
-                    return attempt.catalog.isCatalogCurrent() && attempt.ecoFuture.isDone();
+        private boolean publishIfReady() {
+            if (!result.isDone() && attempt.isDone()) {
+                try {
+                    resolveOnServer(true);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread()
+                        .interrupt();
                 }
-                return false;
             }
-            return attempt.ecoFuture.isDone();
+            return result.isDone();
         }
 
-        @Override
-        public ICraftingJob get() throws InterruptedException, ExecutionException {
+        private void resolveOnServer(boolean retry) throws InterruptedException {
             try {
-                return resolve(false, 0L, TimeUnit.NANOSECONDS);
+                resolveOnServer(retry, 0L, null);
             } catch (TimeoutException impossible) {
                 throw new IllegalStateException("Untimed get threw TimeoutException", impossible);
             }
         }
 
+        private void resolveOnServer(boolean retry, long timeout, TimeUnit unit)
+            throws InterruptedException, TimeoutException {
+            if (!session.isRunning() || !isWorldLoaded()) {
+                cancel(true);
+                return;
+            }
+            Attempt current = attempt;
+            try {
+                // Do not hold the request lock while waiting: cancel() must be able to interrupt the worker.
+                if (current.nativeFallback != null) {
+                    result.complete(
+                        unit == null ? current.nativeFallback.get() : current.nativeFallback.get(timeout, unit));
+                    return;
+                }
+                ICraftingPlan plan = unit == null ? current.ecoFuture.get() : current.ecoFuture.get(timeout, unit);
+                synchronized (this) {
+                    if (result.isDone()) return;
+                    if (plan == null) {
+                        result.complete(failedJob("ECO planning ended without a plan"));
+                    } else if (current.catalog.validatePlan(world, plan, false) < 0) {
+                        if (retry && retries < MAX_CATALOG_RETRIES) {
+                            if (ServerThread.tick() != current.startedTick) retryOnServerThread();
+                        } else {
+                            result.complete(
+                                failedJob("Crafting network or recipes changed during planning; retry the request"));
+                        }
+                    } else {
+                        var plannedOutput = plan.finalOutput();
+                        result.complete(
+                            new NativeECOCraftingJob(
+                                plan,
+                                plannedOutput.what()
+                                    .toNative(plannedOutput.amount()),
+                                current.snapshot,
+                                "",
+                                world,
+                                grid,
+                                session,
+                                current.catalog));
+                    }
+                }
+            } catch (CancellationException cancelled) {
+                result.cancel(false);
+            } catch (ExecutionException failed) {
+                result.completeExceptionally(failed.getCause());
+            } catch (RuntimeException | LinkageError unavailable) {
+                result.complete(failedJob(String.valueOf(unavailable)));
+            }
+        }
+
+        @Override
+        public synchronized boolean cancel(boolean interrupt) {
+            if (result.isDone() || !result.cancel(false)) return false;
+            attempt.cancel(interrupt);
+            return true;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return result.isCancelled();
+        }
+
+        @Override
+        public boolean isDone() {
+            return result.isDone();
+        }
+
+        @Override
+        public ICraftingJob get() throws InterruptedException, ExecutionException {
+            // Early synchronous reads on the server may wait for the worker, never for the next server tick.
+            if (!result.isDone() && ServerTasks.isServerThread()) resolveOnServer(false);
+            return result.get();
+        }
+
         @Override
         public ICraftingJob get(long timeout, TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException {
-            return resolve(true, timeout, unit);
-        }
-
-        private ICraftingJob resolve(boolean timed, long timeout, TimeUnit unit)
-            throws InterruptedException, ExecutionException, TimeoutException {
-            Attempt current;
-            synchronized (this) {
-                if (job != null) return job;
-                current = attempt;
-            }
-            if (current.nativeFallback != null) {
-                ICraftingJob fallbackJob = timed ? current.nativeFallback.get(timeout, unit)
-                    : current.nativeFallback.get();
-                synchronized (this) {
-                    if (attempt == current && job == null) job = fallbackJob;
-                    return job != null ? job : fallbackJob;
-                }
-            }
-            ICraftingPlan plan = timed ? current.ecoFuture.get(timeout, unit) : current.ecoFuture.get();
-            return wrap(current, plan);
+            java.util.Objects.requireNonNull(unit);
+            if (!result.isDone() && ServerTasks.isServerThread()) resolveOnServer(false, timeout, unit);
+            return result.get(timeout, unit);
         }
     }
 }
