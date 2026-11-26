@@ -122,7 +122,24 @@ public class ExecutingCraftingJob {
     Integer playerId;
     boolean suspended;
     private final java.util.Set<IPatternDetails> unavailableProcessingPatterns = new java.util.HashSet<>();
-    String singleProcessingReason = "";
+    private final Map<AEKey, String> singleProcessingReasons = new HashMap<>();
+
+    void recordSingleProcessingReason(IPatternDetails pattern, String reason) {
+        if (reason == null || reason.isEmpty()) return;
+        for (var output : pattern.getOutputs()) {
+            if (output.amount() > 0) singleProcessingReasons.put(output.what(), reason);
+        }
+    }
+
+    void clearSingleProcessingReason(IPatternDetails pattern) {
+        for (var output : pattern.getOutputs()) {
+            singleProcessingReasons.remove(output.what());
+        }
+    }
+
+    String singleProcessingReason(AEKey output) {
+        return output == null ? "" : singleProcessingReasons.getOrDefault(output, "");
+    }
 
     void recordProcessingProviderAvailability(IPatternDetails pattern, boolean available) {
         if (available) unavailableProcessingPatterns.remove(pattern);

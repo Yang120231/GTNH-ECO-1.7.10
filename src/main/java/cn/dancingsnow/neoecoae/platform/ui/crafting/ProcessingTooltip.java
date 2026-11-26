@@ -130,12 +130,19 @@ public final class ProcessingTooltip {
 
     /** Machine rows of an output being crafted, or the reason no machine cycle can be shown yet. */
     public static List<Row> rows(boolean active, boolean pending, boolean monitored, ECOProcessingProgress progress) {
-        if (!active) return pending && monitored
-            ? Collections.singletonList(Row.text(EnumChatFormatting.GRAY + I18n.format(KEY + "awaiting_dispatch")))
-            : Collections.emptyList();
-        List<Row> rows = machines(progress);
-        if (rows.isEmpty() && monitored)
+        List<Row> rows = new ArrayList<>();
+        String reason = progress.singleCopyReason();
+        if ((active || pending) && !reason.isEmpty())
+            rows.add(Row.hint(I18n.format("gui.neoecoae.crafting_status.dispatch." + reason)));
+        if (!active) {
+            if (pending && monitored)
+                rows.add(Row.text(EnumChatFormatting.GRAY + I18n.format(KEY + "awaiting_dispatch")));
+            return rows;
+        }
+        List<Row> machineRows = machines(progress);
+        if (machineRows.isEmpty() && monitored)
             rows.add(Row.text(EnumChatFormatting.GRAY + I18n.format(KEY + "progress_unavailable")));
+        else rows.addAll(machineRows);
         return rows;
     }
 

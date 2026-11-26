@@ -214,10 +214,14 @@ public final class ECOCraftingStatusTracker {
             boolean detailed = key.equals(tracked.detailKey);
             ECOProcessingProgress progress = logic.getProcessingProgress(key, detailed || visible.contains(key));
             next.remove(key);
-            if (progress.machineCount() > 0 || progress.refreshing() || progress.hasGlobalProgress()) next.put(
-                key,
-                progress.forStatusSync()
-                    .page(detailed ? tracked.detailPage : -1));
+            if (progress.machineCount() > 0 || progress.refreshing()
+                || progress.hasGlobalProgress()
+                || !progress.singleCopyReason()
+                    .isEmpty())
+                next.put(
+                    key,
+                    progress.forStatusSync()
+                        .page(detailed ? tracked.detailPage : -1));
         }
         for (Iterator<AEKey> it = next.keySet()
             .iterator(); next.size() > MAX_PROCESSING_ENTRIES && it.hasNext();) {
@@ -247,14 +251,12 @@ public final class ECOCraftingStatusTracker {
             }
         }
         boolean patternUnavailable = logic.hasUnavailableProcessingPattern();
-        String singleProcessing = logic.getSingleProcessingReason();
         long dispatchCopyLimit = logic.getDispatchCopyLimit();
         if (!reset && entries.isEmpty()
             && removed.isEmpty()
             && deliveryBlocked == tracked.processing.getBoolean("deliveryBlocked")
             && blockedOutputs.equals(tracked.processing.getList("blockedOutputs", Tag.TAG_COMPOUND))
             && patternUnavailable == tracked.processing.getBoolean("patternUnavailable")
-            && singleProcessing.equals(tracked.processing.getString("singleProcessing"))
             && dispatchCopyLimit == tracked.processing.getLong("dispatchCopyLimit")) return;
         CompoundTag payload = new CompoundTag();
         payload.putBoolean("eco", true);
@@ -262,7 +264,6 @@ public final class ECOCraftingStatusTracker {
         payload.putBoolean("deliveryBlocked", deliveryBlocked);
         if (!blockedOutputs.isEmpty()) payload.put("blockedOutputs", blockedOutputs);
         payload.putBoolean("patternUnavailable", patternUnavailable);
-        payload.putString("singleProcessing", singleProcessing);
         payload.putLong("dispatchCopyLimit", dispatchCopyLimit);
         payload.putString("job", job);
         if (!reset) payload.putBoolean("delta", true);

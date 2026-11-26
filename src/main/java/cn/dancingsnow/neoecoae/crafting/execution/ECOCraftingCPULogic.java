@@ -679,14 +679,18 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             total = current.planTotals.get(output);
             completed = current.producedTotals.getOrDefault(output, java.math.BigInteger.ZERO);
         }
-        if (total == null || total.signum() <= 0) return sampled;
-        if (completed.signum() <= 0) return sampled.withGlobalProgress(0);
-        if (completed.compareTo(total) >= 0) return sampled.withGlobalProgress(1);
-        float fraction = new java.math.BigDecimal(completed)
-            .divide(new java.math.BigDecimal(total), java.math.MathContext.DECIMAL64)
-            .floatValue();
-        // Conversion to a display float must not round an incomplete exact order up to 100%.
-        return sampled.withGlobalProgress(Math.min(Math.nextDown(1.0F), fraction));
+        cn.dancingsnow.neoecoae.crafting.display.processing.ECOProcessingProgress result;
+        if (total == null || total.signum() <= 0) result = sampled;
+        else if (completed.signum() <= 0) result = sampled.withGlobalProgress(0);
+        else if (completed.compareTo(total) >= 0) result = sampled.withGlobalProgress(1);
+        else {
+            float fraction = new java.math.BigDecimal(completed)
+                .divide(new java.math.BigDecimal(total), java.math.MathContext.DECIMAL64)
+                .floatValue();
+            // Conversion to a display float must not round an incomplete exact order up to 100%.
+            result = sampled.withGlobalProgress(Math.min(Math.nextDown(1.0F), fraction));
+        }
+        return result.withSingleCopyReason(current.singleProcessingReason(output));
     }
 
     ECOCraftingEnergyTransaction energyTransactionForPersistence() {
@@ -742,10 +746,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     public boolean hasUnavailableProcessingPattern() {
         return job != null && job.hasUnavailableProcessingPattern();
-    }
-
-    public String getSingleProcessingReason() {
-        return job == null ? "" : job.singleProcessingReason;
     }
 
     public long getDispatchCopyLimit() {

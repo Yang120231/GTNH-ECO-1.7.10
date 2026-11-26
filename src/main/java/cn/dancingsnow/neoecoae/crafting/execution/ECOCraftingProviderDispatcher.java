@@ -142,7 +142,8 @@ final class ECOCraftingProviderDispatcher {
                 long counted = processing
                     .tryCountedDispatch(liveRequest, provider, singlePower, energyService, markProviderAttempt, budget);
                 if (counted > 0) {
-                    liveRequest.job().singleProcessingReason = "";
+                    liveRequest.job()
+                        .clearSingleProcessingReason(liveRequest.pattern());
                     return Result.accepted(counted, true);
                 }
                 if (liveRequest.job().suspended || !budget.canStartSubmission()) return Result.none();
@@ -188,7 +189,8 @@ final class ECOCraftingProviderDispatcher {
                         markProviderAttempt,
                         normalPush);
                     if (scaledProcessingResult != null && scaledProcessingResult.acceptedCrafts() > 0L) {
-                        liveRequest.job().singleProcessingReason = "";
+                        liveRequest.job()
+                            .clearSingleProcessingReason(liveRequest.pattern());
                         long accepted = scaledProcessingResult.acceptedCrafts();
                         totalAccepted += accepted;
                         remainingCrafts = dispatchable - accepted;
@@ -227,6 +229,8 @@ final class ECOCraftingProviderDispatcher {
                     budget,
                     markProviderAttempt);
             if (parallelResult != null) {
+                liveRequest.job()
+                    .clearSingleProcessingReason(liveRequest.pattern());
                 return parallelResult;
             }
 
@@ -303,7 +307,8 @@ final class ECOCraftingProviderDispatcher {
                     && !nativePattern.nativeDetails()
                         .isCraftable()) {
                     String reason = nativeProvider.singleCopyReason();
-                    liveRequest.job().singleProcessingReason = reason == null ? "single_copy" : reason;
+                    liveRequest.job()
+                        .recordSingleProcessingReason(liveRequest.pattern(), reason == null ? "single_copy" : reason);
                 }
             }
             return Result.accepted(1L, false);

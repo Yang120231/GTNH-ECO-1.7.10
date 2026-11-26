@@ -205,7 +205,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private boolean processingMonitored;
     private boolean finalOutputDeliveryBlocked;
     private boolean patternUnavailable;
-    private String singleProcessing = "";
     private long dispatchCopyLimit = Long.MAX_VALUE;
     /** Machine details the tooltip wants, and those last asked of the server. */
     @Nullable
@@ -298,7 +297,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
                 var rows = new ArrayList<ProcessingTooltip.Row>();
                 if (patternUnavailable) rows.add(
                     ProcessingTooltip.Row.hint(I18n.format("gui.neoecoae.crafting_status.pattern_unavailable_help")));
-                if (!singleProcessing.isEmpty()) rows.add(ProcessingTooltip.Row.hint(dispatchTitle(singleProcessing)));
                 if (dispatchCopyLimit != Long.MAX_VALUE) rows.add(ProcessingTooltip.Row.hint(dispatchLimitTitle()));
                 if (!rows.isEmpty()) {
                     ProcessingTooltip.draw(fontRendererObj, rows, mouseX, mouseY, width, height);
@@ -598,8 +596,7 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
     private void drawHeader() {
         String title = finalOutputDeliveryBlocked ? I18n.format("gui.neoecoae.crafting_status.destination_full")
             : patternUnavailable ? I18n.format("gui.neoecoae.crafting_status.pattern_unavailable")
-                : !singleProcessing.isEmpty() ? dispatchTitle(singleProcessing)
-                    : dispatchCopyLimit != Long.MAX_VALUE ? dispatchLimitTitle() : GuiText.CraftingStatus.getLocal();
+                : dispatchCopyLimit != Long.MAX_VALUE ? dispatchLimitTitle() : GuiText.CraftingStatus.getLocal();
         if (!finalOutputDeliveryBlocked && !patternUnavailable
             && cpuContainer.getElapsedTime() > 0
             && hasVisualEntries()) {
@@ -614,10 +611,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
         fontRendererObj
             .drawStringWithShadow(title, 0, 0, finalOutputDeliveryBlocked || patternUnavailable ? 0xFFAA00 : 0xFFFFFF);
         GL11.glPopMatrix();
-    }
-
-    private static String dispatchTitle(String reason) {
-        return I18n.format("gui.neoecoae.crafting_status.dispatch." + reason);
     }
 
     private String dispatchLimitTitle() {
@@ -731,7 +724,6 @@ public final class ECOCraftingStatusGui extends GuiCraftingStatus {
             updateScrollBar();
         }
         patternUnavailable = current && tag.getBoolean("patternUnavailable");
-        singleProcessing = current ? tag.getString("singleProcessing") : "";
         dispatchCopyLimit = current && tag.contains("dispatchCopyLimit") ? tag.getLong("dispatchCopyLimit")
             : Long.MAX_VALUE;
         processingMonitored = current && tag.getBoolean("eco");

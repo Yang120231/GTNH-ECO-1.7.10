@@ -109,7 +109,8 @@ final class ECOProcessingPatternDispatcher {
             accounting.failPermanently(request, "INSTANT_CIRCUIT_SETTLEMENT_FAILURE");
             throw failure;
         }
-        request.job().singleProcessingReason = "";
+        request.job()
+            .clearSingleProcessingReason(request.pattern());
         return count;
     }
 
