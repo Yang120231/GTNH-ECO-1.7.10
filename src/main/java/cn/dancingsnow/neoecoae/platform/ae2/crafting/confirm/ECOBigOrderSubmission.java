@@ -90,29 +90,6 @@ final class ECOBigOrderSubmission {
         if (cpu == null) return new Rejection(ECOCraftConfirmError.BIG_ORDER_NO_CPU, "NO_ELIGIBLE_ECO_CPU", "");
         GridView view = GridView.of(grid);
         IActionSource action = IActionSource.of(source);
-        if (!forced) {
-            var inventory = ECOPlannerInventory.capture(view);
-            var storage = view.getStorageService()
-                .getInventory();
-            for (var node : exact.trace()
-                .nodes()) {
-                if (node.key() == null || node.exactFromInventory()
-                    .signum() <= 0) continue;
-                BigInteger required = node.exactFromInventory();
-                // Validate the full order; the exact ledger owns deferred inputs beyond long.
-                if (!ECOBigOrderAdmission.hasStoredAmount(
-                    required,
-                    inventory.isUnbounded(node.key()),
-                    amount -> storage.extract(node.key(), amount, Actionable.SIMULATE, action))) {
-                    return new Rejection(
-                        ECOCraftConfirmError.MISSING_INGREDIENT,
-                        "MISSING_INGREDIENT",
-                        node.key()
-                            .getDisplayName() + " x"
-                            + required);
-                }
-            }
-        }
         ECOCraftingCPU target = ((ECOCraftingNativeRuntime) cpu.runtime()).cpu();
         final ICraftingSubmitResult submitted;
         try {
@@ -124,8 +101,13 @@ final class ECOBigOrderSubmission {
                     carrier -> target.getCluster()
                         .submitJob(view, carrier, action, null));
             } else {
+                var plan = new ECOExactCraftingPlan(exact, forced);
+                if (!forced) {
+                    Rejection missing = checkStock(plan, view, action);
+                    if (missing != null) return missing;
+                }
                 submitted = target.getCluster()
-                    .submitJob(view, new ECOExactCraftingPlan(exact, forced), action, null);
+                    .submitJob(view, plan, action, null);
             }
         } catch (RuntimeException invalid) {
             return new Rejection(ECOCraftConfirmError.INCOMPLETE_PLAN, "EXACT_ORDER_INVALID", String.valueOf(invalid));
@@ -141,5 +123,29 @@ final class ECOBigOrderSubmission {
             ECOCraftConfirmRules.submitError(submitted.errorCode()),
             "CPU_SUBMISSION_FAILED:" + submitted.errorCode(),
             detail);
+    }
+
+    /** Check the very ledger the CPU will admit, including cycle reservations and the part beyond its long window. */
+    private static @Nullable Rejection checkStock(ECOExactCraftingPlan plan, GridView view, IActionSource action) {
+        var inventory = ECOPlannerInventory.capture(view);
+        var storage = view.getStorageService()
+            .getInventory();
+        for (var input : plan.usedItems()) {
+            var key = input.getKey();
+            BigInteger required = BigInteger.valueOf(input.getLongValue())
+                .add(
+                    plan.deferredStock()
+                        .getOrDefault(key, BigInteger.ZERO));
+            if (!ECOBigOrderAdmission.hasStoredAmount(
+                required,
+                inventory.isUnbounded(key),
+                amount -> storage.extract(key, amount, Actionable.SIMULATE, action))) {
+                return new Rejection(
+                    ECOCraftConfirmError.MISSING_INGREDIENT,
+                    "MISSING_INGREDIENT",
+                    key.getDisplayName() + " x" + required);
+            }
+        }
+        return null;
     }
 }

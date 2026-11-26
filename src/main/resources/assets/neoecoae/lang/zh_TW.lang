@@ -1520,6 +1520,7 @@ neoecoae.configuration.patternUploadButtonOffsetX.tooltip=樣板上傳按鈕的�
 neoecoae.configuration.patternUploadButtonOffsetY=上傳按鈕垂直偏移
 neoecoae.configuration.patternUploadButtonOffsetY.tooltip=上傳按鈕相對樣板終端編碼按鈕的垂直偏移。
 gui.neoecoae.crafting_report.replan=重新規劃
+gui.neoecoae.crafting_report.error.stock_unstable=原料庫存持續變動，已停止自動重新規劃。請在庫存穩定後重試。
 gui.neoecoae.crafting_report.error.replan_failed=無法啟動新的合成規劃。
 gui.neoecoae.pattern_upload.reason.tunnel_missing=引用的通道樣板尚未註冊到目前的 ME 網路。
 gui.neoecoae.pattern_upload.reason.tunnel_invalid=通道展開失敗：請檢查循環引用、無效或空定義，以及數量溢位。

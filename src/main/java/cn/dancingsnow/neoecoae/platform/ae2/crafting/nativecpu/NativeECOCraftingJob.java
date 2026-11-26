@@ -6,11 +6,16 @@ import java.util.concurrent.Future;
 import appeng.api.config.CraftingMode;
 import appeng.api.networking.crafting.ICraftingCPU;
 import appeng.api.networking.crafting.ICraftingJob;
+import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 import appeng.crafting.MECraftingInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingServiceView;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.CraftingSubmitResult;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ConfirmSubmitSource;
+import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
+import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 
 /** Immutable native terminal facade; the original ECO plan and its execution contract remain intact. */
@@ -152,8 +157,7 @@ public final class NativeECOCraftingJob implements ICraftingJob {
      * this path because their identity submits the original plan to the ECO runtime.
      */
     @Override
-    public void startCrafting(MECraftingInventory storage, ICraftingCPU cpu,
-        appeng.api.networking.security.BaseActionSource source) {
+    public void startCrafting(MECraftingInventory storage, ICraftingCPU cpu, BaseActionSource source) {
         if (cpu instanceof NativeECOCpu) throw new IllegalStateException(
             "ECO execution contracts must be submitted through their native ECO CPU identity");
         if (!(cpu instanceof appeng.me.cluster.implementations.CraftingCPUCluster) || !supportsNativeCpus())
@@ -165,24 +169,26 @@ public final class NativeECOCraftingJob implements ICraftingJob {
             cluster.addCrafting(
                 ((cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails) task.getKey()).nativeDetails(),
                 task.getValue());
-        for (var entry : plan.usedItems()) pull(
-            storage,
-            cluster,
-            entry.getKey()
-                .toNative(entry.getLongValue()));
+        for (var entry : plan.usedItems()) pull(storage, cluster, entry.getKey(), entry.getLongValue(), source);
         for (var entry : plan.emittedItems()) cluster.addEmitable(
             entry.getKey()
                 .toNative(entry.getLongValue()));
     }
 
-    private static void pull(MECraftingInventory storage, appeng.me.cluster.implementations.CraftingCPUCluster cluster,
-        IAEStack<?> stack) {
+    private void pull(MECraftingInventory storage, appeng.me.cluster.implementations.CraftingCPUCluster cluster,
+        AEKey key, long amount, BaseActionSource source) {
+        IAEStack<?> stack = key.toNative(amount);
         long wanted = stack.getStackSize();
         if (wanted <= 0) return;
         IAEStack<?> extracted = storage.extractItems(stack.copy(), appeng.api.config.Actionable.MODULATE);
         long got = extracted == null ? 0 : extracted.getStackSize();
         if (got < wanted) {
-            if (!cluster.isMissingMode()) throw new appeng.crafting.CraftBranchFailure(stack, wanted);
+            if (!cluster.isMissingMode()) {
+                // AE2 catches this staging failure and returns only null. It has not committed the job.
+                if (source instanceof ConfirmSubmitSource confirmation) confirmation
+                    .record(plan, CraftingSubmitResult.missingIngredient(new GenericStack(key, wanted - got)));
+                throw new appeng.crafting.CraftBranchFailure(stack, wanted);
+            }
             cluster.addEmitable(
                 stack.copy()
                     .setStackSize(wanted - got));

@@ -1388,6 +1388,7 @@
   "gui.neoecoae.pattern_upload.mapping.targets": "Mappable",
   "gui.neoecoae.crafting_status.destination_full": "Destination container capacity insufficient!",
   "gui.neoecoae.crafting_report.replan": "Replan",
+  "gui.neoecoae.crafting_report.error.stock_unstable": "Stock kept changing. Automatic replanning stopped; retry when the inputs are available.",
   "gui.neoecoae.crafting_report.error.replan_failed": "Could not start a fresh calculation.",
   "gui.neoecoae.plan_tree.shared_batch": "Shares this batch with another branch",
   "gui.neoecoae.plan_tree.shared_batch_short": "shared",

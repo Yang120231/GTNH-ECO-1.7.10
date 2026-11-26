@@ -15,6 +15,10 @@ import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPlanningResult;
  */
 public final class ECOCraftConfirmSession {
 
+    private static final int MAX_STOCK_REPLANS = 3;
+    /** The budget belongs to the player's request, not to each replacement report. */
+    private int stockReplans;
+
     /** One pending client update. {@code report} is {@code null} when the client already holds it. */
     public static final class Outgoing {
 
@@ -59,21 +63,26 @@ public final class ECOCraftConfirmSession {
         if (eco) return;
         eco = true;
         this.cyclePlanningEnabled = cyclePlanningEnabled;
-        base = ECOCraftConfirmReports.calculating(cyclePlanningEnabled);
+        base = ECOCraftConfirmReports.calculating(cyclePlanningEnabled, 0L);
     }
 
     public boolean cyclePlanningEnabled() {
         return cyclePlanningEnabled;
     }
 
-    /** A fresh request in the same window; report versions keep increasing so old graph data cannot match it. */
-    public void restart(boolean cyclePlanningEnabled) {
+    public boolean canReplanForStock() {
+        return stockReplans < MAX_STOCK_REPLANS;
+    }
+
+    /** Only an explicit recalculation renews the retry budget. Invalidate the old version while calculating. */
+    public void restart(boolean cyclePlanningEnabled, boolean stockChanged) {
         closeImprovements();
+        stockReplans = stockChanged ? stockReplans + 1 : 0;
         this.cyclePlanningEnabled = cyclePlanningEnabled;
         observedResult = null;
         displayed = null;
         improvementsClosed = false;
-        base = ECOCraftConfirmReports.calculating(cyclePlanningEnabled);
+        base = ECOCraftConfirmReports.calculating(cyclePlanningEnabled, nextVersion++);
         report = ECOCraftConfirmReport.EMPTY;
         clearError();
     }
@@ -87,9 +96,13 @@ public final class ECOCraftConfirmSession {
     public void observeResult(@Nullable Object result,
         @Nullable java.util.function.LongFunction<ECOCraftConfirmReports.Built> builder) {
         if (!eco || result == observedResult) return;
-        observedResult = result;
-        if (result == null || builder == null) return;
+        if (result == null || builder == null) {
+            observedResult = null;
+            return;
+        }
         ECOCraftConfirmReports.Built built = builder.apply(nextVersion++);
+        // A failed report build must never bind a new result to the preceding report's version.
+        observedResult = result;
         base = built.state;
         report = built.report;
         error = null;

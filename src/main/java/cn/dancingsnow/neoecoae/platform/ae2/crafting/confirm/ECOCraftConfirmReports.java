@@ -51,7 +51,7 @@ public final class ECOCraftConfirmReports {
     }
 
     /** The report shown while ECO is still planning. */
-    public static ECOCraftConfirmState calculating(boolean cyclePlanningEnabled) {
+    public static ECOCraftConfirmState calculating(boolean cyclePlanningEnabled, long version) {
         return new ECOCraftConfirmState(
             true,
             false,
@@ -64,7 +64,7 @@ public final class ECOCraftConfirmReports {
             0,
             true,
             0L,
-            0L,
+            version,
             null,
             "");
     }

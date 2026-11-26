@@ -1388,6 +1388,7 @@
   "gui.neoecoae.pattern_upload.mapping.targets": "可映射",
   "gui.neoecoae.crafting_status.destination_full": "对应容器容量不足！",
   "gui.neoecoae.crafting_report.replan": "重新规划",
+  "gui.neoecoae.crafting_report.error.stock_unstable": "原料库存持续变动，已停止自动重算。请在库存稳定后重试。",
   "gui.neoecoae.crafting_report.error.replan_failed": "无法启动新的合成规划。",
   "gui.neoecoae.plan_tree.shared_batch": "与其他分支共用这一批",
   "gui.neoecoae.plan_tree.shared_batch_short": "共用",

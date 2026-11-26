@@ -17,6 +17,7 @@ import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.networking.security.PlayerSource;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ConfirmSubmitSource;
 
 /**
  * CPU lifecycle and selection for ECO identities published in AE2's crafting cache, kept out of the mixin so the
@@ -94,6 +95,9 @@ public final class NativeECOCpuSelection {
                     follow(cpu, source, follow);
                     return link;
                 }
+                // A confirmed stock deficit is shared by all pools. An admission without a link must not be retried.
+                if (source instanceof ConfirmSubmitSource confirmation
+                    && confirmation.hasAdmissionDecision(job.sourcePlan())) return null;
             }
             return null;
         }

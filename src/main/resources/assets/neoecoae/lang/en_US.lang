@@ -1560,6 +1560,7 @@ gui.neoecoae.crafting_status.dispatch.limited_gt_input=Single-copy dispatch for 
 gui.neoecoae.crafting_status.dispatch.copy_limit=Smart doubling off: up to %s copies per dispatch
 item.neoecoae.temporary_crafting_order.name=Temporary Ingredient Order
 gui.neoecoae.crafting_report.replan=Replan
+gui.neoecoae.crafting_report.error.stock_unstable=Stock kept changing. Automatic replanning stopped; retry when the inputs are available.
 gui.neoecoae.crafting_report.error.replan_failed=Could not start a fresh calculation.
 gui.neoecoae.plan_tree.shared_batch=Shares this batch with another branch
 gui.neoecoae.plan_tree.shared_batch_short=shared

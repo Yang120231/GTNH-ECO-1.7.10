@@ -48,8 +48,9 @@ public final class ECOCraftConfirmClient {
     public static void accept(int windowId, ECOCraftConfirmState state, @Nullable ECOCraftConfirmReport report) {
         Entry previous = latest;
         boolean sameWindow = previous != null && previous.windowId == windowId;
-        ECOCraftConfirmReport kept = report != null ? report
-            : sameWindow ? previous.report : ECOCraftConfirmReport.EMPTY;
+        boolean samePlan = sameWindow && previous.state.reportVersion == state.reportVersion;
+        if (!samePlan) ECOCraftingGraphClient.clear();
+        ECOCraftConfirmReport kept = report != null ? report : samePlan ? previous.report : ECOCraftConfirmReport.EMPTY;
         latest = new Entry(windowId, state, kept, sameWindow ? previous.bound : null);
     }
 

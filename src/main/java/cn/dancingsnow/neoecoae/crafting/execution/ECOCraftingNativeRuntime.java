@@ -10,6 +10,7 @@ import appeng.api.networking.security.BaseActionSource;
 import appeng.me.cluster.implementations.CraftingCPUCluster;
 import cn.dancingsnow.neoecoae.api.me.planning.ECOPlannerOptions;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingPlan;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ConfirmSubmitSource;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.nativecpu.NativeECOCpuRuntime;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.GridView;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
@@ -257,6 +258,7 @@ public final class ECOCraftingNativeRuntime implements NativeECOCpuRuntime {
         if (grid == null) return null;
         var result = cpu.getCluster()
             .submitJob(grid, plan, IActionSource.of(source), requester);
+        if (source instanceof ConfirmSubmitSource confirmation) confirmation.record(plan, result);
         if (!result.successful()) return null;
         ECOCraftingCPU assigned = cpu.getCluster()
             .findCPU(plan);

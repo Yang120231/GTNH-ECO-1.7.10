@@ -28,7 +28,9 @@ public enum ECOCraftConfirmError {
     /** The crafting network or the patterns changed since the plan was built; replan before starting. */
     PLAN_STALE("gui.neoecoae.crafting_report.error.plan_stale"),
     /** The displayed plan was replaced since it was reviewed; the new plan must be confirmed first. */
-    PLAN_CHANGED("gui.neoecoae.crafting_report.error.plan_changed");
+    PLAN_CHANGED("gui.neoecoae.crafting_report.error.plan_changed"),
+    /** The bounded confirmation retries were exhausted; the player can request a fresh calculation. */
+    STOCK_UNSTABLE("gui.neoecoae.crafting_report.error.stock_unstable");
 
     private final String translationKey;
 

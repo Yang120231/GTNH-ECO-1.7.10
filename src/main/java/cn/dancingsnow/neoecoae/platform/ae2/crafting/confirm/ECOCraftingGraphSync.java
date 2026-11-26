@@ -68,14 +68,14 @@ public final class ECOCraftingGraphSync {
     public static void request(EntityPlayerMP player, int windowId, long version) {
         if (!(player.openContainer instanceof ContainerCraftConfirm container) || container.windowId != windowId)
             return;
-        OUTGOING.remove(player);
         ICraftingJob result = ((ContainerCraftConfirmAccessor) container).neoecoae$getResult();
+        // A late request must neither start an obsolete stream nor interrupt the replacement stream.
+        if (!ECOCraftConfirmTracker.isCurrentReport(player, windowId, version, result)) return;
+        OUTGOING.remove(player);
         if (result == null) {
             answer(player, windowId, version, ECOCraftingGraphStream.Status.EMPTY);
             return;
         }
-        // A stale version gets no reply; the client re-requests when it receives the new report.
-        if (!ECOCraftConfirmTracker.isCurrentReport(player, windowId, version, result)) return;
         Encoded encoded = ENCODED.get(player);
         if (encoded == null || encoded.container != container || encoded.result != result) {
             encoded = encode(container, result);
@@ -163,6 +163,12 @@ public final class ECOCraftingGraphSync {
         }
         ENCODED.entrySet()
             .removeIf(entry -> entry.getKey().openContainer != entry.getValue().container);
+    }
+
+    /** The open window is replacing its plan; neither its encoded graph nor a partial transfer is reusable. */
+    static void discard(EntityPlayerMP player) {
+        OUTGOING.remove(player);
+        ENCODED.remove(player);
     }
 
     public static void clear() {

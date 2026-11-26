@@ -1361,6 +1361,7 @@
   "neoecoae.configuration.keyReuse.enabled": "復用無額外資料的資源鍵",
   "neoecoae.configuration.keyReuse.enabled.tooltip": "復用無額外元件或 NBT 的不可變資源鍵；帶額外資料的資源保留原有建立行為。",
   "gui.neoecoae.crafting_report.replan": "重新規劃",
+  "gui.neoecoae.crafting_report.error.stock_unstable": "原料庫存持續變動，已停止自動重新規劃。請在庫存穩定後重試。",
   "gui.neoecoae.crafting_report.error.replan_failed": "無法啟動新的合成規劃。",
   "gui.neoecoae.pattern_upload.reason.tunnel_missing": "引用的通道樣板尚未註冊到目前的 ME 網路。",
   "gui.neoecoae.pattern_upload.reason.tunnel_invalid": "通道展開失敗：請檢查循環引用、無效或空定義，以及數量溢位。",

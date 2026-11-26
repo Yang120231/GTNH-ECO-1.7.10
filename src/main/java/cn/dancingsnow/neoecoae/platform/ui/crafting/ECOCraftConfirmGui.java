@@ -1111,7 +1111,8 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
 
     /** The start failed on inputs the network lost since planning; an acyclic plan can wait for them instead. */
     private boolean canForceRetry() {
-        return state.error == ECOCraftConfirmError.MISSING_INGREDIENT && !state.shortages.isEmpty()
+        return (state.error == ECOCraftConfirmError.MISSING_INGREDIENT
+            || state.error == ECOCraftConfirmError.STOCK_UNSTABLE) && !state.shortages.isEmpty()
             && !state.cycleDetected;
     }
 
@@ -1228,8 +1229,9 @@ public final class ECOCraftConfirmGui extends AEBaseGui implements ICraftingCPUT
         else if (button == selectCpu) cpuTable.cycleCPU(backwards);
         else if (button == cancel) goBack(true);
         else if (button == retry) {
-            if (state.error == ECOCraftConfirmError.PLAN_STALE) {
-                // The network or recipes changed since planning: plan again instead of resubmitting the old plan.
+            if (state.error == ECOCraftConfirmError.PLAN_STALE || state.error == ECOCraftConfirmError.STOCK_UNSTABLE
+                || state.error == ECOCraftConfirmError.REPLAN_FAILED) {
+                // An explicit retry takes a fresh snapshot instead of resubmitting the old plan.
                 if (replan.enabled) {
                     replan.enabled = start.enabled = startWithFollow.enabled = false;
                     ECOCraftConfirmPackets.replan(container.windowId);

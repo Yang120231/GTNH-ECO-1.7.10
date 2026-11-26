@@ -47,6 +47,11 @@ public abstract class ContainerCraftConfirmStartMixin {
             cir.setReturnValue(false);
     }
 
+    @Inject(method = "startJob(Z)V", at = @At("HEAD"), cancellable = true, require = 1)
+    private void neoecoae$startConfirmedOrAutomatic(boolean followCraft, CallbackInfo ci) {
+        if (ECOCraftConfirmTracker.handleNativeStart((ContainerCraftConfirm) (Object) this, followCraft)) ci.cancel();
+    }
+
     @Redirect(
         method = "startJob(Z)V",
         at = @At(
