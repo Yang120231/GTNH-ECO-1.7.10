@@ -28,9 +28,9 @@ import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.ui.NativeButtonWidget;
 import cn.dancingsnow.neoecoae.platform.ui.NativeGuidePage;
 import cn.dancingsnow.neoecoae.platform.ui.NativeHostSideBar;
-import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachinePanel;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
+import cn.dancingsnow.neoecoae.platform.ui.NativePatternSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeSlotGroups;
 import cn.dancingsnow.neoecoae.platform.ui.NativeSnapshotSession;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
@@ -110,7 +110,7 @@ public final class NativeLargeWorkstationInterfacePages {
         for (int index = 0; index < LargeWorkstationPatternProvider.MAX_PATTERN_SLOTS; index++) {
             final int slot = index;
             viewport.child(
-                new NativeItemSlot().slot(new ModularSlot(patterns, index).slotGroup(patternGroup))
+                new NativePatternSlot().slot(new ModularSlot(patterns, index).slotGroup(patternGroup))
                     .background(IDrawable.EMPTY)
                     .disableHoverBackground()
                     .pos(index % COLUMNS * CELL, index / COLUMNS * CELL)

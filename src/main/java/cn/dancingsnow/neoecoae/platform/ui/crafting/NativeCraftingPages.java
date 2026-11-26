@@ -14,6 +14,7 @@ import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.ui.NativeItemSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeMachineWidgets;
 import cn.dancingsnow.neoecoae.platform.ui.NativePageLayout;
+import cn.dancingsnow.neoecoae.platform.ui.NativePatternSlot;
 import cn.dancingsnow.neoecoae.platform.ui.NativeText;
 
 /** Source controller artwork with live worker previews, cooling controls and physical pattern slots. */
@@ -154,7 +155,7 @@ public final class NativeCraftingPages {
         for (int index = 0; index < host.getInternalInventory()
             .size(); index++)
             panel.child(
-                new PatternSlot().slot(new ModularSlot(handler, index).slotGroup(patterns))
+                new NativePatternSlot().slot(new ModularSlot(handler, index).slotGroup(patterns))
                     .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.slot())
                     .pos(4 + index % 9 * 18, 22 + index / 9 * 18));
         panel.child(
@@ -164,31 +165,6 @@ public final class NativeCraftingPages {
                         .background(cn.dancingsnow.neoecoae.platform.ui.NativeUiStyle.slot()))
                 .pos(4, 29 + rows * 18));
         return panel;
-    }
-
-    private static final class PatternSlot extends NativeItemSlot {
-
-        @Override
-        @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
-        public void draw(com.cleanroommc.modularui.screen.viewport.ModularGuiContext context,
-            com.cleanroommc.modularui.theme.WidgetThemeEntry<?> theme) {
-            super.draw(context, theme);
-            if (!getSlot().getHasStack())
-                NativePageLayout.texture("neoecoae:textures/gui/vendor/ae2/states.png", 240, 128, 16, 16)
-                    .draw(1, 1, 16, 16);
-        }
-
-        /** Encoded patterns show their primary output, like AE2's own pattern slots with Shift held. */
-        @Override
-        @cpw.mods.fml.relauncher.SideOnly(cpw.mods.fml.relauncher.Side.CLIENT)
-        protected net.minecraft.item.ItemStack getItemStackForRendering(net.minecraft.item.ItemStack stack,
-            boolean dragging) {
-            if (stack != null && stack.getItem() instanceof appeng.items.misc.ItemEncodedPattern pattern) {
-                var output = pattern.getOutput(stack);
-                if (output != null) return output;
-            }
-            return super.getItemStackForRendering(stack, dragging);
-        }
     }
 
     public static ModularPanel inventory(String id, String title, net.minecraft.inventory.IInventory inventory,
