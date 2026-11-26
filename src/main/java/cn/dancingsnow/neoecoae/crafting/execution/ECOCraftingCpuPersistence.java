@@ -38,8 +38,6 @@ final class ECOCraftingCpuPersistence {
 
         host.taskSchedulerForPersistence()
             .reset();
-        host.dispatchStrategyForPersistence()
-            .reset();
         host.jobAttachmentsForPersistence()
             .reset();
         host.outputDeliveryForPersistence()

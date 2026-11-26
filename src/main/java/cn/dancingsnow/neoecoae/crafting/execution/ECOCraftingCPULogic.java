@@ -27,6 +27,7 @@ import cn.dancingsnow.neoecoae.api.me.output.ECOCraftingOutputClaimSink;
 import cn.dancingsnow.neoecoae.api.me.progress.ECOCraftingProgressSink;
 import cn.dancingsnow.neoecoae.api.me.progress.ECOCraftingProgressView;
 import cn.dancingsnow.neoecoae.api.me.provider.ECOParallelCraftingProviders;
+import cn.dancingsnow.neoecoae.compat.ae2.ECOProcessingExecutionPattern;
 import cn.dancingsnow.neoecoae.crafting.execution.fastpath.ECOSingleCraftingExecutor;
 import cn.dancingsnow.neoecoae.crafting.execution.worker.ECOCraftingJobLifecycle;
 import cn.dancingsnow.neoecoae.crafting.planner.result.ECOPhaseScheduler;
@@ -45,7 +46,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKeyType;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
-import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
 import cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup;
 import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
 import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
@@ -83,7 +83,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
     private boolean markedForDeletion = false;
 
-    private final ECOCraftingDispatchStrategy dispatchStrategy = new ECOCraftingDispatchStrategy();
     private final ECOCraftingEnergyTransaction energyTransaction;
     private final ECOCraftingDispatchAccounting dispatchAccounting;
     private final ECOCraftingFastPathDispatcher fastPathDispatcher;
@@ -263,31 +262,14 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
             return;
         }
 
-        if (!ECOCraftingDispatchPolicyRegistry.mayTick(createCpuContext(currentTick))) {
-            dispatchStrategy.finishTick(0);
-            return;
-        }
+        if (!ECOCraftingDispatchPolicyRegistry.mayTick(createCpuContext(currentTick))) return;
 
-        int operationLimit = dispatchStrategy
-            .beginTick(cpu.getCoProcessors(), PlanningSettings.Crafting.ecoCpuPushTickLimit);
-        int acceptedNormalPushes = 0;
-        // Thunderbolt 会包装此处的 executeCrafting 调用；快速路径的批量操作不消耗此慢速路径额度。
-        taskScheduler.beginSharedProbeBudget(operationLimit);
-        try {
-            var current = job;
-            while (current != null && job == current && !current.suspended) {
-                int pushed = executeCrafting(operationLimit, cc, eg, level);
-                var pass = taskScheduler.lastPass();
-                taskScheduler.consumeSharedProbeBudget(pass.normalProbes());
-                operationLimit = Math.max(0, operationLimit - pass.acceptedNormalPushes());
-                acceptedNormalPushes += pass.acceptedNormalPushes();
-                if (pushed == 0) break;
-            }
-        } finally {
-            taskScheduler.endSharedProbeBudget();
+        var budget = taskScheduler.budgetForTick(currentTick);
+        var current = job;
+        // Keep the actual executeCrafting call for Thunderbolt. A spent single-copy allowance does not stop batches.
+        while (current != null && job == current && !current.suspended && budget.hasTime()) {
+            if (executeCrafting(budget.remainingOrdinary(), cc, eg, level) == 0) break;
         }
-        // 只有普通推送计入滚动操作窗口。
-        dispatchStrategy.finishTick(acceptedNormalPushes);
     }
 
     private void tickVanillaCrafting(IEnergyGrid eg, ICraftingService craftingService) {
@@ -308,10 +290,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     /** 从所有配方输入共用的实际库存中重试交付产物。 */
     private void deliverStoredFinalOutput() {
         outputDelivery.deliverStoredFinalOutput();
-    }
-
-    static int calculateOperationLimit(int coProcessors, int configuredLimit) {
-        return ECOCraftingDispatchStrategy.ordinaryLimit(configuredLimit);
     }
 
     private java.util.List<ICraftingProvider> collectAvailableProviders(ICraftingService craftingService,
@@ -340,7 +318,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         World level) {
         var current = job;
         if (current == null) return 0;
-        var pass = taskScheduler
+        return taskScheduler
             .execute(maxPatterns, craftingService, energyService, level, current, inventory, pattern -> {
                 var providers = collectAvailableProviders(craftingService, pattern);
                 current.recordProcessingProviderAvailability(pattern, !providers.isEmpty());
@@ -349,7 +327,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
                 () -> job == current && !current.suspended,
                 createCpuContext(TickClock.currentTick()),
                 this::invokeNormalProvider);
-        return pass.totalPushed();
     }
 
     /**
@@ -370,6 +347,8 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
 
         var parallelProvider = ECOParallelCraftingProviders.find(provider);
         if (parallelProvider != null) {
+            // An adapter can appear after eligibility was checked. Never label scaled totals as one craft.
+            if (request.pattern() instanceof ECOProcessingExecutionPattern) return false;
             return parallelProvider
                 .eco$pushPatternBatch(request.pattern(), request.inputs(), 1L, request.job().link.getCraftingID());
         }
@@ -582,10 +561,6 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         return taskScheduler;
     }
 
-    ECOCraftingDispatchStrategy dispatchStrategyForPersistence() {
-        return dispatchStrategy;
-    }
-
     ECOCraftingJobAttachments jobAttachmentsForPersistence() {
         return jobAttachments;
     }
@@ -658,7 +633,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
         boolean changed = stopped ? job.stoppedProcessingOutputs.add(output)
             : job.stoppedProcessingOutputs.remove(output);
         if (changed) {
-            taskScheduler.resetDispatchState();
+            taskScheduler.reset();
             markCpuDirty();
             for (var pattern : getProcessingPatterns(output))
                 for (var result : pattern.getOutputs()) postChange(result.what());

@@ -53,7 +53,7 @@ import cpw.mods.fml.common.FMLCommonHandler;
  * <p>
  * Such a job must behave exactly like it would on a native crafting CPU with as many co-processors as the ECO host
  * pools: the native medium list, busy/blocking checks, round-robin, substitution, tunnel expansion, power, fake
- * crafting and the three-tick operation window are all reproduced here. Counted Programmable Hatches submissions
+ * crafting and the three-tick operation window are all reproduced here. Explicitly counted native submissions
  * share ECO's resource settlement without enabling scaled probes or FastPath for these jobs.
  * </p>
  */
@@ -271,10 +271,7 @@ final class ECOVanillaCraftingExecutor {
                     var liveDetails = published.nativeDetails();
                     if (craftingInventory == null && progress.value > 1
                         && !job.vanillaFakeCrafting
-                        && ProgrammableHatchCrafting.supportsCountedBatch(
-                            medium,
-                            liveDetails,
-                            published.supportsPushInputsToExternalInventory())) {
+                        && NativeCraftingProvider.supportsCountedBatch(medium, published)) {
                         long accepted = tryCountedPush(job, published, medium, progress.value, eg, cc, world);
                         if (job.suspended) return;
                         if (accepted > 0) {
@@ -321,8 +318,7 @@ final class ECOVanillaCraftingExecutor {
                             }
                         }
                         // upgraded interface uses more power
-                        int upgrades = traits.patternCapacityUpgrades(medium);
-                        if (upgrades > 0) sum *= Math.pow(4.0, upgrades);
+                        sum = mediumPower(medium, sum);
 
                         // check if there is enough power
                         if (eg.extractAEPower(sum, Actionable.SIMULATE, PowerMultiplier.CONFIG) < sum - 0.01) continue;
@@ -467,6 +463,11 @@ final class ECOVanillaCraftingExecutor {
         }
     }
 
+    private double mediumPower(ICraftingMedium medium, double base) {
+        int upgrades = traits.patternCapacityUpgrades(medium);
+        return upgrades > 0 ? base * Math.pow(4.0, upgrades) : base;
+    }
+
     private long tryCountedPush(ExecutingCraftingJob job, NativePatternDetails pattern, ICraftingMedium medium,
         long crafts, IEnergyGrid service, CraftingGridCache cache, World world) {
         var details = pattern.nativeDetails();
@@ -501,7 +502,7 @@ final class ECOVanillaCraftingExecutor {
             return ECOProcessingPatternDispatcher.dispatchCounted(
                 request,
                 provider,
-                CraftingCpuHelper.calculatePatternPower(perCopy),
+                mediumPower(medium, CraftingCpuHelper.calculatePatternPower(perCopy)),
                 service,
                 energy,
                 () -> {});

@@ -45,22 +45,11 @@ final class ECOCraftingProviderDispatcher {
         this.accounting = accounting;
     }
 
-    void beginTick(long gameTick) {
-        int coProcessors = owner == null || owner.cpu == null ? 0 : owner.cpu.getCoProcessors();
-        processing.beginTick(gameTick, coProcessors);
-    }
-
-    void reset() {
-        processing.reset();
-    }
-
-    boolean isEligible(ICraftingProvider provider, IPatternDetails pattern, ECOCraftingDispatchBudget budget) {
-        if (NativeProviderAdapters.isEnabled(provider))
-            return budget.canAttemptOrdinary() || processing.mayAttemptScaled(provider, pattern);
-        // The ordinary one-copy budget must not hide a target whose batch lane still has submissions left.
-        return budget.canAttemptOrdinary() || fastPath.supportsBatch(provider)
-            || ECOParallelCraftingProviders.find(provider) != null
-            || processing.mayAttemptScaled(provider, pattern);
+    boolean isEligible(ICraftingProvider provider, IPatternDetails pattern, ECOCraftingDispatchBudget budget,
+        ECOProcessingPatternDispatcher.ProbeState feedback) {
+        if (budget.canAttemptOrdinary() && feedback.singles.canSubmitSingle(budget.tick())) return true;
+        return processing.mayAttemptScaled(provider, pattern, budget) || !NativeProviderAdapters.isEnabled(provider)
+            && (fastPath.supportsBatch(provider) || ECOParallelCraftingProviders.find(provider) != null);
     }
 
     /**
@@ -100,7 +89,7 @@ final class ECOCraftingProviderDispatcher {
 
     Result dispatchCandidate(ECOCraftingDispatchRequest originalRequest, ECOProviderCursor.Traversal traversal,
         ECOCraftingDispatchBudget budget, IEnergyGrid energyService, Consumer<ICraftingProvider> markProviderAttempt,
-        Runnable markNormalResume, ECOCraftingNormalPush normalPush) {
+        ECOCraftingNormalPush normalPush) {
         Iterator<ICraftingProvider> providers = traversal;
         if (processing.isInstantCircuitRequest(originalRequest)) {
             var fallback = new ArrayList<ICraftingProvider>();
@@ -120,13 +109,18 @@ final class ECOCraftingProviderDispatcher {
 
         long remainingCrafts = request.allowedCrafts();
         long totalAccepted = 0L;
+        boolean firstProvider = true;
         while (true) {
+            if (providers != traversal && !firstProvider && !budget.hasTime()) break;
+            firstProvider = false;
             remainingCrafts = Math.min(remainingCrafts, liveTaskRemaining(request));
             if (remainingCrafts <= 0L || request.job().suspended
                 || owner.getJob() != request.job()
-                || !providers.hasNext()) break;
+                || !providers.hasNext()
+                || !budget.canStartSubmission()) break;
             var provider = providers.next();
             var liveRequest = withAllowedCrafts(request, remainingCrafts);
+            var feedback = traversal.feedback(provider);
             boolean blocking = NativeProviderAdapters.isEnabled(provider);
             if (totalAccepted == 0L) {
                 if (!blocking && liveRequest.job().exactOrder) {
@@ -143,27 +137,28 @@ final class ECOCraftingProviderDispatcher {
                     if (exact != null) return Result.accepted(
                         cn.dancingsnow.neoecoae.crafting.adapter.ae2.ECOExactCraftingPlan.bounded(exact),
                         true);
-                    if (liveRequest.job().suspended) return Result.none();
+                    if (liveRequest.job().suspended || !budget.canStartSubmission()) return Result.none();
                 }
                 long counted = processing
-                    .tryCountedDispatch(liveRequest, provider, singlePower, energyService, markProviderAttempt);
+                    .tryCountedDispatch(liveRequest, provider, singlePower, energyService, markProviderAttempt, budget);
                 if (counted > 0) {
                     liveRequest.job().singleProcessingReason = "";
                     return Result.accepted(counted, true);
                 }
-                if (liveRequest.job().suspended) return Result.none();
+                if (liveRequest.job().suspended || !budget.canStartSubmission()) return Result.none();
             }
 
             // Blocking media join the scaled lane too; eligibility still excludes known crafting locks.
-            boolean scaledProvider = processing.supportsScaledDispatchCached(liveRequest, provider);
+            boolean scaledProvider = processing
+                .supportsScaledDispatchCached(liveRequest, provider, feedback, budget.tick());
             if (scaledProvider) {
-                int submissions = processing.remainingScaledAttempts(liveRequest.pattern());
+                int submissions = budget.remainingScaled();
                 if (submissions == 0) {
                     // Exhausted submissions pause this pattern until the next tick; the provider did not fail.
                     continue;
                 }
-                if (processing.isScaledFallbackDeferred(liveRequest, provider)) continue;
-                if (!processing.isScaledDispatchDeferred(liveRequest, provider)) {
+                if (budget.tick() < feedback.nextFallbackTick) continue;
+                if (budget.tick() >= feedback.nextDispatchTick) {
                     var planning = ECOBatchDispatchPlanning.prepare(liveRequest, provider);
                     long dispatchable = remainingCrafts;
                     if (dispatchable > 1 && traversal.hasUninspectedProviders()) {
@@ -177,14 +172,16 @@ final class ECOCraftingProviderDispatcher {
                     // providers that cannot receive a submission this tick.
                     long maxReceivers = Math
                         .min(submissions, budget.canAttemptOrdinary() ? dispatchable : dispatchable / 2);
-                    long receivers = traversal
-                        .sharingProviders(maxReceivers, peer -> processing.canVisitScaled(liveRequest, peer));
+                    long receivers = traversal.sharingProviders(
+                        maxReceivers,
+                        peer -> processing.canVisitScaled(liveRequest, peer, traversal.feedback(peer), budget));
                     long visitShare = JdkCompat.ceilDiv(dispatchable, receivers);
                     var scaledProcessingResult = processing.tryScaledDispatch(
                         liveRequest,
                         provider,
                         planning,
                         visitShare,
+                        feedback,
                         budget,
                         singlePower,
                         energyService,
@@ -201,7 +198,7 @@ final class ECOCraftingProviderDispatcher {
                         break;
                     }
                     // Refused because the target is occupied or locked: a one-copy push would be refused too.
-                    if (blocking && processing.isScaledFallbackDeferred(liveRequest, provider)) continue;
+                    if (budget.tick() < feedback.nextFallbackTick || !budget.hasTime()) continue;
                 }
                 // A scaled adapter is an optimization boundary. Its eligibility can be
                 // valid while the live target rejects the current offer (stale target,
@@ -219,7 +216,7 @@ final class ECOCraftingProviderDispatcher {
             if (fastResult != null) {
                 return Result.accepted(fastResult.acceptedCrafts(), true);
             }
-            if (liveRequest.job().suspended) return Result.none();
+            if (liveRequest.job().suspended || !budget.canStartSubmission()) return Result.none();
 
             var parallelResult = blocking ? null
                 : tryDispatchOrdinaryBatch(
@@ -228,15 +225,15 @@ final class ECOCraftingProviderDispatcher {
                     singlePower,
                     energyService,
                     budget,
-                    markProviderAttempt,
-                    markNormalResume);
+                    markProviderAttempt);
             if (parallelResult != null) {
                 return parallelResult;
             }
 
             // A batch is an optional optimization. If it is unavailable, rejected, or dynamically ambiguous,
             // the same provider still receives the normal one-copy fallback.
-            if (!budget.canAttemptOrdinary()) {
+            if (!budget.canStartSubmission() || !budget.canAttemptOrdinary()
+                || !feedback.singles.canSubmitSingle(budget.tick())) {
                 continue;
             }
 
@@ -244,9 +241,8 @@ final class ECOCraftingProviderDispatcher {
                 .plan(liveRequest, provider, 1, 1, singlePower, energyService, ECOBatchMode.SINGLE);
             if (plan == null) continue;
 
-            if (scaledProvider && !processing.claimFallbackAttempt(liveRequest.pattern())) {
-                continue;
-            }
+            if (scaledProvider && budget.remainingScaled() == 0) continue;
+            boolean[] submitted = { false };
             ECOBatchAdmission admission;
             try {
                 admission = ECOBatchExecutor.execute(
@@ -261,7 +257,7 @@ final class ECOCraftingProviderDispatcher {
                     batch -> {
                         markProviderAttempt.accept(provider);
                         budget.recordNormalProbe();
-                        markNormalResume.run();
+                        if (scaledProvider) budget.recordScaledProbe();
                         var single = new ECOCraftingDispatchRequest(
                             liveRequest.job(),
                             liveRequest.candidate(),
@@ -273,6 +269,7 @@ final class ECOCraftingProviderDispatcher {
                             batch.craftCount(),
                             liveRequest.inventory(),
                             liveRequest.level());
+                        submitted[0] = true;
                         return normalPush.push(single, provider) ? ECOBatchAdmission.accepted(1, false)
                             : ECOBatchAdmission.rejected();
                     });
@@ -284,14 +281,17 @@ final class ECOCraftingProviderDispatcher {
                 throw failure;
             }
             if (admission.status() != ECOBatchAdmission.Status.ACCEPTED) {
+                if (submitted[0]) feedback.singles
+                    .rejectedSingle(blocking || ECOProcessingPatternDispatcher.temporarilyUnavailable(provider));
                 continue;
             }
             try {
-
                 accounting.apply(
                     liveRequest,
                     ECOCraftingDispatchResult.single(liveRequest.outputs(), liveRequest.remainders()),
-                    budget::recordAcceptedNormalPush,
+                    () -> feedback.singles.acceptedSingle(
+                        !(provider instanceof NativeCraftingProvider nativeProvider)
+                            || nativeProvider.isScaledProcessingFullyInserted()),
                     provider);
             } catch (RuntimeException failure) {
                 accounting.failPermanently(liveRequest, "POST_ACCEPT_ORDINARY_ACCOUNTING_FAILURE");
@@ -319,7 +319,7 @@ final class ECOCraftingProviderDispatcher {
     @Nullable
     private Result tryDispatchOrdinaryBatch(ECOCraftingDispatchRequest request, ICraftingProvider provider,
         double singlePower, IEnergyGrid energyService, ECOCraftingDispatchBudget budget,
-        Consumer<ICraftingProvider> markProviderAttempt, Runnable markNormalResume) {
+        Consumer<ICraftingProvider> markProviderAttempt) {
         var parallelProvider = ECOParallelCraftingProviders.find(provider);
         if (parallelProvider == null) {
             return null;
@@ -350,7 +350,6 @@ final class ECOCraftingProviderDispatcher {
                 batch -> {
                     markProviderAttempt.accept(provider);
                     if (single) budget.recordNormalProbe();
-                    markNormalResume.run();
                     return parallelProvider.eco$pushPatternBatch(
                         batch.identity()
                             .originalPattern(),
@@ -375,7 +374,7 @@ final class ECOCraftingProviderDispatcher {
             ECOBatchCraftingHelper.multiply(ECOFastPathStacks.copyCounter(request.outputs()), accepted),
             ECOBatchCraftingHelper.multiply(ECOFastPathStacks.copyCounter(request.remainders()), accepted));
         try {
-            accounting.apply(request, result, () -> { if (single) budget.recordAcceptedNormalPush(); }, provider);
+            accounting.apply(request, result, () -> {}, provider);
         } catch (RuntimeException failure) {
             accounting.failPermanently(request, "POST_ACCEPT_PARALLEL_ACCOUNTING_FAILURE");
             throw failure;

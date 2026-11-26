@@ -1,47 +1,49 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
-/**
- * Per-tick ordinary crafting budget for an ECO CPU.
- *
- * <p>
- * The budget is deliberately limited to ordinary one-copy provider pushes. ECO FastPath batches are
- * already bounded by the live provider/worker capacity and therefore do not consume this budget.
- * </p>
- *
- * <p>
- * One CPU may submit at most 64 ordinary single copies per tick, even when its batch parallelism is higher.
- * </p>
- */
+/** Feedback for one original pattern at one live provider. A rate learned from singles is never a batch size. */
 public final class ECOCraftingDispatchStrategy {
 
-    private static final int MAX_ORDINARY_PUSHES_PER_TICK = 64;
-    private static final int HISTORY_SIZE = 3;
-    private final int[] usedOperations = new int[HISTORY_SIZE];
+    private long tick = Long.MIN_VALUE;
+    private int window = 1;
+    private int accepted;
+    private boolean paused;
 
     /**
-     * Returns the ordinary one-copy operations available for the current tick.
-     *
-     * @param coProcessors    number of CPU co-processors
-     * @param configuredLimit ECO's ordinary-path safety limit
+     * The configured limit is a ceiling, not the initial window. The co-processor parameter is retained for callers.
      */
     public int beginTick(int coProcessors, int configuredLimit) {
-        return ordinaryLimit(configuredLimit);
+        return Math.max(0, Math.min(window, configuredLimit));
     }
 
-    static int ordinaryLimit(int configuredLimit) {
-        return Math.min(MAX_ORDINARY_PUSHES_PER_TICK, Math.max(0, configuredLimit));
-    }
-
-    /** Records only accepted ordinary pushes; FastPath batches must not be passed here. */
+    /** Grow only after filling the entire window. Stock, power or time running out is not a refusal. */
     public void finishTick(int acceptedOrdinaryOperations) {
-        usedOperations[2] = usedOperations[1];
-        usedOperations[1] = usedOperations[0];
-        usedOperations[0] = Math.max(0, acceptedOrdinaryOperations);
+        if (!paused && acceptedOrdinaryOperations >= window) window = (int) Math.min(Integer.MAX_VALUE, 2L * window);
     }
 
-    /** Clears the transient rolling window after a CPU is restored or a job lifecycle is reset. */
     public void reset() {
-        java.util.Arrays.fill(usedOperations, 0);
+        tick = Long.MIN_VALUE;
+        window = 1;
+        accepted = 0;
+        paused = false;
     }
 
+    boolean canSubmitSingle(long now) {
+        if (tick != now) {
+            finishTick(accepted);
+            tick = now;
+            accepted = 0;
+            paused = false;
+        }
+        return !paused && accepted < window;
+    }
+
+    void acceptedSingle(boolean readyForMore) {
+        if (readyForMore) accepted++;
+        else paused = true; // Owned by AE2, but its outgoing buffer has not drained.
+    }
+
+    void rejectedSingle(boolean blocked) {
+        if (!blocked) window = Math.max(1, accepted);
+        paused = true; // Never repeat a negative probe for this pair in the same tick.
+    }
 }

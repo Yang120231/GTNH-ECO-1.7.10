@@ -108,7 +108,7 @@ final class ECOCraftingJobLifecycleController {
         initializeJobAttachments();
 
         var taskScheduler = host.taskSchedulerForLifecycle();
-        taskScheduler.resetDispatchState();
+        taskScheduler.reset();
         // Publish planned outputs immediately so AE2 can display and cancel the new job before the first machine tick.
         var initialStatusItems = new cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter();
         host.getAllItems(initialStatusItems);

@@ -5,6 +5,7 @@ import com.gtnewhorizon.gtnhlib.config.ConfigException;
 import com.gtnewhorizon.gtnhlib.config.ConfigurationManager;
 
 import cn.dancingsnow.neoecoae.NeoECOAE;
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeProcessingAccess;
 
 /**
  * The locked NEConfig defaults and ranges, declared through GTNHLib's config system. Categories and keys match the
@@ -22,6 +23,11 @@ public final class PlanningSettings {
 
     public static void register() throws ConfigException {
         for (Class<?> category : CATEGORIES) ConfigurationManager.registerConfig(category);
+        for (String name : Crafting.extraDirectBatchMedia) {
+            if (!NativeProcessingAccess.declareBatchMedium(name, true))
+                org.apache.logging.log4j.LogManager.getLogger(NeoECOAE.MODID)
+                    .warn("Ignoring invalid extraDirectBatchMedia class name: {}", name);
+        }
         cn.dancingsnow.neoecoae.compat.ae2.keyreuse.KeyReuse.configure(KeyReuse.enabled);
     }
 
@@ -139,11 +145,17 @@ public final class PlanningSettings {
         public static int ecoPlanningMaxMemoryMiB = 64;
 
         // Unloaded settings (unit tests) keep the hard ceiling; the configured default is lower.
-        @Config.Comment("Ordinary CPU dispatch safety limit; source algorithm applies its per-tick budget")
+        @Config.Comment("Safety ceiling on ordinary single-copy attempts per ECO CPU per tick, including refusals; not a target rate")
         @Config.DefaultInt(200_000)
         @Config.RangeInt(min = 1, max = MAX_ECO_CPU_PUSH_TICK_LIMIT)
         @Config.LangKey("neoecoae.configuration.ecoCpuPushTickLimit")
         public static int ecoCpuPushTickLimit = MAX_ECO_CPU_PUSH_TICK_LIMIT;
+
+        @Config.Comment("Soft wall-clock budget in milliseconds for all dispatch passes of an ECO-planned CPU per tick")
+        @Config.DefaultInt(5)
+        @Config.RangeInt(min = 1, max = 1_000)
+        @Config.LangKey("neoecoae.configuration.ecoCpuTickTimeBudgetMs")
+        public static int ecoCpuTickTimeBudgetMs = 5;
 
         // Unloaded settings (unit tests) keep the guard disabled so native operation counts stay deterministic.
         @Config.Comment("Per-CPU wall-clock budget in milliseconds for AE2-planned (vanilla) job execution each tick; 0 disables")
@@ -151,6 +163,13 @@ public final class PlanningSettings {
         @Config.RangeInt(min = 0, max = 1_000)
         @Config.LangKey("neoecoae.configuration.vanillaCpuTickTimeBudgetMs")
         public static int vanillaCpuTickTimeBudgetMs = 0;
+
+        @Config.Comment("Additional native medium classes verified to atomically accept whole scaled processing inputs. "
+            + "Inherited pushPattern implementations are included; overrides are not. A wrong declaration can lose materials.")
+        @Config.DefaultStringList({})
+        @Config.RequiresMcRestart
+        @Config.LangKey("neoecoae.configuration.extraDirectBatchMedia")
+        public static String[] extraDirectBatchMedia = {};
 
         @Config.Comment("Verified source recipe cache limit")
         @Config.DefaultInt(512)

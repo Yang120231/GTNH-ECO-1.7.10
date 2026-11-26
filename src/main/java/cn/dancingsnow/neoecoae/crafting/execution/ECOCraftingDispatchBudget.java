@@ -1,35 +1,64 @@
 package cn.dancingsnow.neoecoae.crafting.execution;
 
-/** Mutable per-pass ordinary-path accounting; verified batches deliberately do not consume it. */
+import cn.dancingsnow.neoecoae.platform.forge.PlanningSettings;
+
+/** One CPU's soft deadline and submission ceilings, shared by every dispatch pass in the server tick. */
 final class ECOCraftingDispatchBudget {
 
-    private final int ordinaryLimit;
-    private final int probeLimit;
-    private int normalProbes;
-    private int acceptedNormalPushes;
+    private long tick = Long.MIN_VALUE;
+    private long deadline;
+    private int ordinaryRemaining;
+    private int scaledRemaining;
+    private int passRemaining;
+    private boolean attempted;
 
-    ECOCraftingDispatchBudget(int ordinaryLimit, int probeLimit) {
-        this.ordinaryLimit = Math.max(0, ordinaryLimit);
-        this.probeLimit = Math.max(0, probeLimit);
+    void beginTick(long currentTick) {
+        if (tick == currentTick) return;
+        tick = currentTick;
+        attempted = false;
+        deadline = System.nanoTime() + Math.max(1L, PlanningSettings.Crafting.ecoCpuTickTimeBudgetMs) * 1_000_000L;
+        ordinaryRemaining = scaledRemaining = Math.max(0, PlanningSettings.Crafting.ecoCpuPushTickLimit);
+    }
+
+    long tick() {
+        return tick;
+    }
+
+    boolean hasTime() {
+        return System.nanoTime() - deadline < 0;
+    }
+
+    /** Let a costly first lookup make progress; after any attempt, yield before starting another transaction. */
+    boolean canStartSubmission() {
+        return !attempted || hasTime();
+    }
+
+    void recordProviderAttempt() {
+        attempted = true;
+    }
+
+    void beginPass(int maxPatterns) {
+        passRemaining = Math.min(ordinaryRemaining, Math.max(0, maxPatterns));
+    }
+
+    int remainingOrdinary() {
+        return ordinaryRemaining;
     }
 
     boolean canAttemptOrdinary() {
-        return ordinaryLimit > 0 && acceptedNormalPushes < ordinaryLimit && normalProbes < probeLimit;
+        return passRemaining > 0 && ordinaryRemaining > 0;
     }
 
     void recordNormalProbe() {
-        normalProbes++;
+        ordinaryRemaining--;
+        passRemaining--;
     }
 
-    void recordAcceptedNormalPush() {
-        acceptedNormalPushes++;
+    int remainingScaled() {
+        return scaledRemaining;
     }
 
-    int normalProbes() {
-        return normalProbes;
-    }
-
-    int acceptedNormalPushes() {
-        return acceptedNormalPushes;
+    void recordScaledProbe() {
+        scaledRemaining--;
     }
 }

@@ -80,7 +80,7 @@ public final class ECOParallelCraftingProviders {
         if (provider instanceof ECOParallelCraftingProvider own) {
             return own;
         }
-        if (!(provider instanceof ICraftingProvider crafting)) {
+        if (ADAPTERS.isEmpty() || !(provider instanceof ICraftingProvider crafting)) {
             return null;
         }
         var known = RESOLVED.get(crafting);

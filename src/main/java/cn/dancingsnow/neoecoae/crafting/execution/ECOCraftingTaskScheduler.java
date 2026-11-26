@@ -18,7 +18,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.PatternRuntime;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.inventory.ListCraftingInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
-import cn.dancingsnow.neoecoae.platform.minecraft.TickClock;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
@@ -29,12 +28,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
  * logic; provider algorithms and FastPath internals live behind {@link ECOCraftingProviderDispatcher}.
  */
 final class ECOCraftingTaskScheduler {
-
-    // A large exact order can contain thousands of task candidates. Walking every
-    // candidate in one CPU callback turns a temporary provider stall into a multi-
-    // second server tick. The cursor resumes at the next candidate on the next call.
-    private static final int MAX_CANDIDATE_INSPECTIONS_PER_EXECUTE = 64;
-    private static final int CURSOR_IDLE_PASS_STREAK = 16;
 
     private final ECOProviderCursor providerCursor = new ECOProviderCursor();
     private final ECOCraftingInputTemplateCache inputTemplateCache = new ECOCraftingInputTemplateCache();
@@ -48,28 +41,20 @@ final class ECOCraftingTaskScheduler {
     private IPatternDetails resumeDispatchPattern;
     // Keep successful-pattern priority separate from the bounded stalled-candidate scan cursor.
     private IPatternDetails preferredDispatchPattern;
-    private int cursorIdlePasses;
-    private int sharedRemainingNormalProbes = -1;
-    private DispatchPassResult lastPass = DispatchPassResult.EMPTY;
+    private boolean retryPreferred;
+    private final ECOCraftingDispatchBudget budget = new ECOCraftingDispatchBudget();
 
     ECOCraftingTaskScheduler(ECOCraftingProviderDispatcher providerDispatcher) {
         this.providerDispatcher = providerDispatcher;
     }
 
-    void resetDispatchState() {
+    void reset() {
         inputTemplateCache.clear();
         providerCursor.clear();
         resumeDispatchPattern = null;
         preferredDispatchPattern = null;
-        cursorIdlePasses = 0;
+        retryPreferred = false;
         resetMissingInputMemo();
-    }
-
-    void reset() {
-        resetDispatchState();
-        providerDispatcher.reset();
-        sharedRemainingNormalProbes = -1;
-        lastPass = DispatchPassResult.EMPTY;
     }
 
     boolean hasPendingTasks(ExecutingCraftingJob current) {
@@ -91,62 +76,38 @@ final class ECOCraftingTaskScheduler {
         inputTemplateCache.inventoryChanged(key);
     }
 
-    void beginSharedProbeBudget(int operationLimit) {
-        sharedRemainingNormalProbes = ECOCraftingDispatchStrategy.ordinaryLimit(operationLimit);
+    ECOCraftingDispatchBudget budgetForTick(long tick) {
+        budget.beginTick(tick);
+        return budget;
     }
 
-    void consumeSharedProbeBudget(int normalProbes) {
-        if (sharedRemainingNormalProbes >= 0) {
-            sharedRemainingNormalProbes = Math.max(0, sharedRemainingNormalProbes - normalProbes);
-        }
-    }
-
-    void endSharedProbeBudget() {
-        sharedRemainingNormalProbes = -1;
-    }
-
-    DispatchPassResult lastPass() {
-        return lastPass;
-    }
-
-    DispatchPassResult execute(int maxPatterns, ICraftingService craftingService, IEnergyGrid energyService,
-        World level, ExecutingCraftingJob current, ListCraftingInventory inventory,
+    int execute(int maxPatterns, ICraftingService craftingService, IEnergyGrid energyService, World level,
+        ExecutingCraftingJob current, ListCraftingInventory inventory,
         Function<IPatternDetails, Iterable<ICraftingProvider>> providerSupplier, BooleanSupplier jobStillActive,
         ECOCraftingCpuContext cpuContext, ECOCraftingProviderDispatcher.ECOCraftingNormalPush normalPush) {
-        providerCursor.beginPass(craftingService, TickClock.currentTick());
-        providerDispatcher.beginTick(TickClock.currentTick());
-        int ordinaryLimit = ECOCraftingDispatchStrategy.ordinaryLimit(maxPatterns);
-        int probeLimit = sharedRemainingNormalProbes >= 0 ? sharedRemainingNormalProbes : ordinaryLimit;
-        var budget = new ECOCraftingDispatchBudget(ordinaryLimit, probeLimit);
-
+        budgetForTick(cpuContext.gameTick()).beginPass(maxPatterns);
+        providerCursor.beginPass(craftingService, cpuContext.gameTick());
         int totalPushed = 0;
-        // A CPU callback may advance several independent ready tasks. Keep a bounded
-        // pass window so verified provider batches cannot turn one callback into an
-        // unbounded walk over the whole execution graph.
-        int taskDispatchLimit = MAX_CANDIDATE_INSPECTIONS_PER_EXECUTE;
-        int acceptedDispatches = 0;
-        cursorIdlePasses = 0;
         BitSet blockedOrderedPhases = new BitSet();
-        dispatchPass: while (jobStillActive.getAsBoolean()) {
+        while (budget.hasTime() && jobStillActive.getAsBoolean()) {
             var candidates = current.executionRuntime == null ? nativeDispatchCandidates(current)
                 : current.executionRuntime.candidates();
-            if (candidates.isEmpty()) {
-                preferredDispatchPattern = null;
-                cursorIdlePasses = 0;
-                break;
-            }
-
+            if (candidates.isEmpty()) break;
             int size = candidates.size();
-            int preferred = preferredIndex(candidates);
             int cursor = cursorIndex(candidates);
+            int preferred = retryPreferred ? preferredIndex(candidates) : -1;
+            retryPreferred = false;
             blockedOrderedPhases.clear();
-            boolean acceptedInPass = false;
-
-            if (preferred >= 0 && cursorIdlePasses > 0) {
+            // After a slice spent scanning stalled tasks, give the last productive task one turn, without
+            // losing the scan cursor. Otherwise round-robin even when the first task accepts indefinitely.
+            boolean accepted = false;
+            for (int step = preferred >= 0 && preferred != cursor ? -1 : 0; step < size; step++) {
+                boolean fromCursor = step >= 0;
+                int index = fromCursor ? (int) (((long) cursor + step) % size) : preferred;
+                if (fromCursor) resumeDispatchPattern = nextCandidatePattern(candidates, index);
                 var outcome = inspectAndDispatch(
                     candidates,
-                    preferred,
-                    false,
+                    index,
                     blockedOrderedPhases,
                     current,
                     providerSupplier,
@@ -158,89 +119,23 @@ final class ECOCraftingTaskScheduler {
                     jobStillActive,
                     normalPush);
                 totalPushed = addPushed(totalPushed, outcome.acceptedCrafts());
-                if (outcome.stopJob()) break dispatchPass;
+                if (outcome.stopJob()) return totalPushed;
                 if (outcome.accepted()) {
-                    cursorIdlePasses--;
-                    acceptedDispatches++;
-                    acceptedInPass = true;
-                } else {
-                    cursorIdlePasses = 0;
+                    accepted = true;
+                    break; // Rebuild candidates and their inputs after every accepted dispatch.
+                }
+                if (!budget.hasTime()) {
+                    retryPreferred = fromCursor && step + 1 < size && preferredDispatchPattern != null;
+                    return totalPushed;
                 }
             }
-
-            if (!acceptedInPass) {
-                boolean preferredCheckedInWindow = false;
-                int inspected = 0;
-                int step = 0;
-                for (; step < size && inspected < MAX_CANDIDATE_INSPECTIONS_PER_EXECUTE; step++) {
-                    int candidateIndex = (cursor + step) % size;
-                    if (candidateIndex == preferred) preferredCheckedInWindow = true;
-                    inspected++;
-                    var outcome = inspectAndDispatch(
-                        candidates,
-                        candidateIndex,
-                        true,
-                        blockedOrderedPhases,
-                        current,
-                        providerSupplier,
-                        budget,
-                        cpuContext,
-                        energyService,
-                        level,
-                        inventory,
-                        jobStillActive,
-                        normalPush);
-                    totalPushed = addPushed(totalPushed, outcome.acceptedCrafts());
-                    if (outcome.stopJob()) break dispatchPass;
-                    if (outcome.accepted()) {
-                        cursorIdlePasses = 0;
-                        acceptedDispatches++;
-                        acceptedInPass = true;
-                        break;
-                    }
-                }
-                if (!acceptedInPass && step < size) {
-                    // Preserve progress through a stalled candidate set. This is deliberately
-                    // separate from provider round-robin state: no provider was accepted.
-                    resumeDispatchPattern = candidates.get((cursor + step) % size)
-                        .pattern();
-                }
-                if (!acceptedInPass && preferred >= 0 && !preferredCheckedInWindow) {
-                    var outcome = inspectAndDispatch(
-                        candidates,
-                        preferred,
-                        false,
-                        blockedOrderedPhases,
-                        current,
-                        providerSupplier,
-                        budget,
-                        cpuContext,
-                        energyService,
-                        level,
-                        inventory,
-                        jobStillActive,
-                        normalPush);
-                    totalPushed = addPushed(totalPushed, outcome.acceptedCrafts());
-                    if (outcome.stopJob()) break dispatchPass;
-                    if (outcome.accepted()) {
-                        cursorIdlePasses = CURSOR_IDLE_PASS_STREAK;
-                        acceptedDispatches++;
-                        acceptedInPass = true;
-                    }
-                }
-            }
-            if (!acceptedInPass) break;
-            if (acceptedDispatches >= taskDispatchLimit) break;
-            // Re-enter with a fresh candidate snapshot so independent tasks can advance
-            // in the same CPU callback without allowing an old dependency snapshot to leak.
+            if (!accepted) break;
         }
-
-        lastPass = new DispatchPassResult(totalPushed, budget.normalProbes(), budget.acceptedNormalPushes());
-        return lastPass;
+        return totalPushed;
     }
 
     private CandidateOutcome inspectAndDispatch(List<ECOExecutionRuntime.DispatchCandidate> candidates,
-        int candidateIndex, boolean fromCursor, BitSet blockedOrderedPhases, ExecutingCraftingJob current,
+        int candidateIndex, BitSet blockedOrderedPhases, ExecutingCraftingJob current,
         Function<IPatternDetails, Iterable<ICraftingProvider>> providerSupplier, ECOCraftingDispatchBudget budget,
         ECOCraftingCpuContext cpuContext, IEnergyGrid energyService, World level, ListCraftingInventory inventory,
         BooleanSupplier jobStillActive, ECOCraftingProviderDispatcher.ECOCraftingNormalPush normalPush) {
@@ -299,14 +194,17 @@ final class ECOCraftingTaskScheduler {
 
         // An exhausted ordinary budget pauses priority instead of ending it.
         boolean[] providerEligibility = new boolean[2];
-        var providers = providerCursor
-            .availableProviders(pattern, () -> providerSupplier.apply(pattern), providerCandidate -> {
-                boolean eligible = providerDispatcher.isEligible(providerCandidate, pattern, budget);
+        var providers = providerCursor.availableProviders(
+            pattern,
+            () -> providerSupplier.apply(pattern),
+            budget,
+            (providerCandidate, feedback) -> {
+                boolean eligible = providerDispatcher.isEligible(providerCandidate, pattern, budget, feedback);
                 providerEligibility[eligible ? 0 : 1] = true;
                 return eligible;
             },
-                (providerCandidate, busy) -> ECOCraftingDispatchPolicyRegistry
-                    .isProviderAvailable(cpuContext, providerCandidate, busy));
+            (providerCandidate, busy) -> ECOCraftingDispatchPolicyRegistry
+                .isProviderAvailable(cpuContext, providerCandidate, busy));
         if (!providers.hasNext()) {
             if (providerEligibility[0] || !providerEligibility[1]) releasePreferredPattern(pattern);
             if (candidate.blocksOrderedPhase()) blockedOrderedPhases.set(candidate.phaseIndex());
@@ -384,17 +282,16 @@ final class ECOCraftingTaskScheduler {
             .openDispatch(current.fuzzyPlanningItemIds)) {
             dispatch = providerDispatcher.dispatchCandidate(request, providers, budget, energyService, provider -> {
                 providerAttempts[0]++;
+                budget.recordProviderAttempt();
                 providerCursor.advanceAfter(pattern, provider);
-            },
-                () -> { if (fromCursor) resumeDispatchPattern = nextCandidatePattern(candidates, candidateIndex); },
-                normalPush);
+            }, normalPush);
         }
         long acceptedCrafts = dispatch.accepted() ? dispatch.acceptedCrafts() : 0L;
         if (!jobStillActive.getAsBoolean()) return new CandidateOutcome(acceptedCrafts, dispatch.accepted(), true);
         if (dispatch.accepted()) {
+            if (progress.value <= 0L) providerCursor.forget(pattern);
             // Rebuild legal candidates and inputs after every acceptance.
             preferredDispatchPattern = progress.value > 0L ? pattern : null;
-            if (fromCursor) resumeDispatchPattern = nextCandidatePattern(candidates, candidateIndex);
             if (failedCandidateKey != null) missingInputFailures.remove(failedCandidateKey);
             return new CandidateOutcome(acceptedCrafts, true, false);
         }
@@ -437,7 +334,7 @@ final class ECOCraftingTaskScheduler {
     }
 
     private static int addPushed(int current, long accepted) {
-        return (int) Math.min(Integer.MAX_VALUE, (long) current + Math.max(0L, accepted));
+        return current + (int) Math.min(Integer.MAX_VALUE - current, Math.max(0L, accepted));
     }
 
     private List<ECOExecutionRuntime.DispatchCandidate> nativeDispatchCandidates(ExecutingCraftingJob current) {
@@ -502,12 +399,6 @@ final class ECOCraftingTaskScheduler {
                 return false;
         }
         return true;
-    }
-
-    @com.github.bsideup.jabel.Desugar
-    record DispatchPassResult(int totalPushed, int normalProbes, int acceptedNormalPushes) {
-
-        static final DispatchPassResult EMPTY = new DispatchPassResult(0, 0, 0);
     }
 
     @com.github.bsideup.jabel.Desugar

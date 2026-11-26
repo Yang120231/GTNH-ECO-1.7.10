@@ -10,17 +10,18 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
+import cn.dancingsnow.neoecoae.crafting.execution.ECOProcessingPatternDispatcher.ProbeState;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
 /** Transient provider traversal only; contains no job progress or material state. */
 final class ECOProviderCursor {
 
-    private final Map<IPatternDetails, Cursor> cursors = new Object2ObjectOpenHashMap<>();
+    private final Map<IPatternDetails, Cursor> cursors = new Reference2ObjectOpenHashMap<>();
     private ICraftingService service;
     private long revision;
     private long tick;
@@ -43,18 +44,19 @@ final class ECOProviderCursor {
      * <p>
      * The caller can try the providers in this order without resolving the pattern inputs again. Scanning
      * a full snapshot preserves the cursor; the caller must call {@link #advanceAfter} only when actually
-     * attempting a provider, so skipped providers cannot undo rejection fairness.
+     * attempting a provider. A time-sliced scan resumes on its first uninspected peer.
      * </p>
      */
     Traversal availableProviders(IPatternDetails pattern, Supplier<Iterable<ICraftingProvider>> providers,
-        Predicate<ICraftingProvider> eligible, BiPredicate<ICraftingProvider, Boolean> availability) {
+        ECOCraftingDispatchBudget budget, BiPredicate<ICraftingProvider, ProbeState> eligible,
+        BiPredicate<ICraftingProvider, Boolean> availability) {
         Cursor previous = cursors.get(pattern);
         Cursor cursor = previous;
         if (cursor == null || (!(service instanceof ECOCraftingProviderRevision) && cursor.tick != tick)) {
             var snapshot = new ArrayList<ICraftingProvider>();
             providers.get()
                 .forEach(snapshot::add);
-            cursor = new Cursor(snapshot, tick);
+            cursor = new Cursor(snapshot, tick, previous);
             // Refresh fallback snapshots each tick while preserving the next live provider by identity.
             if (previous != null && !previous.providers.isEmpty()) {
                 var nextProvider = previous.providers.get(previous.next);
@@ -63,24 +65,28 @@ final class ECOProviderCursor {
             }
             cursors.put(pattern, cursor);
         }
-        return new Traversal(cursor.providers, cursor.next, eligible, availability);
+        return new Traversal(cursor, budget, eligible, availability);
     }
 
     static final class Traversal implements Iterator<ICraftingProvider> {
 
         private final List<ICraftingProvider> snapshot;
         private final int start;
-        private final Predicate<ICraftingProvider> eligible;
+        private final Cursor cursor;
+        private final ECOCraftingDispatchBudget budget;
+        private final BiPredicate<ICraftingProvider, ProbeState> eligible;
         private final BiPredicate<ICraftingProvider, Boolean> availability;
         private int checked;
         private ICraftingProvider next;
         private int shareChecked;
         private IntArrayFIFOQueue scaledAhead;
 
-        private Traversal(List<ICraftingProvider> snapshot, int start, Predicate<ICraftingProvider> eligible,
-            BiPredicate<ICraftingProvider, Boolean> availability) {
-            this.snapshot = snapshot;
-            this.start = start;
+        private Traversal(Cursor cursor, ECOCraftingDispatchBudget budget,
+            BiPredicate<ICraftingProvider, ProbeState> eligible, BiPredicate<ICraftingProvider, Boolean> availability) {
+            this.cursor = cursor;
+            this.budget = budget;
+            this.snapshot = cursor.providers;
+            this.start = cursor.next;
             this.eligible = eligible;
             this.availability = availability;
         }
@@ -89,8 +95,15 @@ final class ECOProviderCursor {
             return snapshot.get((int) (((long) start + offset) % snapshot.size()));
         }
 
+        ProbeState feedback(ICraftingProvider provider) {
+            int index = cursor.indices.getInt(provider);
+            var state = cursor.feedback[index];
+            if (state == null) cursor.feedback[index] = state = new ProbeState();
+            return state;
+        }
+
         private boolean available(ICraftingProvider provider) {
-            return eligible.test(provider) && availability.test(provider, provider.isBusy());
+            return eligible.test(provider, feedback(provider)) && availability.test(provider, provider.isBusy());
         }
 
         boolean hasUninspectedProviders() {
@@ -104,7 +117,7 @@ final class ECOProviderCursor {
             while (!scaledAhead.isEmpty() && scaledAhead.firstInt() < checked) scaledAhead.dequeueInt();
             shareChecked = Math.max(shareChecked, checked);
             // Stop as soon as further targets cannot change the current share.
-            while (shareChecked < snapshot.size() && scaledAhead.size() < maxReceivers - 1) {
+            while (shareChecked < snapshot.size() && scaledAhead.size() < maxReceivers - 1 && budget.hasTime()) {
                 int offset = shareChecked++;
                 var peer = at(offset);
                 if (participates.test(peer) && available(peer)) scaledAhead.enqueue(offset);
@@ -115,6 +128,12 @@ final class ECOProviderCursor {
         @Override
         public boolean hasNext() {
             while (next == null && hasUninspectedProviders()) {
+                // Yield between inspections, not in the middle of a selected provider transaction. Resume
+                // on the first uninspected peer even if all earlier ones were busy and none was attempted.
+                if (checked > 0 && !budget.hasTime()) {
+                    cursor.next = cursor.indices.getInt(at(checked));
+                    return false;
+                }
                 var provider = at(checked++);
                 if (available(provider)) next = provider;
             }
@@ -155,15 +174,20 @@ final class ECOProviderCursor {
 
         final List<ICraftingProvider> providers;
         final Reference2IntOpenHashMap<ICraftingProvider> indices;
+        final ProbeState[] feedback;
         final long tick;
         int next;
 
-        Cursor(List<ICraftingProvider> providers, long tick) {
+        Cursor(List<ICraftingProvider> providers, long tick, Cursor previous) {
             this.providers = providers;
             this.indices = new Reference2IntOpenHashMap<>(providers.size());
             this.indices.defaultReturnValue(-1);
+            this.feedback = new ProbeState[providers.size()];
             for (int index = 0; index < providers.size(); index++) {
-                this.indices.put(providers.get(index), index);
+                var provider = providers.get(index);
+                this.indices.put(provider, index);
+                int old = previous == null ? -1 : previous.indices.getInt(provider);
+                if (old >= 0) feedback[index] = previous.feedback[old];
             }
             this.tick = tick;
         }

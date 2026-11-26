@@ -1,9 +1,11 @@
 package cn.dancingsnow.neoecoae;
 
+import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeProcessingAccess;
 import cn.dancingsnow.neoecoae.platform.forge.CommonProxy;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLInterModComms;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 
@@ -35,6 +37,18 @@ public class NeoECOAE {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         proxy.init(event);
+    }
+
+    @Mod.EventHandler
+    public void receiveIMC(FMLInterModComms.IMCEvent event) {
+        for (var message : event.getMessages()) {
+            boolean direct = "directBatchBuffer".equals(message.key);
+            if (!direct && !"scaledProcessing".equals(message.key)) continue;
+            if (!message.isStringMessage()
+                || !NativeProcessingAccess.declareBatchMedium(message.getStringValue(), direct))
+                org.apache.logging.log4j.LogManager.getLogger(MODID)
+                    .warn("Ignoring invalid {} declaration from {}", message.key, message.getSender());
+        }
     }
 
     @Mod.EventHandler
