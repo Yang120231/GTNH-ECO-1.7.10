@@ -8,7 +8,8 @@ import net.minecraftforge.event.world.WorldEvent;
 import appeng.api.networking.IGridHost;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.blocks.entity.NEBlockEntity;
-import cn.dancingsnow.neoecoae.impl.storage.ECOCellMutationBatch;
+import cn.dancingsnow.neoecoae.blocks.entity.storage.ECODriveBlockEntity;
+import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageDomains;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.MBCalculator;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
@@ -49,11 +50,8 @@ public final class StorageLifecycle {
 
     @SubscribeEvent
     public void save(WorldEvent.Save event) {
-        // Every dimension's chunks follow the overworld in one save pass, so their drives' cells are written here.
-        if (!event.world.isRemote && event.world.provider.dimensionId == 0) {
-            ECOCellMutationBatch.flushTickDeferred();
+        if (!event.world.isRemote && event.world.provider.dimensionId == 0)
             NativeWorldStorage.save(MinecraftServer.getServer());
-        }
     }
 
     @SubscribeEvent
@@ -82,10 +80,9 @@ public final class StorageLifecycle {
             cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftConfirmTracker.tick();
             cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingStatusTracker.tick();
             cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingGraphSync.tick();
-            ECOCellMutationBatch.flushTickDeferred();
             cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.flushTick();
-            ECOCellMutationBatch.retry();
-            ECOCellMutationBatch.assertClean();
+            ECOStorageCell.retryHostNotifications();
+            ECODriveBlockEntity.flushStatusUpdates();
         }
     }
 
@@ -112,9 +109,8 @@ public final class StorageLifecycle {
         cn.dancingsnow.neoecoae.platform.ae2.crafting.confirm.ECOCraftingGraphSync.clear();
         cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.clearAll();
         MBCalculator.clearPending();
-        ECOCellMutationBatch.flushTickDeferred();
-        ECOCellMutationBatch.clearThreadState();
-        ECOCellMutationBatch.drainRetries();
+        ECOStorageCell.stopHostNotifications();
+        ECODriveBlockEntity.clearStatusUpdates();
         cn.dancingsnow.neoecoae.platform.ae2.grid.NativeCellArrayUpdates.clear();
         cn.dancingsnow.neoecoae.platform.network.ServerThread.clear();
         NativeWorldStorage.close(server);

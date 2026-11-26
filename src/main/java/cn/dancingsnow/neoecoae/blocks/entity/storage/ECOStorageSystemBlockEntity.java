@@ -194,7 +194,7 @@ public class ECOStorageSystemBlockEntity extends NEBlockEntity<NEStorageCluster,
 
     public void tick(WorldView level, BlockPos pos, BlockState state) {
         long startNanos = System.nanoTime();
-        try (var cellBatch = cn.dancingsnow.neoecoae.impl.storage.ECOCellMutationBatch.open()) {
+        try {
             if (!stageRunner.run("migration", this::updateInfiniteStorageMode)) return;
             if (interfaceTransfer.hasRemainder()
                 && !stageRunner.run("transfer recovery", interfaceTransfer::settleRemainder)) return;

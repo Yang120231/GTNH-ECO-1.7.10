@@ -89,8 +89,9 @@ public final class ManagedFields {
         else if (value instanceof String) tag.putString("value", (String) value);
         else if (value instanceof UUID) tag.putUUID("value", (UUID) value);
         else if (value instanceof Enum) tag.putString("value", ((Enum<?>) value).name());
-        else if (value instanceof ItemStack)
-            tag.put("value", new CompoundTag(((ItemStack) value).writeToNBT(new net.minecraft.nbt.NBTTagCompound())));
+        else if (value instanceof ItemStack stack)
+            // 1.7.10 writeToNBT aliases stackTagCompound; queued Anvil writes and packets need their own snapshot.
+            tag.put("value", new CompoundTag(stack.writeToNBT(new net.minecraft.nbt.NBTTagCompound())).copy());
         else if (value instanceof cn.dancingsnow.neoecoae.platform.fluid.FluidStack) {
             var fluid = ((cn.dancingsnow.neoecoae.platform.fluid.FluidStack) value).toNative();
             if (fluid != null)

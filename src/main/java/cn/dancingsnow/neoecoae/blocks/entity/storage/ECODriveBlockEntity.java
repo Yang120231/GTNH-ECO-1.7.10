@@ -1,20 +1,23 @@
 package cn.dancingsnow.neoecoae.blocks.entity.storage;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.Packet;
+import net.minecraft.world.WorldServer;
 import net.minecraft.world.chunk.Chunk;
 
+import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.Nullable;
 
 import cn.dancingsnow.neoecoae.api.power.ECOPowerRole;
 import cn.dancingsnow.neoecoae.api.storage.ECOStorageCells;
 import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
-import cn.dancingsnow.neoecoae.impl.storage.ECOCellMutationBatch;
+import cn.dancingsnow.neoecoae.impl.storage.ECOStorageCell;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember;
 import cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageTransfer;
 import cn.dancingsnow.neoecoae.multiblock.cluster.NEStorageCluster;
@@ -28,7 +31,6 @@ import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
-import cn.dancingsnow.neoecoae.platform.minecraft.ServerTaskUtil;
 import cn.dancingsnow.neoecoae.platform.minecraft.ServerWorldView;
 import cn.dancingsnow.neoecoae.platform.minecraft.WorldView;
 import cn.dancingsnow.neoecoae.platform.nbt.CellComponents;
@@ -48,6 +50,7 @@ public class ECODriveBlockEntity extends
     implements ManagedHolder, IStorageProvider, ICellHost, ISaveProvider, appeng.api.storage.ICellContainer,
     ISidedInventory {
 
+    private static final Set<ECODriveBlockEntity> STATUS_UPDATES = ConcurrentHashMap.newKeySet();
     private static final String RESTORE_RECEIPTS_TAG = "neoecoae_restore_receipts";
 
     private final FieldManagedStorage syncStorage = new FieldManagedStorage(this);
@@ -94,8 +97,8 @@ public class ECODriveBlockEntity extends
     private ItemStack cachedCellStack;
     @Nullable
     private IECOStorageCell cachedCellInventory;
-    private boolean persistenceSyncQueued;
-    private boolean persistenceSyncNeeded;
+    private Chunk cellChunk;
+    private boolean retryStatus;
 
     public ECODriveBlockEntity(BlockEntityType<ECODriveBlockEntity> type, BlockPos pos, BlockState blockState) {
         super(type, pos, blockState, cn.dancingsnow.neoecoae.multiblock.calculator.NEStorageClusterCalculator::new);
@@ -104,7 +107,7 @@ public class ECODriveBlockEntity extends
 
     @Override
     public void loadTag(CompoundTag tag, cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
-        requireCellWrite();
+        releaseCellInventory();
         super.loadTag(tag, registries);
         if (!tag.contains("neoecoae_fields") && tag.contains("Cell", 10)) {
             cellStack = ItemStack.loadItemStackFromNBT(
@@ -113,7 +116,6 @@ public class ECODriveBlockEntity extends
             if (cellStack == null)
                 throw new IllegalStateException("Cannot resolve beta drive cell; original NBT retained");
         }
-        invalidateCellInventoryCache();
     }
 
     @Override
@@ -132,13 +134,12 @@ public class ECODriveBlockEntity extends
         if (cellStack != null && !isItemValid(cellStack) || !canExtractCell()) return false;
         ECOStorageSystemBlockEntity controller = getStorageController();
         if (controller != null) controller.rememberInfiniteMembers();
-        ECOStorageCells.releaseCellInventory(this.cellStack, this);
+        releaseCellInventory();
         if (controller != null && controller.isFormedInfiniteMode() && controller.ownsInfiniteMember(this.cellStack)) {
             ECOInfiniteStorageMember.clearMember(this.cellStack);
         }
         this.cellStack = cellStack;
         cellInteractionId = UUID.randomUUID();
-        invalidateCellInventoryCache();
         if (controller != null && controller.isFormedInfiniteMode()
             && !ECOInfiniteStorageMember.isSealed(cellStack)
             && ECOInfiniteStorageTransfer.isEligible(getCellInventory())) {
@@ -167,7 +168,7 @@ public class ECODriveBlockEntity extends
 
     @Override
     public boolean canExtractCell() {
-        return getCellExtractionBlockReason() == CellExtractionBlockReason.NONE && flushPendingCell();
+        return isDriveLoaded() && getCellExtractionBlockReason() == CellExtractionBlockReason.NONE;
     }
 
     @Override
@@ -256,82 +257,70 @@ public class ECODriveBlockEntity extends
     @Override
     public void addAdditionalDrops(WorldView level, BlockPos pos, List<ItemStack> drops) {
         super.addAdditionalDrops(level, pos, drops);
-        if (cellStack != null && flushPendingCell()) {
-            drops.add(cellStack);
-        }
+        if (cellStack != null) drops.add(getCellStack());
     }
 
     @Nullable
     public IECOStorageCell getCellInventory() {
         if (cellStack == null || cn.dancingsnow.neoecoae.platform.minecraft.ItemStacks.isEmpty(cellStack)) {
-            invalidateCellInventoryCache();
+            releaseCellInventory();
             return null;
         }
-        if (cachedCellStack != cellStack) {
-            ItemStack installed = cellStack;
-            cachedCellInventory = ECOStorageCells.getCellInventory(installed, this);
-            cachedCellStack = installed;
+        if (!isDriveLoaded()) return null;
+        if (cachedCellStack != cellStack) releaseCellInventory();
+        if (cachedCellStack == null) {
+            cachedCellInventory = ECOStorageCells.getCellInventory(cellStack, this);
+            cachedCellStack = cellStack;
         }
         return cachedCellInventory;
     }
 
-    private void invalidateCellInventoryCache() {
+    private void releaseCellInventory() {
+        ItemStack previous = cachedCellStack;
         cachedCellStack = null;
         cachedCellInventory = null;
+        ECOStorageCells.releaseCellInventory(previous, this);
     }
 
-    public boolean flushPendingCell() {
-        return ECOCellMutationBatch.flushDeferred(cachedCellInventory);
-    }
-
-    public static boolean flushChunkCells(Chunk chunk) {
-        if (!ECOCellMutationBatch.hasPendingWrites()) return true;
-        boolean written = true;
-        for (Object tile : chunk.chunkTileEntityMap.values()) {
-            if (tile instanceof ECODriveBlockEntity drive && !drive.flushPendingCell()) written = false;
+    private boolean isDriveLoaded() {
+        if (isRemoved()) return false;
+        if (!(worldObj instanceof WorldServer)) return true;
+        if (cellChunk == null) {
+            if (!worldObj.getChunkProvider()
+                .chunkExists(xCoord >> 4, zCoord >> 4)) return false;
+            cellChunk = worldObj.getChunkFromBlockCoords(xCoord, zCoord);
         }
-        return written;
-    }
-
-    private void requireCellWrite() {
-        if (!flushPendingCell()) throw new IllegalStateException("ECO drive cell write is still pending");
+        // Forge clears this before saving; TileEntity.onChunkUnload is delivered later.
+        return cellChunk.isChunkLoaded;
     }
 
     @Override
-    public boolean defersCellPersistence() {
+    public boolean isCellActive(IECOStorageCell cell) {
+        return cachedCellInventory == cell && isDriveLoaded();
+    }
+
+    @Override
+    public boolean snapshotsCellStack() {
         return true;
     }
 
     @Override
-    protected void saveAdditional(cn.dancingsnow.neoecoae.platform.nbt.CompoundTag tag,
-        cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
-        requireCellWrite();
-        super.saveAdditional(tag, registries);
-    }
-
-    /** The description packet serializes the synced cell stack directly, bypassing {@link #saveAdditional}. */
-    @Override
-    public CompoundTag getUpdateTag(cn.dancingsnow.neoecoae.platform.minecraft.HolderLookup.Provider registries) {
-        requireCellWrite();
-        return super.getUpdateTag(registries);
-    }
-
-    @Override
-    public Packet getDescriptionPacket() {
-        if (flushPendingCell()) return super.getDescriptionPacket();
-        persistenceSyncNeeded = true;
-        return null;
+    public void validate() {
+        cellChunk = null;
+        super.validate();
     }
 
     @Override
     public void onChunkUnloaded() {
-        if (flushPendingCell()) ECOStorageCells.releaseCellInventory(cellStack, this);
+        STATUS_UPDATES.remove(this);
+        releaseCellInventory();
         super.onChunkUnloaded();
     }
 
     @Override
     public void setRemoved() {
-        if (flushPendingCell()) ECOStorageCells.releaseCellInventory(cellStack, this);
+        STATUS_UPDATES.remove(this);
+        releaseCellInventory();
         super.setRemoved();
     }
 
@@ -413,24 +402,34 @@ public class ECODriveBlockEntity extends
 
     @Override
     public void notifyPersistence() {
-        if (level instanceof ServerWorldView && !isRemoved()) level.markLoadedChunkDirty(worldPosition);
-        // One status/description refresh per drive per tick; repeated cell writes in between change nothing it reads.
-        if (persistenceSyncQueued) return;
-        if (level instanceof ServerWorldView serverLevel) {
-            persistenceSyncQueued = true;
-            ServerTaskUtil.executeIfServerRunning(serverLevel, () -> {
-                persistenceSyncQueued = false;
-                if (isRemoved()) return;
-                CellState previousState = cellState;
-                updateCellState();
-                // Contents are server-authoritative (UI and WAILA read server snapshots); only the LED state is
-                // client-visible, so a description packet carrying the whole cell is sent only when it changes.
-                if (persistenceSyncNeeded || previousState != cellState) {
-                    persistenceSyncNeeded = false;
-                    markForUpdate();
-                }
-            });
+        if (!(level instanceof ServerWorldView) || !isDriveLoaded()) return;
+        cellChunk.setChunkModified();
+        STATUS_UPDATES.add(this);
+    }
+
+    /**
+     * Only the LED/description refresh is deferred. A broken sync cannot fail a committed transfer or the server tick.
+     */
+    public static void flushStatusUpdates() {
+        if (STATUS_UPDATES.isEmpty()) return;
+        for (ECODriveBlockEntity drive : STATUS_UPDATES.toArray(new ECODriveBlockEntity[0])) {
+            if (!STATUS_UPDATES.remove(drive) || !drive.isDriveLoaded() || drive.isServerStopping()) continue;
+            try {
+                CellState previous = drive.cellState;
+                drive.updateCellState();
+                if (drive.retryStatus || previous != drive.cellState) drive.markForUpdate();
+                drive.retryStatus = false;
+            } catch (RuntimeException failure) {
+                if (!drive.retryStatus) LogManager.getLogger(ECODriveBlockEntity.class)
+                    .warn("Retrying ECO drive status update", failure);
+                drive.retryStatus = true;
+                STATUS_UPDATES.add(drive);
+            }
         }
+    }
+
+    public static void clearStatusUpdates() {
+        STATUS_UPDATES.clear();
     }
 
     private void updateCellState() {
@@ -453,7 +452,6 @@ public class ECODriveBlockEntity extends
     public void setConfiguredCellPriority(int priority) {
         if (level == null || level.isClientSide
             || !cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.canConfigure(cellStack)) return;
-        if (!flushPendingCell()) return;
         cn.dancingsnow.neoecoae.impl.storage.ECOStorageCellSettings.setPriority(cellStack, priority);
         onCellConfigurationChanged();
         var controller = getStorageController();
@@ -555,7 +553,7 @@ public class ECODriveBlockEntity extends
 
     @Override
     public ItemStack getStackInSlot(int slot) {
-        return slot == 0 && flushPendingCell() ? cellStack : null;
+        return slot == 0 ? getCellStack() : null;
     }
 
     @Override
@@ -653,6 +651,7 @@ public class ECODriveBlockEntity extends
     }
 
     public ItemStack getCellStack() {
+        if (cachedCellInventory instanceof ECOStorageCell cell) cell.freezeSnapshot();
         return cellStack;
     }
 

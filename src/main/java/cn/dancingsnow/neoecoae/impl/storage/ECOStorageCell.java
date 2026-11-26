@@ -1,10 +1,14 @@
 package cn.dancingsnow.neoecoae.impl.storage;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.Actionable;
@@ -27,20 +31,25 @@ import cn.dancingsnow.neoecoae.platform.ae2.storage.IUpgradeInventory;
 import cn.dancingsnow.neoecoae.platform.ae2.storage.StorageCells;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 import cn.dancingsnow.neoecoae.platform.nbt.CellComponents;
+import cn.dancingsnow.neoecoae.platform.nbt.CompoundTag;
 import cn.dancingsnow.neoecoae.platform.registry.NativeStorageCellItem;
 import cn.dancingsnow.neoecoae.platform.registry.StorageTierDescriptor;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMaps;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
 public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingVersion {
+
+    private static final Logger LOGGER = LogManager.getLogger(ECOStorageCell.class);
+    // Only notifications are retried. The corresponding inventory changes already have a receipt and a snapshot.
+    private static final Set<ECOStorageCell> FAILED_NOTIFICATIONS = Collections.synchronizedSet(new LinkedHashSet<>());
+    private static final long WRITE_REFUSED = -1;
 
     @Override
     public long neoecoae$listingVersion() {
         // Custom cell subclasses may expose dynamic resources independently of this quantity table.
         if (getClass() != ECOStorageCell.class) return UNKNOWN;
         return cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack) ? -1L
-            : contentRevision;
+            : contentRevision();
     }
 
     @Nullable
@@ -75,6 +84,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     private long storedItemCount;
 
     public long getStoredItemCount() {
+        refreshContents();
         return storedItemCount;
     }
 
@@ -82,10 +92,13 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     private long contentRevision;
 
     public long contentRevision() {
+        refreshContents();
         return contentRevision;
     }
 
-    private boolean isPersisted = true;
+    private CellComponents.Contents contents;
+    private boolean reportedEncodingFailure;
+    private boolean notificationFailed;
     private final StorageTierDescriptor tier;
 
     public StorageTierDescriptor getTier() {
@@ -99,15 +112,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
         if (cellStack.getItem() instanceof IBasicECOCellItem c) {
             keyType = c.getKeyType();
             maxItemTypes = c.getTotalTypes();
-            var storedStacks = getStoredStacks();
-            this.storedItems = (int) storedStacks.stream()
-                .filter(stack -> stack.amount() > 0L)
-                .count();
-            this.storedItemCount = storedStacks.stream()
-                .filter(stack -> stack.amount() > 0L)
-                .mapToLong(GenericStack::amount)
-                .reduce(0L, NEMath::saturatingAdd);
-            this.storedAmounts = null;
+            readContents();
             this.cellType = c;
             this.tier = c.getTier();
 
@@ -202,11 +207,8 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     }
 
     public long getStoredItemTypes() {
+        refreshContents();
         return storedItems;
-    }
-
-    private List<GenericStack> getStoredStacks() {
-        return CellComponents.readStacks(cellStack);
     }
 
     public static boolean canStoreKeyInsideStorageCell(AEKey what) {
@@ -219,24 +221,26 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     }
 
     protected Object2LongMap<AEKey> getCellItems() {
-        if (this.storedAmounts == null) {
-            this.storedAmounts = new Object2LongOpenHashMap<>(maxItemTypes);
-            this.loadCellItems();
-        }
-
-        return this.storedAmounts;
+        refreshContents();
+        return storedAmounts;
     }
 
-    private void loadCellItems() {
-        var stacks = getStoredStacks();
-        for (var stack : stacks) {
-            if (stack.what() != null && stack.amount() > 0L) {
-                storedAmounts
-                    .put(stack.what(), NEMath.saturatingAdd(storedAmounts.getLong(stack.what()), stack.amount()));
-            }
+    private void refreshContents() {
+        if (!contents.isCurrent(cellStack)) {
+            readContents();
+            markContentChanged();
         }
+    }
+
+    private void readContents() {
+        contents = new CellComponents.Contents(cellStack);
+        storedAmounts = contents.amounts();
         storedItems = storedAmounts.size();
-        storedItemCount = storedAmounts.values()
+        storedItemCount = totalAmount();
+    }
+
+    private long totalAmount() {
+        return storedAmounts.values()
             .longStream()
             .reduce(0L, NEMath::saturatingAdd);
     }
@@ -246,52 +250,106 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
         return cellType.getIdleDrain();
     }
 
+    /** The NBT is already current. A consumer can now retain this version while the drive keeps running. */
     @Override
     public void persist() {
-        if (this.isPersisted) {
+        freezeSnapshot();
+    }
+
+    public final void freezeSnapshot() {
+        contents.freeze();
+    }
+
+    private boolean canChange() {
+        return container == null || container.isCellActive(this);
+    }
+
+    /** Bulk edit hook for specialised inventories which modify the protected quantity table themselves. */
+    protected void saveChanges() {
+        if (!canChange()) throw new IllegalStateException("Cannot change a detached ECO cell inventory");
+        var stacks = new ArrayList<GenericStack>(storedAmounts.size());
+        storedAmounts.forEach((key, amount) -> { if (amount > 0) stacks.add(new GenericStack(key, amount)); });
+        try {
+            if (stacks.isEmpty()) CellComponents.clearStacks(cellStack);
+            else CellComponents.writeStacks(cellStack, stacks);
+        } finally {
+            // A failed bulk encoding leaves the original stack untouched; restore the live view from that version.
+            readContents();
+        }
+        committed();
+    }
+
+    private boolean setAmount(AEKey key, long previous, long next) {
+        if (!canChange() || !contents.isCurrent(cellStack)) return false;
+        CompoundTag encoded = null;
+        if (previous == 0) {
+            long revision = contentRevision;
+            try {
+                encoded = CellComponents.encodeKey(key);
+            } catch (RuntimeException failure) {
+                if (!reportedEncodingFailure)
+                    LOGGER.error("Refusing unencodable ECO cell key before acceptance", failure);
+                reportedEncodingFailure = true;
+                return false;
+            }
+            // A third-party codec can reenter storage or detach the drive. Its result cannot commit a stale offer.
+            if (revision != contentRevision || !contents.isCurrent(cellStack) || !canChange()) return false;
+        }
+        contents.set(cellStack, key, next, encoded, container != null && container.snapshotsCellStack());
+        if (next == 0) storedAmounts.removeLong(key);
+        else storedAmounts.put(key, next);
+        storedItems = storedAmounts.size();
+        storedItemCount = next >= previous ? NEMath.saturatingAdd(storedItemCount, next - previous)
+            : storedItemCount == Long.MAX_VALUE ? totalAmount() : storedItemCount - (previous - next);
+        committed();
+        return true;
+    }
+
+    private void committed() {
+        markContentChanged();
+        notifyHost();
+    }
+
+    private void notifyHost() {
+        if (container == null) return;
+        try {
+            if (canChange()) container.notifyPersistence();
+        } catch (RuntimeException failure) {
+            if (!notificationFailed) LOGGER.error("ECO cell committed; retrying host notification only", failure);
+            notificationFailed = true;
+            FAILED_NOTIFICATIONS.add(this);
             return;
         }
+        if (notificationFailed) {
+            notificationFailed = false;
+            FAILED_NOTIFICATIONS.remove(this);
+        }
+    }
 
-        var itemCount = 0L;
-        var stacks = new ArrayList<GenericStack>(storedAmounts.size());
+    public static void retryHostNotifications() {
+        retryHostNotifications(16);
+    }
 
-        for (var entry : this.storedAmounts.object2LongEntrySet()) {
-            long amount = entry.getLongValue();
-            itemCount = NEMath.saturatingAdd(itemCount, amount);
-
-            if (amount > 0) {
-                stacks.add(new GenericStack(entry.getKey(), amount));
+    private static void retryHostNotifications(int limit) {
+        ECOStorageCell[] pending;
+        synchronized (FAILED_NOTIFICATIONS) {
+            if (FAILED_NOTIFICATIONS.isEmpty()) return;
+            pending = new ECOStorageCell[Math.min(limit, FAILED_NOTIFICATIONS.size())];
+            var it = FAILED_NOTIFICATIONS.iterator();
+            for (int i = 0; i < pending.length; i++) {
+                pending[i] = it.next();
+                it.remove();
             }
         }
-
-        if (stacks.isEmpty()) {
-            CellComponents.clearStacks(cellStack);
-        } else {
-            CellComponents.writeStacks(cellStack, stacks);
-        }
-
-        int actualTypes = this.storedAmounts.size();
-        this.storedItems = actualTypes;
-
-        this.storedItemCount = itemCount;
-        this.isPersisted = true;
+        // Persistent failures go to the back. Never run foreign callbacks while holding the queue lock.
+        for (ECOStorageCell cell : pending) if (cell.notificationFailed) cell.notifyHost();
     }
 
-    protected void saveChanges() {
-        contentRevision++;
-        this.isPersisted = false;
-        if (ECOCellMutationBatch.defer(this)) return;
-        if (container != null && container.defersCellPersistence() && ECOCellMutationBatch.deferToTickEnd(this)) return;
-        flushBatchedChanges();
-    }
-
-    void flushBatchedChanges() {
-        // The host only marks its block entity dirty; it does not serialize this
-        // transient inventory instance back into the cell stack for us.
-        this.persist();
-        if (this.container != null) {
-            this.container.notifyPersistence();
-        }
+    public static void stopHostNotifications() {
+        retryHostNotifications(Integer.MAX_VALUE);
+        if (!FAILED_NOTIFICATIONS.isEmpty())
+            LOGGER.error("{} ECO cell host notifications failed at shutdown", FAILED_NOTIFICATIONS.size());
+        FAILED_NOTIFICATIONS.clear();
     }
 
     /** Specialized cells may accept multiple channels with the same amount-per-byte accounting. */
@@ -303,7 +361,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     public long insert(AEKey what, long amount, Actionable mode, IActionSource source) {
         what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
         if (cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack)) return 0L;
-        if (amount == 0 || !acceptsKey(what)) {
+        if (!canChange() || amount <= 0 || !acceptsKey(what)) {
             return 0;
         }
 
@@ -317,6 +375,7 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
 
         // 执行常规插入逻辑，然后对返回值应用虚空升级效果。
         long inserted = innerInsert(what, amount, mode);
+        if (inserted == WRITE_REFUSED) return 0; // A codec failure is never void-overflow acceptance.
 
         // 当虚空卡用于（已满的）未格式化元件时，确保不会虚空掉元件未存储且无法存储的物品。
         if (partitionList.isEmpty() && hasVoidUpgrade && !canHoldNewItem()) {
@@ -329,13 +388,13 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     /** Inserts for a lossless migration without applying the void upgrade's reported acceptance. */
     public long insertForMigration(AEKey what, long amount, Actionable mode) {
         what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
-        if (amount <= 0 || !acceptsKey(what)) {
+        if (!canChange() || amount <= 0 || !acceptsKey(what)) {
             return 0;
         }
         if (!partitionList.matchesFilter(what, partitionListMode) || cellType.isBlackListed(cellStack, what)) {
             return 0;
         }
-        return innerInsert(what, amount, mode);
+        return Math.max(0, innerInsert(what, amount, mode));
     }
 
     /** Marks an in-memory mutation from a specialised cell implementation. */
@@ -343,9 +402,10 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
         contentRevision = contentRevision == Long.MAX_VALUE ? 0L : contentRevision + 1L;
     }
 
-    /** Joins the current controller mutation batch, if one is active. */
+    /** Legacy extension hook: inventory commits are no longer deferred. */
+    @Deprecated
     protected final boolean deferMutationBatch() {
-        return ECOCellMutationBatch.defer(this);
+        return false;
     }
 
     @Override
@@ -472,15 +532,8 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
             return 0;
         }
 
-        if (mode == Actionable.MODULATE) {
-            long newAmount = currentAmount + amount;
-            getCellItems().put(what, newAmount);
-            if (currentAmount <= 0) {
-                storedItems++;
-            }
-            storedItemCount = NEMath.saturatingAdd(storedItemCount, amount);
-            this.saveChanges();
-        }
+        if (mode == Actionable.MODULATE && !setAmount(what, currentAmount, currentAmount + amount))
+            return WRITE_REFUSED;
 
         return amount;
     }
@@ -488,31 +541,12 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     @Override
     public long extract(AEKey what, long amount, Actionable mode, IActionSource source) {
         what = cn.dancingsnow.neoecoae.compat.ae2.keyreuse.ECOKeyFactory.canonicalize(what);
-        if (amount <= 0L || cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack))
-            return 0L;
-        var currentAmount = getCellItems().getLong(what);
-        if (currentAmount > 0) {
-            if (amount >= currentAmount) {
-                if (mode == Actionable.MODULATE) {
-                    getCellItems().remove(what, currentAmount);
-                    storedItems = Math.max(0, storedItems - 1);
-                    storedItemCount = Math.max(0, storedItemCount - currentAmount);
-                    this.saveChanges();
-                }
-
-                return currentAmount;
-            } else {
-                if (mode == Actionable.MODULATE) {
-                    getCellItems().put(what, currentAmount - amount);
-                    storedItemCount = Math.max(0, storedItemCount - amount);
-                    this.saveChanges();
-                }
-
-                return amount;
-            }
-        }
-
-        return 0;
+        if (!canChange() || amount <= 0L
+            || cn.dancingsnow.neoecoae.impl.storage.infinite.ECOInfiniteStorageMember.isSealed(cellStack)) return 0L;
+        long current = getCellItems().getLong(what);
+        long extracted = Math.min(current, amount);
+        if (extracted > 0 && mode == Actionable.MODULATE && !setAmount(what, current, current - extracted)) return 0;
+        return extracted;
     }
 
     @Override
@@ -586,10 +620,10 @@ public class ECOStorageCell implements IECOStorageMigrationCell, StorageListingV
     }
 
     public void clearAllStoredStacks() {
-        getCellItems().clear();
-        storedItems = 0;
-        storedItemCount = 0;
-        saveChanges();
+        if (!canChange()) throw new IllegalStateException("Cannot clear a detached ECO cell inventory");
+        CellComponents.clearStacks(cellStack);
+        readContents();
+        committed();
     }
 
     @Override

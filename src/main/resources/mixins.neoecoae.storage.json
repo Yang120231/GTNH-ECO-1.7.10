@@ -1,8 +1,0 @@
-{
-  "required": true,
-  "minVersion": "0.8.5-GTNH",
-  "package": "cn.dancingsnow.neoecoae.platform.mixin",
-  "compatibilityLevel": "JAVA_8",
-  "mixins": [],
-  "injectors": { "defaultRequire": 1 }
-}

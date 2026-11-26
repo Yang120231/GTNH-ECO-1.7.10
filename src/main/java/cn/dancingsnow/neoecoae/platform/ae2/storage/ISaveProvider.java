@@ -1,5 +1,7 @@
 package cn.dancingsnow.neoecoae.platform.ae2.storage;
 
+import cn.dancingsnow.neoecoae.api.storage.IECOStorageCell;
+
 @FunctionalInterface
 public interface ISaveProvider {
 
@@ -9,11 +11,19 @@ public interface ISaveProvider {
         saveChanges();
     }
 
-    /**
-     * True only for hosts that require a successful {@code ECOCellMutationBatch.flushDeferred} before transferring
-     * or saving their cell; such hosts can coalesce writes until the end of the server tick.
-     */
+    /** Kept for existing integrations; the cell no longer defers quantity writes. */
+    @Deprecated
     default boolean defersCellPersistence() {
+        return false;
+    }
+
+    /** A mounted handler must not accept transfers after its stack or chunk has left the host. */
+    default boolean isCellActive(IECOStorageCell cell) {
+        return true;
+    }
+
+    /** True for an exclusive host that takes detached disk/packet snapshots and freezes the cell on handoff. */
+    default boolean snapshotsCellStack() {
         return false;
     }
 }

@@ -1,7 +1,5 @@
 package cn.dancingsnow.neoecoae.platform.registry;
 
-import java.util.ArrayList;
-
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentTranslation;
@@ -56,10 +54,4 @@ public final class NativeDriveBlock extends NativeMachineBlock {
         return super.onBlockActivated(world, x, y, z, player, side, hitX, hitY, hitZ);
     }
 
-    @Override
-    public ArrayList<ItemStack> getDrops(World world, int x, int y, int z, int metadata, int fortune) {
-        if (!world.isRemote && world.getTileEntity(x, y, z) instanceof ECODriveBlockEntity drive
-            && !drive.flushPendingCell()) return new ArrayList<>();
-        return super.getDrops(world, x, y, z, metadata, fortune);
-    }
 }
