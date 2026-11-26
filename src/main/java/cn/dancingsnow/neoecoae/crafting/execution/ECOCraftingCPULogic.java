@@ -311,10 +311,7 @@ public class ECOCraftingCPULogic implements CraftingJobPersistenceContext, ECOCr
     }
 
     static int calculateOperationLimit(int coProcessors, int configuredLimit) {
-        long baseLimit = 64L;
-        long safeConfiguredLimit = Math
-            .min((long) PlanningSettings.MAX_ECO_CPU_PUSH_TICK_LIMIT, Math.max(0L, configuredLimit));
-        return (int) Math.min(Integer.MAX_VALUE, Math.min(baseLimit, safeConfiguredLimit));
+        return ECOCraftingDispatchStrategy.ordinaryLimit(configuredLimit);
     }
 
     private java.util.List<ICraftingProvider> collectAvailableProviders(ICraftingService craftingService,

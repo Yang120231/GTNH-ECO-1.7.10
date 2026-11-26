@@ -13,6 +13,7 @@ import cn.dancingsnow.neoecoae.api.me.provider.ECOCraftingProviderRevision;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingService;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
+import it.unimi.dsi.fastutil.ints.IntArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 
@@ -45,9 +46,8 @@ final class ECOProviderCursor {
      * attempting a provider, so skipped providers cannot undo rejection fairness.
      * </p>
      */
-    Iterator<ICraftingProvider> availableProviders(IPatternDetails pattern,
-        Supplier<Iterable<ICraftingProvider>> providers, Predicate<ICraftingProvider> eligible,
-        BiPredicate<ICraftingProvider, Boolean> availability) {
+    Traversal availableProviders(IPatternDetails pattern, Supplier<Iterable<ICraftingProvider>> providers,
+        Predicate<ICraftingProvider> eligible, BiPredicate<ICraftingProvider, Boolean> availability) {
         Cursor previous = cursors.get(pattern);
         Cursor cursor = previous;
         if (cursor == null || (!(service instanceof ECOCraftingProviderRevision) && cursor.tick != tick)) {
@@ -63,32 +63,71 @@ final class ECOProviderCursor {
             }
             cursors.put(pattern, cursor);
         }
-        var snapshot = cursor.providers;
-        int start = cursor.next;
-        return new Iterator<>() {
+        return new Traversal(cursor.providers, cursor.next, eligible, availability);
+    }
 
-            private int checked;
-            private ICraftingProvider next;
+    static final class Traversal implements Iterator<ICraftingProvider> {
 
-            @Override
-            public boolean hasNext() {
-                while (next == null && checked < snapshot.size()) {
-                    var provider = snapshot.get((start + checked++) % snapshot.size());
-                    if (!eligible.test(provider)) continue;
-                    boolean busy = provider.isBusy();
-                    if (availability.test(provider, busy)) next = provider;
-                }
-                return next != null;
+        private final List<ICraftingProvider> snapshot;
+        private final int start;
+        private final Predicate<ICraftingProvider> eligible;
+        private final BiPredicate<ICraftingProvider, Boolean> availability;
+        private int checked;
+        private ICraftingProvider next;
+        private int shareChecked;
+        private IntArrayFIFOQueue scaledAhead;
+
+        private Traversal(List<ICraftingProvider> snapshot, int start, Predicate<ICraftingProvider> eligible,
+            BiPredicate<ICraftingProvider, Boolean> availability) {
+            this.snapshot = snapshot;
+            this.start = start;
+            this.eligible = eligible;
+            this.availability = availability;
+        }
+
+        private ICraftingProvider at(int offset) {
+            return snapshot.get((int) (((long) start + offset) % snapshot.size()));
+        }
+
+        private boolean available(ICraftingProvider provider) {
+            return eligible.test(provider) && availability.test(provider, provider.isBusy());
+        }
+
+        boolean hasUninspectedProviders() {
+            return checked < snapshot.size();
+        }
+
+        /** Count peers after the current provider without consuming the dispatch iterator or moving its cursor. */
+        long sharingProviders(long maxReceivers, Predicate<ICraftingProvider> participates) {
+            if (maxReceivers <= 1 || !hasUninspectedProviders()) return 1;
+            if (scaledAhead == null) scaledAhead = new IntArrayFIFOQueue();
+            while (!scaledAhead.isEmpty() && scaledAhead.firstInt() < checked) scaledAhead.dequeueInt();
+            shareChecked = Math.max(shareChecked, checked);
+            // Stop as soon as further targets cannot change the current share.
+            while (shareChecked < snapshot.size() && scaledAhead.size() < maxReceivers - 1) {
+                int offset = shareChecked++;
+                var peer = at(offset);
+                if (participates.test(peer) && available(peer)) scaledAhead.enqueue(offset);
             }
+            return Math.min(maxReceivers, 1L + scaledAhead.size());
+        }
 
-            @Override
-            public ICraftingProvider next() {
-                if (!hasNext()) throw new NoSuchElementException();
-                var provider = next;
-                next = null;
-                return provider;
+        @Override
+        public boolean hasNext() {
+            while (next == null && hasUninspectedProviders()) {
+                var provider = at(checked++);
+                if (available(provider)) next = provider;
             }
-        };
+            return next != null;
+        }
+
+        @Override
+        public ICraftingProvider next() {
+            if (!hasNext()) throw new NoSuchElementException();
+            var provider = next;
+            next = null;
+            return provider;
+        }
     }
 
     /** Records the provider currently being attempted so the next pass starts after it. */

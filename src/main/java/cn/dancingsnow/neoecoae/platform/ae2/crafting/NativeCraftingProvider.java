@@ -42,6 +42,7 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     private final boolean usesAssemblerBatchSize;
     private final boolean preserveInputSlots;
     private final boolean scalesProcessingInputs;
+    private final boolean directBatchBuffer;
     private boolean assemblerBatchRejected;
 
     private static final String ASSEMBLER_MATRIX = "com.science.gtnl.common.machine.multiblock.AssemblerMatrix";
@@ -104,15 +105,29 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
         Class<?> mediumClass = medium.getClass();
         String mediumType = mediumClass.getName();
         boolean orderedMatrix = GTSWN_ITEM_INPUT.equals(mediumType) || GTSWN_FLUID_INPUT.equals(mediumType);
+        boolean directBuffer = isType(mediumClass, GT_CRAFTING_INPUT_HATCH)
+            || isType(mediumClass, SUPER_CRAFTING_INPUT_HATCH);
         this.usesAssemblerBatchSize = matrix || ME_CHISEL.equals(mediumType);
         this.preserveInputSlots = matrix || orderedMatrix;
+        this.directBatchBuffer = directBuffer;
         this.scalesProcessingInputs = mediumClass == DualityInterface.class
             || medium instanceof DualityInterface && mediumClass.getEnclosingClass() == PartP2PInterface.class
-            || GT_CRAFTING_INPUT_HATCH.equals(mediumType)
+            || directBuffer
             || ASSEMBLER_MATRIX.equals(mediumType)
             || ME_CHISEL.equals(mediumType)
-            || SUPER_CRAFTING_INPUT_HATCH.equals(mediumType)
             || orderedMatrix;
+    }
+
+    private static boolean isType(Class<?> type, String name) {
+        for (; type != null; type = type.getSuperclass()) {
+            if (name.equals(type.getName())) return true;
+        }
+        return false;
+    }
+
+    /** True for ME pattern hatches whose internal PatternSlot accepts full scaled stacks directly without probing. */
+    public boolean hasDirectBatchBuffer() {
+        return directBatchBuffer;
     }
 
     public ICraftingMedium nativeMedium() {

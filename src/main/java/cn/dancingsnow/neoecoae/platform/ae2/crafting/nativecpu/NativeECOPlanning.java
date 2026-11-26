@@ -37,11 +37,13 @@ import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.GenericStack;
 import cn.dancingsnow.neoecoae.platform.network.ServerTasks;
+import cn.dancingsnow.neoecoae.platform.network.ServerThread;
 
 /** Native terminal entry and callback lifecycle for the real source planning service. */
 @SuppressWarnings({ "rawtypes", "unchecked" })
 public final class NativeECOPlanning {
 
+    private static final int MAX_CATALOG_RETRIES = 8;
     private static final Set<Pending> PENDING = Collections.newSetFromMap(new IdentityHashMap<>());
 
     private NativeECOPlanning() {}
@@ -129,6 +131,22 @@ public final class NativeECOPlanning {
         var options = ECOPlannerOptions.from(host);
         if (NativePlannerRouting.routeToNative(grid, output, options.ignorePatternSubstitutions()))
             return new CraftingJobV2(world, grid, source, output, CraftingMode.STANDARD, callback).schedule();
+        Attempt attempt = startEcoAttempt(world, grid, key, output.getStackSize(), options);
+        Pending pending = new Pending(
+            world,
+            grid,
+            source,
+            action,
+            output,
+            key,
+            attempt,
+            callback,
+            ServerTasks.captureSession());
+        PENDING.add(pending);
+        return pending;
+    }
+
+    private static Attempt startEcoAttempt(World world, IGrid grid, AEKey key, long amount, ECOPlannerOptions options) {
         var view = GridView.of(grid);
         MECraftingInventory snapshot = new MECraftingInventory();
         for (var entry : view.getStorageService()
@@ -140,25 +158,13 @@ public final class NativeECOPlanning {
                 Actionable.MODULATE);
         var catalog = view.captureCraftingService(world);
         var future = ECOPlanningService
-            .begin(view, catalog, key, output.getStackSize(), CalculationStrategy.REPORT_MISSING_ITEMS, options);
-        Pending pending = new Pending(
-            world,
-            grid,
-            output,
-            future,
-            snapshot,
-            callback,
-            ServerTasks.captureSession(),
-            catalog);
-        PENDING.add(pending);
-        return pending;
+            .begin(view, catalog, key, amount, CalculationStrategy.REPORT_MISSING_ITEMS, options);
+        return new Attempt(future, snapshot, catalog, null, ServerThread.tick());
     }
 
     public static void tick() {
         for (Pending pending : new ArrayList<>(PENDING)) {
-            if (!pending.session.isRunning()
-                || net.minecraftforge.common.DimensionManager.getWorld(pending.world.provider.dimensionId)
-                    != pending.world) {
+            if (!pending.session.isRunning() || !pending.isWorldLoaded()) {
                 pending.cancel(true);
                 PENDING.remove(pending);
                 continue;
@@ -176,12 +182,12 @@ public final class NativeECOPlanning {
                     new NativeECOCraftingJob(
                         null,
                         pending.output,
-                        pending.snapshot,
+                        pending.snapshot(),
                         String.valueOf(failed.getCause()),
                         pending.world,
                         pending.grid,
                         pending.session,
-                        pending.catalog));
+                        pending.catalog()));
             }
         }
     }
@@ -198,77 +204,243 @@ public final class NativeECOPlanning {
         PENDING.clear();
     }
 
+    private static final class Attempt {
+
+        final Future<ICraftingPlan> ecoFuture;
+        final MECraftingInventory snapshot;
+        final CraftingServiceView catalog;
+        final Future<ICraftingJob> nativeFallback;
+        final long startedTick;
+
+        Attempt(Future<ICraftingPlan> ecoFuture, MECraftingInventory snapshot, CraftingServiceView catalog,
+            Future<ICraftingJob> nativeFallback, long startedTick) {
+            this.ecoFuture = ecoFuture;
+            this.snapshot = snapshot;
+            this.catalog = catalog;
+            this.nativeFallback = nativeFallback;
+            this.startedTick = startedTick;
+        }
+
+        boolean isDone() {
+            return nativeFallback != null ? nativeFallback.isDone() : ecoFuture.isDone();
+        }
+
+        boolean cancel(boolean interrupt) {
+            return nativeFallback != null ? nativeFallback.cancel(interrupt) : ecoFuture.cancel(interrupt);
+        }
+
+        boolean isCancelled() {
+            return nativeFallback != null ? nativeFallback.isCancelled() : ecoFuture.isCancelled();
+        }
+    }
+
     private static final class Pending implements Future<ICraftingJob> {
 
         final World world;
         final IGrid grid;
+        final BaseActionSource actionSource;
+        final IActionSource action;
         final IAEStack<?> output;
-        final Future<ICraftingPlan> source;
-        final MECraftingInventory snapshot;
+        final AEKey key;
         final ICraftingCallback callback;
         final ServerTasks.Session session;
-        final CraftingServiceView catalog;
-        private NativeECOCraftingJob job;
+        private Attempt attempt;
+        private int retries;
+        private boolean cancelled;
+        private ICraftingJob job;
 
-        Pending(World world, IGrid grid, IAEStack<?> output, Future<ICraftingPlan> source, MECraftingInventory snapshot,
-            ICraftingCallback callback, ServerTasks.Session session, CraftingServiceView catalog) {
+        Pending(World world, IGrid grid, BaseActionSource actionSource, IActionSource action, IAEStack<?> output,
+            AEKey key, Attempt attempt, ICraftingCallback callback, ServerTasks.Session session) {
             this.world = world;
             this.grid = grid;
+            this.actionSource = actionSource;
+            this.action = action;
             this.output = output.copy();
-            this.source = source;
-            this.snapshot = snapshot;
+            this.key = key;
+            this.attempt = attempt;
             this.callback = callback;
             this.session = session;
-            this.catalog = catalog;
         }
 
-        private synchronized NativeECOCraftingJob wrap(ICraftingPlan plan) {
-            if (job != null) return job;
-            if (!session.isRunning() || !catalog.isCatalogCurrent()) {
+        synchronized MECraftingInventory snapshot() {
+            return attempt.snapshot;
+        }
+
+        synchronized CraftingServiceView catalog() {
+            return attempt.catalog;
+        }
+
+        boolean isWorldLoaded() {
+            return net.minecraftforge.common.DimensionManager.getWorld(world.provider.dimensionId) == world;
+        }
+
+        private void retryOnServerThread() {
+            retries++;
+            try {
+                var host = settings(grid, action);
+                if (host == null) {
+                    if (retries >= MAX_CATALOG_RETRIES) {
+                        scheduleNativeFallback();
+                    } else {
+                        // The computation cluster may be reforming for a tick; wait before falling back to native.
+                        attempt = new Attempt(
+                            attempt.ecoFuture,
+                            attempt.snapshot,
+                            attempt.catalog,
+                            null,
+                            ServerThread.tick());
+                    }
+                    PENDING.add(this);
+                    return;
+                }
+                if (!host.isFastPlannerEnabled()) {
+                    scheduleNativeFallback();
+                } else {
+                    var options = ECOPlannerOptions.from(host);
+                    if (NativePlannerRouting.routeToNative(grid, output, options.ignorePatternSubstitutions())) {
+                        scheduleNativeFallback();
+                    } else {
+                        attempt.cancel(true);
+                        attempt = startEcoAttempt(world, grid, key, output.getStackSize(), options);
+                    }
+                }
+                PENDING.add(this);
+            } catch (RuntimeException failure) {
+                attempt.cancel(true);
                 job = new NativeECOCraftingJob(
                     null,
                     output,
-                    snapshot,
+                    attempt.snapshot,
+                    String.valueOf(failure),
+                    world,
+                    grid,
+                    session,
+                    attempt.catalog);
+            }
+        }
+
+        private void scheduleNativeFallback() {
+            attempt.cancel(true);
+            Future<ICraftingJob> fallback = new CraftingJobV2(
+                world,
+                grid,
+                actionSource,
+                output,
+                CraftingMode.STANDARD,
+                null).schedule();
+            attempt = new Attempt(null, attempt.snapshot, attempt.catalog, fallback, ServerThread.tick());
+        }
+
+        private synchronized ICraftingJob wrap(Attempt expected, ICraftingPlan plan) {
+            if (job != null) return job;
+            if (!session.isRunning() || !expected.catalog.isCatalogCurrent()) {
+                job = new NativeECOCraftingJob(
+                    null,
+                    output,
+                    expected.snapshot,
                     "Crafting network or recipes changed during planning; retry the request",
                     world,
                     grid,
                     session,
-                    catalog);
-            } else job = new NativeECOCraftingJob(
-                plan,
-                plan.finalOutput()
-                    .what()
-                    .toNative(
-                        plan.finalOutput()
-                            .amount()),
-                snapshot,
-                "",
-                world,
-                grid,
-                session,
-                catalog);
+                    expected.catalog);
+            } else if (plan == null) {
+                job = new NativeECOCraftingJob(
+                    null,
+                    output,
+                    expected.snapshot,
+                    "ECO planning ended without a plan",
+                    world,
+                    grid,
+                    session,
+                    expected.catalog);
+            } else {
+                job = new NativeECOCraftingJob(
+                    plan,
+                    plan.finalOutput()
+                        .what()
+                        .toNative(
+                            plan.finalOutput()
+                                .amount()),
+                    expected.snapshot,
+                    "",
+                    world,
+                    grid,
+                    session,
+                    expected.catalog);
+            }
             return job;
         }
 
-        public boolean cancel(boolean interrupt) {
-            return source.cancel(interrupt);
+        @Override
+        public synchronized boolean cancel(boolean interrupt) {
+            if (cancelled || job != null) return false;
+            boolean logicalDone = attempt.isDone() && (attempt.nativeFallback != null || !isWorldLoaded()
+                || !session.isRunning()
+                || attempt.catalog.isCatalogCurrent()
+                || retries >= MAX_CATALOG_RETRIES);
+            boolean attemptCancelled = attempt.cancel(interrupt);
+            if (attemptCancelled || !logicalDone) {
+                cancelled = true;
+                return true;
+            }
+            return false;
         }
 
-        public boolean isCancelled() {
-            return source.isCancelled();
+        @Override
+        public synchronized boolean isCancelled() {
+            return cancelled || attempt.isCancelled();
         }
 
-        public boolean isDone() {
-            return source.isDone();
+        @Override
+        public synchronized boolean isDone() {
+            if (job != null || cancelled) return true;
+            if (attempt.nativeFallback != null) return attempt.nativeFallback.isDone();
+            if (isWorldLoaded() && session.isRunning()
+                && !attempt.catalog.isCatalogCurrent()
+                && retries < MAX_CATALOG_RETRIES) {
+                if (ServerTasks.isServerThread() && ServerThread.tick() != attempt.startedTick) {
+                    retryOnServerThread();
+                    if (job != null) return true;
+                    if (attempt.nativeFallback != null) return attempt.nativeFallback.isDone();
+                    return attempt.catalog.isCatalogCurrent() && attempt.ecoFuture.isDone();
+                }
+                return false;
+            }
+            return attempt.ecoFuture.isDone();
         }
 
+        @Override
         public ICraftingJob get() throws InterruptedException, ExecutionException {
-            return wrap(source.get());
+            try {
+                return resolve(false, 0L, TimeUnit.NANOSECONDS);
+            } catch (TimeoutException impossible) {
+                throw new IllegalStateException("Untimed get threw TimeoutException", impossible);
+            }
         }
 
+        @Override
         public ICraftingJob get(long timeout, TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException {
-            return wrap(source.get(timeout, unit));
+            return resolve(true, timeout, unit);
+        }
+
+        private ICraftingJob resolve(boolean timed, long timeout, TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException {
+            Attempt current;
+            synchronized (this) {
+                if (job != null) return job;
+                current = attempt;
+            }
+            if (current.nativeFallback != null) {
+                ICraftingJob fallbackJob = timed ? current.nativeFallback.get(timeout, unit)
+                    : current.nativeFallback.get();
+                synchronized (this) {
+                    if (attempt == current && job == null) job = fallbackJob;
+                    return job != null ? job : fallbackJob;
+                }
+            }
+            ICraftingPlan plan = timed ? current.ecoFuture.get(timeout, unit) : current.ecoFuture.get();
+            return wrap(current, plan);
         }
     }
 }
