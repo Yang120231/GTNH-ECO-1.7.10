@@ -48,6 +48,25 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
     private static final String ME_CHISEL = "com.science.gtnl.common.block.blocks.tile.TileEntityMEChisel";
     private static final String SUPER_CRAFTING_INPUT_HATCH = "com.science.gtnl.common.machine.hatch.SuperCraftingInputHatchME";
     private static final String GT_CRAFTING_INPUT_HATCH = "gregtech.common.tileentities.machines.MTEHatchCraftingInputME";
+    /**
+     * TenkeiTech's super and auto-template input hatches keep every pushed stack whole in long-backed
+     * per-pattern / shared stores, exactly like GT's crafting input hatch. The bender and wiremill
+     * variants extend the auto-template hatch, so the superclass chain is what has to match.
+     */
+    private static final String TENKEI_AUTO_TEMPLATE_INPUT_HATCH = "com.tenkeitech.machine.MTEHatchAutoTemplateInputME";
+    private static final String TENKEI_SUPER_CRAFTING_INPUT_HATCH = "com.tenkeitech.machine.MTESuperCraftingInputME";
+    private static final ClassValue<Boolean> TENKEI_PATTERN_HATCHES = new ClassValue<>() {
+
+        @Override
+        protected Boolean computeValue(Class<?> type) {
+            for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+                String name = c.getName();
+                if (TENKEI_AUTO_TEMPLATE_INPUT_HATCH.equals(name) || TENKEI_SUPER_CRAFTING_INPUT_HATCH.equals(name))
+                    return true;
+            }
+            return false;
+        }
+    };
     private static final String GT_INPUT_BUS = "gregtech.api.metatileentity.implementations.MTEHatchInputBus";
     private static final String GT_INPUT_HATCH = "gregtech.api.metatileentity.implementations.MTEHatchInput";
     private static final String GTSWN_ITEM_INPUT = "com.miaokatze.gtswn.common.assembly.MatrixItemInputBus";
@@ -112,7 +131,8 @@ public final class NativeCraftingProvider implements ICraftingProvider, NativePr
             || ASSEMBLER_MATRIX.equals(mediumType)
             || ME_CHISEL.equals(mediumType)
             || SUPER_CRAFTING_INPUT_HATCH.equals(mediumType)
-            || orderedMatrix;
+            || orderedMatrix
+            || TENKEI_PATTERN_HATCHES.get(mediumClass);
     }
 
     public ICraftingMedium nativeMedium() {
