@@ -611,7 +611,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
     private void settingsChanged() {
         setChanged();
         markForUpdate();
-        requestCommunicationProviderUpdate();
         getMainNode().ifPresent(
             (grid, node) -> grid.getTickManager()
                 .wakeDevice(node));
@@ -794,7 +793,6 @@ public class ECOLargeIntegratedWorkingStationBlockEntity extends ECOIntegratedWo
         setPauseReason(PauseReason.NONE);
 
         setChanged();
-        requestCommunicationProviderUpdate();
         return true;
     }
 

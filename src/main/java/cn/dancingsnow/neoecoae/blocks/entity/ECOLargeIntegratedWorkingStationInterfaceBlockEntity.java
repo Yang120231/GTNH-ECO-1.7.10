@@ -19,7 +19,6 @@ import cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.IPatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails;
 import cn.dancingsnow.neoecoae.platform.ae2.crafting.NativeSourceCraftingMedium;
-import cn.dancingsnow.neoecoae.platform.ae2.grid.NodeListener;
 import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
@@ -96,11 +95,7 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
 
     @Override
     public void provideCrafting(ICraftingProviderHelper helper) {
-        for (IPatternDetails pattern : getAvailablePatterns()) if (pattern instanceof NativePatternDetails) {
-            ((NativePatternDetails) pattern).nativeDetails()
-                .setPriority(getPatternPriority());
-            helper.addCraftingOption(this, ((NativePatternDetails) pattern).nativeDetails());
-        }
+        workstationProvider.provideCrafting(helper);
     }
 
     @Override
@@ -253,13 +248,7 @@ public class ECOLargeIntegratedWorkingStationInterfaceBlockEntity
     @Override
     public void updateCluster(NEIntegratedWorkingStationCluster next) {
         super.updateCluster(next);
-        workstationProvider.updatePatterns();
-    }
-
-    @Override
-    public void onMainNodeStateChanged(NodeListener.State reason) {
-        super.onMainNodeStateChanged(reason);
-        workstationProvider.updatePatterns();
+        workstationProvider.controllerChanged();
     }
 
     @Override

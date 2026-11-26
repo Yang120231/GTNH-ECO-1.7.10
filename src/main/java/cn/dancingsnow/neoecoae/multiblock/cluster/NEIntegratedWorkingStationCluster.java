@@ -47,8 +47,9 @@ public class NEIntegratedWorkingStationCluster extends NECluster<NEIntegratedWor
         if (controller != null) {
             controller.setFormed(formed);
         }
-        if (communication != null) {
-            cn.dancingsnow.neoecoae.platform.ae2.crafting.ICraftingProvider.requestUpdate(communication.getMainNode());
+        if (communication instanceof cn.dancingsnow.neoecoae.blocks.entity.ECOLargeIntegratedWorkingStationInterfaceBlockEntity workstationInterface) {
+            workstationInterface.getWorkstationProvider()
+                .controllerChanged();
         }
     }
 

@@ -82,12 +82,13 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
     };
     private final ConfigManager config = new ConfigManager(this);
     private List<IPatternDetails> compatiblePatterns = Collections.emptyList();
+    private List<AEItemKey> advertisedKeys = Collections.emptyList();
     private Object lastController, lastRecipes;
-    private Object advertisedRecipes;
+    private Object advertisedRecipes, publishedRecipes;
     private boolean dirty = true, waitingForPulse, redstone;
     private GenericStack unlockStack;
     private int revision;
-    private int priority;
+    private int priority, advertisedPriority;
     private ItemStack legacyUpgrade;
     private cn.dancingsnow.neoecoae.api.me.diagnostics.ECOProcessingTargetProvider.Target processingTarget;
 
@@ -199,6 +200,10 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
         return p != null && c.acceptPattern(p, null, false);
     }
 
+    public void controllerChanged() {
+        if (lastController != controller()) updatePatterns();
+    }
+
     public void updatePatterns() {
         dirty = true;
         revision++;
@@ -227,8 +232,9 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
         if (!dirty && lastController == controller && lastRecipes == recipes) return compatiblePatterns;
         List<IPatternDetails> result = new ArrayList<>();
         for (int slot = 0; slot < getRequiredPatternRows() * PATTERN_COLUMNS; slot++) {
-            var pattern = PatternDetailsHelper
-                .decodePattern(AEItemKey.of(patterns.getStackInSlot(slot)), host.getWorldObj());
+            ItemStack stack = patterns.getStackInSlot(slot);
+            if (ItemStacks.isEmpty(stack)) continue;
+            var pattern = PatternDetailsHelper.decodePattern(AEItemKey.of(stack), host.getWorldObj());
             if (pattern != null && controller.acceptPattern(pattern, null, false)) result.add(pattern);
         }
         compatiblePatterns = Collections.unmodifiableList(result);
@@ -313,6 +319,37 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
         host.saveChanges();
     }
 
+    public void provideCrafting(appeng.api.networking.crafting.ICraftingProviderHelper helper) {
+        List<IPatternDetails> available = getAvailablePatterns();
+        for (IPatternDetails pattern : available) {
+            if (pattern instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails nativePattern) {
+                nativePattern.nativeDetails()
+                    .setPriority(priority);
+                helper.addCraftingOption(host, nativePattern.nativeDetails());
+            }
+        }
+        advertisedKeys = patternKeys(available);
+        advertisedPriority = priority;
+        publishedRecipes = lastRecipes;
+    }
+
+    private static List<AEItemKey> patternKeys(List<IPatternDetails> available) {
+        if (available.isEmpty()) return Collections.emptyList();
+        List<AEItemKey> keys = new ArrayList<>(available.size());
+        for (IPatternDetails pattern : available) {
+            if (pattern instanceof cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternDetails) {
+                keys.add(pattern.getDefinition());
+            }
+        }
+        return keys.isEmpty() ? Collections.emptyList() : keys;
+    }
+
+    private boolean hasUnpublishedAdvertisement() {
+        List<AEItemKey> currentKeys = patternKeys(getAvailablePatterns());
+        if (!currentKeys.equals(advertisedKeys)) return true;
+        return !currentKeys.isEmpty() && (priority != advertisedPriority || lastRecipes != publishedRecipes);
+    }
+
     public void onPatternResult(GenericStack result) {
         if (unlockStack != null && result != null
             && unlockStack.what()
@@ -320,7 +357,6 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
             && result.amount() >= unlockStack.amount()) {
             unlockStack = null;
             host.saveChanges();
-            requestProviderUpdate();
         }
     }
 
@@ -331,7 +367,6 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
             && result.amount() == unlockStack.amount()) {
             unlockStack = null;
             host.saveChanges();
-            requestProviderUpdate();
         }
     }
 
@@ -342,12 +377,15 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
         if (next != redstone) {
             redstone = next;
             host.saveChanges();
-            requestProviderUpdate();
         }
     }
 
     private void requestProviderUpdate() {
-        if (host.getWorldObj() != null && !host.getWorldObj().isRemote) PENDING_UPDATES.add(this);
+        if (host.getWorldObj() == null || host.getWorldObj().isRemote) return;
+        if (host.getMainNode()
+            .getNode() == null) return;
+        // A terminal can edit every slot in one operation. Compare only the final contents at tick end.
+        PENDING_UPDATES.add(this);
     }
 
     /** Resolve current grids after topology updates; AE2 merges the resulting rebuilds per grid. */
@@ -364,7 +402,8 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
                         .isReady())
                     continue;
                 if (host.getMainNode()
-                    .getNode() != null) ICraftingProvider.requestUpdate(host.getMainNode());
+                    .getNode() != null && provider.hasUnpublishedAdvertisement())
+                    ICraftingProvider.requestUpdate(host.getMainNode());
             }
         } finally {
             appeng.me.cache.CraftingGridCache.unpauseRebuilds();
@@ -407,7 +446,6 @@ public final class LargeWorkstationPatternProvider implements ICraftingProvider,
             unlockStack = null;
         }
         host.saveChanges();
-        requestProviderUpdate();
     }
 
     public void writeToNBT(CompoundTag tag, HolderLookup.Provider registries) {
