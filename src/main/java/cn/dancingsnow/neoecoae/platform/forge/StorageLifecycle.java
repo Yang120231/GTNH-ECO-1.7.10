@@ -95,9 +95,11 @@ public final class StorageLifecycle {
             cn.dancingsnow.neoecoae.multiblock.network.NELogicalNetworkManager.tick(level);
         }
         cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider.flushProviderUpdates();
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternPublication.flushTick();
     }
 
     public static void stopped() {
+        cn.dancingsnow.neoecoae.platform.ae2.crafting.NativePatternPublication.stopped();
         cn.dancingsnow.neoecoae.blocks.entity.LargeWorkstationPatternProvider.clearPendingUpdates(null);
         cn.dancingsnow.neoecoae.platform.gt.NativeProcessingMachines.clear();
         cn.dancingsnow.neoecoae.impl.storage.legacy.BetaStorageReader.clearCache();
