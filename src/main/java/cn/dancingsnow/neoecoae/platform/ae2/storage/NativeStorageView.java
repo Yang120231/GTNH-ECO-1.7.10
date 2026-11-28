@@ -6,8 +6,8 @@ import appeng.api.config.AccessRestriction;
 import appeng.api.config.Actionable;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.StorageChannel;
 import appeng.api.storage.data.IAEStack;
+import appeng.api.storage.data.IAEStackType;
 import appeng.api.storage.data.IItemList;
 import cn.dancingsnow.neoecoae.api.storage.ECOBigIntegerStorage;
 import cn.dancingsnow.neoecoae.platform.ae2.grid.IActionSource;
@@ -15,23 +15,23 @@ import cn.dancingsnow.neoecoae.platform.ae2.key.AEKey;
 import cn.dancingsnow.neoecoae.platform.ae2.key.KeyCounter;
 import cn.dancingsnow.neoecoae.platform.minecraft.Component;
 
-/** One native channel/priority projection of an imported inventory, preserving the original security source. */
+/** One native stack type and priority of a mounted inventory, preserving the original security source. */
 public final class NativeStorageView<T extends IAEStack>
     implements IMEInventoryHandler<T>, MEStorage, DelegatingStorage, ECOBigIntegerStorage {
 
     private final MEStorage storage;
-    private final StorageChannel channel;
+    private final IAEStackType<T> stackType;
     private final int priority;
 
-    public NativeStorageView(MEStorage storage, StorageChannel channel, int priority) {
+    public NativeStorageView(MEStorage storage, IAEStackType<T> stackType, int priority) {
         this.storage = java.util.Objects.requireNonNull(storage);
-        this.channel = channel;
+        this.stackType = java.util.Objects.requireNonNull(stackType);
         this.priority = priority;
     }
 
     private boolean accepts(AEKey key) {
         return key != null && key.getType()
-            .nativeChannel() == channel;
+            .nativeType() == stackType;
     }
 
     @Override
@@ -133,8 +133,8 @@ public final class NativeStorageView<T extends IAEStack>
     }
 
     @Override
-    public StorageChannel getChannel() {
-        return channel;
+    public IAEStackType<T> getStackType() {
+        return stackType;
     }
 
     @Override

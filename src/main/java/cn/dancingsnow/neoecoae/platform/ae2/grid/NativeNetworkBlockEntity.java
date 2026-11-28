@@ -1,6 +1,14 @@
 package cn.dancingsnow.neoecoae.platform.ae2.grid;
 
+import static appeng.util.item.AEFluidStackType.FLUID_STACK_TYPE;
+import static appeng.util.item.AEItemStackType.ITEM_STACK_TYPE;
+
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.item.ItemStack;
@@ -15,10 +23,15 @@ import appeng.api.networking.events.MENetworkBootingStatusChange;
 import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.api.networking.events.MENetworkPowerStatusChange;
+import appeng.api.storage.IMEInventoryHandler;
+import appeng.api.storage.StorageChannel;
+import appeng.api.storage.data.IAEStackType;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.AENetworkProxyMultiblock;
 import appeng.tile.grid.AENetworkTile;
 import cn.dancingsnow.neoecoae.platform.ae2.multiblock.FormationState;
+import cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider;
+import cn.dancingsnow.neoecoae.platform.ae2.storage.NativeStorageView;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockEntityType;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockPos;
 import cn.dancingsnow.neoecoae.platform.minecraft.BlockState;
@@ -49,8 +62,7 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
     private final BlockEntityType<?> type;
     private BlockState state;
     private final ManagedNode mainNode;
-    private final java.util.Map<appeng.api.storage.StorageChannel, java.util.List<appeng.api.storage.IMEInventoryHandler>> storageMounts = new java.util.EnumMap<>(
-        appeng.api.storage.StorageChannel.class);
+    private final Map<IAEStackType<?>, List<IMEInventoryHandler>> storageMounts = new IdentityHashMap<>();
 
     protected NativeNetworkBlockEntity(BlockEntityType<?> type, BlockPos position, BlockState state) {
         this.type = type;
@@ -311,12 +323,12 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
      * switches must not post one.
      */
     protected void refreshStorageAfterNodeStateChange() {
-        if (hasStorageProvider()) requestStorageRescan(false);
+        if (getStorageProvider() != null) requestStorageRescan(false);
         else storageMounts.clear();
     }
 
-    private boolean hasStorageProvider() {
-        return getMainNode().service(cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider.class) != null;
+    private IStorageProvider getStorageProvider() {
+        return getMainNode().service(IStorageProvider.class);
     }
 
     public Set<Direction> getGridConnectableSides(BlockOrientation orientation) {
@@ -389,16 +401,23 @@ public abstract class NativeNetworkBlockEntity extends AENetworkTile implements 
         return 0;
     }
 
-    public java.util.List<appeng.api.storage.IMEInventoryHandler> getCellArray(
-        appeng.api.storage.StorageChannel channel) {
-        if (!mainNode.isOnline() || !hasStorageProvider()) return java.util.Collections.emptyList();
-        return storageMounts.computeIfAbsent(channel, key -> {
-            var provider = mainNode.service(cn.dancingsnow.neoecoae.platform.ae2.storage.IStorageProvider.class);
-            java.util.List<appeng.api.storage.IMEInventoryHandler> views = new java.util.ArrayList<>();
-            if (provider != null) provider.mountInventories(
-                (inventory, priority) -> views.add(
-                    new cn.dancingsnow.neoecoae.platform.ae2.storage.NativeStorageView<>(inventory, key, priority)));
-            return java.util.Collections.unmodifiableList(views);
+    /** Keep the legacy entry point for callers typed as the tile rather than ICellProvider. */
+    @Deprecated
+    public List<IMEInventoryHandler> getCellArray(StorageChannel channel) {
+        if (channel == StorageChannel.ITEMS) return getCellArray(ITEM_STACK_TYPE);
+        if (channel == StorageChannel.FLUIDS) return getCellArray(FLUID_STACK_TYPE);
+        return Collections.emptyList();
+    }
+
+    public List<IMEInventoryHandler> getCellArray(IAEStackType<?> type) {
+        if (type == null || !mainNode.isOnline()) return Collections.emptyList();
+        IStorageProvider provider = getStorageProvider();
+        if (provider == null) return Collections.emptyList();
+        return storageMounts.computeIfAbsent(type, stackType -> {
+            List<IMEInventoryHandler> views = new ArrayList<>();
+            provider.mountInventories(
+                (inventory, priority) -> views.add(new NativeStorageView<>(inventory, stackType, priority)));
+            return Collections.unmodifiableList(views);
         });
     }
 
